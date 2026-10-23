@@ -141,10 +141,6 @@ func TestReservationStaffRepository_FullReplacementOwnsExclusiveMutationLock(t *
 				// UpdateExcluded([second]) ⇒ capable = universe\{second} = {first}
 				assert.Equal(t, []uint64{firstType.ID}, got,
 					"exclusion facade must replace capabilities as universe\\excluded, not dual-write exclusions")
-				var exclN int64
-				require.NoError(t, db.Model(&model.StaffReservationExclusion{}).
-					Where("staff_id = ?", staff.ID).Count(&exclN).Error)
-				assert.Zero(t, exclN, "Stage B: no production rows in staff_reservation_exclusions")
 			} else {
 				assert.Equal(t, []uint64{secondType.ID}, got,
 					"a full replacement must end at exactly one request, never their union")

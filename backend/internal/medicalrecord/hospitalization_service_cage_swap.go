@@ -14,13 +14,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
-// petRowLockFinder は SwapCages が死亡判定を同一 tx の行ロック下で行うための最小面。
+// petRowLockFinder は SwapCages が入れ替え対象ペットのローカル行を同一 tx で FOR UPDATE するための最小面。
 // petdomain.RowLockingRepository（CompleteRepository にのみ載せる narrow capability）と
 // 構造的に互換で、注入された petRepo が面を持たなければ 500 fail-closed にする
 // （doctorVerifier / CageMergeRepository の型アサーション拡張と同じ先例）。
+// 死亡判定はこのローカル行ロックだけでは成立しない（死亡は共通 subject の現行 revision が持つ）ため、
+// ロック後に petLife（EMR-491 D6 reader）が subject を FOR SHARE ロックして判定する。
 type petRowLockFinder interface {
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 }
@@ -45,6 +46,9 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 		// 注入 repo（テスト用の FindByID だけのモック等）では tx 直列化を
 		// 保証できないため、黙って通常 read には退避せず fail-closed にする。
 		return nil, nil, apperrors.WrapInternalServerError("cage swap requires a pet repository with row locking")
+	}
+	if s.petLife == nil {
+		return nil, nil, apperrors.WrapInternalServerError("cage swap requires a pet life state reader")
 	}
 	var outA, outB *model.Hospitalization
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
@@ -86,6 +90,8 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 		// 成立せず、死亡直後のペットを入れ替え得る。ペット行は pet_id 昇順・重複排除で
 		// FOR UPDATE してから契約判定する（入院行の id 昇順ロックと同じ規約で
 		// ロック順を揃え、デッドロックを防ぐ）。
+		// EMR-491 D6: ローカル pet 行ロックだけでは死亡判定の直列化にならないため、各ペットの
+		// ローカル行ロック直後に共通 subject の FOR SHARE ロックと現行 revision の再解決を同一 tx で行う。
 		petIDs := []uint64{first.PetID}
 		if second.PetID != first.PetID {
 			petIDs = append(petIDs, second.PetID)
@@ -101,8 +107,8 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 			if pet == nil {
 				return apperrors.WrapNotFound("pet", "status")
 			}
-			if sharedkernel.IsPetDeceased(pet) {
-				return apperrors.WrapInvalidInput("死亡したペットの入院はケージを入れ替えできません")
+			if err := validatePetNotDeceased(txCtx, s.petLife, clinicID, petID, "死亡したペットの入院はケージを入れ替えできません"); err != nil {
+				return err
 			}
 		}
 

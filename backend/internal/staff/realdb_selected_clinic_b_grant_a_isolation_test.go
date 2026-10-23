@@ -216,7 +216,6 @@ func setupRealDBStaffIsolationTestDB(t *testing.T) *gorm.DB {
 		&model.StaffPermissionGroup{},
 		&model.ReservationType{},
 		&model.StaffReservationCapability{},
-		&model.StaffReservationExclusion{},
 		&model.ShiftTemplate{},
 		&model.ShiftTemplateBreak{},
 		&model.ShiftEntry{},

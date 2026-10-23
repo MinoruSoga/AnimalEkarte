@@ -82,21 +82,38 @@ func (s *reservationScheduleService) Save(ctx context.Context, clinicID, staffID
 		return nil, false, err
 	}
 
+	startsAt, err := sharedkernel.ShiftClockToTimestamp(date, startTime)
+	if err != nil {
+		return nil, false, err
+	}
+	endsAt, err := sharedkernel.ShiftClockToTimestamp(date, endTime)
+	if err != nil {
+		return nil, false, err
+	}
+
 	entry := &model.ShiftEntry{
 		ClinicID:  clinicID,
 		StaffID:   staffID,
 		Date:      date,
 		ShiftType: shiftType,
-		StartTime: startTime,
-		EndTime:   endTime,
+		StartsAt:  startsAt,
+		EndsAt:    endsAt,
 	}
 
 	breaks := make([]model.ShiftEntryBreak, 0, len(input.Breaks))
 	for _, b := range input.Breaks {
-		breaks = append(breaks, model.ShiftEntryBreak{
-			BreakStart: b.Start,
-			BreakEnd:   b.End,
-		})
+		breakStart, err := sharedkernel.ShiftClockToTimestamp(date, &b.Start)
+		if err != nil {
+			return nil, false, err
+		}
+		breakEnd, err := sharedkernel.ShiftClockToTimestamp(date, &b.End)
+		if err != nil {
+			return nil, false, err
+		}
+		if breakStart == nil || breakEnd == nil {
+			return nil, false, apperrors.WrapInvalidInput("break start and end are required")
+		}
+		breaks = append(breaks, model.ShiftEntryBreak{StartsAt: breakStart, EndsAt: breakEnd})
 	}
 
 	savedEntry, savedBreaks, created, err := s.repo.Save(ctx, clinicID, entry, breaks)

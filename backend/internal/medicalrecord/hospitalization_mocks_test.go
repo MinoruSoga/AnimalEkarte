@@ -11,7 +11,28 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
+
+// stubPetLifeReader は EMR-491 D6 の死亡 reader の test double。fn 未指定は alive（明示した stub）。
+// 死亡・unresolved・reader 失敗のケースは fn で返す。
+type stubPetLifeReader struct {
+	fn func(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error)
+}
+
+func (s stubPetLifeReader) ReadPetLifeState(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error) {
+	if s.fn != nil {
+		return s.fn(ctx, clinicID, petID)
+	}
+	return sharedkernel.PetLifeStateAlive, nil
+}
+
+// stubPetLifeState は固定状態 / エラーを返す stubPetLifeReader を作る。
+func stubPetLifeState(state sharedkernel.PetLifeState, err error) stubPetLifeReader {
+	return stubPetLifeReader{fn: func(context.Context, uint64, uint64) (sharedkernel.PetLifeState, error) {
+		return state, err
+	}}
+}
 
 type mockReservationRepository struct {
 	assertOwnerInClinicFn             func(ctx context.Context, clinicID, ownerID uint64) error
@@ -33,8 +54,9 @@ func (m *mockReservationRepository) FindPetOwnerInClinic(ctx context.Context, cl
 	return 0, nil
 }
 
-func (m *mockReservationRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
-	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+// ReadPetLifeState は EMR-491 D6 の死亡 reader の最小 stub（常に alive の明示 test double）。
+func (m *mockReservationRepository) ReadPetLifeState(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+	return sharedkernel.PetLifeStateAlive, nil
 }
 
 func (m *mockReservationRepository) AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error {

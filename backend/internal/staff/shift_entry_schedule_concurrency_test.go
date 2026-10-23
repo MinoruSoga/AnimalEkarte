@@ -233,6 +233,7 @@ func TestRepository_DeleteByStaffDate_ReturnsNotFoundForAuthorizedAbsentKey(t *t
 }
 
 func TestRepository_SaveByStaffDate_SerializesConcurrentAbsentUpserts(t *testing.T) {
+	scheduleDate := time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC)
 	tests := []struct {
 		name     string
 		requests []struct {
@@ -247,18 +248,12 @@ func TestRepository_SaveByStaffDate_SerializesConcurrentAbsentUpserts(t *testing
 				breaks []model.ShiftEntryBreak
 			}{
 				{
-					notes: "first",
-					breaks: []model.ShiftEntryBreak{{
-						BreakStart: "11:00",
-						BreakEnd:   "11:30",
-					}},
+					notes:  "first",
+					breaks: []model.ShiftEntryBreak{shiftBreakAt(t, scheduleDate, "11:00", "11:30")},
 				},
 				{
-					notes: "second",
-					breaks: []model.ShiftEntryBreak{{
-						BreakStart: "13:00",
-						BreakEnd:   "14:00",
-					}},
+					notes:  "second",
+					breaks: []model.ShiftEntryBreak{shiftBreakAt(t, scheduleDate, "13:00", "14:00")},
 				},
 			},
 		},
@@ -269,11 +264,8 @@ func TestRepository_SaveByStaffDate_SerializesConcurrentAbsentUpserts(t *testing
 				breaks []model.ShiftEntryBreak
 			}{
 				{
-					notes: "with break",
-					breaks: []model.ShiftEntryBreak{{
-						BreakStart: "12:00",
-						BreakEnd:   "13:00",
-					}},
+					notes:  "with break",
+					breaks: []model.ShiftEntryBreak{shiftBreakAt(t, scheduleDate, "12:00", "13:00")},
 				},
 				{notes: "without break", breaks: []model.ShiftEntryBreak{}},
 			},
@@ -293,7 +285,7 @@ func TestRepository_SaveByStaffDate_SerializesConcurrentAbsentUpserts(t *testing
 			repo := NewShiftEntryRepository(db)
 			const clinicID = uint64(1)
 			staff := makeShiftEntryDoctor(t, db, clinicID, "concurrent absent upsert")
-			date := time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC)
+			date := scheduleDate
 			start := make(chan struct{})
 			results := make(chan outcome, len(tt.requests))
 			var wg sync.WaitGroup
@@ -355,8 +347,8 @@ func TestRepository_SaveByStaffDate_SerializesConcurrentAbsentUpserts(t *testing
 			require.Len(t, persisted[0].Breaks, len(updateResult.breaks))
 			for i := range updateResult.breaks {
 				assert.Equal(t, updateResult.breaks[i].ID, persisted[0].Breaks[i].ID)
-				assert.Equal(t, updateResult.breaks[i].BreakStart, persisted[0].Breaks[i].BreakStart)
-				assert.Equal(t, updateResult.breaks[i].BreakEnd, persisted[0].Breaks[i].BreakEnd)
+				assert.Equal(t, shiftClock(updateResult.breaks[i].StartsAt), shiftClock(persisted[0].Breaks[i].StartsAt))
+				assert.Equal(t, shiftClock(updateResult.breaks[i].EndsAt), shiftClock(persisted[0].Breaks[i].EndsAt))
 			}
 		})
 	}

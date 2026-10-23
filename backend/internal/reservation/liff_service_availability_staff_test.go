@@ -53,10 +53,10 @@ func (m *staffAvailMockReservationStaffRepository) CountUsageByStaffID(_ context
 func (m *staffAvailMockReservationStaffRepository) UpdateSortOrder(_ context.Context, _, _ uint64, _ string) error {
 	return nil
 }
-func (m *staffAvailMockReservationStaffRepository) FindAllExcludedReservationTypes(_ context.Context, _, _ uint64) ([]model.StaffReservationExclusion, error) {
+func (m *staffAvailMockReservationStaffRepository) FindAllExcludedReservationTypes(_ context.Context, _, _ uint64) ([]staffpkg.ReservationTypeExclusion, error) {
 	return nil, nil
 }
-func (m *staffAvailMockReservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationExclusion, error) {
+func (m *staffAvailMockReservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(_ context.Context, _ uint64, _ []uint64) ([]staffpkg.ReservationTypeExclusion, error) {
 	return nil, nil
 }
 func (m *staffAvailMockReservationStaffRepository) UpdateExcludedReservationTypes(_ context.Context, _, _ uint64, _ []uint64) error {

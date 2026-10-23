@@ -56,11 +56,10 @@ func TestListReservationStaffs_DoesNotExposeOtherClinicExclusionIDOrName(t *test
 		&model.Staff{},
 		&model.StaffClinicAssignment{},
 		&model.ReservationType{},
-		&model.StaffReservationExclusion{},
 		&model.StaffReservationCapability{},
 	))
 	require.NoError(t, db.Exec(
-		"TRUNCATE TABLE staff_reservation_capabilities, staff_reservation_exclusions, staff_clinic_assignments, reservation_types, staffs CASCADE",
+		"TRUNCATE TABLE staff_reservation_capabilities, staff_clinic_assignments, reservation_types, staffs CASCADE",
 	).Error)
 
 	company := &model.Company{Name: "予約スタッフ除外レスポンステスト法人"}

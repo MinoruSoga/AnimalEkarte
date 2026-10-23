@@ -32,18 +32,6 @@ func setupStaffShiftGraphAtomicityDB(t *testing.T) *gorm.DB {
 		&model.ShiftTemplateBreak{},
 	))
 	require.NoError(t, db.Exec(
-		"ALTER TABLE shift_entries ALTER COLUMN start_time TYPE time USING start_time::time",
-	).Error)
-	require.NoError(t, db.Exec(
-		"ALTER TABLE shift_entries ALTER COLUMN end_time TYPE time USING end_time::time",
-	).Error)
-	require.NoError(t, db.Exec(
-		"ALTER TABLE shift_entry_breaks ALTER COLUMN break_start TYPE time USING break_start::time",
-	).Error)
-	require.NoError(t, db.Exec(
-		"ALTER TABLE shift_entry_breaks ALTER COLUMN break_end TYPE time USING break_end::time",
-	).Error)
-	require.NoError(t, db.Exec(
 		"ALTER TABLE shift_templates ALTER COLUMN start_time TYPE time USING start_time::time",
 	).Error)
 	require.NoError(t, db.Exec(
@@ -87,17 +75,17 @@ func makeShiftGraphEntry(
 	clinicID, staffID uint64,
 ) *model.ShiftEntry {
 	t.Helper()
-	start, end := "09:00:00", "17:00:00"
+	date := time.Date(2026, 7, 24, 0, 0, 0, 0, time.UTC)
 	entry := &model.ShiftEntry{
 		ClinicID: clinicID, StaffID: staffID,
-		Date:      time.Date(2026, 7, 24, 0, 0, 0, 0, time.UTC),
+		Date:      date,
 		ShiftType: model.ShiftTypeFull,
-		StartTime: &start, EndTime: &end, Notes: "更新前",
+		StartsAt:  shiftTS(t, date, "09:00:00"), EndsAt: shiftTS(t, date, "17:00:00"), Notes: "更新前",
 	}
 	require.NoError(t, db.Create(entry).Error)
-	require.NoError(t, db.Create(&model.ShiftEntryBreak{
-		ShiftEntryID: entry.ID, BreakStart: "12:00:00", BreakEnd: "13:00:00",
-	}).Error)
+	seedBreak := shiftBreakAt(t, date, "12:00:00", "13:00:00")
+	seedBreak.ShiftEntryID = entry.ID
+	require.NoError(t, db.Create(&seedBreak).Error)
 	return entry
 }
 
@@ -142,8 +130,8 @@ func TestShiftEntryServiceUpdate_RollsBackParentAndBreaksDatabase(t *testing.T) 
 	var persisted []model.ShiftEntryBreak
 	require.NoError(t, db.Where("shift_entry_id = ?", entry.ID).Find(&persisted).Error)
 	require.Len(t, persisted, 1)
-	assert.Equal(t, "12:00:00", persisted[0].BreakStart)
-	assert.Equal(t, "13:00:00", persisted[0].BreakEnd)
+	assert.Equal(t, "12:00:00", shiftClock(persisted[0].StartsAt))
+	assert.Equal(t, "13:00:00", shiftClock(persisted[0].EndsAt))
 }
 
 type pausingShiftEntryLockRepository struct {
@@ -224,10 +212,10 @@ func TestShiftEntryServiceUpdate_SerializesEffectiveTimeValidationDatabase(t *te
 	assert.True(t, apperrors.IsInvalidInput(secondErr), "unexpected error: %v", secondErr)
 	var reloaded model.ShiftEntry
 	require.NoError(t, db.First(&reloaded, entry.ID).Error)
-	require.NotNil(t, reloaded.StartTime)
-	require.NotNil(t, reloaded.EndTime)
-	assert.Equal(t, "09:00:00", *reloaded.StartTime)
-	assert.Equal(t, "19:00:00", *reloaded.EndTime)
+	require.NotNil(t, reloaded.StartsAt)
+	require.NotNil(t, reloaded.EndsAt)
+	assert.Equal(t, "09:00:00", shiftClock(reloaded.StartsAt))
+	assert.Equal(t, "19:00:00", shiftClock(reloaded.EndsAt))
 }
 
 type failingShiftTemplateBreakRepository struct {

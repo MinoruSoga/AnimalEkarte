@@ -80,6 +80,7 @@ func TestHospitalizationService_DischargeWithBilling_AuditsBillingTotals(t *test
 	svc := NewHospitalizationServiceWithAudit(
 		hospRepo, newDischargeTestDeps(hospRepo, nil, nil, nil).reservation, nil, nil,
 		carePlanRepo, accountingRepo, billingItemRepo, &mockTransactor{}, auditWithOrder,
+		WithPetLifeStateReader(stubPetLifeReader{}),
 	)
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
@@ -152,6 +153,7 @@ func TestHospitalizationService_DischargeWithBilling_ManualCarePlanItemConvertsL
 	deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo)
 	svc := NewHospitalizationServiceWithAudit(
 		hospRepo, deps.reservation, nil, nil, carePlanRepo, accountingRepo, deps.billingItem, &mockTransactor{}, &hospitalizationAuditRecorder{},
+		WithPetLifeStateReader(stubPetLifeReader{}),
 	)
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
@@ -177,7 +179,7 @@ func TestHospitalizationService_DischargeWithBilling_MissingAuditDependencyFails
 		return &model.Hospitalization{ID: 10}, nil
 	})
 	deps := newDischargeTestDeps(hospRepo, nil, nil, nil)
-	svc := NewHospitalizationService(hospRepo, deps.reservation, nil, nil, nil, nil, nil, &mockTransactor{})
+	svc := NewHospitalizationService(hospRepo, deps.reservation, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
 		DischargeDate:    time.Now(),
@@ -207,6 +209,7 @@ func TestHospitalizationService_DischargeWithBilling_MissingOrZeroActorFailsBefo
 			deps := newDischargeTestDeps(hospRepo, nil, nil, nil)
 			svc := NewHospitalizationServiceWithAudit(
 				hospRepo, deps.reservation, nil, nil, nil, nil, nil, &mockTransactor{}, &hospitalizationAuditRecorder{},
+				WithPetLifeStateReader(stubPetLifeReader{}),
 			)
 
 			result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
@@ -231,6 +234,7 @@ func TestHospitalizationService_DischargeWithBilling_WithoutAccountingDoesNotAud
 	deps := newDischargeTestDeps(hospRepo, nil, nil, nil)
 	svc := NewHospitalizationServiceWithAudit(
 		hospRepo, deps.reservation, nil, nil, nil, nil, nil, &mockTransactor{}, audit,
+		WithPetLifeStateReader(stubPetLifeReader{}),
 	)
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
@@ -265,6 +269,7 @@ func TestHospitalizationService_DischargeWithBilling_ZeroCarePlanCreatesZeroBill
 	deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, &mockBillingItemRepository{})
 	svc := NewHospitalizationServiceWithAudit(
 		hospRepo, deps.reservation, nil, nil, carePlanRepo, accountingRepo, deps.billingItem, &mockTransactor{}, audit,
+		WithPetLifeStateReader(stubPetLifeReader{}),
 	)
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
@@ -387,6 +392,7 @@ func TestHospitalizationService_DischargeWithBilling_AuditFailureRollsBackAllWri
 	deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo)
 	svc := NewHospitalizationServiceWithAudit(
 		hospRepo, deps.reservation, nil, nil, carePlanRepo, accountingRepo, billingItemRepo, transactor, audit,
+		WithPetLifeStateReader(stubPetLifeReader{}),
 	)
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{

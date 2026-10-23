@@ -19,6 +19,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -203,7 +204,7 @@ func (s *reservationStaffQueryGuardService) List(ctx context.Context, clinicID u
 	s.reject(clinicID, "staff List")
 	return s.ReservationStaffService.List(ctx, clinicID)
 }
-func (s *reservationStaffQueryGuardService) ListExcludedByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
+func (s *reservationStaffQueryGuardService) ListExcludedByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) (map[uint64][]staffpkg.ReservationTypeExclusion, error) {
 	s.reject(clinicID, "ListExcludedByStaffIDs")
 	return s.ReservationStaffService.ListExcludedByStaffIDs(ctx, clinicID, staffIDs)
 }
@@ -282,10 +283,10 @@ func setupRealDBReservationIsolationTestDB(t *testing.T) *gorm.DB {
 		&model.ReservationTypeUnavailableTime{}, &model.ReservationTypeAvailableSlot{},
 		&model.ReservationTypeOccupation{}, &model.Reservation{}, &model.ShiftEntry{},
 		&model.ShiftEntryBreak{}, &model.LineReservationSetting{},
-		&model.StaffReservationCapability{}, &model.StaffReservationExclusion{},
+		&model.StaffReservationCapability{},
 	))
 	testdb.Truncate(t, db,
-		"staff_reservation_capabilities", "staff_reservation_exclusions",
+		"staff_reservation_capabilities",
 		"reservation_type_occupations", "reservation_type_available_slots",
 		"reservation_type_unavailable_times", "appointments", "shift_entry_breaks",
 		"shift_entries", "line_reservation_settings", "reservation_types",

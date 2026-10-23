@@ -81,3 +81,33 @@ func ValidateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) e
 	}
 	return nil
 }
+
+// ShiftClockToTimestamp は勤務日と時刻文字列（HH:MM / HH:MM:SS）から time.Local の
+// タイムスタンプを組み立てる（shift_entries.starts_at/ends_at, shift_entry_breaks.starts_at/ends_at 用）。
+// 年月日は date.In(time.Local) から取る（レスポンスの Date 整形と同じゾーン）。
+// clock が nil または空文字なら (nil, nil)。解析できない clock は invalid input。
+func ShiftClockToTimestamp(date time.Time, clock *string) (*time.Time, error) {
+	if clock == nil || *clock == "" {
+		return nil, nil
+	}
+	normalized := NormalizeTimeString(clock)
+	if normalized == nil {
+		return nil, apperrors.WrapInvalidInput("時刻は HH:MM 形式で指定してください")
+	}
+	parsed, err := time.ParseInLocation("15:04:05", *normalized, time.Local)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("時刻の解析に失敗しました")
+	}
+	year, month, day := date.In(time.Local).Date()
+	ts := time.Date(year, month, day, parsed.Hour(), parsed.Minute(), parsed.Second(), 0, time.Local)
+	return &ts, nil
+}
+
+// ShiftTimestampToClock は starts_at/ends_at を time.Local の "HH:MM:SS" へ戻す。nil は nil。
+func ShiftTimestampToClock(ts *time.Time) *string {
+	if ts == nil {
+		return nil
+	}
+	clock := ts.In(time.Local).Format("15:04:05")
+	return &clock
+}

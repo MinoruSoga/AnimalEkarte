@@ -24,7 +24,7 @@ func (s *hospitalizationService) createHospitalizationInTx(
 	if err := sharedkernel.ValidateReservationOwnerPetLinks(txCtx, s.reservationRepo, clinicID, &ownerID, &petID); err != nil {
 		return err
 	}
-	if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, petID, "死亡したペットは入院登録できません"); err != nil {
+	if err := validatePetNotDeceased(txCtx, s.petLife, clinicID, petID, "死亡したペットは入院登録できません"); err != nil {
 		return err
 	}
 	if err := validateOwnedMasterFK(txCtx, "cage", clinicID, input.CageID,

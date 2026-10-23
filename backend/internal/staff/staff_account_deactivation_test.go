@@ -439,15 +439,15 @@ func TestStaffRepository_Update_DeactivateWritesDurableAudit(t *testing.T) {
 	entries := findDeactivationAudits(t, db, acc.ID)
 	require.Len(t, entries, 1, "アカウント無効化は audit_logs に1行永続化される")
 	entry := entries[0]
-	require.NotNil(t, entry.ClinicID)
-	assert.Equal(t, clinicID, *entry.ClinicID)
+	assert.Equal(t, clinicID, entry.ClinicID)
 	assert.Equal(t, model.AuditActorTypeStaff, entry.ActorType)
 	require.NotNil(t, entry.ActorID)
 	assert.Equal(t, actor.ID, *entry.ActorID)
 	assert.Equal(t, model.AuditResourceAccount, entry.Resource)
 	require.NotNil(t, entry.ResourceID)
 	assert.Equal(t, acc.ID, *entry.ResourceID)
-	assert.Contains(t, string(entry.NewValue), "staff_id")
+	require.NotNil(t, entry.NewValue)
+	assert.Contains(t, string(*entry.NewValue), "staff_id")
 }
 
 func TestStaffRepository_Update_DeactivateAuditFailureRollsBackMutation(t *testing.T) {

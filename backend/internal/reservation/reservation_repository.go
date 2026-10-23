@@ -10,6 +10,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/pet"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // staffAssignedToClinicsCond は Preload した担当者（Doctor）を、指定クリニック集合の
@@ -198,9 +200,13 @@ type ReservationQueryRepository interface {
 	AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error
 	// FindPetOwnerInClinic は pet が clinic に属する場合にその OwnerID を返す（AUD-001、dbOrTx 参加）。
 	FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error)
-	// FindPetByIDInClinic は clinic スコープでペットを読む（SD-10 死亡 write ガード用、dbOrTx 参加）。
-	// 部分列（id / owner_id / deceased_at / status）のみを返す。
+	// FindPetByIDInClinic は clinic スコープでペットの所属（id / clinic_id / owner_id）を読む（dbOrTx 参加）。
+	// 死亡状態は返さない。生死の判定は ReadPetLifeState を使うこと（EMR-491 D6）。
 	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+	// ReadPetLifeState は共通 subject の現行 revision から clinic スコープのペットの生死を返す
+	// （SD-10 死亡 write ガード用）。ambient transaction 必須で subject 行を FOR SHARE ロックする。
+	// sharedkernel.PetLifeStateReader を満たす。
+	ReadPetLifeState(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error)
 	// AssertLineCustomerInClinic は line_customer が clinic に属することを検証する（AUD-001、dbOrTx 参加）。
 	AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error
 }
@@ -260,6 +266,9 @@ type ReservationStore interface {
 
 type reservationRepository struct {
 	db *gorm.DB
+	// petLife は死亡 write ガードの reader（EMR-491 D6）。NewReservationRepository が pet package の
+	// 実装を配線する。nil の場合 ReadPetLifeState は fail-closed で拒否する。
+	petLife sharedkernel.PetLifeStateReader
 	// nowFn は次回予定日の JST 暦日窓検証（Codex #19）で使う時計。
 	// テストがロック待ち中の日跨ぎを再現できるよう注入可能にする
 	// （lstep_batch_service.go の nowFn と同じパターン）。
@@ -268,7 +277,7 @@ type reservationRepository struct {
 
 // NewReservationRepository は owner内repositoryとcross-domain intentを実装するstoreを返す。
 func NewReservationRepository(db *gorm.DB) ReservationStore {
-	return &reservationRepository{db: db, nowFn: time.Now}
+	return &reservationRepository{db: db, nowFn: time.Now, petLife: pet.NewLifeStateReader()}
 }
 
 // now は検証用の現在時刻を返す。日付窓チェック専用で、checked_in_at 等の

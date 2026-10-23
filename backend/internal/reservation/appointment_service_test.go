@@ -12,6 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // mockReservationRepository は ReservationRepository のテスト用モック実装
@@ -34,6 +35,7 @@ type mockReservationRepository struct {
 	assertOwnerInClinicFn              func(ctx context.Context, clinicID, ownerID uint64) error
 	findPetOwnerInClinicFn             func(ctx context.Context, clinicID, petID uint64) (uint64, error)
 	findPetByIDInClinicFn              func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+	readPetLifeStateFn                 func(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error)
 	assertLineCustomerInClinicFn       func(ctx context.Context, clinicID, lineCustomerID uint64) error
 	acquireBookingLockFn               func(ctx context.Context, clinicID uint64) error
 	acquireNextVisitIntentLockFn       func(ctx context.Context, clinicID, petID uint64) error
@@ -189,7 +191,15 @@ func (m *mockReservationRepository) FindPetByIDInClinic(ctx context.Context, cli
 	if m.findPetByIDInClinicFn != nil {
 		return m.findPetByIDInClinicFn(ctx, clinicID, petID)
 	}
-	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+	return &model.Pet{ID: petID}, nil
+}
+
+// ReadPetLifeState は EMR-491 D6 の死亡 reader のモック。既定は alive（明示した test double）。
+func (m *mockReservationRepository) ReadPetLifeState(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error) {
+	if m.readPetLifeStateFn != nil {
+		return m.readPetLifeStateFn(ctx, clinicID, petID)
+	}
+	return sharedkernel.PetLifeStateAlive, nil
 }
 
 func (m *mockReservationRepository) assertLineCustomerReservationOwner(ctx context.Context, clinicID, customerID uint64, ownerID *uint64) error {
@@ -2729,41 +2739,36 @@ func TestReservationService_UpdateReservationRoute(t *testing.T) {
 	})
 }
 
-// #261 P0 / BUG-RES-DECEASED-STATUS-BYPASS: death = status=deceased OR deceased_at != nil.
-func TestReservationService_Create_RejectsDeceasedPetVariants(t *testing.T) {
+// #261 P0 / EMR-491 D6: deceased は InvalidInput、unresolved / reader 失敗は生存扱いにせずエラーで拒否する。
+func TestReservationService_Create_RejectsDeceasedOrUnresolvedPet(t *testing.T) {
 	now := time.Now()
-	deceasedAt := now.Add(-24 * time.Hour)
 	petID := uint64(5)
 	ownerID := uint64(2)
 
 	cases := []struct {
-		name string
-		pet  *model.Pet
+		name        string
+		state       sharedkernel.PetLifeState
+		readErr     error
+		wantInvalid bool
 	}{
+		{name: "deceased", state: sharedkernel.PetLifeStateDeceased, wantInvalid: true},
 		{
-			name: "deceased/null",
-			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusDeceased},
+			name:    "unresolved (NULL status without date)",
+			readErr: apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recorded"),
 		},
-		{
-			name: "deceased/dated",
-			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt},
-		},
-		{
-			name: "alive/dated",
-			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusAlive, DeceasedAt: &deceasedAt},
-		},
+		{name: "reader failure", readErr: errors.New("db down")},
+		{name: "empty state is not alive"},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			createCalled := false
-			pet := tc.pet
 			repo := &mockReservationRepository{
 				findPetOwnerInClinicFn: func(_ context.Context, _, id uint64) (uint64, error) {
 					return ownerID, nil
 				},
-				findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-					return pet, nil
+				readPetLifeStateFn: func(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+					return tc.state, tc.readErr
 				},
 				createFn: func(_ context.Context, _ *model.Reservation) error {
 					createCalled = true
@@ -2784,10 +2789,17 @@ func TestReservationService_Create_RejectsDeceasedPetVariants(t *testing.T) {
 			})
 
 			require.Error(t, err)
-			assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
-			assert.Contains(t, err.Error(), reservationDeceasedPetMessage)
+			if tc.wantInvalid {
+				assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
+				assert.Contains(t, err.Error(), reservationDeceasedPetMessage)
+			} else {
+				assert.False(t, apperrors.IsInvalidInput(err), "unknown must not be reported as a deceased business rejection: %v", err)
+			}
+			if tc.readErr != nil {
+				assert.ErrorIs(t, err, tc.readErr, "reader error must propagate")
+			}
 			assert.Nil(t, result)
-			assert.False(t, createCalled, "repo.Create must not be called for deceased pet (%s)", tc.name)
+			assert.False(t, createCalled, "repo.Create must not be called for non-alive pet (%s)", tc.name)
 		})
 	}
 }
@@ -2801,8 +2813,8 @@ func TestReservationService_Create_AllowsLivingPet(t *testing.T) {
 		findPetOwnerInClinicFn: func(_ context.Context, _, id uint64) (uint64, error) {
 			return ownerID, nil
 		},
-		findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, OwnerID: ownerID, Status: model.PetStatusAlive}, nil
+		readPetLifeStateFn: func(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+			return sharedkernel.PetLifeStateAlive, nil
 		},
 		createFn: func(_ context.Context, r *model.Reservation) error {
 			createCalled = true
@@ -2828,7 +2840,6 @@ func TestReservationService_Create_AllowsLivingPet(t *testing.T) {
 }
 
 func TestReservationService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
-	deceasedAt := time.Now().Add(-24 * time.Hour)
 	newPetID := uint64(9)
 	ownerID := uint64(2)
 	updateCalled := false
@@ -2848,8 +2859,8 @@ func TestReservationService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
 		findPetOwnerInClinicFn: func(_ context.Context, _, id uint64) (uint64, error) {
 			return ownerID, nil
 		},
-		findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, OwnerID: ownerID, DeceasedAt: &deceasedAt, Status: model.PetStatusDeceased}, nil
+		readPetLifeStateFn: func(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+			return sharedkernel.PetLifeStateDeceased, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 			updateCalled = true
@@ -2905,11 +2916,11 @@ func TestReservationService_CreateBatch_RejectsDeceasedNullPet(t *testing.T) {
 			return false, nil
 		},
 		findPetOwnerInClinicFn: func(_ context.Context, _ uint64, _ uint64) (uint64, error) { return 1, nil },
-		findPetByIDInClinicFn: func(_ context.Context, _, petID uint64) (*model.Pet, error) {
+		readPetLifeStateFn: func(_ context.Context, _, petID uint64) (sharedkernel.PetLifeState, error) {
 			if petID == 10 {
-				return &model.Pet{ID: petID, OwnerID: 1, Status: model.PetStatusDeceased}, nil
+				return sharedkernel.PetLifeStateDeceased, nil
 			}
-			return &model.Pet{ID: petID, OwnerID: 1, Status: model.PetStatusAlive}, nil
+			return sharedkernel.PetLifeStateAlive, nil
 		},
 		countConflictsFn: func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) {
 			return 0, nil

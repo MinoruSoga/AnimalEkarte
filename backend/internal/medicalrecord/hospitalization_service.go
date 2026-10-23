@@ -58,9 +58,10 @@ type UpdateHospitalizationInput struct {
 }
 
 // validatePetNotDeceased は死亡ペットへの業務書き込みをブロックする（SD-10・臨床安全）。
-// 実装正本は sharedkernel.ValidatePetNotDeceased（#261 P0 で昇格）。message は呼び出し元の業務文言。
-func validatePetNotDeceased(ctx context.Context, petRepo petFinder, clinicID, petID uint64, message string) error {
-	return sharedkernel.ValidatePetNotDeceased(ctx, petRepo, clinicID, petID, message)
+// 実装正本は sharedkernel.ValidatePetNotDeceased（#261 P0 で昇格・EMR-491 D6 で reader 化）。
+// message は呼び出し元の業務文言。reader は ambient transaction 内で呼ぶこと。
+func validatePetNotDeceased(ctx context.Context, petLife sharedkernel.PetLifeStateReader, clinicID, petID uint64, message string) error {
+	return sharedkernel.ValidatePetNotDeceased(ctx, petLife, clinicID, petID, message)
 }
 
 // resolveFinalHospitalizationOwnerPet は PATCH 入力と現在値から最終 Owner/Pet を求める（AUD-004）。
@@ -159,6 +160,7 @@ type hospitalizationService struct {
 	reservationRepo   sharedkernel.OwnerPetLinkVerifier
 	doctorVerifier    hospitalizationDoctorVerifier
 	petRepo           petFinder
+	petLife           sharedkernel.PetLifeStateReader
 	cageRepo          cageFinder
 	carePlanItemRepo  CarePlanItemRepository
 	accountingRepo    accountingCreator
@@ -176,6 +178,14 @@ type HospitalizationServiceOption func(*hospitalizationService)
 func WithTreatmentPlanRepository(repo TreatmentPlanRepository) HospitalizationServiceOption {
 	return func(s *hospitalizationService) {
 		s.treatmentPlanRepo = repo
+	}
+}
+
+// WithPetLifeStateReader injects the EMR-491 D6 death reader used by the create / update / cage-swap
+// write guards. When it is not injected those writes fail closed (never treated as alive).
+func WithPetLifeStateReader(reader sharedkernel.PetLifeStateReader) HospitalizationServiceOption {
+	return func(s *hospitalizationService) {
+		s.petLife = reader
 	}
 }
 
@@ -407,7 +417,7 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 			}
 		}
 		if input.PetID != nil {
-			if err := validatePetNotDeceased(txCtx, s.petRepo, clinicID, *input.PetID, "死亡したペットは入院登録できません"); err != nil {
+			if err := validatePetNotDeceased(txCtx, s.petLife, clinicID, *input.PetID, "死亡したペットは入院登録できません"); err != nil {
 				return err
 			}
 		}

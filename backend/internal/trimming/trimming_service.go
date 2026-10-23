@@ -136,8 +136,9 @@ type trimmingService struct {
 // It intentionally exposes only trimming-specific intents plus the reads needed by this domain.
 type TrimmingReservationRepository interface {
 	sharedkernel.OwnerPetLinkVerifier
-	// FindPetByIDInClinic is required for SD-10 deceased write guard (#261 P0).
-	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+	// ReadPetLifeState is required for the SD-10 deceased write guard (#261 P0, EMR-491 D6).
+	// It must run inside the ambient write transaction.
+	ReadPetLifeState(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error)
 	FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
 	FindTrimmingByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	AcquireBookingLock(ctx context.Context, clinicID uint64) error

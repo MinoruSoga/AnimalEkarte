@@ -41,10 +41,10 @@ type UpdateReservationStaffInput struct {
 type ReservationStaffCoreService interface {
 	List(ctx context.Context, clinicID uint64) ([]model.Staff, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
+	Create(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []staffpkg.ReservationTypeExclusion, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []staffpkg.ReservationTypeExclusion, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool, actorStaffID uint64) (*model.Staff, []model.StaffReservationExclusion, error)
+	PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool, actorStaffID uint64) (*model.Staff, []staffpkg.ReservationTypeExclusion, error)
 	PatchSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
@@ -52,7 +52,7 @@ type ReservationStaffCoreService interface {
 type ReservationStaffExclusionService interface {
 	// ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す（N+1回避）
 	// Stage B: values are derived from capabilities (compatibility facade).
-	ListExcludedByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
+	ListExcludedByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) (map[uint64][]staffpkg.ReservationTypeExclusion, error)
 }
 
 // ReservationStaffCapabilityService は対応可能予約区分の bulk read。
@@ -105,23 +105,24 @@ func (s *reservationStaffService) GetByID(ctx context.Context, clinicID, id uint
 	return staff, nil
 }
 
-func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []staffpkg.ReservationTypeExclusion, error) {
 	// TASK-021 UNIT-021-A: request excluded_type_ids removed. Create always seeds full active
 	// universe via inverse facade with empty exclusion (same as former empty-array path).
 	staffType := model.StaffType(input.StaffType)
 	if staffType == "" {
 		staffType = model.StaffTypeDoctor
 	}
+	sortOrder := input.SortOrder
 	staff := &model.Staff{
 		ClinicID:           clinicID,
 		Name:               input.Name,
 		IsActive:           true,
-		SortOrder:          input.SortOrder,
+		SortOrder:          &sortOrder,
 		StaffType:          staffType,
 		ReservationVisible: input.ReservationVisible,
 		ReservationComment: input.ReservationComment,
 	}
-	var excluded []model.StaffReservationExclusion
+	var excluded []staffpkg.ReservationTypeExclusion
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, staff, clinicID); err != nil {
 			return apperrors.Wrap(err, "failed to create reservation staff")
@@ -145,14 +146,14 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 	return staff, excluded, nil
 }
 
-func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []staffpkg.ReservationTypeExclusion, error) {
 	// TASK-021 UNIT-021-A: request excluded_type_ids removed. Capability replacement is only via
 	// capable-reservation-types API. Update is staff-fields only + exclusion readback.
 	// BE-refactor.md X-8: staff 本体更新を WithTx で括り原子化する。	// mutation-specific UPDATE lock を最初に取得し、所有権確認から更新までを直列化する。
 	// FindByID の SHARE lock から UPDATE への lock upgrade は、Update と PatchStatus が
 	// 同時実行された際に相互待ちを作り得るため mutation の先頭では使用しない。
 	var updated *model.Staff
-	var excluded []model.StaffReservationExclusion
+	var excluded []staffpkg.ReservationTypeExclusion
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if _, err := s.repo.LockForMutation(txCtx, clinicID, id); err != nil {
 			return apperrors.Wrap(err, "failed to verify reservation staff ownership")
@@ -192,9 +193,9 @@ func (s *reservationStaffService) Delete(ctx context.Context, clinicID, id uint6
 	return nil
 }
 
-func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool, actorStaffID uint64) (*model.Staff, []model.StaffReservationExclusion, error) {
+func (s *reservationStaffService) PatchStatus(ctx context.Context, clinicID, id uint64, isActive bool, actorStaffID uint64) (*model.Staff, []staffpkg.ReservationTypeExclusion, error) {
 	var result *model.Staff
-	var excluded []model.StaffReservationExclusion
+	var excluded []staffpkg.ReservationTypeExclusion
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		locked, err := s.repo.LockForMutation(txCtx, clinicID, id)
 		if err != nil {
@@ -255,12 +256,12 @@ func (s *reservationStaffService) ListExcludedByStaffIDs(
 	ctx context.Context,
 	clinicID uint64,
 	staffIDs []uint64,
-) (map[uint64][]model.StaffReservationExclusion, error) {
+) (map[uint64][]staffpkg.ReservationTypeExclusion, error) {
 	items, err := s.repo.FindAllExcludedReservationTypesByStaffIDs(ctx, clinicID, staffIDs)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to list excluded service types")
 	}
-	m := make(map[uint64][]model.StaffReservationExclusion, len(staffIDs))
+	m := make(map[uint64][]staffpkg.ReservationTypeExclusion, len(staffIDs))
 	for i := range items {
 		sid := items[i].StaffID
 		m[sid] = append(m[sid], items[i])

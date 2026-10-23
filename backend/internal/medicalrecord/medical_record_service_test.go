@@ -11,6 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func TestMedicalRecordService_List(t *testing.T) {
@@ -1234,7 +1235,7 @@ type mockReservationRepoForMedicalRecord struct {
 	prepareFinalizationFn func(ctx context.Context, clinicID, id uint64) error
 	assertOwnerFn         func(ctx context.Context, clinicID, ownerID uint64) error
 	findPetOwnerFn        func(ctx context.Context, clinicID, petID uint64) (uint64, error)
-	findPetByIDFn         func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+	readPetLifeStateFn    func(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error)
 	findByIDCallCount     int
 }
 
@@ -1281,11 +1282,12 @@ func (m *mockReservationRepoForMedicalRecord) FindPetOwnerInClinic(ctx context.C
 	return 0, nil
 }
 
-func (m *mockReservationRepoForMedicalRecord) FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
-	if m.findPetByIDFn != nil {
-		return m.findPetByIDFn(ctx, clinicID, petID)
+// ReadPetLifeState は EMR-491 D6 の死亡 reader のモック。既定は alive（明示した test double）。
+func (m *mockReservationRepoForMedicalRecord) ReadPetLifeState(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error) {
+	if m.readPetLifeStateFn != nil {
+		return m.readPetLifeStateFn(ctx, clinicID, petID)
 	}
-	return &model.Pet{ID: petID, Status: model.PetStatusAlive, DeceasedAt: nil}, nil
+	return sharedkernel.PetLifeStateAlive, nil
 }
 
 // mockLstepDeliveryTriggerForMR は TriggerFirstVisitWelcome の呼び出し検証用モック

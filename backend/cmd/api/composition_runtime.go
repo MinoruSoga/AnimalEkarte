@@ -25,6 +25,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/operation"
 	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/pet"
 	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/support"
 	"github.com/animal-ekarte/backend/internal/trimming"
@@ -331,6 +332,7 @@ func newRuntimeMedicalRecordComposition(
 			LineCustomers:    lstepApplication.LineCustomers,
 			Reservations:     repositories.reservation.Reservations,
 			Pets:             repositories.ownerPet.Pet,
+			PetLife:          pet.NewLifeStateReader(),
 			Staff:            repositories.staff.Staff,
 			StaffAssignments: repositories.staff.Assignments,
 			Inventory:        repositories.inventory,

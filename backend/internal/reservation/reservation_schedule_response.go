@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type shiftEntryBreakResponse struct {
@@ -38,8 +39,8 @@ func toScheduleEntryResponse(e *ScheduleEntry) scheduleEntryResponse {
 		StaffID:   e.Entry.StaffID,
 		Date:      e.Entry.Date.In(time.Local).Format(time.DateOnly),
 		ShiftType: string(e.Entry.ShiftType),
-		WorkStart: e.Entry.StartTime,
-		WorkEnd:   e.Entry.EndTime,
+		WorkStart: sharedkernel.ShiftTimestampToClock(e.Entry.StartsAt),
+		WorkEnd:   sharedkernel.ShiftTimestampToClock(e.Entry.EndsAt),
 		Note:      e.Entry.Notes,
 		Breaks:    breaks,
 		CreatedAt: httpapi.LocalTimeRFC3339(e.Entry.CreatedAt),
@@ -47,10 +48,18 @@ func toScheduleEntryResponse(e *ScheduleEntry) scheduleEntryResponse {
 	}
 }
 
+// shiftClockOrEmpty は休憩の starts_at/ends_at を wire 形式 "HH:MM:SS"（time.Local）へ戻す。nil は空文字。
+func shiftClockOrEmpty(ts *time.Time) string {
+	if clock := sharedkernel.ShiftTimestampToClock(ts); clock != nil {
+		return *clock
+	}
+	return ""
+}
+
 func toShiftEntryBreakResponse(b model.ShiftEntryBreak) shiftEntryBreakResponse {
 	return shiftEntryBreakResponse{
 		ID:         b.ID,
-		BreakStart: b.BreakStart,
-		BreakEnd:   b.BreakEnd,
+		BreakStart: shiftClockOrEmpty(b.StartsAt),
+		BreakEnd:   shiftClockOrEmpty(b.EndsAt),
 	}
 }

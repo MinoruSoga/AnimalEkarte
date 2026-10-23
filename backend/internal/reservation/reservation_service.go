@@ -242,26 +242,15 @@ func ValidateReservationOwnerPetLinksWithRepo(ctx context.Context, repo sharedke
 // reservationDeceasedPetMessage は予約系 write が死亡ペットを拒否するときの安定メッセージ。
 const reservationDeceasedPetMessage = "死亡したペットは予約できません"
 
-// petByIDInClinicFinder は FindPetByIDInClinic を sharedkernel.PetByIDFinder へ適合する。
-type petByIDInClinicFinder interface {
-	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
-}
-
-type petByIDAdapter struct {
-	repo petByIDInClinicFinder
-}
-
-func (a petByIDAdapter) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
-	return a.repo.FindPetByIDInClinic(ctx, clinicID, id)
-}
-
 // ValidateReservationPetNotDeceased は petID が非 nil のとき死亡ペットへの予約 write を拒否する（#261 P0）。
 // nil pet（未紐付け・クリア）は従来どおり許可する。
-func ValidateReservationPetNotDeceased(ctx context.Context, repo petByIDInClinicFinder, clinicID uint64, petID *uint64) error {
+// 生死は EMR-491 D6 の reader（共通 subject の現行 revision）で解決し、ambient transaction 内で
+// subject 行を FOR SHARE ロックする。tx 外・reader 未配線・unresolved は拒否する（生存扱いにしない）。
+func ValidateReservationPetNotDeceased(ctx context.Context, reader sharedkernel.PetLifeStateReader, clinicID uint64, petID *uint64) error {
 	if petID == nil {
 		return nil
 	}
-	return sharedkernel.ValidatePetNotDeceased(ctx, petByIDAdapter{repo: repo}, clinicID, *petID, reservationDeceasedPetMessage)
+	return sharedkernel.ValidatePetNotDeceased(ctx, reader, clinicID, *petID, reservationDeceasedPetMessage)
 }
 
 // createOrPromoteTentative は全実予約作成経路（内部 Create・CreateBatch・admin/walk-in

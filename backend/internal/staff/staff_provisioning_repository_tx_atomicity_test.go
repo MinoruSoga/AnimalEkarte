@@ -82,7 +82,7 @@ func TestStaffProvisioningRepository_WritersParticipateInAmbientTxRollback(t *te
 		}
 		clinicID := f.clinicA
 		if err := f.repo.WriteAudit(txCtx, &model.AuditLog{
-			ClinicID:  &clinicID,
+			ClinicID:  clinicID,
 			ActorType: model.AuditActorTypeSystem,
 			Action:    model.AuditActionStaffProvisionCreate,
 			Resource:  model.AuditResourceStaff,
@@ -132,7 +132,7 @@ func TestStaffProvisioningRepository_AmbientRequiredMethodsFailClosedWithoutTx(t
 		"occupation lock requires an ambient transaction")
 	clinicID := f.clinicA
 	requireInternalAppError(t, f.repo.WriteAudit(ctx, &model.AuditLog{
-		ClinicID:  &clinicID,
+		ClinicID:  clinicID,
 		ActorType: model.AuditActorTypeSystem,
 		Action:    model.AuditActionStaffProvisionCreate,
 		Resource:  model.AuditResourceStaff,
@@ -245,15 +245,16 @@ func TestStaffProvisioningRepository_ReadersParticipateInAmbientTx(t *testing.T)
 
 		// --- Uncommitted receipt audit → FindReceiptsInScope ---
 		clinicID := f.clinicA
-		payload, _ := json.Marshal(map[string]any{
+		payloadBytes, _ := json.Marshal(map[string]any{
 			"batch_id": "reader-batch", "digest": "d", "count": 1,
 		})
+		payload := json.RawMessage(payloadBytes)
 		if err := f.repo.WriteAudit(txCtx, &model.AuditLog{
-			ClinicID:  &clinicID,
+			ClinicID:  clinicID,
 			ActorType: model.AuditActorTypeSystem,
 			Action:    model.AuditActionStaffProvisionReceipt,
 			Resource:  model.AuditResourceStaffProvisionBatch,
-			NewValue:  payload,
+			NewValue:  &payload,
 			CreatedAt: time.Now(),
 		}); err != nil {
 			return err

@@ -208,7 +208,7 @@ func TestHospitalizationService_Create_RejectsCrossClinicCageFK(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 				return &model.Pet{ID: id}, nil
 			},
-		}, rejectCageRepo(ownedCageID), nil, nil, nil, &mockTransactor{})
+		}, rejectCageRepo(ownedCageID), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 	}
 
 	t.Run("rejects cross-clinic cage_id and does not persist", func(t *testing.T) {
@@ -251,7 +251,7 @@ func TestHospitalizationService_Update_RejectsCrossClinicCageFK(t *testing.T) {
 				return &model.Hospitalization{ID: 1, ClinicID: clinicID}, nil
 			},
 		}
-		return NewHospitalizationService(repo, nil, nil, rejectCageRepo(ownedCageID), nil, nil, nil, &mockTransactor{})
+		return NewHospitalizationService(repo, nil, nil, rejectCageRepo(ownedCageID), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 	}
 
 	t.Run("rejects cross-clinic cage_id on update and does not persist", func(t *testing.T) {
@@ -308,7 +308,7 @@ func TestHospitalizationService_Create_ValidatesDoctorInWriteTransaction(t *test
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 				return &model.Pet{ID: id}, nil
 			},
-		}, acceptAnyCageRepo(), nil, nil, nil, tx)
+		}, acceptAnyCageRepo(), nil, nil, nil, tx, WithPetLifeStateReader(stubPetLifeReader{}))
 	}
 
 	t.Run("rejects doctor outside clinic without persisting", func(t *testing.T) {
@@ -374,7 +374,7 @@ func TestHospitalizationService_Update_ValidatesDoctorInWriteTransaction(t *test
 		tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
 			return fn(context.WithValue(ctx, txContextKey{}, true))
 		}}
-		return NewHospitalizationService(repo, relations, nil, nil, nil, nil, nil, tx)
+		return NewHospitalizationService(repo, relations, nil, nil, nil, nil, nil, tx, WithPetLifeStateReader(stubPetLifeReader{}))
 	}
 
 	t.Run("rejects doctor outside clinic without persisting", func(t *testing.T) {

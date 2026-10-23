@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
 type reservationStaffResponse struct {
@@ -36,7 +37,7 @@ type capableCourseResponse struct {
 
 func toReservationStaffResponse(
 	staff *model.Staff,
-	excluded []model.StaffReservationExclusion,
+	excluded []staffpkg.ReservationTypeExclusion,
 	capable []model.StaffReservationCapability,
 ) reservationStaffResponse {
 	courses := make([]excludedCourseResponse, 0, len(excluded))
@@ -65,7 +66,7 @@ func toReservationStaffResponse(
 		ID:                  staff.ID,
 		Name:                staff.Name,
 		IsActive:            staff.IsActive,
-		SortOrder:           staff.SortOrder,
+		SortOrder:           staffpkg.StaffSortOrderValue(staff.SortOrder),
 		StaffType:           string(staff.StaffType),
 		ReservationVisible:  staff.ReservationVisible,
 		ReservationComment:  staff.ReservationComment,

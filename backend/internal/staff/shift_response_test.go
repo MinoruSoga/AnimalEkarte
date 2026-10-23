@@ -14,8 +14,8 @@ func TestToShiftResponse(t *testing.T) {
 	created := time.Date(2026, 5, 1, 9, 0, 0, 0, time.UTC)
 	updated := time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC)
 	date := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
-	startTime := "09:00"
-	endTime := "18:00"
+	startTime := shiftTS(t, date, "09:00")
+	endTime := shiftTS(t, date, "18:00")
 
 	tests := []struct {
 		name  string
@@ -30,11 +30,11 @@ func TestToShiftResponse(t *testing.T) {
 				StaffID:   3,
 				Date:      date,
 				ShiftType: model.ShiftType("full"),
-				StartTime: &startTime,
-				EndTime:   &endTime,
+				StartsAt:  startTime,
+				EndsAt:    endTime,
 				Notes:     "notes",
 				Breaks: []model.ShiftEntryBreak{
-					{ID: 5, BreakStart: "12:00", BreakEnd: "13:00"},
+					{ID: 5, StartsAt: shiftTS(t, date, "12:00"), EndsAt: shiftTS(t, date, "13:00")},
 				},
 				CreatedAt: created,
 				UpdatedAt: updated,
@@ -45,13 +45,13 @@ func TestToShiftResponse(t *testing.T) {
 				assert.Equal(t, "2", resp.ClinicID)
 				assert.Equal(t, "3", resp.StaffID)
 				assert.Equal(t, "2026-05-28", resp.Date)
-				assert.Equal(t, "09:00", resp.StartTime)
-				assert.Equal(t, "18:00", resp.EndTime)
+				assert.Equal(t, "09:00:00", resp.StartTime)
+				assert.Equal(t, "18:00:00", resp.EndTime)
 				assert.Equal(t, "notes", resp.Notes)
 				require.Len(t, resp.Breaks, 1)
 				assert.Equal(t, "5", resp.Breaks[0].ID)
-				assert.Equal(t, "12:00", resp.Breaks[0].BreakStart)
-				assert.Equal(t, "13:00", resp.Breaks[0].BreakEnd)
+				assert.Equal(t, "12:00:00", resp.Breaks[0].BreakStart)
+				assert.Equal(t, "13:00:00", resp.Breaks[0].BreakEnd)
 				assert.Equal(t, "山田太郎", resp.StaffName)
 				require.NotNil(t, resp.Staff)
 				assert.Equal(t, uint64(3), resp.Staff.ID)

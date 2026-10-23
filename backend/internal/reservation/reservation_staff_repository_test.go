@@ -38,10 +38,10 @@ func setupReservationStaffRepoTestDB(t *testing.T) *gorm.DB {
 		&model.Company{}, &model.Clinic{},
 		&model.Staff{}, &model.StaffClinicAssignment{},
 		&model.ReservationType{}, &model.Reservation{},
-		&model.StaffReservationExclusion{}, &model.StaffReservationCapability{},
+		&model.StaffReservationCapability{},
 	))
 	require.NoError(t, db.Exec(
-		"TRUNCATE TABLE staff_reservation_exclusions, staff_reservation_capabilities, "+
+		"TRUNCATE TABLE staff_reservation_capabilities, "+
 			"staff_clinic_assignments, reservation_types, staffs CASCADE").Error)
 	seedClinicsForFK(t, db, 1, 2, 3)
 	return db
@@ -128,7 +128,7 @@ func TestReservationStaffRepository_UpdateSortOrder(t *testing.T) {
 	sortOrderOf := func(id uint64) int {
 		var s model.Staff
 		require.NoError(t, db.WithContext(ctx).First(&s, id).Error)
-		return s.SortOrder
+		return staffpkg.StaffSortOrderValue(s.SortOrder)
 	}
 
 	t.Run("up: 直前のスタッフとsort_orderを入れ替える", func(t *testing.T) {
