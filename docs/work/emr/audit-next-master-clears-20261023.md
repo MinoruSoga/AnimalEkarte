@@ -82,6 +82,6 @@
 
 HospitalizationSettings.tsx:80、DiagnosisSettings.tsx:110/124から専有Update builderへ接続。[use-master-save.ts:105–145](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/frontend/src/features/master/hooks/use-master-save.ts#L105-L145)は対象ID/最新permissionを検査しreqをそのままupdateAsyncへ渡す。空文字/nullをundefinedへ落とさない。144–164は失敗時closeなし/成功後close、194–197のBoolean wrapperを維持。api/hospitalization-plans.ts:139、api/diagnosis.ts:82/112もreqを直接axios.patchへ渡す。shared save変更でclear修正が失われた証拠なし。
 
-builder fixtureと通し試験を区別する。DiagnosisSettings.test.tsxはレイアウト中心でside panelをmockしており、clearの通し試験ではない。#809の当時のbase比較build/限定型検査と、既存型エラーによるmedicalrecord test/vet BLOCKED、FE vitest未実行を区別する。今も同じ失敗と再現してはいない。#812はNOT_RUN、#825の限定main比較結果も全体runtime受入ではない。
+builder fixtureと通し試験を区別する。DiagnosisSettings.test.tsxはレイアウト中心でside panelをmockしており、clearの通し試験ではない。#809の当時のbase比較build/限定型検査と、既存型エラーによるmedicalrecord test/vet BLOCKED、FE vitest未実行を区別する。今回実行していないため、現在も同じ失敗が発生するとは確認していない。#812はNOT_RUN、#825の限定main比較結果も全体runtime受入ではない。
 
 価格readの既存null→0表示、任意値一般のnull→0、POST全体null規律、税率全体精度再設計、495/405/481の業務拡張は追加しない。新規不具合数0、既知未接続後続1、実行証拠不足は別分類。本docs作業から製品/試験/DB/Plane変更は行わない。

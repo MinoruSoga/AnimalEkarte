@@ -89,7 +89,7 @@ record digest = raw SHA-256(JCS `{schema:"doctor-review-record-v1",clinic_id,med
 <a id="doctor-review-plan-generation-writers"></a>
 ### 3.3 世代の唯一writer
 
-既存medical_records/billingsのclinical_set_generationを再利用。recordのclinical projectionに実差がある成功TXごとに当該recordを一度だけ+1。billingのprojection/record集合/依存record世代に実差がある成功TXごとに当該billingを一度だけ+1。同じTXで数量とidentityが変わっても一度。同値保存・price-only・sort-onlyでは増分なし。A→B→Aという別成功TXでは各+1となり旧確認は復活しない。overflowはzero-write拒否。
+既存medical_records/billingsのclinical_set_generationを再利用。recordのclinical projectionに実差がある成功TXごとに当該recordを一度だけ+1。billingのprojection/record集合/依存record世代に実差がある成功TXごとに当該billingを一度だけ+1。同じTXで数量とidentityが変わっても一度。同値保存・price-only・sort-onlyでは増分なし。依存recordの世代変更はreaderが比較するだけで、readerがrecord/billingを再増分しない。A→B→Aという別成功TXでは各+1となり旧確認は復活しない。overflowはzero-write拒否。
 
 writerは旧新projectionを同lock下で再計算し、期待世代CASとdigest更新を同一TXへ置く。医師確認IDを消して履歴を失わせる必要はなく、現在generation/digest不一致で失効を投影する。Returnだけは旧setを保存したまま現在参照を外す。Returnと数量増分を混同しない。
 
@@ -143,7 +143,7 @@ confirm成功refs案: billing_id,doctor_review_set_id。versions案: billing,cli
 4. 予約状態を触るCompleteだけ必要staff-global→clinic-booking→pet-intent/lifecycle→appointment資源を既存順で先に確保。通常source writerへ不要な予約資源lockを要求しない。
 5. 金融上位: **481 sync/import/confirmは関連billing ID昇順→必要close境界**。**既存Completeは既存close境界→対象billing**を維持。両者は共通gateにより同時に下位へ入らない。新fund操作/預り金lockを本sliceで設計し直さず506 ambient subsetの宣言を受領する。必要上位資源の未宣言はactivation不可。
 6. 必要な494 edit-right行→medical_records ID昇順→既存plan rows ID昇順→plan_items dependency row→typed treatment ID昇順→billing_items ID昇順→active billing_source_bindingsの主キー順→履行event/referenceとreview set参照。
-7. 現在集合/世代/digest、readiness、ack、税計算、現在grantを全部再検査し、writer/監査/receiptを同最外TXへ書く。必須失敗は全rollback。
+7. 現在集合/世代/digest、readiness、ack、税計算、現在grantを全部再検査し、writer/監査/receiptを同最外TXへ書く。commit前の必須処理失敗は全rollback。commit後のHTTP本文構築/送信失敗はこのrollback条件に含めず、永続成功を失敗へ書換えない。
 
 上記は「入れ子484 participantに後から会計lockを取らせる」方式ではない。484/treatment/planの入口が、source lock前に481影響billingを発見して段5まで確保する。membership/link追加削除も同gateなので発見後phantomを許さない。全writerがgateを持たない段階ではこの議論は成立せず未activation。既存source単独484は金融資源集合が空のときだけ段5をskipする。
 
@@ -195,9 +195,23 @@ Dは元stay/退院明細/再利用billing/必要405 source event/元owner/版の
 3. 同期・直接明細変更・医師確認・Completeの各二先行順で誤通過なし。差異だけ保存は会計適用成功ではない。旧GETが確認を作らない。
 4. 現世代take_home prepared+内容数量確認済みはclinical pending単独で拒否しない。deferred/cancelled/removed/unknown、revoked/旧世代readyは不可。請求/確認/prepareで在庫不変。
 5. claim winner/loser、同key同内容CAS更新retry、同key別集合、成功応答喪失、sticky unknown、認可失効、元target欠損、別URL、lookup障害を分離。成功replayで現在master/CAS/readyを検査し直して失敗へ反転しない。
-6. 確認後にbilling itemsが変わっても確認時の会計側不変内容を再読でき、record側内容と混同しない。digestだけ・現在sourceからの補修では履歴受入不可。record/billing世代各一増分、overflow、監査/差異/receipt/reader応答作成失敗で全rollback。projection digestのgolden bytesと空/null/unknown/decimal同値を固定。
+6. 確認後にbilling itemsが変わっても確認時の会計側不変内容を再読でき、record側内容と混同しない。digestだけ・現在sourceからの補修では履歴受入不可。世代/CAS/旧確認は[条件別fixture](#doctor-review-plan-generation-fixtures)で検証し、一律に両世代を増分しない。overflow、commit前の必須処理（監査・履歴・差異・receipt・同TXで作成を要求する読取projection等）の失敗だけを全rollbackの対象にする。projection digestのgolden bytesと空/null/unknown/decimal同値を固定。
 7. billingなしCompleteの既存新規作成機能を無断禁止しない一方、架空確認/他billing確認を作らない。準備/新規互換adapterの閉鎖後に初回Complete=201、同成功再送=200、元請求日不変を検証。
 8. Cは死亡登録対保存両順序、生前証明消失/変更/不明、主飼主変更、nil reader。Dはstay/source/再利用billing不一致。Aとは別受入。
+
+<a id="doctor-review-plan-generation-fixtures"></a>
+### 条件別の世代・CAS・確認fixture（提案、NOT_RUN）
+
+| fixture条件（成功する最外TX） | record世代 | billing世代 | 期待CAS・旧確認の対照 |
+|---|---|---|---|
+| record clinical projectionに実差 | 該当recordだけ+1 | 影響するbillingだけ+1 | 変更対象の期待世代CASを検査。変更後の世代/digest不一致で該当する旧確認を失効投影し、保存済み確認履歴は保持 |
+| billing-only clinical projectionに実差 | 不変 | 該当billingだけ+1 | billingの期待世代CASを検査。recordを会計変更で増分せず、変更した会計集合の旧確認は失効 |
+| billingのrecord集合だけを追加/削除 | 既存recordは不変 | 該当billingだけ+1 | billing期待世代CASと完全record集合を照合。所属集合が違う旧確認は無効、既存record内容/世代を変更しない |
+| 同値/price-only/sort-only | 不変 | 不変 | 既存writerのCAS等は省略せず、臨床集合の確認はこの変更だけでは失効しない。必要な483価格了承は別判定 |
+
+同じ最外TXに複数変更があっても各変更対象の増分は一回だけ。依存record世代を再読したreaderは再増分しない。期待CAS不一致なら業務値・世代・履歴・receiptはzero-writeで、旧確認を変更しない。成功時の失効と不変、失敗時の不変を別fixtureにする。
+
+commit後のHTTP本文構築/送信失敗では、永続成功を失敗へ反転させず、rollbackしたとも報告しない。HTTPエラーが絶対に返らないとは約束しない。clientの結果不明は元key lookupへ進み、commit成否不明も新key再送で迂回せず既存unknown規則に従う。commit前の必須projection生成失敗とcommit後の応答喪失を別fixtureにし、未採択案を実行済みにしない。
 
 完了は「技術案採択」「正本公開」「必要subset供給」「consumer接続」「全対象writer閉包」「実試験」「activation」を別々に記録する。本案はreader型/参加台帳の技術案であり、後六段階の完了ではない。非活性reader/projectionの契約整備を先行し、通常Completeへの新しい禁止条件は採択しない。billingなし新規Complete/複数record/他source/C/Dと上記未供給を見えるまま保持する。
 
