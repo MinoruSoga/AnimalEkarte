@@ -139,6 +139,7 @@ source entityの同一性は登録済みのsource namespaceとキー定義に固
 - digest：`{ algorithm: "sha256", hex: 64文字の小文字hex, byte_length: 0以上の十進整数文字列 }`。digestの対象を参照先artifact/profileで固定し、別対象のdigestを流用しません。
 - amount / decimal / 件数 / BIGINT：JSON numberではなく文字列。原値では取得文字列のまま保持します。解釈済みdecimalは別の規則登録がない限り作りません。
 - consumer自身の監査日時：UTCのRFC3339。旧DB日時をこの型へ無条件変換しません。
+- 数値として定義する正のrevision（ObservationResolution.revision、link event_revision/その期待版、公開revision、catalog_revision/expected_catalog_revision）はcanonical十進文字列 `[1-9][0-9]*`。先頭ゼロ・符号・空白・小数・指数を拒否し、保存・UNIQUE判定・cursor署名前に同じ検証を必須とする。数値順と+1はlosslessな整数で計算し、floatや辞書順で代用しない。opaqueなrevision_refやproducer識別子にはこの数値規則を適用しない。
 
 `CapturedValue` は以下のいずれかです。
 
@@ -221,7 +222,7 @@ WHERE除外された原行もSourceCandidateとして保全し、該当outcome�
 - **projection内では**、同clinicの固定入力解決版集合に属する限り、複数entity・複数snapshotのfield参照を許可する。単一原行へ制限しない。
 
 `ObservationResolution = { observation_id, resolution_id, revision, previous_resolution_id, comparison_profile_ref, field_refs, verification_ref }`
-- revisionは1以上の十進整数文字列。初版1のみprevious_resolution_id=null、以降は同observation直前版を参照。
+- revisionは§3.1のcanonical正十進文字列。初版1のみprevious_resolution_id=null、以降は同observation直前版を参照。
 - field_refsはStoredRawFieldRef配列で、当該source profileの保全対象全fieldを一度ずつ含む。未取得fieldもnot_capturedの実candidate fieldへの参照を持つ。
 - verification_refは非nullのconsumer内部UUID文字列とする。consumerが実行した比較・出典・coverage検証の耐久記録を参照し、producerが任意UUIDを発行・自己申告して代用することはできない。検証記録はclinic、observation、候補のstable UUID集合、前版、comparison profile、対象field coverage、検証結論へ束縛され、同resolution保存transactionから参照可能であることを必要条件とする。
 - 参照UUIDのscalarと発行権限はここで選定するが、参照先の物理保存場所・記録schema・consumer validatorからの供給receiptは**追加の未閉鎖依存**である。既存6入れ子型だけの未完であるかのように隠さず、221/446/466が受領するまで解決版の実データ採用を開始しない。既存receiptの流用可能性は今回未確認で、架空の既存検証tableや成功記録を仮定しない。
@@ -292,18 +293,18 @@ outcome_refとsource_candidate_refは当該delivery内のlocal参照であり、
 | `legacy_evidence_snapshots` | id、clinic_id、source namespace、検証登録参照、snapshot fingerprint | verified登録との結合必須。run/契約版では別snapshotを作らない |
 | `legacy_evidence_raw_candidates` | id、clinic_id、entity_id、snapshot_id、capture profile、raw payload、比較fingerprint、取得出典参照 | append-only。payloadはclosed validator通過時の損失なし表現。任意JSON不可 |
 | `legacy_evidence_observations` | id、clinic_id、entity_id、snapshot_id、初期candidate_id（不変の初期出典） | UNIQUE(clinic_id, entity_id, snapshot_id)。observation identityは一つ |
-| `legacy_evidence_observation_resolutions` | id、clinic_id、observation_id、revision、previous_resolution_id、comparison_profile_ref、verification_ref、closed field_refs、参照集合fingerprint | append-only。UNIQUE(clinic_id,observation_id,revision)、同observation複合FK、初版previous=NULL/後続非NULLのCHECK。前版revision+1を同TX検証。非NULL previous_resolution_idに対しUNIQUE(clinic_id,observation_id,previous_resolution_id)で分岐拒否。初版はrevision=1の一意性で一つ |
+| `legacy_evidence_observation_resolutions` | id、clinic_id、observation_id、revision、previous_resolution_id、comparison_profile_ref、verification_ref、closed field_refs、参照集合fingerprint | append-only。UNIQUE(clinic_id,observation_id,revision)、同observation複合FK、初版previous=NULL/後続非NULLのCHECK。canonical revision validationを保存/UNIQUE前に強制し、前版revision+1をlossless整数で同TX検証。非NULL previous_resolution_idに対しUNIQUE(clinic_id,observation_id,previous_resolution_id)で分岐拒否。初版はrevision=1の一意性で一つ |
 | `legacy_evidence_conflicts` | id、clinic_id、entity_id、snapshot_id、候補A/B、conflict kind、検知delivery | 異値候補保持。採用済み値の上書きや自動解消なし |
 | `legacy_evidence_deliveries` | id、clinic_id、delivery_ref、producer run/build、契約版、mapping版、固定manifest digest | UNIQUE(clinic_id, delivery_ref)。同ref異manifestはconflict |
 | `legacy_evidence_artifacts` | id、clinic_id、delivery_id、role、digest、byte_length、保護storage参照 | acquisition/output/manifestをroleで分離。local pathは公開APIへ返さない |
 | `legacy_evidence_projection_revisions` | id、clinic_id、domain_kind、projection_namespace_ref、projection_logical_ref、revision_ref、mapping/transform profile、payload fingerprint、closed payload | 自然キー全列NOT NULL。UNIQUE(clinic_id,domain_kind,projection_namespace_ref,projection_logical_ref,revision_ref)。同自然キー同内容は既存UUID、異内容projection_conflict。rawは不変 |
 | `legacy_evidence_projection_inputs` | clinic_id、projection_revision_id、observation_id、resolution_id、stable入力列参照 | 多対多。全入力行/解決版を固定。同clinic・observationへのresolution所属を複合FK検証 |
 | `legacy_evidence_outcomes` | id、clinic_id、outcome_kind、projection_revision/candidate/observation/resolution参照、stage、disposition、rule、artifact/output参照、reason | source/projection kind別NOT NULL/CHECK/FK。sourceはprojection参照NULLを許可、実candidate/observation/resolutionとdelivery_id/outcome_ref必須。source行に部分UNIQUE(clinic_id,delivery_id,outcome_ref)。emitted/excluded/heldを分離 |
-| `legacy_evidence_link_events` | id、clinic_id、evidence_kind、evidence_id、event_revision、expected_revision、previous_event_id、action、closed target refs、検証根拠、actor、reason、recorded_at | append-only。履歴粒度(clinic_id,evidence_kind,evidence_id)。同履歴event_revision UNIQUE、非NULL previousのsingle-successor UNIQUE、NULL previousの初版partial UNIQUE、前eventへの同clinic/同履歴複合FK。前版+1/最新headをvalidator検証 |
+| `legacy_evidence_link_events` | id、clinic_id、evidence_kind、evidence_id、event_revision、expected_revision、previous_event_id、action、closed target refs、検証根拠、actor、reason、recorded_at | append-only。履歴粒度(clinic_id,evidence_kind,evidence_id)。同履歴event_revision UNIQUE、非NULL previousのsingle-successor UNIQUE、NULL previousの初版partial UNIQUE、前eventへの同clinic/同履歴複合FK。canonical revision validationを保存/UNIQUE前に強制し、前版+1/最新headをlossless整数でvalidator検証 |
 | `legacy_evidence_chunk_receipts` | id、clinic_id、delivery_id、chunk_ref、chunk digest、件数、保存ID集合のdigest（全てNOT NULL） | UNIQUE(clinic_id,delivery_id,chunk_ref)。同キー同内容は既存receipt、異内容conflict。同時実行でも一件だけcommit、digestを一意キーへ足さない |
 | `legacy_evidence_publication_receipts` | id、clinic_id、delivery_id、固定manifest digest、全chunk/lineage検証結果参照、公開revision、recorded_at（manifest digest/公開revision NOT NULL） | UNIQUE(clinic_id,delivery_id)。全必要chunk/lineage検証後に一成功receipt。並行公開は同内容照合、異内容conflict。事前checkだけに依存しない |
 | `legacy_evidence_publication_bindings` | clinic_id、publication_receipt_id、domain_kind、typed evidence、resolution_id、basis_kind、projection_revision_id/source_outcome_id、read_field_profile_ref | basis_kind=projection/source_outcomeで対応根拠どちらか一方のみCHECK。source_observation公開は固定resolution_id必須。projectionは全固定入力解決版を参照、domain別field集合を固定 |
-| `legacy_evidence_catalog_revisions` | clinic_id、domain_kind、revision | UNIQUE(clinic_id, domain_kind)。publication/link変更/競合記録と同transactionでrevisionを単調更新 |
+| `legacy_evidence_catalog_revisions` | clinic_id、domain_kind、revision | UNIQUE(clinic_id, domain_kind)。canonical正十進revisionの検証を保存/UNIQUE前に強制し、publication/link変更/競合記録と同transactionでlossless整数として単調更新 |
 
 `raw_candidates`、`observations`、`observation_resolutions`、`projection_revisions`、lineage、outcomes、link events、receiptは通常アプリroleからUPDATE/DELETE不可にします。原値の訂正は新candidateまたは新snapshot、新mappingによるprojection追記です。通常閲覧roleにINSERT権限を付けません。
 
@@ -431,12 +432,12 @@ snapshot集合・inputsはimmutable projection入力解決版から導出し、�
 
 全て昇順keysetとし、raw_cells/derived_fieldsは(field_id)一意、outcomesは(kind_rank: source=0/projection=1,outcome_id)、inputsは(observation_id,resolution_id)、link_historyは(event_revision,event_id)、snapshotsは(snapshot_id)をlast tupleにする。inputsは同pair一itemでfield_idsを重複除去しfield順へ並べる。除外できるのはJOIN展開重複だけで、異resolutionを合成せず、格納wireの不正重複を隠さない。
 
-field_idは未正規化UTF-8 bytesのunsigned辞書順、UUIDはcanonical lowercase hyphen ASCII bytes順、revisionは正確な整数比較（float禁止）。署名cursorはsection/sort_version/evidence/domain/clinic/期待catalog_revision/last tupleを束縛する。毎page現在認可、catalog変更409/baseからrestart、GET修復なしを維持する。
+field_idは未正規化UTF-8 bytesのunsigned辞書順、UUIDはcanonical lowercase hyphen ASCII bytes順、数値revisionは§3.1のcanonical表現を検証して正確な整数比較（float/辞書順禁止）。署名cursorはsection/sort_version/evidence/domain/clinic/期待catalog_revision/last tupleを束縛する。毎page現在認可、catalog変更409/baseからrestart、GET修復なしを維持する。
 
 <a id="legacy-evidence-detail-catalog-binding"></a>
 ### baseから最初のsectionへのcatalog束縛
 
-基本detailはmetadataとcatalog_revisionを同じDBsnapshotから返す。section内容と返却catalog_revisionもそれぞれ同じDBsnapshotで取得する。section requestのexpected_catalog_revisionは初回/継続とも必須の十進文字列（共通の版表現）。初回はbase値をそのまま渡し、継続はrequest期待版＝署名cursor版＝現在catalog版を要求する。
+基本detailはmetadataとcatalog_revisionを同じDBsnapshotから返す。section内容と返却catalog_revisionもそれぞれ同じDBsnapshotで取得する。section requestのexpected_catalog_revisionは初回/継続とも必須のcanonical正十進文字列（§3.1の共通版表現）。初回はbase値をそのまま渡し、継続はrequest期待版＝署名cursor版＝現在catalog版を要求する。
 
 毎pageの現在認可/元scopeを優先し、既存401/403/404の非開示を維持する。期待版の不足/型不正、requestとcursorの束縛不一致は400 LEGACY_EVIDENCE_INVALID_REQUEST。正常なrequest/cursorの期待版と現在catalogが違えば409 LEGACY_EVIDENCE_VIEW_CHANGED。409後はbaseから再取得し、旧sectionと新metadataを混ぜない。GETで修復/書込を行わない。
 
@@ -552,6 +553,8 @@ DerivedFieldのsemantic_statusは従前の2値を維持し、record-levelだけ�
 
 28. r2公開後のr1遅着はpublication TX全rollback、receipt/catalog不変。並行公開はcatalog lock/previous chainで単調化し、既成功旧delivery再送は元receiptだけ。過去projectionのr1 pinは正常なまま。
 29. 全chunkを跨ぐ同outcome_refの二重宣言は同内容でもvalidation error。同delivery/chunk再送は固定manifest/receiptとclosed内容一致なら既存UUID、異内容conflict/公開なし。digest/candidate変更でUNIQUEを迂回しない。
+
+30. revisionの09/9二重登録は09を保存/UNIQUE前に拒否。符号/空白/小数/指数も拒否し、異表記の期待版/cursorを署名又は受理しない。9→10の順序/+1はlossless整数で照合し、opaque revision_refを数値化しない。
 
 これらはfixtureの作成条件です。今回テスト実行や実DB受入を依頼していません。現時点はNOT_RUNです。
 
