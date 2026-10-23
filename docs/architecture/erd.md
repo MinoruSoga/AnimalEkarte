@@ -167,7 +167,7 @@ erDiagram
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
-| 統合baselineの履歴表数 | 138（現在数ではない） | 現行は末尾の追加/DROPまで適用した241表。CREATE行数だけで数えない。 |
+| 統合baselineの履歴表数 | 138（現在数ではない） | 現行（2026-10-23 統合後）は末尾の追加/DROPまで適用した253表。CREATE行数だけで数えない。 |
 | 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
 | 全マイグレーションのCREATE/DROP適用後の現行物理テーブル総数 | 253 | 2026-10-19 の統合時点は `001_init.sql` の241表。その後の直下増分（`003`〜`010`）を含めた現行数を `ls backend/migrations/*.sql` の全DDLから数える。統合前の履歴は §4.3 / §4.4 を参照する。 |
 | 統合前の履歴 `002`〜`038`（`008`・`026`・`027` 欠番） | 新規テーブル11（`support_bug_reports`・`support_chat_messages`・`medical_record_image_deletions`・対応下書き 4・`trimming_image_deletions`・`lstep_next_visit_sync_retries`・`support_manual_embeddings`・`support_llm_budgets`）。`014` は `prescriptions` DROP（純減1）、`015` は検索 index のみ、`016`/`018`/`022` はカラム追加、`017` は担当医・actor・staff参照の複合FK置換、`019` は権限行削除、`020` は checksum reconcile、`023` は `lab_import_jobs.species` 追加と対応下書き 4 テーブル。`024` は drafts 複合キーの列順張り直し、`025` は `cages.merged_into_cage_id`（旧025〜027の承認済み統合版）、`028`〜`030` は EMR-308 tentative 予約基盤（enum値・列2件・部分unique index）と `medical_records.next_visit_recommended_date` の DROP（新規テーブル0）。`031` は予約の元カルテ参照を医院複合FKへ置換、`032` はトリミング画像削除予約台帳を新設、`033` は次回来院タグ同期の再試行記録を新設、`034` は同表への `cleanup_line_user_id` 列追加のみ、`035` は `trimming_image_deletions` への `storage_deleted_at` / `last_attempt_at` 列と pending 部分index 追加のみ（いずれも新規テーブル0）。`036` は入院の `next_visit` 列追加のみ、`037` は `item_category` への `house_call` 値の追加のみ（新規テーブル0）、`038` は共有マニュアルembeddingキャッシュとquota状態の2表を新設 | 記録者FK2件の置換、治療明細のlifetime unique、子レコード楽観ロック `version`、accounts RLS ops bypass、billings 複合index、seed checksum reconcile 2件、`care_plan_items.other_reason`、pets 由来列2件（§4.4。2026-09-29 訂正: 「002 / 003 / 004・新規テーブル0」→ `002`〜`013`・新規テーブル2。2026-10-05 訂正: 当時の `023` backfill DML は運用判断で削除。2026-10-06: 現行 `023_lab_device_mapping_drafts.sql` を追加。2026-10-10: `024`〜`030` を追加・`026`/`027` 欠番・新規テーブル0。2026-10-10: `031` の複合FK置換と `032` の新規テーブル1を追加） |
@@ -175,7 +175,7 @@ erDiagram
 | ERD へ追加した不足テーブル | 12: 従来6（`token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items`）+ identity 4 + `medical_record_image_upload_quota` + `medical_record_image_deletions` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
 | ERD にあり migrations にないテーブル | 0 | 整合済み |
-| 今回統合・除去した旧表 | 9 | [削除・統合対照](../work/db-contracts/schema-cleanup-audit.md)。4表を必要用途に追加し現行241表。 |
+| 今回統合・除去した旧表 | 9 | [削除・統合対照](../work/db-contracts/schema-cleanup-audit.md)。4表を必要用途に追加し当時241表（現行は2026-10-23統合後の253表）。 |
 | 存続表から除去した列 | 117 | [全列用途/統合先JSON](../work/db-contracts/schema-cleanup-audit.json)。稼働DBや旧データへの実適用はしていない。 |
 
 ### 4.1 継続理由を明示する対象
@@ -228,7 +228,7 @@ erDiagram
 
 ### 4.4 Historical incremental migrations（001〜038、2026-10-19 統合済み）
 
-下表は統合前の履歴。現在の図・制約説明の基準は `001_init.sql`（現行241表。001〜038の統合baselineは138表）。下表の内容は 001 内の `consolidated from` マーカーと git 履歴で確認できる。稼働DBへの適用状態は未確認。
+下表は統合前の履歴。現在の図・制約説明の基準は `001_init.sql`（現行253表・2026-10-23統合後。001〜038の統合baselineは138表）。下表の内容は 001 内の `consolidated from` マーカーと git 履歴で確認できる。稼働DBへの適用状態は未確認。
 
 | migration | 各migrationの変更（後続で置換あり） | 関係・境界 |
 |:---|:---|:---|
@@ -271,7 +271,7 @@ erDiagram
 - **記録者の権限**: 単列FKへの変更は医院境界の撤廃ではない。[カルテ記録者ガード](../../backend/internal/medicalrecord/medical_record_entered_by_actor.go) と [予約登録者ガード](../../backend/internal/reservation/reservation_created_by.go) が、作成transaction内で有効なスタッフと医院所属、または確認済みのシステム管理者権限を検証する。FKは記録者の実在・物理削除制限を保持し、現在の操作権限はアプリが別に検証する。
 - **治療明細の一意性**: 001の `idx_billing_items_treatment_id` はactive行検索用の非一意index。二重参照を防ぐのは004のlifetime uniqueであり、単なる検索indexや画面上のロックではない。既存の `treatment_id → treatments(id) ON DELETE SET NULL` は変更していない。
 - **provenance排他の範囲**: `chk_billing_items_provenance_exclusive` は `vaccination_id` と `exam_id` の同時設定だけを禁止する。`treatment_id` を含む3列全体の排他CHECKがあるとは扱わない。
-- **migration 番号**: 2026-10-19 の統合後、直下 DDL の顔ぶれは `ls backend/migrations/*.sql` で導出する。初回本番切替で001を凍結した後、次の新規 migration は `002` から採番する。日付による自動凍結はしない。`011` の重複と `037`/`038` のリネームは統合前の履歴であり、現行ファイルには存在しない。`008`・`026`・`027` の欠番も履歴。
+- **migration 番号**: 2026-10-19 の統合後、直下 DDL の顔ぶれは `ls backend/migrations/*.sql` で導出する。2026-10-23 統合（旧 003〜010 の 001 末尾追記）後の次の新規 migration は `011` から採番する（`002` は `seeds/002_master` バンドルの番号と紛らわしいため欠番のまま。初回本番切替で001を凍結した後も同様に `011` 未満の番号は使わない）。日付による自動凍結はしない。`011` の重複と `037`/`038` のリネームは統合前の履歴であり、現行ファイルには存在しない。`008`・`026`・`027` の欠番も履歴。
 - **適用・検証**: 本書更新ではDB操作をしていない。migrationを追加する更新を取り込んだ開発者は対象DBの適用状態を確認し、必要な `make migrate` をユーザー操作で実行する。既存データの制約違反を自動削除で解消したり、適用済みSQLを書き換えたりしない。STG/本番は [運用TODOの適用確認](../work/plane/plane-md-migration-20260923-receipt.md) と環境別承認に従う。
 
 ## 5. 未確定事項（分類に関する注記）
@@ -282,7 +282,7 @@ erDiagram
 ## EMR-446/466 統合追加（未試験）
 
 保険4列と再診S1を保持し、S2、トリミングT1–T4、医師確認集合・source binding・差異解決・金額了承・実施準備履歴、預り金、証明書版、非表示要約と薬剤3値の保存欄を001へ追加した。整理前候補は246表。上記S1節の「S2未実装」はS1単独時点の境界で、統合候補では保存FKを追加済み、capture/readerは別担当で未接続。[保存契約とcoverage](../work/db-contracts/unified-db-20261019.md)を現段階の正本とする。
-現行DDLの有効表数は241表であり、246表は整理前の履歴を示す。
+現行DDLの有効表数は253表（2026-10-23統合後）であり、246表は整理前の履歴を示す。
 
 本人の最新指示により拡張候補の新しいDB適用・制約/競合試験・任意テストは実施しない。詳細ERDはファイル生成として更新した。以前の保険/S1限定試験は旧core hashに対する履歴で、新しい246表DDLの合格証拠ではない。API/UI・既存writerの参加、確認・精算制御、実環境適合は未完。clinic RLSとFKは認可を代替せず、証明書current viewはprivate artifactの公開許可ではない。共有DB適用・mergeは行わない。
 
