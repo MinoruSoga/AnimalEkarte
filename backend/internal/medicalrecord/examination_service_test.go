@@ -12,6 +12,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // mockExaminationRepository は ExaminationRepository のテスト用モック実装
@@ -154,14 +155,15 @@ func ptrFloat64(v float64) *float64 { return &v }
 
 type examinationPetStatusRelations struct {
 	*mockMedicalRecordRepository
-	findPetByIDInClinicFn func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+	readPetLifeStateFn func(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error)
 }
 
-func (r *examinationPetStatusRelations) FindPetByIDInClinic(
+// ReadPetLifeState は EMR-491 D6 の死亡 reader の差し替え点（examination の petStatuses が型アサーションで拾う）。
+func (r *examinationPetStatusRelations) ReadPetLifeState(
 	ctx context.Context,
 	clinicID, petID uint64,
-) (*model.Pet, error) {
-	return r.findPetByIDInClinicFn(ctx, clinicID, petID)
+) (sharedkernel.PetLifeState, error) {
+	return r.readPetLifeStateFn(ctx, clinicID, petID)
 }
 
 func TestExaminationService_List(t *testing.T) {
@@ -1516,6 +1518,7 @@ func TestExaminationService_DeceasedPetWriteBoundary(t *testing.T) {
 		run  func(t *testing.T)
 	}{
 		{name: "create", run: testExaminationCreateRejectsDeceasedPetBeforeWrites},
+		{name: "create with unresolved or failed life state", run: testExaminationCreateRejectsUnknownPetLifeStateBeforeWrites},
 		{name: "create from medical record", run: testExaminationCreateFromRecordRejectsDeceasedPetBeforeWrites},
 		{name: "update replacement", run: testExaminationUpdateRejectsDeceasedPetBeforeWrites},
 		{name: "update medical record replacement", run: testExaminationUpdateRecordRejectsDeceasedPetBeforeWrites},
@@ -1532,7 +1535,6 @@ func testExaminationCreateRejectsDeceasedPetBeforeWrites(t *testing.T) {
 		clinicID = uint64(1)
 		petID    = uint64(30)
 	)
-	deceasedAt := time.Now().Add(-24 * time.Hour)
 	createCalls := 0
 	replaceCalls := 0
 	auditCalls := 0
@@ -1550,12 +1552,12 @@ func testExaminationCreateRejectsDeceasedPetBeforeWrites(t *testing.T) {
 	}
 	relations := &examinationPetStatusRelations{
 		mockMedicalRecordRepository: &mockMedicalRecordRepository{},
-		findPetByIDInClinicFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (*model.Pet, error) {
+		readPetLifeStateFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (sharedkernel.PetLifeState, error) {
 			petStatusCalls++
 			assert.Equal(t, true, ctx.Value(examinationTxContextKey{}))
 			assert.Equal(t, clinicID, gotClinicID)
 			assert.Equal(t, petID, gotPetID)
-			return &model.Pet{ID: petID, ClinicID: clinicID, DeceasedAt: &deceasedAt}, nil
+			return sharedkernel.PetLifeStateDeceased, nil
 		},
 	}
 	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
@@ -1583,13 +1585,71 @@ func testExaminationCreateRejectsDeceasedPetBeforeWrites(t *testing.T) {
 	assert.Zero(t, auditCalls)
 }
 
+// EMR-491 D6: 生死を確定できない（unresolved）/ reader 失敗は生存扱いにせず、業務拒否（InvalidInput）ではなく
+// エラーとして write・audit 0 で拒否する。
+func testExaminationCreateRejectsUnknownPetLifeStateBeforeWrites(t *testing.T) {
+	const (
+		clinicID = uint64(1)
+		petID    = uint64(30)
+	)
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{name: "unresolved", err: apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recorded")},
+		{name: "reader failure", err: errors.New("db down")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			createCalls := 0
+			auditCalls := 0
+			petStatusCalls := 0
+			repo := &mockExaminationRepository{
+				createFn: func(_ context.Context, exam *model.Examination) error {
+					createCalls++
+					exam.ID = 1
+					return nil
+				},
+			}
+			relations := &examinationPetStatusRelations{
+				mockMedicalRecordRepository: &mockMedicalRecordRepository{},
+				readPetLifeStateFn: func(ctx context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+					petStatusCalls++
+					assert.Equal(t, true, ctx.Value(examinationTxContextKey{}))
+					return "", tc.err
+				},
+			}
+			audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
+				auditCalls++
+				return nil
+			}}
+			tx := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+				return fn(context.WithValue(ctx, examinationTxContextKey{}, true))
+			}}
+			svc := NewExaminationService(repo, relations, okExamTypeRepo(), audit, tx)
+			items := []UpsertExamItemInput{{Name: "WBC", InspectionValue: "5.0"}}
+
+			got, err := svc.Create(context.Background(), clinicID, &CreateExaminationInput{
+				PetID: ptrUint64(petID), ExamTypeID: 1, Date: time.Now(),
+				Items: &items, ActorID: ptrUint64(1),
+			})
+
+			require.Error(t, err)
+			assert.ErrorIs(t, err, tc.err)
+			assert.False(t, apperrors.IsInvalidInput(err), "unknown must not be reported as a deceased business rejection: %v", err)
+			assert.Nil(t, got)
+			assert.Equal(t, 1, petStatusCalls)
+			assert.Zero(t, createCalls)
+			assert.Zero(t, auditCalls)
+		})
+	}
+}
+
 func testExaminationCreateFromRecordRejectsDeceasedPetBeforeWrites(t *testing.T) {
 	const (
 		clinicID        = uint64(1)
 		medicalRecordID = uint64(10)
 		petID           = uint64(30)
 	)
-	deceasedAt := time.Now().Add(-24 * time.Hour)
 	createCalls := 0
 	replaceCalls := 0
 	auditCalls := 0
@@ -1616,12 +1676,12 @@ func testExaminationCreateFromRecordRejectsDeceasedPetBeforeWrites(t *testing.T)
 				}, nil
 			},
 		},
-		findPetByIDInClinicFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (*model.Pet, error) {
+		readPetLifeStateFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (sharedkernel.PetLifeState, error) {
 			petStatusCalls++
 			assert.Equal(t, true, ctx.Value(examinationTxContextKey{}))
 			assert.Equal(t, clinicID, gotClinicID)
 			assert.Equal(t, petID, gotPetID)
-			return &model.Pet{ID: petID, ClinicID: clinicID, DeceasedAt: &deceasedAt}, nil
+			return sharedkernel.PetLifeStateDeceased, nil
 		},
 	}
 	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
@@ -1701,7 +1761,6 @@ func testExaminationUpdateRejectsDeceasedPetBeforeWrites(t *testing.T) {
 		oldPetID = uint64(30)
 		newPetID = uint64(31)
 	)
-	deceasedAt := time.Now().Add(-24 * time.Hour)
 	updateCalls := 0
 	replaceCalls := 0
 	auditCalls := 0
@@ -1729,12 +1788,12 @@ func testExaminationUpdateRejectsDeceasedPetBeforeWrites(t *testing.T) {
 	}
 	relations := &examinationPetStatusRelations{
 		mockMedicalRecordRepository: &mockMedicalRecordRepository{},
-		findPetByIDInClinicFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (*model.Pet, error) {
+		readPetLifeStateFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (sharedkernel.PetLifeState, error) {
 			petStatusCalls++
 			assert.Equal(t, true, ctx.Value(examinationTxContextKey{}))
 			assert.Equal(t, clinicID, gotClinicID)
 			assert.Equal(t, newPetID, gotPetID)
-			return &model.Pet{ID: newPetID, ClinicID: clinicID, DeceasedAt: &deceasedAt}, nil
+			return sharedkernel.PetLifeStateDeceased, nil
 		},
 	}
 	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
@@ -1767,7 +1826,6 @@ func testExaminationUpdateRecordRejectsDeceasedPetBeforeWrites(t *testing.T) {
 		medicalRecordID = uint64(10)
 		petID           = uint64(31)
 	)
-	deceasedAt := time.Now().Add(-24 * time.Hour)
 	updateCalls := 0
 	replaceCalls := 0
 	auditCalls := 0
@@ -1804,12 +1862,12 @@ func testExaminationUpdateRecordRejectsDeceasedPetBeforeWrites(t *testing.T) {
 				}, nil
 			},
 		},
-		findPetByIDInClinicFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (*model.Pet, error) {
+		readPetLifeStateFn: func(ctx context.Context, gotClinicID, gotPetID uint64) (sharedkernel.PetLifeState, error) {
 			petStatusCalls++
 			assert.Equal(t, true, ctx.Value(examinationTxContextKey{}))
 			assert.Equal(t, clinicID, gotClinicID)
 			assert.Equal(t, petID, gotPetID)
-			return &model.Pet{ID: petID, ClinicID: clinicID, DeceasedAt: &deceasedAt}, nil
+			return sharedkernel.PetLifeStateDeceased, nil
 		},
 	}
 	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
@@ -1866,9 +1924,9 @@ func testExaminationUpdateAllowsExistingDeceasedPet(t *testing.T) {
 	}
 	relations := &examinationPetStatusRelations{
 		mockMedicalRecordRepository: &mockMedicalRecordRepository{},
-		findPetByIDInClinicFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+		readPetLifeStateFn: func(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
 			petStatusCalls++
-			return nil, errors.New("deceased status lookup must not run for a non-relation historical edit")
+			return "", errors.New("deceased status lookup must not run for a non-relation historical edit")
 		},
 	}
 	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {

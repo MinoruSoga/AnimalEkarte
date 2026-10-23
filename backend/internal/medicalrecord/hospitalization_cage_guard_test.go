@@ -24,11 +24,19 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 	petdomain "github.com/animal-ekarte/backend/internal/pet"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // newCageGuardHospitalizationService は実リポジトリ+実トランザクタで入院サービスを組み立てる。
 // cageRepo に実 NewCageRepository を渡すため CageMergeRepository 面が型アサーションで有効になる。
 func newCageGuardHospitalizationService(t *testing.T, db *gorm.DB) HospitalizationService {
+	t.Helper()
+	return newCageGuardHospitalizationServiceWithLife(t, db, stubPetLifeReader{})
+}
+
+// newCageGuardHospitalizationServiceWithLife は EMR-491 D6 の死亡 reader を差し替えた入院サービスを組み立てる
+// （ケージ/ローカル pet 行ロックは実 DB、生死判定だけ test double）。
+func newCageGuardHospitalizationServiceWithLife(t *testing.T, db *gorm.DB, life sharedkernel.PetLifeStateReader) HospitalizationService {
 	t.Helper()
 	return NewHospitalizationService(
 		NewHospitalizationRepository(db),
@@ -37,6 +45,7 @@ func newCageGuardHospitalizationService(t *testing.T, db *gorm.DB) Hospitalizati
 		NewCageRepository(db),
 		nil, nil, nil,
 		persistence.NewTransactor(db),
+		WithPetLifeStateReader(life),
 	)
 }
 
@@ -409,11 +418,12 @@ func TestHospitalizationCageGuard_FacelessRepoFailsClosed(t *testing.T) {
 				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
 			},
 			&mockPetRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-				return &model.Pet{ID: id, Status: model.PetStatusAlive}, nil
+				return &model.Pet{ID: id}, nil
 			}},
 			facelessCages,
 			nil, nil, nil,
 			&mockTransactor{},
+			WithPetLifeStateReader(stubPetLifeReader{}),
 		)
 	}
 

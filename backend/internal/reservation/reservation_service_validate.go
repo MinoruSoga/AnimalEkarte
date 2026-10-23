@@ -19,14 +19,14 @@ func (s *reservationService) validateCreateClosedDaysIfConfigured(ctx context.Co
 
 func validateReservationPetNotDeceasedOnRelink(
 	ctx context.Context,
-	repo petByIDInClinicFinder,
+	reader sharedkernel.PetLifeStateReader,
 	clinicID uint64,
 	petID *uint64,
 ) error {
 	if petID == nil || *petID == 0 {
 		return nil
 	}
-	return ValidateReservationPetNotDeceased(ctx, repo, clinicID, petID)
+	return ValidateReservationPetNotDeceased(ctx, reader, clinicID, petID)
 }
 
 func (s *reservationService) validateCreateClosedDays(ctx context.Context, clinicID uint64, startTime time.Time) error {

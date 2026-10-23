@@ -14,6 +14,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ---------------------------------------------------------------------------
@@ -905,9 +906,8 @@ func TestReservationService_Update_TentativeCheckinRejectsDeceasedPet(t *testing
 				Source:            model.ReservationSourceManual,
 			}, nil
 		},
-		findPetByIDInClinicFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-			deceasedAt := time.Now().UTC()
-			return &model.Pet{ID: petID, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt}, nil
+		readPetLifeStateFn: func(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+			return sharedkernel.PetLifeStateDeceased, nil
 		},
 		// Codex #3: 死亡拒否は repo CAS 前の post-lock validator へ移った。モックは
 		// validator を呼び出してその拒否をそのまま伝播させる（実装と同じく

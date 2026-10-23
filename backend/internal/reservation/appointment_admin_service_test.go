@@ -12,6 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // mockReservationRepository は appointment_service_test.go で定義済み
@@ -250,40 +251,35 @@ func TestReservationAdminService_Create(t *testing.T) {
 	}
 }
 
-func TestReservationAdminService_Create_RejectsDeceasedPetVariants(t *testing.T) {
+// EMR-491 D6: deceased は InvalidInput、unresolved / reader 失敗は生存扱いにせずエラーで拒否する。
+func TestReservationAdminService_Create_RejectsDeceasedOrUnresolvedPet(t *testing.T) {
 	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
-	deceasedAt := start.Add(-24 * time.Hour)
 	petID := uint64(5)
 	ownerID := uint64(2)
 
 	cases := []struct {
-		name string
-		pet  *model.Pet
+		name        string
+		state       sharedkernel.PetLifeState
+		readErr     error
+		wantInvalid bool
 	}{
+		{name: "deceased", state: sharedkernel.PetLifeStateDeceased, wantInvalid: true},
 		{
-			name: "deceased/null",
-			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusDeceased},
+			name:    "unresolved (unknown status without date)",
+			readErr: apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recognized"),
 		},
-		{
-			name: "deceased/dated",
-			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt},
-		},
-		{
-			name: "alive/dated",
-			pet:  &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusAlive, DeceasedAt: &deceasedAt},
-		},
+		{name: "reader failure", readErr: errors.New("db down")},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			createCalled := false
-			pet := tc.pet
 			resRepo := &mockReservationRepository{
 				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
 					return ownerID, nil
 				},
-				findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-					return pet, nil
+				readPetLifeStateFn: func(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+					return tc.state, tc.readErr
 				},
 				createFn: func(_ context.Context, _ *model.Reservation) error {
 					createCalled = true
@@ -301,7 +297,10 @@ func TestReservationAdminService_Create_RejectsDeceasedPetVariants(t *testing.T)
 				ReservationTypeID: 1,
 			})
 			require.Error(t, err)
-			assert.True(t, apperrors.IsInvalidInput(err), "expected InvalidInput, got: %v", err)
+			assert.Equal(t, tc.wantInvalid, apperrors.IsInvalidInput(err), "unexpected error class: %v", err)
+			if tc.readErr != nil {
+				assert.ErrorIs(t, err, tc.readErr, "reader error must propagate")
+			}
 			assert.Nil(t, result)
 			assert.False(t, createCalled, "admin create writes must be 0 for %s", tc.name)
 		})

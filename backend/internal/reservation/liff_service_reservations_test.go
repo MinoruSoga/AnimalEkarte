@@ -11,6 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ================================================================
@@ -37,6 +38,7 @@ func newReservationTestSvc(opts ...reservationSvcOpt) *liffService {
 		ownerRepo:       &mockLiffOwnerRepository{},
 		adminRepo:       &mockLiffAdminRepository{},
 		reservationRepo: &mockLiffReservationRepository{},
+		tx:              &mockTransactor{},
 		validators:      &mockLiffValidators{},
 		notifier:        &mockLiffNotifier{},
 	}
@@ -474,6 +476,7 @@ func TestLiffService_tryAttachReservationOwnerPet(t *testing.T) {
 	t.Run("customerRepo.FindByID がエラー -> スキップ", func(t *testing.T) {
 		called := false
 		svc := &liffService{
+			tx: &mockTransactor{},
 			reservationRepo: &mockLiffReservationRepository{
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 					called = true
@@ -494,6 +497,7 @@ func TestLiffService_tryAttachReservationOwnerPet(t *testing.T) {
 	t.Run("customer.OwnerID が nil -> スキップ", func(t *testing.T) {
 		called := false
 		svc := &liffService{
+			tx: &mockTransactor{},
 			reservationRepo: &mockLiffReservationRepository{
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 					called = true
@@ -513,6 +517,7 @@ func TestLiffService_tryAttachReservationOwnerPet(t *testing.T) {
 
 	t.Run("Update がエラー -> best-effortで appt は変更されない", func(t *testing.T) {
 		svc := &liffService{
+			tx: &mockTransactor{},
 			reservationRepo: &mockLiffReservationRepository{
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 					return nil, errors.New("db error")
@@ -532,6 +537,7 @@ func TestLiffService_tryAttachReservationOwnerPet(t *testing.T) {
 	t.Run("汚染された異院OwnerIDがscopeでOwner nilになった場合は予約へ再付与しない", func(t *testing.T) {
 		called := false
 		svc := &liffService{
+			tx: &mockTransactor{},
 			reservationRepo: &mockLiffReservationRepository{
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 					called = true
@@ -555,6 +561,7 @@ func TestLiffService_tryAttachReservationOwnerPet(t *testing.T) {
 	t.Run("成功: pet_id が解決できない場合でも owner_id のみ反映", func(t *testing.T) {
 		var capturedFields map[string]any
 		svc := &liffService{
+			tx: &mockTransactor{},
 			reservationRepo: &mockLiffReservationRepository{
 				updateFieldsFn: func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 					capturedFields = fields
@@ -579,6 +586,7 @@ func TestLiffService_tryAttachReservationOwnerPet(t *testing.T) {
 
 	t.Run("成功: pet_id も解決され反映される", func(t *testing.T) {
 		svc := &liffService{
+			tx: &mockTransactor{},
 			reservationRepo: &mockLiffReservationRepository{
 				updateFieldsFn: func(_ context.Context, clinicID, id uint64, _ map[string]any) (*model.Reservation, error) {
 					return &model.Reservation{ID: id, ClinicID: clinicID, OwnerID: ptrUint64(200), PetID: ptrUint64(300)}, nil
@@ -602,26 +610,25 @@ func TestLiffService_tryAttachReservationOwnerPet(t *testing.T) {
 
 	// EMR-235: livingPets が生存として選んだ候補でも、DB 再確認が死亡/確認不能を
 	// 返した場合は pet_id のみスキップし owner_id 付与と予約成功は維持される。
-	deceasedAt := time.Now().Add(-24 * time.Hour)
 	for _, tc := range []struct {
-		name string
-		pet  *model.Pet
-		err  error
+		name  string
+		state sharedkernel.PetLifeState
+		err   error
 	}{
-		{name: "DB再確認: Status=deceased -> pet_id スキップ", pet: &model.Pet{ID: 300, Status: model.PetStatusDeceased}},
-		{name: "DB再確認: Status=deceased + DeceasedAt -> pet_id スキップ", pet: &model.Pet{ID: 300, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt}},
-		{name: "DB再確認: DeceasedAt のみ非NULL -> pet_id スキップ", pet: &model.Pet{ID: 300, Status: model.PetStatusAlive, DeceasedAt: &deceasedAt}},
-		{name: "DB再確認: FindPetByIDInClinic エラー -> pet_id スキップ", err: errors.New("db error")},
-		{name: "DB再確認: FindPetByIDInClinic NotFound -> pet_id スキップ", err: apperrors.ErrNotFound},
-		{name: "DB再確認: FindPetByIDInClinic nil pet -> pet_id スキップ"},
+		{name: "DB再確認: deceased -> pet_id スキップ", state: sharedkernel.PetLifeStateDeceased},
+		{name: "DB再確認: unresolved -> pet_id スキップ", err: apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recorded")},
+		{name: "DB再確認: reader エラー -> pet_id スキップ", err: errors.New("db error")},
+		{name: "DB再確認: NotFound -> pet_id スキップ", err: apperrors.ErrNotFound},
+		{name: "DB再確認: 状態なし(空) -> pet_id スキップ"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var capturedFields map[string]any
 			updateCalls := 0
 			svc := &liffService{
+				tx: &mockTransactor{},
 				reservationRepo: &mockLiffReservationRepository{
-					findPetByIDInClinicFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-						return tc.pet, tc.err
+					readPetLifeStateFn: func(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+						return tc.state, tc.err
 					},
 					updateFieldsFn: func(_ context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
 						updateCalls++
@@ -648,4 +655,216 @@ func TestLiffService_tryAttachReservationOwnerPet(t *testing.T) {
 			assert.Equal(t, uint64(200), capturedFields["owner_id"], "owner_id は付与されること")
 		})
 	}
+}
+
+// ================================================================
+// EMR-491 D6: LIFF の死亡 reader 呼び出しは ambient transaction 内で行う
+// ================================================================
+
+type liffLifeStateTxKey struct{}
+
+// liffLifeStateTxRecorder は WithTx の呼び出し回数を数え、tx 内の ctx に印を付ける test double。
+func liffLifeStateTxRecorder(begins *int) *mockTransactor {
+	return &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+		*begins++
+		return fn(context.WithValue(ctx, liffLifeStateTxKey{}, true))
+	}}
+}
+
+func liffLinkedCustomerRepo() *mockLiffCustomerRepository {
+	return &mockLiffCustomerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+			return &model.LineCustomer{
+				ID: 1, OwnerID: ptrUint64(200),
+				Owner: &model.Owner{ID: 200, Pets: []model.Pet{{ID: 300}}},
+			}, nil
+		},
+	}
+}
+
+func TestLiffService_resolveReservationOwnerPet_ReadsLifeStateInsideTx(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		state      sharedkernel.PetLifeState
+		readErr    error
+		wantPetSet bool
+	}{
+		{name: "alive -> pet_id is carried", state: sharedkernel.PetLifeStateAlive, wantPetSet: true},
+		{name: "deceased -> pet_id is skipped", state: sharedkernel.PetLifeStateDeceased},
+		{name: "unresolved -> pet_id is skipped", readErr: apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recorded")},
+		{name: "reader failure -> pet_id is skipped", readErr: errors.New("db down")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			begins := 0
+			readInTx := false
+			svc := &liffService{
+				tx:           liffLifeStateTxRecorder(&begins),
+				customerRepo: liffLinkedCustomerRepo(),
+				reservationRepo: &mockLiffReservationRepository{
+					readPetLifeStateFn: func(ctx context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+						readInTx = ctx.Value(liffLifeStateTxKey{}) == true
+						return tc.state, tc.readErr
+					},
+				},
+			}
+			input := &CreateReservationInput{}
+
+			svc.resolveReservationOwnerPet(context.Background(), 3, 1, input)
+
+			assert.Equal(t, 1, begins, "the life-state read must run in exactly one short transaction")
+			assert.True(t, readInTx, "the reader must see the ambient transaction")
+			if assert.NotNil(t, input.OwnerID, "owner pre-resolve is unaffected") {
+				assert.Equal(t, uint64(200), *input.OwnerID)
+			}
+			assert.Equal(t, tc.wantPetSet, input.PetID != nil)
+		})
+	}
+
+	t.Run("missing transaction dependency never carries the pet", func(t *testing.T) {
+		readCalls := 0
+		svc := &liffService{
+			customerRepo: liffLinkedCustomerRepo(),
+			reservationRepo: &mockLiffReservationRepository{
+				readPetLifeStateFn: func(context.Context, uint64, uint64) (sharedkernel.PetLifeState, error) {
+					readCalls++
+					return sharedkernel.PetLifeStateAlive, nil
+				},
+			},
+		}
+		input := &CreateReservationInput{}
+
+		svc.resolveReservationOwnerPet(context.Background(), 3, 1, input)
+
+		assert.Nil(t, input.PetID)
+		assert.Zero(t, readCalls)
+	})
+
+	t.Run("transaction begin failure never carries the pet", func(t *testing.T) {
+		svc := &liffService{
+			tx:              &mockTransactor{withTxErr: errors.New("begin failed")},
+			customerRepo:    liffLinkedCustomerRepo(),
+			reservationRepo: &mockLiffReservationRepository{},
+		}
+		input := &CreateReservationInput{}
+
+		svc.resolveReservationOwnerPet(context.Background(), 3, 1, input)
+
+		assert.Nil(t, input.PetID)
+	})
+}
+
+func TestLiffService_tryAttachReservationOwnerPet_GuardAndWriteShareOneTx(t *testing.T) {
+	t.Run("alive: reader and attach update run in the same single transaction", func(t *testing.T) {
+		begins := 0
+		readInTx, updateInTx := false, false
+		var fields map[string]any
+		svc := &liffService{
+			tx:           liffLifeStateTxRecorder(&begins),
+			customerRepo: liffLinkedCustomerRepo(),
+			reservationRepo: &mockLiffReservationRepository{
+				readPetLifeStateFn: func(ctx context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+					readInTx = ctx.Value(liffLifeStateTxKey{}) == true
+					return sharedkernel.PetLifeStateAlive, nil
+				},
+				updateFieldsFn: func(ctx context.Context, clinicID, id uint64, f map[string]any) (*model.Reservation, error) {
+					updateInTx = ctx.Value(liffLifeStateTxKey{}) == true
+					fields = f
+					return &model.Reservation{ID: id, ClinicID: clinicID, OwnerID: ptrUint64(200), PetID: ptrUint64(300)}, nil
+				},
+			},
+		}
+		appt := &model.Reservation{ID: 77}
+
+		svc.tryAttachReservationOwnerPet(context.Background(), 3, 1, appt, nil)
+
+		assert.Equal(t, 1, begins, "guard and write must share one transaction")
+		assert.True(t, readInTx)
+		assert.True(t, updateInTx, "the attach write must join the ambient transaction")
+		assert.Equal(t, uint64(300), fields["pet_id"])
+		if assert.NotNil(t, appt.PetID) {
+			assert.Equal(t, uint64(300), *appt.PetID)
+		}
+	})
+
+	for _, tc := range []struct {
+		name    string
+		state   sharedkernel.PetLifeState
+		readErr error
+	}{
+		{name: "deceased", state: sharedkernel.PetLifeStateDeceased},
+		{name: "unresolved", readErr: apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recorded")},
+		{name: "reader failure", readErr: errors.New("db down")},
+	} {
+		t.Run(tc.name+": pet_id is skipped but owner_id is attached in the same transaction", func(t *testing.T) {
+			begins := 0
+			var fields map[string]any
+			svc := &liffService{
+				tx:           liffLifeStateTxRecorder(&begins),
+				customerRepo: liffLinkedCustomerRepo(),
+				reservationRepo: &mockLiffReservationRepository{
+					readPetLifeStateFn: func(context.Context, uint64, uint64) (sharedkernel.PetLifeState, error) {
+						return tc.state, tc.readErr
+					},
+					updateFieldsFn: func(ctx context.Context, clinicID, id uint64, f map[string]any) (*model.Reservation, error) {
+						assert.Equal(t, true, ctx.Value(liffLifeStateTxKey{}))
+						fields = f
+						return &model.Reservation{ID: id, ClinicID: clinicID, OwnerID: ptrUint64(200)}, nil
+					},
+				},
+			}
+			appt := &model.Reservation{ID: 77}
+
+			svc.tryAttachReservationOwnerPet(context.Background(), 3, 1, appt, nil)
+
+			assert.Equal(t, 1, begins)
+			_, hasPetID := fields["pet_id"]
+			assert.False(t, hasPetID, "pet_id must not be written unless the pet is confirmed alive")
+			assert.Equal(t, uint64(200), fields["owner_id"])
+			assert.Nil(t, appt.PetID)
+		})
+	}
+
+	t.Run("missing transaction dependency writes nothing and never reads the pet", func(t *testing.T) {
+		readCalls, updateCalls := 0, 0
+		svc := &liffService{
+			customerRepo: liffLinkedCustomerRepo(),
+			reservationRepo: &mockLiffReservationRepository{
+				readPetLifeStateFn: func(context.Context, uint64, uint64) (sharedkernel.PetLifeState, error) {
+					readCalls++
+					return sharedkernel.PetLifeStateAlive, nil
+				},
+				updateFieldsFn: func(context.Context, uint64, uint64, map[string]any) (*model.Reservation, error) {
+					updateCalls++
+					return nil, nil
+				},
+			},
+		}
+		appt := &model.Reservation{ID: 77}
+
+		svc.tryAttachReservationOwnerPet(context.Background(), 3, 1, appt, nil)
+
+		assert.Zero(t, readCalls)
+		assert.Zero(t, updateCalls)
+		assert.Nil(t, appt.OwnerID)
+	})
+
+	t.Run("transaction begin failure writes nothing", func(t *testing.T) {
+		updateCalls := 0
+		svc := &liffService{
+			tx:           &mockTransactor{withTxErr: errors.New("begin failed")},
+			customerRepo: liffLinkedCustomerRepo(),
+			reservationRepo: &mockLiffReservationRepository{
+				updateFieldsFn: func(context.Context, uint64, uint64, map[string]any) (*model.Reservation, error) {
+					updateCalls++
+					return nil, nil
+				},
+			},
+		}
+		appt := &model.Reservation{ID: 77}
+
+		svc.tryAttachReservationOwnerPet(context.Background(), 3, 1, appt, nil)
+
+		assert.Zero(t, updateCalls)
+		assert.Nil(t, appt.OwnerID)
+	})
 }

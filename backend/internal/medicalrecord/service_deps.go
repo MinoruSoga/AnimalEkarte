@@ -188,8 +188,9 @@ type mrLineCustomerRepo interface {
 type mrReservationRepo interface {
 	sharedkernel.OwnerPetLinkVerifier
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	// FindPetByIDInClinic は死亡ペットへの新規カルテ作成拒否（BUG-002 / SD-10）に使う。
-	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+	// ReadPetLifeState は死亡ペットへの新規カルテ作成拒否（BUG-002 / SD-10 / EMR-491 D6）に使う。
+	// ambient transaction 内で共通 subject の現行 revision から生死を解決する。
+	ReadPetLifeState(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error)
 	AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error
 	BackfillForMedicalRecord(ctx context.Context, clinicID, id uint64, ownerID, petID, doctorID *uint64) error
 	PrepareForMedicalRecordFinalization(ctx context.Context, clinicID, id uint64) error

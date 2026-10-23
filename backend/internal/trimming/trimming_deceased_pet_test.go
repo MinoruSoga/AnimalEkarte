@@ -2,20 +2,19 @@ package trimming
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // TASK-030: 死亡ペット検証が input.PetID 有無に依存せず finalPetID を見ることを経路別に固定する。
-
-func deceasedPetAt() time.Time {
-	return time.Now().Add(-24 * time.Hour)
-}
 
 func trimmingApptWithPet(id, clinicID, petID uint64) *model.Reservation {
 	start := time.Date(2026, time.August, 1, 10, 0, 0, 0, time.UTC)
@@ -49,7 +48,6 @@ func newDeceasedGuardTestService(
 func TestService_CreateExistingDetail_RejectsDeceasedPetWhenPetIDOmitted(t *testing.T) {
 	appointmentID := uint64(77)
 	petID := uint64(501)
-	deceasedAt := deceasedPetAt()
 	detailCreateCalls := 0
 	appointmentUpdateCalls := 0
 	audit := &trimmingAuditRecorder{}
@@ -61,8 +59,8 @@ func TestService_CreateExistingDetail_RejectsDeceasedPetWhenPetIDOmitted(t *test
 		findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
 			return 10, nil
 		},
-		findPetByIDFn: func(id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
+		petLifeStateFn: func(uint64) (sharedkernel.PetLifeState, error) {
+			return sharedkernel.PetLifeStateDeceased, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 			appointmentUpdateCalls++
@@ -99,7 +97,6 @@ func TestService_CreateExistingDetail_RejectsDeceasedPetWhenPetIDOmitted(t *test
 func TestService_Update_RejectsDeceasedPetWhenPetIDOmitted(t *testing.T) {
 	appointmentID := uint64(77)
 	petID := uint64(501)
-	deceasedAt := deceasedPetAt()
 	detailUpdateCalls := 0
 	appointmentUpdateCalls := 0
 	remarks := "weight recheck"
@@ -112,8 +109,8 @@ func TestService_Update_RejectsDeceasedPetWhenPetIDOmitted(t *testing.T) {
 		findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
 			return 10, nil
 		},
-		findPetByIDFn: func(id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
+		petLifeStateFn: func(uint64) (sharedkernel.PetLifeState, error) {
+			return sharedkernel.PetLifeStateDeceased, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 			appointmentUpdateCalls++
@@ -152,7 +149,6 @@ func TestService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
 	appointmentID := uint64(77)
 	alivePetID := uint64(501)
 	deceasedPetID := uint64(999)
-	deceasedAt := deceasedPetAt()
 	detailUpdateCalls := 0
 	appointmentUpdateCalls := 0
 	audit := &trimmingAuditRecorder{}
@@ -164,11 +160,11 @@ func TestService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
 		findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
 			return 10, nil
 		},
-		findPetByIDFn: func(id uint64) (*model.Pet, error) {
+		petLifeStateFn: func(id uint64) (sharedkernel.PetLifeState, error) {
 			if id == deceasedPetID {
-				return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
+				return sharedkernel.PetLifeStateDeceased, nil
 			}
-			return &model.Pet{ID: id, Status: model.PetStatusAlive}, nil
+			return sharedkernel.PetLifeStateAlive, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
 			appointmentUpdateCalls++
@@ -204,7 +200,6 @@ func TestService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
 // ④ 通常 create のペットが死亡 → 拒否・write/audit 0
 func TestService_Create_RejectsDeceasedPet(t *testing.T) {
 	petID := uint64(501)
-	deceasedAt := deceasedPetAt()
 	createCalls := 0
 	detailCreateCalls := 0
 	audit := &trimmingAuditRecorder{}
@@ -213,8 +208,8 @@ func TestService_Create_RejectsDeceasedPet(t *testing.T) {
 		findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
 			return 10, nil
 		},
-		findPetByIDFn: func(id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
+		petLifeStateFn: func(uint64) (sharedkernel.PetLifeState, error) {
+			return sharedkernel.PetLifeStateDeceased, nil
 		},
 		createFn: func(_ context.Context, _ *model.Reservation) error {
 			createCalls++
@@ -244,4 +239,60 @@ func TestService_Create_RejectsDeceasedPet(t *testing.T) {
 	assert.Zero(t, createCalls)
 	assert.Zero(t, detailCreateCalls)
 	assert.Empty(t, audit.entries)
+}
+
+// EMR-491 D6: 生死を確定できない（unresolved）/ reader 失敗の pet は生存扱いにせず、
+// 業務拒否（InvalidInput）ではなくエラーとして write/audit 0 で拒否する。
+func TestService_Create_RejectsUnresolvedOrFailedPetLifeState(t *testing.T) {
+	petID := uint64(501)
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{name: "unresolved", err: apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recorded")},
+		{name: "reader failure", err: errors.New("db down")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			createCalls := 0
+			detailCreateCalls := 0
+			audit := &trimmingAuditRecorder{}
+
+			reserv := &mockTrimmingReservationRepository{
+				findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+					return 10, nil
+				},
+				petLifeStateFn: func(uint64) (sharedkernel.PetLifeState, error) {
+					return "", tc.err
+				},
+				createFn: func(_ context.Context, _ *model.Reservation) error {
+					createCalls++
+					t.Fatal("appointment must not be created when the pet life state is not confirmed alive")
+					return nil
+				},
+			}
+			detail := &mockTrimmingDetailRepository{
+				createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+					detailCreateCalls++
+					t.Fatal("trimming detail must not be created when the pet life state is not confirmed alive")
+					return nil
+				},
+			}
+			svc := newDeceasedGuardTestService(reserv, detail, audit)
+
+			got, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+				ReservationTypeID: 9,
+				StartTime:         time.Now(),
+				EndTime:           time.Now().Add(time.Hour),
+				PetID:             &petID,
+			})
+
+			require.Error(t, err)
+			assert.ErrorIs(t, err, tc.err)
+			assert.False(t, apperrors.IsInvalidInput(err), "unknown must not be reported as a deceased business rejection: %v", err)
+			assert.Nil(t, got)
+			assert.Zero(t, createCalls)
+			assert.Zero(t, detailCreateCalls)
+			assert.Empty(t, audit.entries)
+		})
+	}
 }

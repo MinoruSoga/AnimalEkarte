@@ -375,6 +375,7 @@ func TestLiffService_ReservationOwnerAttach_OwnerSync(t *testing.T) {
 	var updateCalls int
 	var attachedFields map[string]any
 	svc := &liffService{
+		tx: &mockTransactor{},
 		reservationRepo: &mockLiffReservationRepository{
 			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
 				attachedFields = fields

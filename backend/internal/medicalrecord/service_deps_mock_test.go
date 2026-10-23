@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // Test doubles for the consumer-side dependency views declared in service_deps.go. These are
@@ -189,8 +190,9 @@ func (m *mockMedicalRecordRepository) FindPetOwnerInClinic(ctx context.Context, 
 	return 1, nil
 }
 
-func (m *mockMedicalRecordRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
-	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+// ReadPetLifeState は EMR-491 D6 の死亡 reader の最小 stub（常に alive の明示 test double）。
+func (m *mockMedicalRecordRepository) ReadPetLifeState(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+	return sharedkernel.PetLifeStateAlive, nil
 }
 
 func (m *mockMedicalRecordRepository) AssertMedicalRecordDoctorInClinic(ctx context.Context, clinicID, doctorID uint64) error {

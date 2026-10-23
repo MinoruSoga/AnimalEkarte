@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 	staffpkg "github.com/animal-ekarte/backend/internal/staff"
 )
 
@@ -413,6 +414,7 @@ type mockLiffReservationRepository struct {
 	updateTentativeStatusFn   func(ctx context.Context, clinicID, id uint64, fields map[string]any, validate tentativeTransitionValidator) (*model.Reservation, error)
 	countByTypeAndStartTimeFn func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 	findPetByIDInClinicFn     func(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
+	readPetLifeStateFn        func(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error)
 }
 
 func (m *mockLiffReservationRepository) FindAll(_ context.Context, _ []uint64, _, _ int, _, _, _ *time.Time, _, _ *string, _, _ *uint64) ([]model.Reservation, int64, error) {
@@ -540,7 +542,15 @@ func (m *mockLiffReservationRepository) FindPetByIDInClinic(ctx context.Context,
 	if m.findPetByIDInClinicFn != nil {
 		return m.findPetByIDInClinicFn(ctx, clinicID, petID)
 	}
-	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+	return &model.Pet{ID: petID}, nil
+}
+
+// ReadPetLifeState は EMR-491 D6 の死亡 reader のモック。既定は alive（明示した test double）。
+func (m *mockLiffReservationRepository) ReadPetLifeState(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error) {
+	if m.readPetLifeStateFn != nil {
+		return m.readPetLifeStateFn(ctx, clinicID, petID)
+	}
+	return sharedkernel.PetLifeStateAlive, nil
 }
 
 func (m *mockLiffReservationRepository) assertLineCustomerReservationOwner(ctx context.Context, clinicID, customerID uint64, _ *uint64) error {
