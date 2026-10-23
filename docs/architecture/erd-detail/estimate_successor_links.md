@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9556](../../../backend/migrations/001_init.sql#L9556) |
-| `original_estimate_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9557](../../../backend/migrations/001_init.sql#L9557) |
-| `presentation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9558](../../../backend/migrations/001_init.sql#L9558) |
-| `successor_estimate_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9559](../../../backend/migrations/001_init.sql#L9559) |
-| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9560](../../../backend/migrations/001_init.sql#L9560) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9561](../../../backend/migrations/001_init.sql#L9561) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9558](../../../backend/migrations/001_init.sql#L9558) |
+| `original_estimate_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9559](../../../backend/migrations/001_init.sql#L9559) |
+| `presentation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9560](../../../backend/migrations/001_init.sql#L9560) |
+| `successor_estimate_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9561](../../../backend/migrations/001_init.sql#L9561) |
+| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9562](../../../backend/migrations/001_init.sql#L9562) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9563](../../../backend/migrations/001_init.sql#L9563) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -62,10 +62,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `estimate_successor_links_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9556](../../../backend/migrations/001_init.sql#L9556) |
-| `estimate_successor_links_presentation_id_clinic_id_origina_fkey` | `presentation_id, clinic_id, original_estimate_id` | [estimate_presentations](estimate_presentations.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:9564](../../../backend/migrations/001_init.sql#L9564) |
-| `estimate_successor_links_successor_estimate_id_clinic_id_fkey` | `successor_estimate_id, clinic_id` | [estimates](estimates.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9565](../../../backend/migrations/001_init.sql#L9565) |
-| `estimate_successor_links_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9566](../../../backend/migrations/001_init.sql#L9566) |
+| `estimate_successor_links_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9558](../../../backend/migrations/001_init.sql#L9558) |
+| `estimate_successor_links_presentation_id_clinic_id_origina_fkey` | `presentation_id, clinic_id, original_estimate_id` | [estimate_presentations](estimate_presentations.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:9566](../../../backend/migrations/001_init.sql#L9566) |
+| `estimate_successor_links_successor_estimate_id_clinic_id_fkey` | `successor_estimate_id, clinic_id` | [estimates](estimates.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9567](../../../backend/migrations/001_init.sql#L9567) |
+| `estimate_successor_links_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9568](../../../backend/migrations/001_init.sql#L9568) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -78,9 +78,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `estimate_successor_links_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9560](../../../backend/migrations/001_init.sql#L9560) |
-| `estimate_successor_links_pkey` | primary | `PRIMARY KEY (clinic_id,successor_estimate_id)` | [001_init.sql:9562](../../../backend/migrations/001_init.sql#L9562) |
-| `estimate_successor_links_check` | check | `CHECK (original_estimate_id<>successor_estimate_id)` | [001_init.sql:9563](../../../backend/migrations/001_init.sql#L9563) |
+| `estimate_successor_links_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9562](../../../backend/migrations/001_init.sql#L9562) |
+| `estimate_successor_links_pkey` | primary | `PRIMARY KEY (clinic_id,successor_estimate_id)` | [001_init.sql:9564](../../../backend/migrations/001_init.sql#L9564) |
+| `estimate_successor_links_check` | check | `CHECK (original_estimate_id<>successor_estimate_id)` | [001_init.sql:9565](../../../backend/migrations/001_init.sql#L9565) |
 
 ## インデックス
 

@@ -1,7 +1,9 @@
 package model
 
-// clinic_operating_hours_migration_test.go — static checks for
-// backend/migrations/008_clinic_operating_hours.sql and the matching GORM
+// clinic_operating_hours_migration_test.go — static checks for the common
+// clinic operating-hours storage DDL (the former
+// backend/migrations/008_clinic_operating_hours.sql, now a 001_init.sql
+// section) and the matching GORM
 // model tags (EMR-446/466 A03 common clinic operating hours, contract §2.1).
 // NOT_RUN yet in this workspace; same static-migration-test form as
 // rls_migration_test.go. Shared helpers (migrationSection, mustField) live in

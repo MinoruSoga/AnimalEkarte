@@ -10,10 +10,10 @@
 
 ```
 {連番}_{description}.sql
-例: 005_add_trimming_course.sql
+例: 011_add_trimming_course.sql
 ```
 
-連番は既存の最大番号 + 1。説明は snake_case。
+連番は既存の最大番号 + 1。ただし2026-10-23統合後の次番号は `011` から（`002` は `seeds/002_master` バンドル番号と紛らわしいため欠番のまま。README の採番ルールと同一）。説明は snake_case。
 
 > 番号重複は `go test ./internal/lintscan -run TestMigrationNumberUniqueness` で検出・FAIL する。並行ブランチをマージする際は両側の最大連番を必ず確認すること。
 

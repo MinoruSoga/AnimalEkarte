@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10196](../../../backend/migrations/001_init.sql#L10196) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10196](../../../backend/migrations/001_init.sql#L10196) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10197](../../../backend/migrations/001_init.sql#L10197) |
-| `binding_revision` | `bigint` | NOT NULL | — | — | [001_init.sql:10197](../../../backend/migrations/001_init.sql#L10197) |
-| `appointment_id` | `bigint` | NULL | — | FK | [001_init.sql:10198](../../../backend/migrations/001_init.sql#L10198) |
-| `followup_confirmation_id` | `bigint` | NULL | — | FK | [001_init.sql:10198](../../../backend/migrations/001_init.sql#L10198) |
-| `purpose` | `text` | NOT NULL | — | — | [001_init.sql:10199](../../../backend/migrations/001_init.sql#L10199) |
-| `operation_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10200](../../../backend/migrations/001_init.sql#L10200) |
-| `destination_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:10200](../../../backend/migrations/001_init.sql#L10200) |
-| `payload_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:10201](../../../backend/migrations/001_init.sql#L10201) |
-| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10201](../../../backend/migrations/001_init.sql#L10201) |
-| `confirmed_payload` | `jsonb` | NOT NULL | — | — | [001_init.sql:10964](../../../backend/migrations/001_init.sql#L10964) |
-| `message_type` | `text` | NULL | — | — | [001_init.sql:10964](../../../backend/migrations/001_init.sql#L10964) |
-| `content_summary` | `text` | NULL | — | — | [001_init.sql:10964](../../../backend/migrations/001_init.sql#L10964) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10198](../../../backend/migrations/001_init.sql#L10198) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10198](../../../backend/migrations/001_init.sql#L10198) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10199](../../../backend/migrations/001_init.sql#L10199) |
+| `binding_revision` | `bigint` | NOT NULL | — | — | [001_init.sql:10199](../../../backend/migrations/001_init.sql#L10199) |
+| `appointment_id` | `bigint` | NULL | — | FK | [001_init.sql:10200](../../../backend/migrations/001_init.sql#L10200) |
+| `followup_confirmation_id` | `bigint` | NULL | — | FK | [001_init.sql:10200](../../../backend/migrations/001_init.sql#L10200) |
+| `purpose` | `text` | NOT NULL | — | — | [001_init.sql:10201](../../../backend/migrations/001_init.sql#L10201) |
+| `operation_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10202](../../../backend/migrations/001_init.sql#L10202) |
+| `destination_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:10202](../../../backend/migrations/001_init.sql#L10202) |
+| `payload_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:10203](../../../backend/migrations/001_init.sql#L10203) |
+| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10203](../../../backend/migrations/001_init.sql#L10203) |
+| `confirmed_payload` | `jsonb` | NOT NULL | — | — | [001_init.sql:10966](../../../backend/migrations/001_init.sql#L10966) |
+| `message_type` | `text` | NULL | — | — | [001_init.sql:10966](../../../backend/migrations/001_init.sql#L10966) |
+| `content_summary` | `text` | NULL | — | — | [001_init.sql:10966](../../../backend/migrations/001_init.sql#L10966) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -82,11 +82,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `line_dispatch_intents_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10196](../../../backend/migrations/001_init.sql#L10196) |
-| `line_dispatch_intents_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owner_line_binding_states](owner_line_binding_states.md) | `clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:10203](../../../backend/migrations/001_init.sql#L10203) |
-| `line_dispatch_intents_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10204](../../../backend/migrations/001_init.sql#L10204) |
-| `line_dispatch_intents_followup_confirmation_id_clinic_id_fkey` | `followup_confirmation_id, clinic_id` | [followup_confirmations](followup_confirmations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10205](../../../backend/migrations/001_init.sql#L10205) |
-| `line_dispatch_intents_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10206](../../../backend/migrations/001_init.sql#L10206) |
+| `line_dispatch_intents_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10198](../../../backend/migrations/001_init.sql#L10198) |
+| `line_dispatch_intents_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owner_line_binding_states](owner_line_binding_states.md) | `clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:10205](../../../backend/migrations/001_init.sql#L10205) |
+| `line_dispatch_intents_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10206](../../../backend/migrations/001_init.sql#L10206) |
+| `line_dispatch_intents_followup_confirmation_id_clinic_id_fkey` | `followup_confirmation_id, clinic_id` | [followup_confirmations](followup_confirmations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10207](../../../backend/migrations/001_init.sql#L10207) |
+| `line_dispatch_intents_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10208](../../../backend/migrations/001_init.sql#L10208) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -100,14 +100,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `line_dispatch_intents_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10196](../../../backend/migrations/001_init.sql#L10196) |
-| `line_dispatch_intents_binding_revision_check` | check | `CHECK(binding_revision>0)` | [001_init.sql:10197](../../../backend/migrations/001_init.sql#L10197) |
-| `line_dispatch_intents_purpose_check` | check | `CHECK(purpose IN('reservation_confirmation','reservation_change','reservation_reminder','guidance','promotion','medical_followup'))` | [001_init.sql:10199](../../../backend/migrations/001_init.sql#L10199) |
-| `line_dispatch_intents_destination_snapshot_check` | check | `CHECK(jsonb_typeof(destination_snapshot)='object')` | [001_init.sql:10200](../../../backend/migrations/001_init.sql#L10200) |
-| `line_dispatch_intents_payload_digest_check` | check | `CHECK(octet_length(payload_digest)=32)` | [001_init.sql:10201](../../../backend/migrations/001_init.sql#L10201) |
-| `line_dispatch_intents_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10202](../../../backend/migrations/001_init.sql#L10202) |
-| `line_dispatch_intents_clinic_id_operation_id_key` | unique | `UNIQUE(clinic_id,operation_id)` | [001_init.sql:10202](../../../backend/migrations/001_init.sql#L10202) |
-| `line_dispatch_intents_confirmed_payload_check` | check | `CHECK(jsonb_typeof(confirmed_payload)='object')` | [001_init.sql:10964](../../../backend/migrations/001_init.sql#L10964) |
+| `line_dispatch_intents_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10198](../../../backend/migrations/001_init.sql#L10198) |
+| `line_dispatch_intents_binding_revision_check` | check | `CHECK(binding_revision>0)` | [001_init.sql:10199](../../../backend/migrations/001_init.sql#L10199) |
+| `line_dispatch_intents_purpose_check` | check | `CHECK(purpose IN('reservation_confirmation','reservation_change','reservation_reminder','guidance','promotion','medical_followup'))` | [001_init.sql:10201](../../../backend/migrations/001_init.sql#L10201) |
+| `line_dispatch_intents_destination_snapshot_check` | check | `CHECK(jsonb_typeof(destination_snapshot)='object')` | [001_init.sql:10202](../../../backend/migrations/001_init.sql#L10202) |
+| `line_dispatch_intents_payload_digest_check` | check | `CHECK(octet_length(payload_digest)=32)` | [001_init.sql:10203](../../../backend/migrations/001_init.sql#L10203) |
+| `line_dispatch_intents_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10204](../../../backend/migrations/001_init.sql#L10204) |
+| `line_dispatch_intents_clinic_id_operation_id_key` | unique | `UNIQUE(clinic_id,operation_id)` | [001_init.sql:10204](../../../backend/migrations/001_init.sql#L10204) |
+| `line_dispatch_intents_confirmed_payload_check` | check | `CHECK(jsonb_typeof(confirmed_payload)='object')` | [001_init.sql:10966](../../../backend/migrations/001_init.sql#L10966) |
 
 ## インデックス
 

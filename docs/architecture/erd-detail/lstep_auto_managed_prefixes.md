@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:640](../../../backend/migrations/001_init.sql#L640) |
-| `prefix` | `VARCHAR(100)` | NOT NULL | — | UK | [001_init.sql:641](../../../backend/migrations/001_init.sql#L641) |
-| `category` | `VARCHAR(20)` | NOT NULL | — | — | [001_init.sql:642](../../../backend/migrations/001_init.sql#L642) |
-| `description` | `TEXT` | NULL | — | — | [001_init.sql:643](../../../backend/migrations/001_init.sql#L643) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:644](../../../backend/migrations/001_init.sql#L644) |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:645](../../../backend/migrations/001_init.sql#L645) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:642](../../../backend/migrations/001_init.sql#L642) |
+| `prefix` | `VARCHAR(100)` | NOT NULL | — | UK | [001_init.sql:643](../../../backend/migrations/001_init.sql#L643) |
+| `category` | `VARCHAR(20)` | NOT NULL | — | — | [001_init.sql:644](../../../backend/migrations/001_init.sql#L644) |
+| `description` | `TEXT` | NULL | — | — | [001_init.sql:645](../../../backend/migrations/001_init.sql#L645) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:646](../../../backend/migrations/001_init.sql#L646) |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:647](../../../backend/migrations/001_init.sql#L647) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -46,11 +46,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_auto_managed_prefixes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:640](../../../backend/migrations/001_init.sql#L640) |
-| `lstep_auto_managed_prefixes_prefix_key` | unique | `UNIQUE` | [001_init.sql:641](../../../backend/migrations/001_init.sql#L641) |
+| `lstep_auto_managed_prefixes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:642](../../../backend/migrations/001_init.sql#L642) |
+| `lstep_auto_managed_prefixes_prefix_key` | unique | `UNIQUE` | [001_init.sql:643](../../../backend/migrations/001_init.sql#L643) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lstep_auto_managed_prefixes_category` | NO | — | `CREATE INDEX idx_lstep_auto_managed_prefixes_category ON lstep_auto_managed_prefixes (category)` | [001_init.sql:648](../../../backend/migrations/001_init.sql#L648) |
+| `idx_lstep_auto_managed_prefixes_category` | NO | — | `CREATE INDEX idx_lstep_auto_managed_prefixes_category ON lstep_auto_managed_prefixes (category)` | [001_init.sql:650](../../../backend/migrations/001_init.sql#L650) |

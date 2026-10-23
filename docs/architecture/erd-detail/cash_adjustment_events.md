@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9820](../../../backend/migrations/001_init.sql#L9820) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9821](../../../backend/migrations/001_init.sql#L9821) |
-| `event_kind` | `text` | NOT NULL | — | — | [001_init.sql:9822](../../../backend/migrations/001_init.sql#L9822) |
-| `amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9823](../../../backend/migrations/001_init.sql#L9823) |
-| `occurred_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:9824](../../../backend/migrations/001_init.sql#L9824) |
-| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9825](../../../backend/migrations/001_init.sql#L9825) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9826](../../../backend/migrations/001_init.sql#L9826) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9827](../../../backend/migrations/001_init.sql#L9827) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9828](../../../backend/migrations/001_init.sql#L9828) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9822](../../../backend/migrations/001_init.sql#L9822) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9823](../../../backend/migrations/001_init.sql#L9823) |
+| `event_kind` | `text` | NOT NULL | — | — | [001_init.sql:9824](../../../backend/migrations/001_init.sql#L9824) |
+| `amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9825](../../../backend/migrations/001_init.sql#L9825) |
+| `occurred_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:9826](../../../backend/migrations/001_init.sql#L9826) |
+| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9827](../../../backend/migrations/001_init.sql#L9827) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9828](../../../backend/migrations/001_init.sql#L9828) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9829](../../../backend/migrations/001_init.sql#L9829) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9830](../../../backend/migrations/001_init.sql#L9830) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -61,9 +61,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `cash_adjustment_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9821](../../../backend/migrations/001_init.sql#L9821) |
-| `cash_adjustment_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9827](../../../backend/migrations/001_init.sql#L9827) |
-| `fk_cash_adjustment_operation` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9831](../../../backend/migrations/001_init.sql#L9831) |
+| `cash_adjustment_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9823](../../../backend/migrations/001_init.sql#L9823) |
+| `cash_adjustment_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9829](../../../backend/migrations/001_init.sql#L9829) |
+| `fk_cash_adjustment_operation` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9833](../../../backend/migrations/001_init.sql#L9833) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -75,11 +75,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `cash_adjustment_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9820](../../../backend/migrations/001_init.sql#L9820) |
-| `cash_adjustment_events_event_kind_check` | check | `CHECK (event_kind IN ('replenish','collect'))` | [001_init.sql:9822](../../../backend/migrations/001_init.sql#L9822) |
-| `cash_adjustment_events_amount_check` | check | `CHECK (amount > 0)` | [001_init.sql:9823](../../../backend/migrations/001_init.sql#L9823) |
-| `cash_adjustment_events_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9825](../../../backend/migrations/001_init.sql#L9825) |
-| `cash_adjustment_events_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9829](../../../backend/migrations/001_init.sql#L9829) |
+| `cash_adjustment_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9822](../../../backend/migrations/001_init.sql#L9822) |
+| `cash_adjustment_events_event_kind_check` | check | `CHECK (event_kind IN ('replenish','collect'))` | [001_init.sql:9824](../../../backend/migrations/001_init.sql#L9824) |
+| `cash_adjustment_events_amount_check` | check | `CHECK (amount > 0)` | [001_init.sql:9825](../../../backend/migrations/001_init.sql#L9825) |
+| `cash_adjustment_events_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9827](../../../backend/migrations/001_init.sql#L9827) |
+| `cash_adjustment_events_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9831](../../../backend/migrations/001_init.sql#L9831) |
 
 ## インデックス
 

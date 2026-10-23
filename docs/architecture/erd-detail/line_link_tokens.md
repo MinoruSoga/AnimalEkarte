@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:423](../../../backend/migrations/001_init.sql#L423) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:424](../../../backend/migrations/001_init.sql#L424) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:425](../../../backend/migrations/001_init.sql#L425) |
-| `token` | `varchar(64)` | NOT NULL | — | UK | [001_init.sql:426](../../../backend/migrations/001_init.sql#L426) |
-| `expires_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:427](../../../backend/migrations/001_init.sql#L427) |
-| `used_at` | `timestamptz` | NULL | — | — | [001_init.sql:428](../../../backend/migrations/001_init.sql#L428) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:429](../../../backend/migrations/001_init.sql#L429) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:425](../../../backend/migrations/001_init.sql#L425) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:426](../../../backend/migrations/001_init.sql#L426) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:427](../../../backend/migrations/001_init.sql#L427) |
+| `token` | `varchar(64)` | NOT NULL | — | UK | [001_init.sql:428](../../../backend/migrations/001_init.sql#L428) |
+| `expires_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:429](../../../backend/migrations/001_init.sql#L429) |
+| `used_at` | `timestamptz` | NULL | — | — | [001_init.sql:430](../../../backend/migrations/001_init.sql#L430) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:431](../../../backend/migrations/001_init.sql#L431) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -52,8 +52,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `line_link_tokens_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:424](../../../backend/migrations/001_init.sql#L424) |
-| `line_link_tokens_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:425](../../../backend/migrations/001_init.sql#L425) |
+| `line_link_tokens_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:426](../../../backend/migrations/001_init.sql#L426) |
+| `line_link_tokens_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:427](../../../backend/migrations/001_init.sql#L427) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,12 +64,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `line_link_tokens_pkey` | primary | `PRIMARY KEY` | [001_init.sql:423](../../../backend/migrations/001_init.sql#L423) |
-| `line_link_tokens_token_key` | unique | `UNIQUE` | [001_init.sql:426](../../../backend/migrations/001_init.sql#L426) |
+| `line_link_tokens_pkey` | primary | `PRIMARY KEY` | [001_init.sql:425](../../../backend/migrations/001_init.sql#L425) |
+| `line_link_tokens_token_key` | unique | `UNIQUE` | [001_init.sql:428](../../../backend/migrations/001_init.sql#L428) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_line_link_tokens_token` | NO | `used_at IS NULL` | `CREATE INDEX idx_line_link_tokens_token ON line_link_tokens (token)     WHERE used_at IS NULL` | [001_init.sql:433](../../../backend/migrations/001_init.sql#L433) |
-| `idx_line_link_tokens_owner` | NO | — | `CREATE INDEX idx_line_link_tokens_owner ON line_link_tokens (clinic_id, owner_id)` | [001_init.sql:437](../../../backend/migrations/001_init.sql#L437) |
+| `idx_line_link_tokens_token` | NO | `used_at IS NULL` | `CREATE INDEX idx_line_link_tokens_token ON line_link_tokens (token)     WHERE used_at IS NULL` | [001_init.sql:435](../../../backend/migrations/001_init.sql#L435) |
+| `idx_line_link_tokens_owner` | NO | — | `CREATE INDEX idx_line_link_tokens_owner ON line_link_tokens (clinic_id, owner_id)` | [001_init.sql:439](../../../backend/migrations/001_init.sql#L439) |

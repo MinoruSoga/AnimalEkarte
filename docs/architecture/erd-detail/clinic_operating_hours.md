@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11668](../../../backend/migrations/001_init.sql#L11668) |
-| `schema_version` | `text` | NOT NULL | — | — | [001_init.sql:11669](../../../backend/migrations/001_init.sql#L11669) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:11670](../../../backend/migrations/001_init.sql#L11670) |
-| `weekly_hours` | `jsonb` | NOT NULL | — | — | [001_init.sql:11671](../../../backend/migrations/001_init.sql#L11671) |
-| `closed_dates` | `jsonb` | NOT NULL | — | — | [001_init.sql:11672](../../../backend/migrations/001_init.sql#L11672) |
-| `national_holiday_closed` | `boolean` | NOT NULL | — | — | [001_init.sql:11673](../../../backend/migrations/001_init.sql#L11673) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11674](../../../backend/migrations/001_init.sql#L11674) |
-| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11675](../../../backend/migrations/001_init.sql#L11675) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11670](../../../backend/migrations/001_init.sql#L11670) |
+| `schema_version` | `text` | NOT NULL | — | — | [001_init.sql:11671](../../../backend/migrations/001_init.sql#L11671) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:11672](../../../backend/migrations/001_init.sql#L11672) |
+| `weekly_hours` | `jsonb` | NOT NULL | — | — | [001_init.sql:11673](../../../backend/migrations/001_init.sql#L11673) |
+| `closed_dates` | `jsonb` | NOT NULL | — | — | [001_init.sql:11674](../../../backend/migrations/001_init.sql#L11674) |
+| `national_holiday_closed` | `boolean` | NOT NULL | — | — | [001_init.sql:11675](../../../backend/migrations/001_init.sql#L11675) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11676](../../../backend/migrations/001_init.sql#L11676) |
+| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11677](../../../backend/migrations/001_init.sql#L11677) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -50,7 +50,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_operating_hours_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11668](../../../backend/migrations/001_init.sql#L11668) |
+| `clinic_operating_hours_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11670](../../../backend/migrations/001_init.sql#L11670) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -60,11 +60,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `clinic_operating_hours_pkey` | primary | `PRIMARY KEY` | [001_init.sql:11668](../../../backend/migrations/001_init.sql#L11668) |
-| `clinic_operating_hours_schema_version_check` | check | `CHECK (schema_version = 'clinic-operating-hours/v1')` | [001_init.sql:11669](../../../backend/migrations/001_init.sql#L11669) |
-| `clinic_operating_hours_version_check` | check | `CHECK (version > 0)` | [001_init.sql:11670](../../../backend/migrations/001_init.sql#L11670) |
-| `clinic_operating_hours_weekly_hours_check` | check | `CHECK (jsonb_typeof(weekly_hours) = 'array' AND jsonb_array_length(weekly_hours) = 7)` | [001_init.sql:11671](../../../backend/migrations/001_init.sql#L11671) |
-| `clinic_operating_hours_closed_dates_check` | check | `CHECK (jsonb_typeof(closed_dates) = 'array')` | [001_init.sql:11672](../../../backend/migrations/001_init.sql#L11672) |
+| `clinic_operating_hours_pkey` | primary | `PRIMARY KEY` | [001_init.sql:11670](../../../backend/migrations/001_init.sql#L11670) |
+| `clinic_operating_hours_schema_version_check` | check | `CHECK (schema_version = 'clinic-operating-hours/v1')` | [001_init.sql:11671](../../../backend/migrations/001_init.sql#L11671) |
+| `clinic_operating_hours_version_check` | check | `CHECK (version > 0)` | [001_init.sql:11672](../../../backend/migrations/001_init.sql#L11672) |
+| `clinic_operating_hours_weekly_hours_check` | check | `CHECK (jsonb_typeof(weekly_hours) = 'array' AND jsonb_array_length(weekly_hours) = 7)` | [001_init.sql:11673](../../../backend/migrations/001_init.sql#L11673) |
+| `clinic_operating_hours_closed_dates_check` | check | `CHECK (jsonb_typeof(closed_dates) = 'array')` | [001_init.sql:11674](../../../backend/migrations/001_init.sql#L11674) |
 
 ## インデックス
 

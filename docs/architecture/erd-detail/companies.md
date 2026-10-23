@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:168](../../../backend/migrations/001_init.sql#L168) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:169](../../../backend/migrations/001_init.sql#L169) |
-| `postal_code` | `text` | NOT NULL | `''` | — | [001_init.sql:170](../../../backend/migrations/001_init.sql#L170) |
-| `address` | `text` | NOT NULL | `''` | — | [001_init.sql:171](../../../backend/migrations/001_init.sql#L171) |
-| `phone_number` | `text` | NOT NULL | `''` | — | [001_init.sql:172](../../../backend/migrations/001_init.sql#L172) |
-| `fax_number` | `text` | NOT NULL | `''` | — | [001_init.sql:173](../../../backend/migrations/001_init.sql#L173) |
-| `registration_number` | `text` | NOT NULL | `''` | — | [001_init.sql:174](../../../backend/migrations/001_init.sql#L174) |
-| `invoice_registration_number` | `text` | NOT NULL | `''` | — | [001_init.sql:175](../../../backend/migrations/001_init.sql#L175) |
-| `director_name` | `text` | NOT NULL | `''` | — | [001_init.sql:176](../../../backend/migrations/001_init.sql#L176) |
-| `email` | `text` | NOT NULL | `''` | — | [001_init.sql:177](../../../backend/migrations/001_init.sql#L177) |
-| `website` | `text` | NOT NULL | `''` | — | [001_init.sql:178](../../../backend/migrations/001_init.sql#L178) |
-| `logo_url` | `text` | NOT NULL | `''` | — | [001_init.sql:179](../../../backend/migrations/001_init.sql#L179) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:180](../../../backend/migrations/001_init.sql#L180) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:181](../../../backend/migrations/001_init.sql#L181) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:170](../../../backend/migrations/001_init.sql#L170) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:171](../../../backend/migrations/001_init.sql#L171) |
+| `postal_code` | `text` | NOT NULL | `''` | — | [001_init.sql:172](../../../backend/migrations/001_init.sql#L172) |
+| `address` | `text` | NOT NULL | `''` | — | [001_init.sql:173](../../../backend/migrations/001_init.sql#L173) |
+| `phone_number` | `text` | NOT NULL | `''` | — | [001_init.sql:174](../../../backend/migrations/001_init.sql#L174) |
+| `fax_number` | `text` | NOT NULL | `''` | — | [001_init.sql:175](../../../backend/migrations/001_init.sql#L175) |
+| `registration_number` | `text` | NOT NULL | `''` | — | [001_init.sql:176](../../../backend/migrations/001_init.sql#L176) |
+| `invoice_registration_number` | `text` | NOT NULL | `''` | — | [001_init.sql:177](../../../backend/migrations/001_init.sql#L177) |
+| `director_name` | `text` | NOT NULL | `''` | — | [001_init.sql:178](../../../backend/migrations/001_init.sql#L178) |
+| `email` | `text` | NOT NULL | `''` | — | [001_init.sql:179](../../../backend/migrations/001_init.sql#L179) |
+| `website` | `text` | NOT NULL | `''` | — | [001_init.sql:180](../../../backend/migrations/001_init.sql#L180) |
+| `logo_url` | `text` | NOT NULL | `''` | — | [001_init.sql:181](../../../backend/migrations/001_init.sql#L181) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:182](../../../backend/migrations/001_init.sql#L182) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:183](../../../backend/migrations/001_init.sql#L183) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -62,7 +62,7 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `companies_pkey` | primary | `PRIMARY KEY` | [001_init.sql:168](../../../backend/migrations/001_init.sql#L168) |
+| `companies_pkey` | primary | `PRIMARY KEY` | [001_init.sql:170](../../../backend/migrations/001_init.sql#L170) |
 
 ## インデックス
 

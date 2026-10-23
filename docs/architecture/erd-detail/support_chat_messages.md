@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:6630](../../../backend/migrations/001_init.sql#L6630) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6631](../../../backend/migrations/001_init.sql#L6631) |
-| `staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6632](../../../backend/migrations/001_init.sql#L6632) |
-| `role` | `varchar(16)` | NOT NULL | — | — | [001_init.sql:6633](../../../backend/migrations/001_init.sql#L6633) |
-| `content` | `text` | NOT NULL | — | — | [001_init.sql:6634](../../../backend/migrations/001_init.sql#L6634) |
-| `sources` | `jsonb` | NULL | — | — | [001_init.sql:6635](../../../backend/migrations/001_init.sql#L6635) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6636](../../../backend/migrations/001_init.sql#L6636) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:6637](../../../backend/migrations/001_init.sql#L6637) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:6632](../../../backend/migrations/001_init.sql#L6632) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6633](../../../backend/migrations/001_init.sql#L6633) |
+| `staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:6634](../../../backend/migrations/001_init.sql#L6634) |
+| `role` | `varchar(16)` | NOT NULL | — | — | [001_init.sql:6635](../../../backend/migrations/001_init.sql#L6635) |
+| `content` | `text` | NOT NULL | — | — | [001_init.sql:6636](../../../backend/migrations/001_init.sql#L6636) |
+| `sources` | `jsonb` | NULL | — | — | [001_init.sql:6637](../../../backend/migrations/001_init.sql#L6637) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6638](../../../backend/migrations/001_init.sql#L6638) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:6639](../../../backend/migrations/001_init.sql#L6639) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,8 +54,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `support_chat_messages_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6631](../../../backend/migrations/001_init.sql#L6631) |
-| `support_chat_messages_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6632](../../../backend/migrations/001_init.sql#L6632) |
+| `support_chat_messages_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6633](../../../backend/migrations/001_init.sql#L6633) |
+| `support_chat_messages_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6634](../../../backend/migrations/001_init.sql#L6634) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -66,11 +66,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `support_chat_messages_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6630](../../../backend/migrations/001_init.sql#L6630) |
-| `support_chat_messages_role_check` | check | `CHECK (role IN ('user', 'assistant'))` | [001_init.sql:6633](../../../backend/migrations/001_init.sql#L6633) |
+| `support_chat_messages_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6632](../../../backend/migrations/001_init.sql#L6632) |
+| `support_chat_messages_role_check` | check | `CHECK (role IN ('user', 'assistant'))` | [001_init.sql:6635](../../../backend/migrations/001_init.sql#L6635) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_support_chat_messages_clinic_staff_created` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_support_chat_messages_clinic_staff_created     ON support_chat_messages (clinic_id, staff_id, created_at, id)     WHERE deleted_at IS NULL` | [001_init.sql:6640](../../../backend/migrations/001_init.sql#L6640) |
+| `idx_support_chat_messages_clinic_staff_created` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_support_chat_messages_clinic_staff_created     ON support_chat_messages (clinic_id, staff_id, created_at, id)     WHERE deleted_at IS NULL` | [001_init.sql:6642](../../../backend/migrations/001_init.sql#L6642) |

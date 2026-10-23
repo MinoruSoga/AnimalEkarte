@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `operation_binding_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11866](../../../backend/migrations/001_init.sql#L11866) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:11867](../../../backend/migrations/001_init.sql#L11867) |
-| `target_kind` | `text` | NOT NULL | — | — | [001_init.sql:11868](../../../backend/migrations/001_init.sql#L11868) |
-| `target_id` | `bigint` | NULL | — | — | [001_init.sql:11869](../../../backend/migrations/001_init.sql#L11869) |
-| `staff_id` | `bigint` | NULL | — | — | [001_init.sql:11870](../../../backend/migrations/001_init.sql#L11870) |
-| `assignment_id` | `bigint` | NULL | — | — | [001_init.sql:11871](../../../backend/migrations/001_init.sql#L11871) |
+| `operation_binding_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11868](../../../backend/migrations/001_init.sql#L11868) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:11869](../../../backend/migrations/001_init.sql#L11869) |
+| `target_kind` | `text` | NOT NULL | — | — | [001_init.sql:11870](../../../backend/migrations/001_init.sql#L11870) |
+| `target_id` | `bigint` | NULL | — | — | [001_init.sql:11871](../../../backend/migrations/001_init.sql#L11871) |
+| `staff_id` | `bigint` | NULL | — | — | [001_init.sql:11872](../../../backend/migrations/001_init.sql#L11872) |
+| `assignment_id` | `bigint` | NULL | — | — | [001_init.sql:11873](../../../backend/migrations/001_init.sql#L11873) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -47,7 +47,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `reservation_master_operation__operation_binding_id_clinic__fkey` | `operation_binding_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11872](../../../backend/migrations/001_init.sql#L11872) |
+| `reservation_master_operation__operation_binding_id_clinic__fkey` | `operation_binding_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11874](../../../backend/migrations/001_init.sql#L11874) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -57,14 +57,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `reservation_master_operation_anchors_pkey` | primary | `PRIMARY KEY` | [001_init.sql:11866](../../../backend/migrations/001_init.sql#L11866) |
-| `reservation_master_operation_anchors_operation_binding_id_check` | check | `CHECK (operation_binding_id > 0)` | [001_init.sql:11866](../../../backend/migrations/001_init.sql#L11866) |
-| `reservation_master_operation_anchors_clinic_id_check` | check | `CHECK (clinic_id > 0)` | [001_init.sql:11867](../../../backend/migrations/001_init.sql#L11867) |
-| `reservation_master_operation_anchors_target_kind_check` | check | `CHECK (target_kind IN ('type', 'group', 'line_start_policy'))` | [001_init.sql:11868](../../../backend/migrations/001_init.sql#L11868) |
-| `reservation_master_operation_anchors_target_id_check` | check | `CHECK (target_id IS NULL OR target_id > 0)` | [001_init.sql:11869](../../../backend/migrations/001_init.sql#L11869) |
-| `reservation_master_operation_anchors_staff_id_check` | check | `CHECK (staff_id IS NULL OR staff_id > 0)` | [001_init.sql:11870](../../../backend/migrations/001_init.sql#L11870) |
-| `reservation_master_operation_anchors_assignment_id_check` | check | `CHECK (assignment_id IS NULL OR assignment_id > 0)` | [001_init.sql:11871](../../../backend/migrations/001_init.sql#L11871) |
-| `reservation_master_operation_anchors_check` | check | `CHECK (         (target_kind IN ('type', 'group') AND staff_id IS NULL AND assignment_id IS NULL)         OR (target_kind = 'line_start_policy' AND target_id IS NOT NULL AND staff_id IS NOT NULL AND assignment_id IS NOT NULL)     )` | [001_init.sql:11873](../../../backend/migrations/001_init.sql#L11873) |
+| `reservation_master_operation_anchors_pkey` | primary | `PRIMARY KEY` | [001_init.sql:11868](../../../backend/migrations/001_init.sql#L11868) |
+| `reservation_master_operation_anchors_operation_binding_id_check` | check | `CHECK (operation_binding_id > 0)` | [001_init.sql:11868](../../../backend/migrations/001_init.sql#L11868) |
+| `reservation_master_operation_anchors_clinic_id_check` | check | `CHECK (clinic_id > 0)` | [001_init.sql:11869](../../../backend/migrations/001_init.sql#L11869) |
+| `reservation_master_operation_anchors_target_kind_check` | check | `CHECK (target_kind IN ('type', 'group', 'line_start_policy'))` | [001_init.sql:11870](../../../backend/migrations/001_init.sql#L11870) |
+| `reservation_master_operation_anchors_target_id_check` | check | `CHECK (target_id IS NULL OR target_id > 0)` | [001_init.sql:11871](../../../backend/migrations/001_init.sql#L11871) |
+| `reservation_master_operation_anchors_staff_id_check` | check | `CHECK (staff_id IS NULL OR staff_id > 0)` | [001_init.sql:11872](../../../backend/migrations/001_init.sql#L11872) |
+| `reservation_master_operation_anchors_assignment_id_check` | check | `CHECK (assignment_id IS NULL OR assignment_id > 0)` | [001_init.sql:11873](../../../backend/migrations/001_init.sql#L11873) |
+| `reservation_master_operation_anchors_check` | check | `CHECK (         (target_kind IN ('type', 'group') AND staff_id IS NULL AND assignment_id IS NULL)         OR (target_kind = 'line_start_policy' AND target_id IS NOT NULL AND staff_id IS NOT NULL AND assignment_id IS NOT NULL)     )` | [001_init.sql:11875](../../../backend/migrations/001_init.sql#L11875) |
 
 ## インデックス
 

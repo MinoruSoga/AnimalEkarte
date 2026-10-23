@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:7984](../../../backend/migrations/001_init.sql#L7984) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:7985](../../../backend/migrations/001_init.sql#L7985) |
-| `course_id` | `bigint` | NULL | — | FK | [001_init.sql:7986](../../../backend/migrations/001_init.sql#L7986) |
-| `contract_version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:7987](../../../backend/migrations/001_init.sql#L7987) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7988](../../../backend/migrations/001_init.sql#L7988) |
-| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7989](../../../backend/migrations/001_init.sql#L7989) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:7990](../../../backend/migrations/001_init.sql#L7990) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:7986](../../../backend/migrations/001_init.sql#L7986) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:7987](../../../backend/migrations/001_init.sql#L7987) |
+| `course_id` | `bigint` | NULL | — | FK | [001_init.sql:7988](../../../backend/migrations/001_init.sql#L7988) |
+| `contract_version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:7989](../../../backend/migrations/001_init.sql#L7989) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7990](../../../backend/migrations/001_init.sql#L7990) |
+| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7991](../../../backend/migrations/001_init.sql#L7991) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:7992](../../../backend/migrations/001_init.sql#L7992) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -53,8 +53,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_option_rule_sets_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7985](../../../backend/migrations/001_init.sql#L7985) |
-| `trimming_option_rule_sets_course_id_clinic_id_fkey` | `course_id, clinic_id` | [trimming_courses](trimming_courses.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7992](../../../backend/migrations/001_init.sql#L7992) |
+| `trimming_option_rule_sets_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7987](../../../backend/migrations/001_init.sql#L7987) |
+| `trimming_option_rule_sets_course_id_clinic_id_fkey` | `course_id, clinic_id` | [trimming_courses](trimming_courses.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7994](../../../backend/migrations/001_init.sql#L7994) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -65,13 +65,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_option_rule_sets_pkey` | primary | `PRIMARY KEY` | [001_init.sql:7984](../../../backend/migrations/001_init.sql#L7984) |
-| `trimming_option_rule_sets_contract_version_check` | check | `CHECK (contract_version > 0)` | [001_init.sql:7987](../../../backend/migrations/001_init.sql#L7987) |
-| `trimming_option_rule_sets_id_clinic_id_key` | unique | `UNIQUE (id, clinic_id)` | [001_init.sql:7991](../../../backend/migrations/001_init.sql#L7991) |
+| `trimming_option_rule_sets_pkey` | primary | `PRIMARY KEY` | [001_init.sql:7986](../../../backend/migrations/001_init.sql#L7986) |
+| `trimming_option_rule_sets_contract_version_check` | check | `CHECK (contract_version > 0)` | [001_init.sql:7989](../../../backend/migrations/001_init.sql#L7989) |
+| `trimming_option_rule_sets_id_clinic_id_key` | unique | `UNIQUE (id, clinic_id)` | [001_init.sql:7993](../../../backend/migrations/001_init.sql#L7993) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_trimming_rule_set_course_active` | YES | `course_id IS NOT NULL AND deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_trimming_rule_set_course_active ON trimming_option_rule_sets(clinic_id, course_id)  WHERE course_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:7994](../../../backend/migrations/001_init.sql#L7994) |
-| `uq_trimming_rule_set_no_course_active` | YES | `course_id IS NULL AND deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_trimming_rule_set_no_course_active ON trimming_option_rule_sets(clinic_id)  WHERE course_id IS NULL AND deleted_at IS NULL` | [001_init.sql:7996](../../../backend/migrations/001_init.sql#L7996) |
+| `uq_trimming_rule_set_course_active` | YES | `course_id IS NOT NULL AND deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_trimming_rule_set_course_active ON trimming_option_rule_sets(clinic_id, course_id)  WHERE course_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:7996](../../../backend/migrations/001_init.sql#L7996) |
+| `uq_trimming_rule_set_no_course_active` | YES | `course_id IS NULL AND deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_trimming_rule_set_no_course_active ON trimming_option_rule_sets(clinic_id)  WHERE course_id IS NULL AND deleted_at IS NULL` | [001_init.sql:7998](../../../backend/migrations/001_init.sql#L7998) |

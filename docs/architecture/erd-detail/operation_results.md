@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8875](../../../backend/migrations/001_init.sql#L8875) |
-| `binding_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8876](../../../backend/migrations/001_init.sql#L8876) |
-| `result_refs` | `jsonb` | NOT NULL | — | — | [001_init.sql:8878](../../../backend/migrations/001_init.sql#L8878) |
-| `committed_versions` | `jsonb` | NOT NULL | — | — | [001_init.sql:8879](../../../backend/migrations/001_init.sql#L8879) |
-| `effect_summary` | `jsonb` | NOT NULL | — | — | [001_init.sql:8880](../../../backend/migrations/001_init.sql#L8880) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8881](../../../backend/migrations/001_init.sql#L8881) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8877](../../../backend/migrations/001_init.sql#L8877) |
+| `binding_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8878](../../../backend/migrations/001_init.sql#L8878) |
+| `result_refs` | `jsonb` | NOT NULL | — | — | [001_init.sql:8880](../../../backend/migrations/001_init.sql#L8880) |
+| `committed_versions` | `jsonb` | NOT NULL | — | — | [001_init.sql:8881](../../../backend/migrations/001_init.sql#L8881) |
+| `effect_summary` | `jsonb` | NOT NULL | — | — | [001_init.sql:8882](../../../backend/migrations/001_init.sql#L8882) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8883](../../../backend/migrations/001_init.sql#L8883) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -51,8 +51,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `operation_results_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8875](../../../backend/migrations/001_init.sql#L8875) |
-| `operation_results_binding_id_clinic_id_fkey` | `binding_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8883](../../../backend/migrations/001_init.sql#L8883) |
+| `operation_results_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8877](../../../backend/migrations/001_init.sql#L8877) |
+| `operation_results_binding_id_clinic_id_fkey` | `binding_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8885](../../../backend/migrations/001_init.sql#L8885) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -63,10 +63,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `operation_results_result_refs_check` | check | `CHECK (jsonb_typeof(result_refs)='object')` | [001_init.sql:8878](../../../backend/migrations/001_init.sql#L8878) |
-| `operation_results_committed_versions_check` | check | `CHECK (jsonb_typeof(committed_versions)='object')` | [001_init.sql:8879](../../../backend/migrations/001_init.sql#L8879) |
-| `operation_results_effect_summary_check` | check | `CHECK (jsonb_typeof(effect_summary)='object')` | [001_init.sql:8880](../../../backend/migrations/001_init.sql#L8880) |
-| `operation_results_pkey` | primary | `PRIMARY KEY (clinic_id,binding_id)` | [001_init.sql:8882](../../../backend/migrations/001_init.sql#L8882) |
+| `operation_results_result_refs_check` | check | `CHECK (jsonb_typeof(result_refs)='object')` | [001_init.sql:8880](../../../backend/migrations/001_init.sql#L8880) |
+| `operation_results_committed_versions_check` | check | `CHECK (jsonb_typeof(committed_versions)='object')` | [001_init.sql:8881](../../../backend/migrations/001_init.sql#L8881) |
+| `operation_results_effect_summary_check` | check | `CHECK (jsonb_typeof(effect_summary)='object')` | [001_init.sql:8882](../../../backend/migrations/001_init.sql#L8882) |
+| `operation_results_pkey` | primary | `PRIMARY KEY (clinic_id,binding_id)` | [001_init.sql:8884](../../../backend/migrations/001_init.sql#L8884) |
 
 ## インデックス
 

@@ -80,7 +80,7 @@ func TestBillDiscountExcluded007StorageInvariants(t *testing.T) {
 		return version
 	}
 
-	t.Run("existing rows keep raw NULL and omitted INSERT stores NULL", func(t *testing.T) {
+	t.Run("rows omitting the flag store raw NULL (no default, no backfill)", func(t *testing.T) {
 		for _, table := range flagTables {
 			require.Nilf(t, flagOf(table, preIDs[table]),
 				"%s pre-007 row must keep is_bill_discount_excluded NULL (no backfill)", table)

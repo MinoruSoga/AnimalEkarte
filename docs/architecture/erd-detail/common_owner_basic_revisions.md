@@ -11,30 +11,30 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10758](../../../backend/migrations/001_init.sql#L10758) |
-| `common_owner_id` | `uuid` | NOT NULL | — | FK, UK | [001_init.sql:10758](../../../backend/migrations/001_init.sql#L10758) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10759](../../../backend/migrations/001_init.sql#L10759) |
-| `source_clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10759](../../../backend/migrations/001_init.sql#L10759) |
-| `source_local_owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10760](../../../backend/migrations/001_init.sql#L10760) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10760](../../../backend/migrations/001_init.sql#L10760) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:10761](../../../backend/migrations/001_init.sql#L10761) |
-| `name_kana` | `text` | NULL | — | — | [001_init.sql:10761](../../../backend/migrations/001_init.sql#L10761) |
-| `birth_date` | `date` | NULL | — | — | [001_init.sql:10761](../../../backend/migrations/001_init.sql#L10761) |
-| `company` | `text` | NULL | — | — | [001_init.sql:10761](../../../backend/migrations/001_init.sql#L10761) |
-| `postal_code` | `text` | NULL | — | — | [001_init.sql:10762](../../../backend/migrations/001_init.sql#L10762) |
-| `address1` | `text` | NULL | — | — | [001_init.sql:10762](../../../backend/migrations/001_init.sql#L10762) |
-| `address2` | `text` | NULL | — | — | [001_init.sql:10762](../../../backend/migrations/001_init.sql#L10762) |
-| `home_postal_code` | `text` | NULL | — | — | [001_init.sql:10762](../../../backend/migrations/001_init.sql#L10762) |
-| `home_address1` | `text` | NULL | — | — | [001_init.sql:10762](../../../backend/migrations/001_init.sql#L10762) |
-| `home_address2` | `text` | NULL | — | — | [001_init.sql:10762](../../../backend/migrations/001_init.sql#L10762) |
-| `phone` | `text` | NULL | — | — | [001_init.sql:10763](../../../backend/migrations/001_init.sql#L10763) |
-| `company_phone` | `text` | NULL | — | — | [001_init.sql:10763](../../../backend/migrations/001_init.sql#L10763) |
-| `email` | `text` | NULL | — | — | [001_init.sql:10763](../../../backend/migrations/001_init.sql#L10763) |
-| `cygram_result` | `jsonb` | NULL | — | — | [001_init.sql:10764](../../../backend/migrations/001_init.sql#L10764) |
-| `cygram_rule_version` | `text` | NULL | — | — | [001_init.sql:10764](../../../backend/migrations/001_init.sql#L10764) |
-| `provenance` | `jsonb` | NOT NULL | — | — | [001_init.sql:10766](../../../backend/migrations/001_init.sql#L10766) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10766](../../../backend/migrations/001_init.sql#L10766) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10767](../../../backend/migrations/001_init.sql#L10767) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10760](../../../backend/migrations/001_init.sql#L10760) |
+| `common_owner_id` | `uuid` | NOT NULL | — | FK, UK | [001_init.sql:10760](../../../backend/migrations/001_init.sql#L10760) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10761](../../../backend/migrations/001_init.sql#L10761) |
+| `source_clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10761](../../../backend/migrations/001_init.sql#L10761) |
+| `source_local_owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10762](../../../backend/migrations/001_init.sql#L10762) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10762](../../../backend/migrations/001_init.sql#L10762) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:10763](../../../backend/migrations/001_init.sql#L10763) |
+| `name_kana` | `text` | NULL | — | — | [001_init.sql:10763](../../../backend/migrations/001_init.sql#L10763) |
+| `birth_date` | `date` | NULL | — | — | [001_init.sql:10763](../../../backend/migrations/001_init.sql#L10763) |
+| `company` | `text` | NULL | — | — | [001_init.sql:10763](../../../backend/migrations/001_init.sql#L10763) |
+| `postal_code` | `text` | NULL | — | — | [001_init.sql:10764](../../../backend/migrations/001_init.sql#L10764) |
+| `address1` | `text` | NULL | — | — | [001_init.sql:10764](../../../backend/migrations/001_init.sql#L10764) |
+| `address2` | `text` | NULL | — | — | [001_init.sql:10764](../../../backend/migrations/001_init.sql#L10764) |
+| `home_postal_code` | `text` | NULL | — | — | [001_init.sql:10764](../../../backend/migrations/001_init.sql#L10764) |
+| `home_address1` | `text` | NULL | — | — | [001_init.sql:10764](../../../backend/migrations/001_init.sql#L10764) |
+| `home_address2` | `text` | NULL | — | — | [001_init.sql:10764](../../../backend/migrations/001_init.sql#L10764) |
+| `phone` | `text` | NULL | — | — | [001_init.sql:10765](../../../backend/migrations/001_init.sql#L10765) |
+| `company_phone` | `text` | NULL | — | — | [001_init.sql:10765](../../../backend/migrations/001_init.sql#L10765) |
+| `email` | `text` | NULL | — | — | [001_init.sql:10765](../../../backend/migrations/001_init.sql#L10765) |
+| `cygram_result` | `jsonb` | NULL | — | — | [001_init.sql:10766](../../../backend/migrations/001_init.sql#L10766) |
+| `cygram_rule_version` | `text` | NULL | — | — | [001_init.sql:10766](../../../backend/migrations/001_init.sql#L10766) |
+| `provenance` | `jsonb` | NOT NULL | — | — | [001_init.sql:10768](../../../backend/migrations/001_init.sql#L10768) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10768](../../../backend/migrations/001_init.sql#L10768) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10769](../../../backend/migrations/001_init.sql#L10769) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -100,11 +100,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `common_owner_basic_revisions_common_owner_id_fkey` | `common_owner_id` | [common_owner_subjects](common_owner_subjects.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10758](../../../backend/migrations/001_init.sql#L10758) |
-| `common_owner_basic_revisions_source_clinic_id_fkey` | `source_clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10759](../../../backend/migrations/001_init.sql#L10759) |
-| `common_owner_basic_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10766](../../../backend/migrations/001_init.sql#L10766) |
-| `common_owner_basic_revisions_source_local_owner_id_source__fkey` | `source_local_owner_id, source_clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10768](../../../backend/migrations/001_init.sql#L10768) |
-| `common_owner_basic_revisions_operation_id_source_clinic_id_fkey` | `operation_id, source_clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10769](../../../backend/migrations/001_init.sql#L10769) |
+| `common_owner_basic_revisions_common_owner_id_fkey` | `common_owner_id` | [common_owner_subjects](common_owner_subjects.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10760](../../../backend/migrations/001_init.sql#L10760) |
+| `common_owner_basic_revisions_source_clinic_id_fkey` | `source_clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10761](../../../backend/migrations/001_init.sql#L10761) |
+| `common_owner_basic_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10768](../../../backend/migrations/001_init.sql#L10768) |
+| `common_owner_basic_revisions_source_local_owner_id_source__fkey` | `source_local_owner_id, source_clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10770](../../../backend/migrations/001_init.sql#L10770) |
+| `common_owner_basic_revisions_operation_id_source_clinic_id_fkey` | `operation_id, source_clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10771](../../../backend/migrations/001_init.sql#L10771) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -118,12 +118,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `common_owner_basic_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10758](../../../backend/migrations/001_init.sql#L10758) |
-| `common_owner_basic_revisions_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10759](../../../backend/migrations/001_init.sql#L10759) |
-| `common_owner_basic_revisions_provenance_check` | check | `CHECK(jsonb_typeof(provenance)='object')` | [001_init.sql:10766](../../../backend/migrations/001_init.sql#L10766) |
-| `common_owner_basic_revisions_check` | check | `CHECK((cygram_result IS NULL AND cygram_rule_version IS NULL) OR(birth_date IS NOT NULL AND cygram_result IS NOT NULL AND cygram_rule_version IS NOT NULL AND btrim(cygram_rule_version)<>''))` | [001_init.sql:10765](../../../backend/migrations/001_init.sql#L10765) |
-| `common_owner_basic_revisions_id_common_owner_id_key` | unique | `UNIQUE(id,common_owner_id)` | [001_init.sql:10767](../../../backend/migrations/001_init.sql#L10767) |
-| `common_owner_basic_revisions_common_owner_id_revision_key` | unique | `UNIQUE(common_owner_id,revision)` | [001_init.sql:10767](../../../backend/migrations/001_init.sql#L10767) |
+| `common_owner_basic_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10760](../../../backend/migrations/001_init.sql#L10760) |
+| `common_owner_basic_revisions_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10761](../../../backend/migrations/001_init.sql#L10761) |
+| `common_owner_basic_revisions_provenance_check` | check | `CHECK(jsonb_typeof(provenance)='object')` | [001_init.sql:10768](../../../backend/migrations/001_init.sql#L10768) |
+| `common_owner_basic_revisions_check` | check | `CHECK((cygram_result IS NULL AND cygram_rule_version IS NULL) OR(birth_date IS NOT NULL AND cygram_result IS NOT NULL AND cygram_rule_version IS NOT NULL AND btrim(cygram_rule_version)<>''))` | [001_init.sql:10767](../../../backend/migrations/001_init.sql#L10767) |
+| `common_owner_basic_revisions_id_common_owner_id_key` | unique | `UNIQUE(id,common_owner_id)` | [001_init.sql:10769](../../../backend/migrations/001_init.sql#L10769) |
+| `common_owner_basic_revisions_common_owner_id_revision_key` | unique | `UNIQUE(common_owner_id,revision)` | [001_init.sql:10769](../../../backend/migrations/001_init.sql#L10769) |
 
 ## インデックス
 

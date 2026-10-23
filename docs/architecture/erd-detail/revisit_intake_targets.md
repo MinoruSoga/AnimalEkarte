@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:7634](../../../backend/migrations/001_init.sql#L7634) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:7635](../../../backend/migrations/001_init.sql#L7635) |
-| `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:7636](../../../backend/migrations/001_init.sql#L7636) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:7637](../../../backend/migrations/001_init.sql#L7637) |
-| `target_generation` | `bigint` | NOT NULL | — | UK | [001_init.sql:7638](../../../backend/migrations/001_init.sql#L7638) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7639](../../../backend/migrations/001_init.sql#L7639) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:7636](../../../backend/migrations/001_init.sql#L7636) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:7637](../../../backend/migrations/001_init.sql#L7637) |
+| `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:7638](../../../backend/migrations/001_init.sql#L7638) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:7639](../../../backend/migrations/001_init.sql#L7639) |
+| `target_generation` | `bigint` | NOT NULL | — | UK | [001_init.sql:7640](../../../backend/migrations/001_init.sql#L7640) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7641](../../../backend/migrations/001_init.sql#L7641) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -56,9 +56,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `revisit_intake_targets_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7635](../../../backend/migrations/001_init.sql#L7635) |
-| `revisit_intake_targets_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7642](../../../backend/migrations/001_init.sql#L7642) |
-| `revisit_intake_targets_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:7644](../../../backend/migrations/001_init.sql#L7644) |
+| `revisit_intake_targets_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7637](../../../backend/migrations/001_init.sql#L7637) |
+| `revisit_intake_targets_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7644](../../../backend/migrations/001_init.sql#L7644) |
+| `revisit_intake_targets_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:7646](../../../backend/migrations/001_init.sql#L7646) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -70,10 +70,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `revisit_intake_targets_pkey` | primary | `PRIMARY KEY` | [001_init.sql:7634](../../../backend/migrations/001_init.sql#L7634) |
-| `revisit_intake_targets_target_generation_check` | check | `CHECK (target_generation > 0)` | [001_init.sql:7638](../../../backend/migrations/001_init.sql#L7638) |
-| `revisit_intake_targets_clinic_id_id_key` | unique | `UNIQUE (clinic_id, id)` | [001_init.sql:7640](../../../backend/migrations/001_init.sql#L7640) |
-| `revisit_intake_targets_clinic_id_appointment_id_target_gene_key` | unique | `UNIQUE (clinic_id, appointment_id, target_generation)` | [001_init.sql:7641](../../../backend/migrations/001_init.sql#L7641) |
+| `revisit_intake_targets_pkey` | primary | `PRIMARY KEY` | [001_init.sql:7636](../../../backend/migrations/001_init.sql#L7636) |
+| `revisit_intake_targets_target_generation_check` | check | `CHECK (target_generation > 0)` | [001_init.sql:7640](../../../backend/migrations/001_init.sql#L7640) |
+| `revisit_intake_targets_clinic_id_id_key` | unique | `UNIQUE (clinic_id, id)` | [001_init.sql:7642](../../../backend/migrations/001_init.sql#L7642) |
+| `revisit_intake_targets_clinic_id_appointment_id_target_gene_key` | unique | `UNIQUE (clinic_id, appointment_id, target_generation)` | [001_init.sql:7643](../../../backend/migrations/001_init.sql#L7643) |
 
 ## インデックス
 

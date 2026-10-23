@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:823](../../../backend/migrations/001_init.sql#L823) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:824](../../../backend/migrations/001_init.sql#L824) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:825](../../../backend/migrations/001_init.sql#L825) |
-| `color` | `text` | NOT NULL | `'#3B82F6'` | — | [001_init.sql:826](../../../backend/migrations/001_init.sql#L826) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:827](../../../backend/migrations/001_init.sql#L827) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:828](../../../backend/migrations/001_init.sql#L828) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:829](../../../backend/migrations/001_init.sql#L829) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:830](../../../backend/migrations/001_init.sql#L830) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:831](../../../backend/migrations/001_init.sql#L831) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8900](../../../backend/migrations/001_init.sql#L8900) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:825](../../../backend/migrations/001_init.sql#L825) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:826](../../../backend/migrations/001_init.sql#L826) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:827](../../../backend/migrations/001_init.sql#L827) |
+| `color` | `text` | NOT NULL | `'#3B82F6'` | — | [001_init.sql:828](../../../backend/migrations/001_init.sql#L828) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:829](../../../backend/migrations/001_init.sql#L829) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:830](../../../backend/migrations/001_init.sql#L830) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:831](../../../backend/migrations/001_init.sql#L831) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:832](../../../backend/migrations/001_init.sql#L832) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:833](../../../backend/migrations/001_init.sql#L833) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:8902](../../../backend/migrations/001_init.sql#L8902) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,7 +54,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `reservation_type_groups_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:824](../../../backend/migrations/001_init.sql#L824) |
+| `reservation_type_groups_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:826](../../../backend/migrations/001_init.sql#L826) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,13 +64,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `reservation_type_groups_pkey` | primary | `PRIMARY KEY` | [001_init.sql:823](../../../backend/migrations/001_init.sql#L823) |
-| `reservation_type_groups_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8900](../../../backend/migrations/001_init.sql#L8900) |
+| `reservation_type_groups_pkey` | primary | `PRIMARY KEY` | [001_init.sql:825](../../../backend/migrations/001_init.sql#L825) |
+| `reservation_type_groups_version_check` | check | `CHECK (version > 0)` | [001_init.sql:8902](../../../backend/migrations/001_init.sql#L8902) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_rtg_clinic` | NO | — | `CREATE INDEX idx_rtg_clinic ON reservation_type_groups(clinic_id)` | [001_init.sql:834](../../../backend/migrations/001_init.sql#L834) |
-| `idx_reservation_type_groups_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_reservation_type_groups_sort  ON reservation_type_groups(clinic_id, sort_order) WHERE deleted_at IS NULL` | [001_init.sql:2287](../../../backend/migrations/001_init.sql#L2287) |
-| `idx_reservation_type_groups_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_reservation_type_groups_active ON reservation_type_groups(id) WHERE deleted_at IS NULL` | [001_init.sql:2495](../../../backend/migrations/001_init.sql#L2495) |
+| `idx_rtg_clinic` | NO | — | `CREATE INDEX idx_rtg_clinic ON reservation_type_groups(clinic_id)` | [001_init.sql:836](../../../backend/migrations/001_init.sql#L836) |
+| `idx_reservation_type_groups_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_reservation_type_groups_sort  ON reservation_type_groups(clinic_id, sort_order) WHERE deleted_at IS NULL` | [001_init.sql:2289](../../../backend/migrations/001_init.sql#L2289) |
+| `idx_reservation_type_groups_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_reservation_type_groups_active ON reservation_type_groups(id) WHERE deleted_at IS NULL` | [001_init.sql:2497](../../../backend/migrations/001_init.sql#L2497) |

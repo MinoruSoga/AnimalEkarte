@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8285](../../../backend/migrations/001_init.sql#L8285) |
-| `difference_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8286](../../../backend/migrations/001_init.sql#L8286) |
-| `operation_key` | `uuid` | NOT NULL | — | — | [001_init.sql:8287](../../../backend/migrations/001_init.sql#L8287) |
-| `resulting_binding_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8288](../../../backend/migrations/001_init.sql#L8288) |
-| `resolved_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8289](../../../backend/migrations/001_init.sql#L8289) |
-| `resolved_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8290](../../../backend/migrations/001_init.sql#L8290) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8287](../../../backend/migrations/001_init.sql#L8287) |
+| `difference_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8288](../../../backend/migrations/001_init.sql#L8288) |
+| `operation_key` | `uuid` | NOT NULL | — | — | [001_init.sql:8289](../../../backend/migrations/001_init.sql#L8289) |
+| `resulting_binding_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8290](../../../backend/migrations/001_init.sql#L8290) |
+| `resolved_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8291](../../../backend/migrations/001_init.sql#L8291) |
+| `resolved_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8292](../../../backend/migrations/001_init.sql#L8292) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -55,9 +55,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `billing_source_difference_resolutions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8285](../../../backend/migrations/001_init.sql#L8285) |
-| `billing_source_difference_resolutions_resolved_by_fkey` | `resolved_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8289](../../../backend/migrations/001_init.sql#L8289) |
-| `billing_source_difference_resoluti_difference_id_clinic_id_fkey` | `difference_id, clinic_id` | [billing_source_differences](billing_source_differences.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8292](../../../backend/migrations/001_init.sql#L8292) |
+| `billing_source_difference_resolutions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8287](../../../backend/migrations/001_init.sql#L8287) |
+| `billing_source_difference_resolutions_resolved_by_fkey` | `resolved_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8291](../../../backend/migrations/001_init.sql#L8291) |
+| `billing_source_difference_resoluti_difference_id_clinic_id_fkey` | `difference_id, clinic_id` | [billing_source_differences](billing_source_differences.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8294](../../../backend/migrations/001_init.sql#L8294) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -69,8 +69,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `billing_source_difference_resol_resulting_binding_version_check` | check | `CHECK (resulting_binding_version > 0)` | [001_init.sql:8288](../../../backend/migrations/001_init.sql#L8288) |
-| `billing_source_difference_resolutions_pkey` | primary | `PRIMARY KEY (clinic_id,difference_id)` | [001_init.sql:8291](../../../backend/migrations/001_init.sql#L8291) |
+| `billing_source_difference_resol_resulting_binding_version_check` | check | `CHECK (resulting_binding_version > 0)` | [001_init.sql:8290](../../../backend/migrations/001_init.sql#L8290) |
+| `billing_source_difference_resolutions_pkey` | primary | `PRIMARY KEY (clinic_id,difference_id)` | [001_init.sql:8293](../../../backend/migrations/001_init.sql#L8293) |
 
 ## インデックス
 

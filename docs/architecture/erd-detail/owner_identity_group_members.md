@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:4638](../../../backend/migrations/001_init.sql#L4638) |
-| `group_created_clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4639](../../../backend/migrations/001_init.sql#L4639) |
-| `group_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4640](../../../backend/migrations/001_init.sql#L4640) |
-| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4641](../../../backend/migrations/001_init.sql#L4641) |
-| `owner_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4642](../../../backend/migrations/001_init.sql#L4642) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4643](../../../backend/migrations/001_init.sql#L4643) |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4644](../../../backend/migrations/001_init.sql#L4644) |
-| `deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:4645](../../../backend/migrations/001_init.sql#L4645) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:4640](../../../backend/migrations/001_init.sql#L4640) |
+| `group_created_clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4641](../../../backend/migrations/001_init.sql#L4641) |
+| `group_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4642](../../../backend/migrations/001_init.sql#L4642) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4643](../../../backend/migrations/001_init.sql#L4643) |
+| `owner_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4644](../../../backend/migrations/001_init.sql#L4644) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4645](../../../backend/migrations/001_init.sql#L4645) |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4646](../../../backend/migrations/001_init.sql#L4646) |
+| `deleted_at` | `TIMESTAMPTZ` | NULL | — | — | [001_init.sql:4647](../../../backend/migrations/001_init.sql#L4647) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -56,8 +56,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `owner_identity_group_members_group_created_clinic_id_group_fkey` | `group_created_clinic_id, group_id` | [owner_identity_groups](owner_identity_groups.md) | `created_clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4646](../../../backend/migrations/001_init.sql#L4646) |
-| `owner_identity_group_members_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4648](../../../backend/migrations/001_init.sql#L4648) |
+| `owner_identity_group_members_group_created_clinic_id_group_fkey` | `group_created_clinic_id, group_id` | [owner_identity_groups](owner_identity_groups.md) | `created_clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4648](../../../backend/migrations/001_init.sql#L4648) |
+| `owner_identity_group_members_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4650](../../../backend/migrations/001_init.sql#L4650) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -68,12 +68,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `owner_identity_group_members_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4638](../../../backend/migrations/001_init.sql#L4638) |
+| `owner_identity_group_members_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4640](../../../backend/migrations/001_init.sql#L4640) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_owner_identity_active_member` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_owner_identity_active_member     ON owner_identity_group_members(clinic_id, owner_id)     WHERE deleted_at IS NULL` | [001_init.sql:4652](../../../backend/migrations/001_init.sql#L4652) |
-| `uq_owner_identity_active_group_member` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_owner_identity_active_group_member     ON owner_identity_group_members(group_id, clinic_id, owner_id)     WHERE deleted_at IS NULL` | [001_init.sql:4656](../../../backend/migrations/001_init.sql#L4656) |
-| `idx_owner_identity_group_members_group` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_owner_identity_group_members_group     ON owner_identity_group_members(group_id)     WHERE deleted_at IS NULL` | [001_init.sql:4660](../../../backend/migrations/001_init.sql#L4660) |
+| `uq_owner_identity_active_member` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_owner_identity_active_member     ON owner_identity_group_members(clinic_id, owner_id)     WHERE deleted_at IS NULL` | [001_init.sql:4654](../../../backend/migrations/001_init.sql#L4654) |
+| `uq_owner_identity_active_group_member` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_owner_identity_active_group_member     ON owner_identity_group_members(group_id, clinic_id, owner_id)     WHERE deleted_at IS NULL` | [001_init.sql:4658](../../../backend/migrations/001_init.sql#L4658) |
+| `idx_owner_identity_group_members_group` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_owner_identity_group_members_group     ON owner_identity_group_members(group_id)     WHERE deleted_at IS NULL` | [001_init.sql:4662](../../../backend/migrations/001_init.sql#L4662) |

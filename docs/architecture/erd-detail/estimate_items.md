@@ -11,25 +11,25 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1846](../../../backend/migrations/001_init.sql#L1846) |
-| `estimate_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1847](../../../backend/migrations/001_init.sql#L1847) |
-| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1848](../../../backend/migrations/001_init.sql#L1848) |
-| `category` | `item_category` | NOT NULL | — | — | [001_init.sql:1849](../../../backend/migrations/001_init.sql#L1849) |
-| `unit_price` | `numeric` | NOT NULL | `0` | — | [001_init.sql:9404](../../../backend/migrations/001_init.sql#L9404) |
-| `quantity` | `numeric` | NOT NULL | `1` | — | [001_init.sql:9404](../../../backend/migrations/001_init.sql#L9404) |
-| `tax_type` | `tax_type` | NOT NULL | `'excluded'` | — | [001_init.sql:1852](../../../backend/migrations/001_init.sql#L1852) |
-| `tax_rate` | `numeric` | NULL | `0.10` | — | [001_init.sql:9405](../../../backend/migrations/001_init.sql#L9405) |
-| `discount_rate` | `numeric` | NULL | `0` | — | [001_init.sql:9405](../../../backend/migrations/001_init.sql#L9405) |
-| `discount_amount` | `bigint` | NULL | `0` | — | [001_init.sql:1855](../../../backend/migrations/001_init.sql#L1855) |
-| `is_insurance_applicable` | `boolean` | NULL | `false` | — | [001_init.sql:1856](../../../backend/migrations/001_init.sql#L1856) |
-| `consultation_id` | `bigint` | NULL | — | FK | [001_init.sql:1857](../../../backend/migrations/001_init.sql#L1857) |
-| `procedure_id` | `bigint` | NULL | — | FK | [001_init.sql:1858](../../../backend/migrations/001_init.sql#L1858) |
-| `medicine_id` | `bigint` | NULL | — | FK | [001_init.sql:1859](../../../backend/migrations/001_init.sql#L1859) |
-| `merchandise_item_id` | `bigint` | NULL | — | FK | [001_init.sql:1860](../../../backend/migrations/001_init.sql#L1860) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1861](../../../backend/migrations/001_init.sql#L1861) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1862](../../../backend/migrations/001_init.sql#L1862) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1863](../../../backend/migrations/001_init.sql#L1863) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1864](../../../backend/migrations/001_init.sql#L1864) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1848](../../../backend/migrations/001_init.sql#L1848) |
+| `estimate_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1849](../../../backend/migrations/001_init.sql#L1849) |
+| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1850](../../../backend/migrations/001_init.sql#L1850) |
+| `category` | `item_category` | NOT NULL | — | — | [001_init.sql:1851](../../../backend/migrations/001_init.sql#L1851) |
+| `unit_price` | `numeric` | NOT NULL | `0` | — | [001_init.sql:9406](../../../backend/migrations/001_init.sql#L9406) |
+| `quantity` | `numeric` | NOT NULL | `1` | — | [001_init.sql:9406](../../../backend/migrations/001_init.sql#L9406) |
+| `tax_type` | `tax_type` | NOT NULL | `'excluded'` | — | [001_init.sql:1854](../../../backend/migrations/001_init.sql#L1854) |
+| `tax_rate` | `numeric` | NULL | `0.10` | — | [001_init.sql:9407](../../../backend/migrations/001_init.sql#L9407) |
+| `discount_rate` | `numeric` | NULL | `0` | — | [001_init.sql:9407](../../../backend/migrations/001_init.sql#L9407) |
+| `discount_amount` | `bigint` | NULL | `0` | — | [001_init.sql:1857](../../../backend/migrations/001_init.sql#L1857) |
+| `is_insurance_applicable` | `boolean` | NULL | `false` | — | [001_init.sql:1858](../../../backend/migrations/001_init.sql#L1858) |
+| `consultation_id` | `bigint` | NULL | — | FK | [001_init.sql:1859](../../../backend/migrations/001_init.sql#L1859) |
+| `procedure_id` | `bigint` | NULL | — | FK | [001_init.sql:1860](../../../backend/migrations/001_init.sql#L1860) |
+| `medicine_id` | `bigint` | NULL | — | FK | [001_init.sql:1861](../../../backend/migrations/001_init.sql#L1861) |
+| `merchandise_item_id` | `bigint` | NULL | — | FK | [001_init.sql:1862](../../../backend/migrations/001_init.sql#L1862) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1863](../../../backend/migrations/001_init.sql#L1863) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1864](../../../backend/migrations/001_init.sql#L1864) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1865](../../../backend/migrations/001_init.sql#L1865) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1866](../../../backend/migrations/001_init.sql#L1866) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -88,11 +88,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `estimate_items_estimate_id_fkey` | `estimate_id` | [estimates](estimates.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1847](../../../backend/migrations/001_init.sql#L1847) |
-| `estimate_items_consultation_id_fkey` | `consultation_id` | [consultations](consultations.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1857](../../../backend/migrations/001_init.sql#L1857) |
-| `estimate_items_procedure_id_fkey` | `procedure_id` | [procedures](procedures.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1858](../../../backend/migrations/001_init.sql#L1858) |
-| `estimate_items_medicine_id_fkey` | `medicine_id` | [medicines](medicines.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1859](../../../backend/migrations/001_init.sql#L1859) |
-| `fk_estimate_items_merchandise` | `merchandise_item_id` | [merchandise_items](merchandise_items.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1860](../../../backend/migrations/001_init.sql#L1860) |
+| `estimate_items_estimate_id_fkey` | `estimate_id` | [estimates](estimates.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1849](../../../backend/migrations/001_init.sql#L1849) |
+| `estimate_items_consultation_id_fkey` | `consultation_id` | [consultations](consultations.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1859](../../../backend/migrations/001_init.sql#L1859) |
+| `estimate_items_procedure_id_fkey` | `procedure_id` | [procedures](procedures.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1860](../../../backend/migrations/001_init.sql#L1860) |
+| `estimate_items_medicine_id_fkey` | `medicine_id` | [medicines](medicines.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1861](../../../backend/migrations/001_init.sql#L1861) |
+| `fk_estimate_items_merchandise` | `merchandise_item_id` | [merchandise_items](merchandise_items.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1862](../../../backend/migrations/001_init.sql#L1862) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -106,13 +106,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `estimate_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1846](../../../backend/migrations/001_init.sql#L1846) |
-| `chk_estimate_item_quantity` | check | `CONSTRAINT chk_estimate_item_quantity CHECK (quantity > 0)` | [001_init.sql:1865](../../../backend/migrations/001_init.sql#L1865) |
-| `uq_estimate_items_id_estimate` | unique | `CONSTRAINT uq_estimate_items_id_estimate UNIQUE(id,estimate_id)` | [001_init.sql:9508](../../../backend/migrations/001_init.sql#L9508) |
+| `estimate_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1848](../../../backend/migrations/001_init.sql#L1848) |
+| `chk_estimate_item_quantity` | check | `CONSTRAINT chk_estimate_item_quantity CHECK (quantity > 0)` | [001_init.sql:1867](../../../backend/migrations/001_init.sql#L1867) |
+| `uq_estimate_items_id_estimate` | unique | `CONSTRAINT uq_estimate_items_id_estimate UNIQUE(id,estimate_id)` | [001_init.sql:9510](../../../backend/migrations/001_init.sql#L9510) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_estimate_items_merchandise_item_id` | NO | — | `CREATE INDEX idx_estimate_items_merchandise_item_id ON estimate_items(merchandise_item_id)` | [001_init.sql:2194](../../../backend/migrations/001_init.sql#L2194) |
-| `idx_estimate_items_estimate_id` | NO | — | `CREATE INDEX idx_estimate_items_estimate_id ON estimate_items(estimate_id)` | [001_init.sql:2351](../../../backend/migrations/001_init.sql#L2351) |
+| `idx_estimate_items_merchandise_item_id` | NO | — | `CREATE INDEX idx_estimate_items_merchandise_item_id ON estimate_items(merchandise_item_id)` | [001_init.sql:2196](../../../backend/migrations/001_init.sql#L2196) |
+| `idx_estimate_items_estimate_id` | NO | — | `CREATE INDEX idx_estimate_items_estimate_id ON estimate_items(estimate_id)` | [001_init.sql:2353](../../../backend/migrations/001_init.sql#L2353) |

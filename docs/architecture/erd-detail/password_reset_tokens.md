@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2820](../../../backend/migrations/001_init.sql#L2820) |
-| `account_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2821](../../../backend/migrations/001_init.sql#L2821) |
-| `token_hash` | `text` | NOT NULL | — | UK | [001_init.sql:2822](../../../backend/migrations/001_init.sql#L2822) |
-| `expires_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:2823](../../../backend/migrations/001_init.sql#L2823) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2824](../../../backend/migrations/001_init.sql#L2824) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2822](../../../backend/migrations/001_init.sql#L2822) |
+| `account_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2823](../../../backend/migrations/001_init.sql#L2823) |
+| `token_hash` | `text` | NOT NULL | — | UK | [001_init.sql:2824](../../../backend/migrations/001_init.sql#L2824) |
+| `expires_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:2825](../../../backend/migrations/001_init.sql#L2825) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2826](../../../backend/migrations/001_init.sql#L2826) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -44,7 +44,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `password_reset_tokens_account_id_fkey` | `account_id` | [accounts](accounts.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2821](../../../backend/migrations/001_init.sql#L2821) |
+| `password_reset_tokens_account_id_fkey` | `account_id` | [accounts](accounts.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2823](../../../backend/migrations/001_init.sql#L2823) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -54,11 +54,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `password_reset_tokens_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2820](../../../backend/migrations/001_init.sql#L2820) |
-| `password_reset_tokens_token_hash_key` | unique | `UNIQUE` | [001_init.sql:2822](../../../backend/migrations/001_init.sql#L2822) |
+| `password_reset_tokens_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2822](../../../backend/migrations/001_init.sql#L2822) |
+| `password_reset_tokens_token_hash_key` | unique | `UNIQUE` | [001_init.sql:2824](../../../backend/migrations/001_init.sql#L2824) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_prt_account` | NO | — | `CREATE INDEX idx_prt_account ON password_reset_tokens(account_id)` | [001_init.sql:2827](../../../backend/migrations/001_init.sql#L2827) |
+| `idx_prt_account` | NO | — | `CREATE INDEX idx_prt_account ON password_reset_tokens(account_id)` | [001_init.sql:2829](../../../backend/migrations/001_init.sql#L2829) |

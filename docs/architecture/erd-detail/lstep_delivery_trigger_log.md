@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:558](../../../backend/migrations/001_init.sql#L558) |
-| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:559](../../../backend/migrations/001_init.sql#L559) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:560](../../../backend/migrations/001_init.sql#L560) |
-| `trigger_type` | `varchar(50)` | NOT NULL | — | UK | [001_init.sql:561](../../../backend/migrations/001_init.sql#L561) |
-| `scheduled_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:562](../../../backend/migrations/001_init.sql#L562) |
-| `status` | `varchar(20)` | NOT NULL | `'scheduled'` | — | [001_init.sql:563](../../../backend/migrations/001_init.sql#L563) |
-| `fired_at` | `timestamptz` | NULL | — | — | [001_init.sql:564](../../../backend/migrations/001_init.sql#L564) |
-| `excluded_reason` | `varchar(100)` | NULL | — | — | [001_init.sql:565](../../../backend/migrations/001_init.sql#L565) |
-| `suppressed_by_priority` | `BOOLEAN` | NOT NULL | `FALSE` | — | [001_init.sql:566](../../../backend/migrations/001_init.sql#L566) |
-| `suppression_reason` | `VARCHAR(255)` | NULL | — | — | [001_init.sql:567](../../../backend/migrations/001_init.sql#L567) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:568](../../../backend/migrations/001_init.sql#L568) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:569](../../../backend/migrations/001_init.sql#L569) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:560](../../../backend/migrations/001_init.sql#L560) |
+| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:561](../../../backend/migrations/001_init.sql#L561) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:562](../../../backend/migrations/001_init.sql#L562) |
+| `trigger_type` | `varchar(50)` | NOT NULL | — | UK | [001_init.sql:563](../../../backend/migrations/001_init.sql#L563) |
+| `scheduled_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:564](../../../backend/migrations/001_init.sql#L564) |
+| `status` | `varchar(20)` | NOT NULL | `'scheduled'` | — | [001_init.sql:565](../../../backend/migrations/001_init.sql#L565) |
+| `fired_at` | `timestamptz` | NULL | — | — | [001_init.sql:566](../../../backend/migrations/001_init.sql#L566) |
+| `excluded_reason` | `varchar(100)` | NULL | — | — | [001_init.sql:567](../../../backend/migrations/001_init.sql#L567) |
+| `suppressed_by_priority` | `BOOLEAN` | NOT NULL | `FALSE` | — | [001_init.sql:568](../../../backend/migrations/001_init.sql#L568) |
+| `suppression_reason` | `VARCHAR(255)` | NULL | — | — | [001_init.sql:569](../../../backend/migrations/001_init.sql#L569) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:570](../../../backend/migrations/001_init.sql#L570) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:571](../../../backend/migrations/001_init.sql#L571) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -62,8 +62,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lstep_delivery_trigger_log_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:559](../../../backend/migrations/001_init.sql#L559) |
-| `lstep_delivery_trigger_log_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:560](../../../backend/migrations/001_init.sql#L560) |
+| `lstep_delivery_trigger_log_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:561](../../../backend/migrations/001_init.sql#L561) |
+| `lstep_delivery_trigger_log_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:562](../../../backend/migrations/001_init.sql#L562) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -74,13 +74,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_delivery_trigger_log_pkey` | primary | `PRIMARY KEY` | [001_init.sql:558](../../../backend/migrations/001_init.sql#L558) |
+| `lstep_delivery_trigger_log_pkey` | primary | `PRIMARY KEY` | [001_init.sql:560](../../../backend/migrations/001_init.sql#L560) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lstep_delivery_trigger_log_lookup` | NO | — | `CREATE INDEX idx_lstep_delivery_trigger_log_lookup     ON lstep_delivery_trigger_log (clinic_id, owner_id, trigger_type, scheduled_at)` | [001_init.sql:572](../../../backend/migrations/001_init.sql#L572) |
-| `idx_lstep_delivery_trigger_log_clinic_date` | NO | — | `CREATE INDEX idx_lstep_delivery_trigger_log_clinic_date     ON lstep_delivery_trigger_log (clinic_id, scheduled_at)` | [001_init.sql:574](../../../backend/migrations/001_init.sql#L574) |
-| `idx_lstep_delivery_trigger_log_suppressed` | NO | `suppressed_by_priority = TRUE` | `CREATE INDEX idx_lstep_delivery_trigger_log_suppressed     ON lstep_delivery_trigger_log(clinic_id, suppressed_by_priority)     WHERE suppressed_by_priority = TRUE` | [001_init.sql:576](../../../backend/migrations/001_init.sql#L576) |
-| `uk_lstep_delivery_trigger_log_clinic_owner_type_day` | YES | — | `CREATE UNIQUE INDEX IF NOT EXISTS uk_lstep_delivery_trigger_log_clinic_owner_type_day     ON lstep_delivery_trigger_log (         clinic_id,         owner_id,         trigger_type,         ((scheduled_at AT TIME ZONE 'Asia/Tokyo')::date)     )` | [001_init.sql:4572](../../../backend/migrations/001_init.sql#L4572) |
+| `idx_lstep_delivery_trigger_log_lookup` | NO | — | `CREATE INDEX idx_lstep_delivery_trigger_log_lookup     ON lstep_delivery_trigger_log (clinic_id, owner_id, trigger_type, scheduled_at)` | [001_init.sql:574](../../../backend/migrations/001_init.sql#L574) |
+| `idx_lstep_delivery_trigger_log_clinic_date` | NO | — | `CREATE INDEX idx_lstep_delivery_trigger_log_clinic_date     ON lstep_delivery_trigger_log (clinic_id, scheduled_at)` | [001_init.sql:576](../../../backend/migrations/001_init.sql#L576) |
+| `idx_lstep_delivery_trigger_log_suppressed` | NO | `suppressed_by_priority = TRUE` | `CREATE INDEX idx_lstep_delivery_trigger_log_suppressed     ON lstep_delivery_trigger_log(clinic_id, suppressed_by_priority)     WHERE suppressed_by_priority = TRUE` | [001_init.sql:578](../../../backend/migrations/001_init.sql#L578) |
+| `uk_lstep_delivery_trigger_log_clinic_owner_type_day` | YES | — | `CREATE UNIQUE INDEX IF NOT EXISTS uk_lstep_delivery_trigger_log_clinic_owner_type_day     ON lstep_delivery_trigger_log (         clinic_id,         owner_id,         trigger_type,         ((scheduled_at AT TIME ZONE 'Asia/Tokyo')::date)     )` | [001_init.sql:4574](../../../backend/migrations/001_init.sql#L4574) |

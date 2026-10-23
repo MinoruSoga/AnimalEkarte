@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9001](../../../backend/migrations/001_init.sql#L9001) |
-| `medical_record_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9002](../../../backend/migrations/001_init.sql#L9002) |
-| `epoch` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9003](../../../backend/migrations/001_init.sql#L9003) |
-| `state` | `text` | NOT NULL | — | — | [001_init.sql:9004](../../../backend/migrations/001_init.sql#L9004) |
-| `holder_staff_id` | `bigint` | NULL | — | FK | [001_init.sql:9005](../../../backend/migrations/001_init.sql#L9005) |
-| `session_ref` | `uuid` | NULL | — | — | [001_init.sql:9006](../../../backend/migrations/001_init.sql#L9006) |
-| `acquired_at` | `timestamptz` | NULL | — | — | [001_init.sql:9007](../../../backend/migrations/001_init.sql#L9007) |
-| `released_at` | `timestamptz` | NULL | — | — | [001_init.sql:9008](../../../backend/migrations/001_init.sql#L9008) |
-| `last_seen_at` | `timestamptz` | NULL | — | — | [001_init.sql:9009](../../../backend/migrations/001_init.sql#L9009) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9003](../../../backend/migrations/001_init.sql#L9003) |
+| `medical_record_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9004](../../../backend/migrations/001_init.sql#L9004) |
+| `epoch` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9005](../../../backend/migrations/001_init.sql#L9005) |
+| `state` | `text` | NOT NULL | — | — | [001_init.sql:9006](../../../backend/migrations/001_init.sql#L9006) |
+| `holder_staff_id` | `bigint` | NULL | — | FK | [001_init.sql:9007](../../../backend/migrations/001_init.sql#L9007) |
+| `session_ref` | `uuid` | NULL | — | — | [001_init.sql:9008](../../../backend/migrations/001_init.sql#L9008) |
+| `acquired_at` | `timestamptz` | NULL | — | — | [001_init.sql:9009](../../../backend/migrations/001_init.sql#L9009) |
+| `released_at` | `timestamptz` | NULL | — | — | [001_init.sql:9010](../../../backend/migrations/001_init.sql#L9010) |
+| `last_seen_at` | `timestamptz` | NULL | — | — | [001_init.sql:9011](../../../backend/migrations/001_init.sql#L9011) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -61,9 +61,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `record_edit_rights_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9001](../../../backend/migrations/001_init.sql#L9001) |
-| `record_edit_rights_holder_staff_id_fkey` | `holder_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9005](../../../backend/migrations/001_init.sql#L9005) |
-| `record_edit_rights_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9013](../../../backend/migrations/001_init.sql#L9013) |
+| `record_edit_rights_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9003](../../../backend/migrations/001_init.sql#L9003) |
+| `record_edit_rights_holder_staff_id_fkey` | `holder_staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9007](../../../backend/migrations/001_init.sql#L9007) |
+| `record_edit_rights_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9015](../../../backend/migrations/001_init.sql#L9015) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -75,10 +75,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `record_edit_rights_epoch_check` | check | `CHECK (epoch > 0)` | [001_init.sql:9003](../../../backend/migrations/001_init.sql#L9003) |
-| `record_edit_rights_state_check` | check | `CHECK (state IN ('free','held'))` | [001_init.sql:9004](../../../backend/migrations/001_init.sql#L9004) |
-| `record_edit_rights_pkey` | primary | `PRIMARY KEY (clinic_id,medical_record_id)` | [001_init.sql:9010](../../../backend/migrations/001_init.sql#L9010) |
-| `record_edit_rights_check` | check | `CHECK ((state='free' AND holder_staff_id IS NULL AND session_ref IS NULL)       OR (state='held' AND holder_staff_id IS NOT NULL AND session_ref IS NOT NULL AND acquired_at IS NOT NULL))` | [001_init.sql:9011](../../../backend/migrations/001_init.sql#L9011) |
+| `record_edit_rights_epoch_check` | check | `CHECK (epoch > 0)` | [001_init.sql:9005](../../../backend/migrations/001_init.sql#L9005) |
+| `record_edit_rights_state_check` | check | `CHECK (state IN ('free','held'))` | [001_init.sql:9006](../../../backend/migrations/001_init.sql#L9006) |
+| `record_edit_rights_pkey` | primary | `PRIMARY KEY (clinic_id,medical_record_id)` | [001_init.sql:9012](../../../backend/migrations/001_init.sql#L9012) |
+| `record_edit_rights_check` | check | `CHECK ((state='free' AND holder_staff_id IS NULL AND session_ref IS NULL)       OR (state='held' AND holder_staff_id IS NOT NULL AND session_ref IS NOT NULL AND acquired_at IS NOT NULL))` | [001_init.sql:9013](../../../backend/migrations/001_init.sql#L9013) |
 
 ## インデックス
 

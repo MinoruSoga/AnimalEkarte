@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:9543](../../../backend/migrations/001_init.sql#L9543) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9544](../../../backend/migrations/001_init.sql#L9544) |
-| `presentation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9545](../../../backend/migrations/001_init.sql#L9545) |
-| `estimate_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9546](../../../backend/migrations/001_init.sql#L9546) |
-| `response` | `text` | NOT NULL | — | — | [001_init.sql:9547](../../../backend/migrations/001_init.sql#L9547) |
-| `response_note` | `text` | NULL | — | — | [001_init.sql:9548](../../../backend/migrations/001_init.sql#L9548) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9549](../../../backend/migrations/001_init.sql#L9549) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9550](../../../backend/migrations/001_init.sql#L9550) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9551](../../../backend/migrations/001_init.sql#L9551) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:9545](../../../backend/migrations/001_init.sql#L9545) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9546](../../../backend/migrations/001_init.sql#L9546) |
+| `presentation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9547](../../../backend/migrations/001_init.sql#L9547) |
+| `estimate_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9548](../../../backend/migrations/001_init.sql#L9548) |
+| `response` | `text` | NOT NULL | — | — | [001_init.sql:9549](../../../backend/migrations/001_init.sql#L9549) |
+| `response_note` | `text` | NULL | — | — | [001_init.sql:9550](../../../backend/migrations/001_init.sql#L9550) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9551](../../../backend/migrations/001_init.sql#L9551) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9552](../../../backend/migrations/001_init.sql#L9552) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9553](../../../backend/migrations/001_init.sql#L9553) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -67,10 +67,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `estimate_replies_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9544](../../../backend/migrations/001_init.sql#L9544) |
-| `estimate_replies_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9549](../../../backend/migrations/001_init.sql#L9549) |
-| `estimate_replies_presentation_id_clinic_id_estimate_id_fkey` | `presentation_id, clinic_id, estimate_id` | [estimate_presentations](estimate_presentations.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:9552](../../../backend/migrations/001_init.sql#L9552) |
-| `estimate_replies_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9553](../../../backend/migrations/001_init.sql#L9553) |
+| `estimate_replies_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9546](../../../backend/migrations/001_init.sql#L9546) |
+| `estimate_replies_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9551](../../../backend/migrations/001_init.sql#L9551) |
+| `estimate_replies_presentation_id_clinic_id_estimate_id_fkey` | `presentation_id, clinic_id, estimate_id` | [estimate_presentations](estimate_presentations.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:9554](../../../backend/migrations/001_init.sql#L9554) |
+| `estimate_replies_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9555](../../../backend/migrations/001_init.sql#L9555) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -83,8 +83,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `estimate_replies_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9543](../../../backend/migrations/001_init.sql#L9543) |
-| `estimate_replies_response_check` | check | `CHECK (response IN ('approved','rejected','withdrawn'))` | [001_init.sql:9547](../../../backend/migrations/001_init.sql#L9547) |
+| `estimate_replies_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9545](../../../backend/migrations/001_init.sql#L9545) |
+| `estimate_replies_response_check` | check | `CHECK (response IN ('approved','rejected','withdrawn'))` | [001_init.sql:9549](../../../backend/migrations/001_init.sql#L9549) |
 
 ## インデックス
 

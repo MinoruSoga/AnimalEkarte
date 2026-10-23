@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8129](../../../backend/migrations/001_init.sql#L8129) |
-| `detail_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8130](../../../backend/migrations/001_init.sql#L8130) |
-| `detail_revision_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8131](../../../backend/migrations/001_init.sql#L8131) |
-| `source_line_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8132](../../../backend/migrations/001_init.sql#L8132) |
-| `master_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8133](../../../backend/migrations/001_init.sql#L8133) |
-| `adopted_master_unit_price` | `bigint` | NULL | — | — | [001_init.sql:8134](../../../backend/migrations/001_init.sql#L8134) |
-| `unit_price` | `bigint` | NULL | — | — | [001_init.sql:8135](../../../backend/migrations/001_init.sql#L8135) |
-| `quantity` | `numeric` | NOT NULL | — | — | [001_init.sql:9406](../../../backend/migrations/001_init.sql#L9406) |
-| `discount_rate` | `numeric` | NOT NULL | — | — | [001_init.sql:9406](../../../backend/migrations/001_init.sql#L9406) |
-| `discount_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:8138](../../../backend/migrations/001_init.sql#L8138) |
-| `discount_stage` | `text` | NOT NULL | — | — | [001_init.sql:8139](../../../backend/migrations/001_init.sql#L8139) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8131](../../../backend/migrations/001_init.sql#L8131) |
+| `detail_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8132](../../../backend/migrations/001_init.sql#L8132) |
+| `detail_revision_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8133](../../../backend/migrations/001_init.sql#L8133) |
+| `source_line_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8134](../../../backend/migrations/001_init.sql#L8134) |
+| `master_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8135](../../../backend/migrations/001_init.sql#L8135) |
+| `adopted_master_unit_price` | `bigint` | NULL | — | — | [001_init.sql:8136](../../../backend/migrations/001_init.sql#L8136) |
+| `unit_price` | `bigint` | NULL | — | — | [001_init.sql:8137](../../../backend/migrations/001_init.sql#L8137) |
+| `quantity` | `numeric` | NOT NULL | — | — | [001_init.sql:9408](../../../backend/migrations/001_init.sql#L9408) |
+| `discount_rate` | `numeric` | NOT NULL | — | — | [001_init.sql:9408](../../../backend/migrations/001_init.sql#L9408) |
+| `discount_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:8140](../../../backend/migrations/001_init.sql#L8140) |
+| `discount_stage` | `text` | NOT NULL | — | — | [001_init.sql:8141](../../../backend/migrations/001_init.sql#L8141) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -68,9 +68,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_detail_revision_lines_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8129](../../../backend/migrations/001_init.sql#L8129) |
-| `trimming_detail_revision_line_detail_revision_id_clinic_id_fkey` | `detail_revision_id, clinic_id, detail_id` | [trimming_detail_revisions](trimming_detail_revisions.md) | `id, clinic_id, detail_id` | `ON DELETE RESTRICT` | [001_init.sql:8141](../../../backend/migrations/001_init.sql#L8141) |
-| `trimming_detail_revision_line_source_line_id_clinic_id_det_fkey` | `source_line_id, clinic_id, detail_id` | [trimming_service_lines](trimming_service_lines.md) | `id, clinic_id, detail_id` | `ON DELETE RESTRICT` | [001_init.sql:8142](../../../backend/migrations/001_init.sql#L8142) |
+| `trimming_detail_revision_lines_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8131](../../../backend/migrations/001_init.sql#L8131) |
+| `trimming_detail_revision_line_detail_revision_id_clinic_id_fkey` | `detail_revision_id, clinic_id, detail_id` | [trimming_detail_revisions](trimming_detail_revisions.md) | `id, clinic_id, detail_id` | `ON DELETE RESTRICT` | [001_init.sql:8143](../../../backend/migrations/001_init.sql#L8143) |
+| `trimming_detail_revision_line_source_line_id_clinic_id_det_fkey` | `source_line_id, clinic_id, detail_id` | [trimming_service_lines](trimming_service_lines.md) | `id, clinic_id, detail_id` | `ON DELETE RESTRICT` | [001_init.sql:8144](../../../backend/migrations/001_init.sql#L8144) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -82,12 +82,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_detail_revision_lines_master_version_check` | check | `CHECK (master_version > 0)` | [001_init.sql:8133](../../../backend/migrations/001_init.sql#L8133) |
-| `trimming_detail_revision_lines_quantity_check` | check | `CHECK (quantity > 0)` | [001_init.sql:8136](../../../backend/migrations/001_init.sql#L8136) |
-| `trimming_detail_revision_lines_discount_amount_check` | check | `CHECK (discount_amount >= 0)` | [001_init.sql:8138](../../../backend/migrations/001_init.sql#L8138) |
-| `trimming_detail_revision_lines_discount_stage_check` | check | `CHECK (discount_stage IN ('unit','line'))` | [001_init.sql:8139](../../../backend/migrations/001_init.sql#L8139) |
-| `trimming_detail_revision_lines_pkey` | primary | `PRIMARY KEY (clinic_id,detail_revision_id,source_line_id)` | [001_init.sql:8140](../../../backend/migrations/001_init.sql#L8140) |
-| `ck_trimming_nonnegative_discount` | check | `CONSTRAINT ck_trimming_nonnegative_discount CHECK (discount_rate >= 0)` | [001_init.sql:9408](../../../backend/migrations/001_init.sql#L9408) |
+| `trimming_detail_revision_lines_master_version_check` | check | `CHECK (master_version > 0)` | [001_init.sql:8135](../../../backend/migrations/001_init.sql#L8135) |
+| `trimming_detail_revision_lines_quantity_check` | check | `CHECK (quantity > 0)` | [001_init.sql:8138](../../../backend/migrations/001_init.sql#L8138) |
+| `trimming_detail_revision_lines_discount_amount_check` | check | `CHECK (discount_amount >= 0)` | [001_init.sql:8140](../../../backend/migrations/001_init.sql#L8140) |
+| `trimming_detail_revision_lines_discount_stage_check` | check | `CHECK (discount_stage IN ('unit','line'))` | [001_init.sql:8141](../../../backend/migrations/001_init.sql#L8141) |
+| `trimming_detail_revision_lines_pkey` | primary | `PRIMARY KEY (clinic_id,detail_revision_id,source_line_id)` | [001_init.sql:8142](../../../backend/migrations/001_init.sql#L8142) |
+| `ck_trimming_nonnegative_discount` | check | `CONSTRAINT ck_trimming_nonnegative_discount CHECK (discount_rate >= 0)` | [001_init.sql:9410](../../../backend/migrations/001_init.sql#L9410) |
 
 ## インデックス
 

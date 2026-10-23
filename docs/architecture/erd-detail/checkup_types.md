@@ -11,24 +11,24 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1077](../../../backend/migrations/001_init.sql#L1077) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1078](../../../backend/migrations/001_init.sql#L1078) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:1079](../../../backend/migrations/001_init.sql#L1079) |
-| `price` | `bigint` | NULL | — | — | [001_init.sql:1080](../../../backend/migrations/001_init.sql#L1080) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1081](../../../backend/migrations/001_init.sql#L1081) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1082](../../../backend/migrations/001_init.sql#L1082) |
-| `interval` | `text` | NOT NULL | `''` | — | [001_init.sql:1083](../../../backend/migrations/001_init.sql#L1083) |
-| `target_age` | `text` | NOT NULL | `''` | — | [001_init.sql:1084](../../../backend/migrations/001_init.sql#L1084) |
-| `parent_id` | `bigint` | NULL | — | FK | [001_init.sql:1085](../../../backend/migrations/001_init.sql#L1085) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1086](../../../backend/migrations/001_init.sql#L1086) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1087](../../../backend/migrations/001_init.sql#L1087) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1088](../../../backend/migrations/001_init.sql#L1088) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1089](../../../backend/migrations/001_init.sql#L1089) |
-| `import_namespace` | `text` | NULL | — | — | [001_init.sql:5215](../../../backend/migrations/001_init.sql#L5215) |
-| `import_key` | `text` | NULL | — | — | [001_init.sql:5216](../../../backend/migrations/001_init.sql#L5216) |
-| `is_non_insurance` | `BOOLEAN` | NULL | — | — | [001_init.sql:7623](../../../backend/migrations/001_init.sql#L7623) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9953](../../../backend/migrations/001_init.sql#L9953) |
-| `is_bill_discount_excluded` | `boolean` | NULL | — | — | [001_init.sql:11620](../../../backend/migrations/001_init.sql#L11620) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1079](../../../backend/migrations/001_init.sql#L1079) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1080](../../../backend/migrations/001_init.sql#L1080) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:1081](../../../backend/migrations/001_init.sql#L1081) |
+| `price` | `bigint` | NULL | — | — | [001_init.sql:1082](../../../backend/migrations/001_init.sql#L1082) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1083](../../../backend/migrations/001_init.sql#L1083) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1084](../../../backend/migrations/001_init.sql#L1084) |
+| `interval` | `text` | NOT NULL | `''` | — | [001_init.sql:1085](../../../backend/migrations/001_init.sql#L1085) |
+| `target_age` | `text` | NOT NULL | `''` | — | [001_init.sql:1086](../../../backend/migrations/001_init.sql#L1086) |
+| `parent_id` | `bigint` | NULL | — | FK | [001_init.sql:1087](../../../backend/migrations/001_init.sql#L1087) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1088](../../../backend/migrations/001_init.sql#L1088) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1089](../../../backend/migrations/001_init.sql#L1089) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1090](../../../backend/migrations/001_init.sql#L1090) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1091](../../../backend/migrations/001_init.sql#L1091) |
+| `import_namespace` | `text` | NULL | — | — | [001_init.sql:5217](../../../backend/migrations/001_init.sql#L5217) |
+| `import_key` | `text` | NULL | — | — | [001_init.sql:5218](../../../backend/migrations/001_init.sql#L5218) |
+| `is_non_insurance` | `BOOLEAN` | NULL | — | — | [001_init.sql:7625](../../../backend/migrations/001_init.sql#L7625) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9955](../../../backend/migrations/001_init.sql#L9955) |
+| `is_bill_discount_excluded` | `boolean` | NULL | — | — | [001_init.sql:11622](../../../backend/migrations/001_init.sql#L11622) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -71,8 +71,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `checkup_types_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1078](../../../backend/migrations/001_init.sql#L1078) |
-| `fk_checkup_types_parent_clinic` | `parent_id, clinic_id` | [checkup_types](checkup_types.md) | `id, clinic_id` | `ON DELETE SET NULL (parent_id)` | [001_init.sql:5265](../../../backend/migrations/001_init.sql#L5265) |
+| `checkup_types_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1080](../../../backend/migrations/001_init.sql#L1080) |
+| `fk_checkup_types_parent_clinic` | `parent_id, clinic_id` | [checkup_types](checkup_types.md) | `id, clinic_id` | `ON DELETE SET NULL (parent_id)` | [001_init.sql:5267](../../../backend/migrations/001_init.sql#L5267) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -83,18 +83,18 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `checkup_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1077](../../../backend/migrations/001_init.sql#L1077) |
-| `uq_checkup_types_id_clinic` | unique | `CONSTRAINT uq_checkup_types_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3836](../../../backend/migrations/001_init.sql#L3836) |
-| `checkup_types_version_check` | check | `CHECK (version>0)` | [001_init.sql:9953](../../../backend/migrations/001_init.sql#L9953) |
+| `checkup_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1079](../../../backend/migrations/001_init.sql#L1079) |
+| `uq_checkup_types_id_clinic` | unique | `CONSTRAINT uq_checkup_types_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:3838](../../../backend/migrations/001_init.sql#L3838) |
+| `checkup_types_version_check` | check | `CHECK (version>0)` | [001_init.sql:9955](../../../backend/migrations/001_init.sql#L9955) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_checkup_types_clinic_id` | NO | — | `CREATE INDEX idx_checkup_types_clinic_id ON checkup_types(clinic_id)` | [001_init.sql:2250](../../../backend/migrations/001_init.sql#L2250) |
-| `idx_checkup_types_deleted_at` | NO | — | `CREATE INDEX idx_checkup_types_deleted_at ON checkup_types(deleted_at)` | [001_init.sql:2252](../../../backend/migrations/001_init.sql#L2252) |
-| `idx_checkup_types_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_checkup_types_clinic_sort     ON checkup_types(clinic_id, sort_order)           WHERE deleted_at IS NULL` | [001_init.sql:2278](../../../backend/migrations/001_init.sql#L2278) |
-| `idx_checkup_types_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_checkup_types_clinic_name ON checkup_types(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2481](../../../backend/migrations/001_init.sql#L2481) |
-| `uq_checkup_types_clinic_import_key` | YES | `import_namespace IS NOT NULL       AND import_key IS NOT NULL       AND deleted_at IS NULL` | `CREATE UNIQUE INDEX IF NOT EXISTS uq_checkup_types_clinic_import_key     ON checkup_types (clinic_id, import_namespace, import_key)     WHERE import_namespace IS NOT NULL       AND import_key IS NOT NULL       AND deleted_at IS NULL` | [001_init.sql:5218](../../../backend/migrations/001_init.sql#L5218) |
-| `idx_checkup_types_clinic_import_namespace` | NO | `import_namespace IS NOT NULL       AND deleted_at IS NULL` | `CREATE INDEX IF NOT EXISTS idx_checkup_types_clinic_import_namespace     ON checkup_types (clinic_id, import_namespace)     WHERE import_namespace IS NOT NULL       AND deleted_at IS NULL` | [001_init.sql:5224](../../../backend/migrations/001_init.sql#L5224) |
-| `idx_checkup_types_clinic_parent` | NO | `parent_id IS NOT NULL` | `CREATE INDEX IF NOT EXISTS idx_checkup_types_clinic_parent     ON checkup_types (clinic_id, parent_id)     WHERE parent_id IS NOT NULL` | [001_init.sql:5285](../../../backend/migrations/001_init.sql#L5285) |
+| `idx_checkup_types_clinic_id` | NO | — | `CREATE INDEX idx_checkup_types_clinic_id ON checkup_types(clinic_id)` | [001_init.sql:2252](../../../backend/migrations/001_init.sql#L2252) |
+| `idx_checkup_types_deleted_at` | NO | — | `CREATE INDEX idx_checkup_types_deleted_at ON checkup_types(deleted_at)` | [001_init.sql:2254](../../../backend/migrations/001_init.sql#L2254) |
+| `idx_checkup_types_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_checkup_types_clinic_sort     ON checkup_types(clinic_id, sort_order)           WHERE deleted_at IS NULL` | [001_init.sql:2280](../../../backend/migrations/001_init.sql#L2280) |
+| `idx_checkup_types_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_checkup_types_clinic_name ON checkup_types(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2483](../../../backend/migrations/001_init.sql#L2483) |
+| `uq_checkup_types_clinic_import_key` | YES | `import_namespace IS NOT NULL       AND import_key IS NOT NULL       AND deleted_at IS NULL` | `CREATE UNIQUE INDEX IF NOT EXISTS uq_checkup_types_clinic_import_key     ON checkup_types (clinic_id, import_namespace, import_key)     WHERE import_namespace IS NOT NULL       AND import_key IS NOT NULL       AND deleted_at IS NULL` | [001_init.sql:5220](../../../backend/migrations/001_init.sql#L5220) |
+| `idx_checkup_types_clinic_import_namespace` | NO | `import_namespace IS NOT NULL       AND deleted_at IS NULL` | `CREATE INDEX IF NOT EXISTS idx_checkup_types_clinic_import_namespace     ON checkup_types (clinic_id, import_namespace)     WHERE import_namespace IS NOT NULL       AND deleted_at IS NULL` | [001_init.sql:5226](../../../backend/migrations/001_init.sql#L5226) |
+| `idx_checkup_types_clinic_parent` | NO | `parent_id IS NOT NULL` | `CREATE INDEX IF NOT EXISTS idx_checkup_types_clinic_parent     ON checkup_types (clinic_id, parent_id)     WHERE parent_id IS NOT NULL` | [001_init.sql:5287](../../../backend/migrations/001_init.sql#L5287) |

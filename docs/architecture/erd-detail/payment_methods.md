@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1962](../../../backend/migrations/001_init.sql#L1962) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1963](../../../backend/migrations/001_init.sql#L1963) |
-| `name` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:1964](../../../backend/migrations/001_init.sql#L1964) |
-| `system_key` | `varchar(50)` | NULL | — | — | [001_init.sql:1966](../../../backend/migrations/001_init.sql#L1966) |
-| `display_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:1967](../../../backend/migrations/001_init.sql#L1967) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1968](../../../backend/migrations/001_init.sql#L1968) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1969](../../../backend/migrations/001_init.sql#L1969) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1970](../../../backend/migrations/001_init.sql#L1970) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1971](../../../backend/migrations/001_init.sql#L1971) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1964](../../../backend/migrations/001_init.sql#L1964) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1965](../../../backend/migrations/001_init.sql#L1965) |
+| `name` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:1966](../../../backend/migrations/001_init.sql#L1966) |
+| `system_key` | `varchar(50)` | NULL | — | — | [001_init.sql:1968](../../../backend/migrations/001_init.sql#L1968) |
+| `display_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:1969](../../../backend/migrations/001_init.sql#L1969) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1970](../../../backend/migrations/001_init.sql#L1970) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1971](../../../backend/migrations/001_init.sql#L1971) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1972](../../../backend/migrations/001_init.sql#L1972) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1973](../../../backend/migrations/001_init.sql#L1973) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -52,7 +52,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `payment_methods_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1963](../../../backend/migrations/001_init.sql#L1963) |
+| `payment_methods_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1965](../../../backend/migrations/001_init.sql#L1965) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -62,13 +62,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `payment_methods_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1962](../../../backend/migrations/001_init.sql#L1962) |
-| `uq_payment_methods_id_clinic` | unique | `CONSTRAINT uq_payment_methods_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:4016](../../../backend/migrations/001_init.sql#L4016) |
+| `payment_methods_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1964](../../../backend/migrations/001_init.sql#L1964) |
+| `uq_payment_methods_id_clinic` | unique | `CONSTRAINT uq_payment_methods_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:4018](../../../backend/migrations/001_init.sql#L4018) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_payment_methods_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_payment_methods_clinic_name ON payment_methods(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:1974](../../../backend/migrations/001_init.sql#L1974) |
-| `idx_payment_methods_clinic_order` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_payment_methods_clinic_order ON payment_methods(clinic_id, display_order) WHERE deleted_at IS NULL` | [001_init.sql:1975](../../../backend/migrations/001_init.sql#L1975) |
-| `idx_payment_methods_clinic_system_key` | YES | `system_key IS NOT NULL AND deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_payment_methods_clinic_system_key     ON payment_methods (clinic_id, system_key)     WHERE system_key IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:1976](../../../backend/migrations/001_init.sql#L1976) |
+| `idx_payment_methods_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_payment_methods_clinic_name ON payment_methods(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:1976](../../../backend/migrations/001_init.sql#L1976) |
+| `idx_payment_methods_clinic_order` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_payment_methods_clinic_order ON payment_methods(clinic_id, display_order) WHERE deleted_at IS NULL` | [001_init.sql:1977](../../../backend/migrations/001_init.sql#L1977) |
+| `idx_payment_methods_clinic_system_key` | YES | `system_key IS NOT NULL AND deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_payment_methods_clinic_system_key     ON payment_methods (clinic_id, system_key)     WHERE system_key IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:1978](../../../backend/migrations/001_init.sql#L1978) |

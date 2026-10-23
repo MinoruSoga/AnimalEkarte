@@ -11,27 +11,27 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1433](../../../backend/migrations/001_init.sql#L1433) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1434](../../../backend/migrations/001_init.sql#L1434) |
-| `record_no` | `text` | NOT NULL | — | UK | [001_init.sql:1435](../../../backend/migrations/001_init.sql#L1435) |
-| `date` | `date` | NOT NULL | — | — | [001_init.sql:1436](../../../backend/migrations/001_init.sql#L1436) |
-| `owner_id` | `bigint` | NULL | — | FK | [001_init.sql:1437](../../../backend/migrations/001_init.sql#L1437) |
-| `pet_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:1438](../../../backend/migrations/001_init.sql#L1438) |
-| `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:1439](../../../backend/migrations/001_init.sql#L1439) |
-| `appointment_id` | `bigint` | NULL | — | FK | [001_init.sql:1440](../../../backend/migrations/001_init.sql#L1440) |
-| `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:1442](../../../backend/migrations/001_init.sql#L1442) |
-| `entered_by` | `bigint` | NULL | — | FK | [001_init.sql:1443](../../../backend/migrations/001_init.sql#L1443) |
-| `recommendation_reason` | `varchar(100)` | NULL | — | — | [001_init.sql:1446](../../../backend/migrations/001_init.sql#L1446) |
-| `visit_type` | `visit_type` | NULL | — | — | [001_init.sql:1447](../../../backend/migrations/001_init.sql#L1447) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1448](../../../backend/migrations/001_init.sql#L1448) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1449](../../../backend/migrations/001_init.sql#L1449) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1450](../../../backend/migrations/001_init.sql#L1450) |
-| `revisit_intake_target_id` | `bigint` | NULL | — | FK | [001_init.sql:7865](../../../backend/migrations/001_init.sql#L7865) |
-| `conversation_summary` | `text` | NULL | — | — | [001_init.sql:7895](../../../backend/migrations/001_init.sql#L7895) |
-| `conversation_summary_revision` | `bigint` | NULL | — | — | [001_init.sql:7896](../../../backend/migrations/001_init.sql#L7896) |
-| `conversation_summary_source` | `text` | NULL | — | — | [001_init.sql:7897](../../../backend/migrations/001_init.sql#L7897) |
-| `clinical_set_generation` | `bigint` | NULL | — | — | [001_init.sql:8160](../../../backend/migrations/001_init.sql#L8160) |
-| `clinical_set_digest` | `bytea` | NULL | — | — | [001_init.sql:8820](../../../backend/migrations/001_init.sql#L8820) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1435](../../../backend/migrations/001_init.sql#L1435) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1436](../../../backend/migrations/001_init.sql#L1436) |
+| `record_no` | `text` | NOT NULL | — | UK | [001_init.sql:1437](../../../backend/migrations/001_init.sql#L1437) |
+| `date` | `date` | NOT NULL | — | — | [001_init.sql:1438](../../../backend/migrations/001_init.sql#L1438) |
+| `owner_id` | `bigint` | NULL | — | FK | [001_init.sql:1439](../../../backend/migrations/001_init.sql#L1439) |
+| `pet_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:1440](../../../backend/migrations/001_init.sql#L1440) |
+| `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:1441](../../../backend/migrations/001_init.sql#L1441) |
+| `appointment_id` | `bigint` | NULL | — | FK | [001_init.sql:1442](../../../backend/migrations/001_init.sql#L1442) |
+| `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:1444](../../../backend/migrations/001_init.sql#L1444) |
+| `entered_by` | `bigint` | NULL | — | FK | [001_init.sql:1445](../../../backend/migrations/001_init.sql#L1445) |
+| `recommendation_reason` | `varchar(100)` | NULL | — | — | [001_init.sql:1448](../../../backend/migrations/001_init.sql#L1448) |
+| `visit_type` | `visit_type` | NULL | — | — | [001_init.sql:1449](../../../backend/migrations/001_init.sql#L1449) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1450](../../../backend/migrations/001_init.sql#L1450) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1451](../../../backend/migrations/001_init.sql#L1451) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1452](../../../backend/migrations/001_init.sql#L1452) |
+| `revisit_intake_target_id` | `bigint` | NULL | — | FK | [001_init.sql:7867](../../../backend/migrations/001_init.sql#L7867) |
+| `conversation_summary` | `text` | NULL | — | — | [001_init.sql:7897](../../../backend/migrations/001_init.sql#L7897) |
+| `conversation_summary_revision` | `bigint` | NULL | — | — | [001_init.sql:7898](../../../backend/migrations/001_init.sql#L7898) |
+| `conversation_summary_source` | `text` | NULL | — | — | [001_init.sql:7899](../../../backend/migrations/001_init.sql#L7899) |
+| `clinical_set_generation` | `bigint` | NULL | — | — | [001_init.sql:8162](../../../backend/migrations/001_init.sql#L8162) |
+| `clinical_set_digest` | `bytea` | NULL | — | — | [001_init.sql:8822](../../../backend/migrations/001_init.sql#L8822) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -103,15 +103,15 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `medical_records_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1434](../../../backend/migrations/001_init.sql#L1434) |
-| `medical_records_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1437](../../../backend/migrations/001_init.sql#L1437) |
-| `medical_records_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1438](../../../backend/migrations/001_init.sql#L1438) |
-| `fk_medical_records_clinic_pet` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4341](../../../backend/migrations/001_init.sql#L4341) |
-| `fk_medical_records_clinic_owner` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4347](../../../backend/migrations/001_init.sql#L4347) |
-| `fk_medical_records_appointment_clinic` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE SET NULL (appointment_id)` | [001_init.sql:5842](../../../backend/migrations/001_init.sql#L5842) |
-| `fk_medical_records_entered_by` | `entered_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6296](../../../backend/migrations/001_init.sql#L6296) |
-| `fk_medical_records_doctor` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:6794](../../../backend/migrations/001_init.sql#L6794) |
-| `fk_medical_record_revisit_target` | `clinic_id, revisit_intake_target_id` | [revisit_intake_targets](revisit_intake_targets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:7866](../../../backend/migrations/001_init.sql#L7866) |
+| `medical_records_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1436](../../../backend/migrations/001_init.sql#L1436) |
+| `medical_records_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1439](../../../backend/migrations/001_init.sql#L1439) |
+| `medical_records_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1440](../../../backend/migrations/001_init.sql#L1440) |
+| `fk_medical_records_clinic_pet` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4343](../../../backend/migrations/001_init.sql#L4343) |
+| `fk_medical_records_clinic_owner` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4349](../../../backend/migrations/001_init.sql#L4349) |
+| `fk_medical_records_appointment_clinic` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE SET NULL (appointment_id)` | [001_init.sql:5844](../../../backend/migrations/001_init.sql#L5844) |
+| `fk_medical_records_entered_by` | `entered_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6298](../../../backend/migrations/001_init.sql#L6298) |
+| `fk_medical_records_doctor` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:6796](../../../backend/migrations/001_init.sql#L6796) |
+| `fk_medical_record_revisit_target` | `clinic_id, revisit_intake_target_id` | [revisit_intake_targets](revisit_intake_targets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:7868](../../../backend/migrations/001_init.sql#L7868) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -129,24 +129,24 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `medical_records_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1433](../../../backend/migrations/001_init.sql#L1433) |
-| `uq_medical_records_id_clinic` | unique | `CONSTRAINT uq_medical_records_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:4306](../../../backend/migrations/001_init.sql#L4306) |
-| `ck_conversation_summary_metadata` | check | `CONSTRAINT ck_conversation_summary_metadata CHECK (       (conversation_summary IS NULL AND conversation_summary_revision IS NULL AND conversation_summary_source IS NULL)       OR (conversation_summary IS NOT NULL AND conversation_summary_revision > 0           AND conversation_summary_revision IS NOT NULL AND conversation_summary_source IS NOT NULL           AND btrim(conversation_summary_source) <> '')     )` | [001_init.sql:7898](../../../backend/migrations/001_init.sql#L7898) |
-| `medical_records_clinical_set_generation_check` | check | `CHECK (clinical_set_generation > 0)` | [001_init.sql:8160](../../../backend/migrations/001_init.sql#L8160) |
-| `medical_records_clinical_set_digest_check` | check | `CHECK (octet_length(clinical_set_digest)=32)` | [001_init.sql:8820](../../../backend/migrations/001_init.sql#L8820) |
-| `uq_record_patient_clinic` | unique | `CONSTRAINT uq_record_patient_clinic UNIQUE(id,clinic_id,pet_id)` | [001_init.sql:10111](../../../backend/migrations/001_init.sql#L10111) |
+| `medical_records_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1435](../../../backend/migrations/001_init.sql#L1435) |
+| `uq_medical_records_id_clinic` | unique | `CONSTRAINT uq_medical_records_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:4308](../../../backend/migrations/001_init.sql#L4308) |
+| `ck_conversation_summary_metadata` | check | `CONSTRAINT ck_conversation_summary_metadata CHECK (       (conversation_summary IS NULL AND conversation_summary_revision IS NULL AND conversation_summary_source IS NULL)       OR (conversation_summary IS NOT NULL AND conversation_summary_revision > 0           AND conversation_summary_revision IS NOT NULL AND conversation_summary_source IS NOT NULL           AND btrim(conversation_summary_source) <> '')     )` | [001_init.sql:7900](../../../backend/migrations/001_init.sql#L7900) |
+| `medical_records_clinical_set_generation_check` | check | `CHECK (clinical_set_generation > 0)` | [001_init.sql:8162](../../../backend/migrations/001_init.sql#L8162) |
+| `medical_records_clinical_set_digest_check` | check | `CHECK (octet_length(clinical_set_digest)=32)` | [001_init.sql:8822](../../../backend/migrations/001_init.sql#L8822) |
+| `uq_record_patient_clinic` | unique | `CONSTRAINT uq_record_patient_clinic UNIQUE(id,clinic_id,pet_id)` | [001_init.sql:10113](../../../backend/migrations/001_init.sql#L10113) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_medical_records_clinic_record_no` | YES | — | `CREATE UNIQUE INDEX idx_medical_records_clinic_record_no ON medical_records(clinic_id, record_no)` | [001_init.sql:2205](../../../backend/migrations/001_init.sql#L2205) |
-| `idx_medical_records_clinic_date` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_medical_records_clinic_date   ON medical_records(clinic_id, date DESC)   WHERE deleted_at IS NULL` | [001_init.sql:2377](../../../backend/migrations/001_init.sql#L2377) |
-| `idx_medical_records_clinic_pet` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_medical_records_clinic_pet   ON medical_records(clinic_id, pet_id)   WHERE deleted_at IS NULL` | [001_init.sql:2381](../../../backend/migrations/001_init.sql#L2381) |
-| `idx_medical_records_clinic_owner` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_medical_records_clinic_owner   ON medical_records(clinic_id, owner_id)   WHERE deleted_at IS NULL` | [001_init.sql:2385](../../../backend/migrations/001_init.sql#L2385) |
-| `idx_medical_records_doctor_id` | NO | `doctor_id IS NOT NULL` | `CREATE INDEX idx_medical_records_doctor_id ON medical_records(doctor_id) WHERE doctor_id IS NOT NULL` | [001_init.sql:2452](../../../backend/migrations/001_init.sql#L2452) |
-| `idx_medical_records_entered_by` | NO | `entered_by IS NOT NULL` | `CREATE INDEX idx_medical_records_entered_by ON medical_records(entered_by) WHERE entered_by IS NOT NULL` | [001_init.sql:2453](../../../backend/migrations/001_init.sql#L2453) |
-| `idx_medical_records_appointment_id` | NO | `appointment_id IS NOT NULL` | `CREATE INDEX IF NOT EXISTS idx_medical_records_appointment_id     ON medical_records (appointment_id)     WHERE appointment_id IS NOT NULL` | [001_init.sql:3898](../../../backend/migrations/001_init.sql#L3898) |
-| `uq_medical_records_clinic_appointment_active` | YES | `appointment_id IS NOT NULL AND deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_medical_records_clinic_appointment_active     ON medical_records (clinic_id, appointment_id)     WHERE appointment_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:3902](../../../backend/migrations/001_init.sql#L3902) |
-| `idx_medical_records_record_no_trgm` | NO | — | `CREATE INDEX idx_medical_records_record_no_trgm   ON medical_records USING gin (record_no gin_trgm_ops)` | [001_init.sql:6717](../../../backend/migrations/001_init.sql#L6717) |
-| `idx_medical_records_clinic_revisit_target` | NO | `revisit_intake_target_id IS NOT NULL` | `CREATE INDEX idx_medical_records_clinic_revisit_target     ON medical_records(clinic_id, revisit_intake_target_id)     WHERE revisit_intake_target_id IS NOT NULL` | [001_init.sql:7869](../../../backend/migrations/001_init.sql#L7869) |
+| `idx_medical_records_clinic_record_no` | YES | — | `CREATE UNIQUE INDEX idx_medical_records_clinic_record_no ON medical_records(clinic_id, record_no)` | [001_init.sql:2207](../../../backend/migrations/001_init.sql#L2207) |
+| `idx_medical_records_clinic_date` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_medical_records_clinic_date   ON medical_records(clinic_id, date DESC)   WHERE deleted_at IS NULL` | [001_init.sql:2379](../../../backend/migrations/001_init.sql#L2379) |
+| `idx_medical_records_clinic_pet` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_medical_records_clinic_pet   ON medical_records(clinic_id, pet_id)   WHERE deleted_at IS NULL` | [001_init.sql:2383](../../../backend/migrations/001_init.sql#L2383) |
+| `idx_medical_records_clinic_owner` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_medical_records_clinic_owner   ON medical_records(clinic_id, owner_id)   WHERE deleted_at IS NULL` | [001_init.sql:2387](../../../backend/migrations/001_init.sql#L2387) |
+| `idx_medical_records_doctor_id` | NO | `doctor_id IS NOT NULL` | `CREATE INDEX idx_medical_records_doctor_id ON medical_records(doctor_id) WHERE doctor_id IS NOT NULL` | [001_init.sql:2454](../../../backend/migrations/001_init.sql#L2454) |
+| `idx_medical_records_entered_by` | NO | `entered_by IS NOT NULL` | `CREATE INDEX idx_medical_records_entered_by ON medical_records(entered_by) WHERE entered_by IS NOT NULL` | [001_init.sql:2455](../../../backend/migrations/001_init.sql#L2455) |
+| `idx_medical_records_appointment_id` | NO | `appointment_id IS NOT NULL` | `CREATE INDEX IF NOT EXISTS idx_medical_records_appointment_id     ON medical_records (appointment_id)     WHERE appointment_id IS NOT NULL` | [001_init.sql:3900](../../../backend/migrations/001_init.sql#L3900) |
+| `uq_medical_records_clinic_appointment_active` | YES | `appointment_id IS NOT NULL AND deleted_at IS NULL` | `CREATE UNIQUE INDEX uq_medical_records_clinic_appointment_active     ON medical_records (clinic_id, appointment_id)     WHERE appointment_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:3904](../../../backend/migrations/001_init.sql#L3904) |
+| `idx_medical_records_record_no_trgm` | NO | — | `CREATE INDEX idx_medical_records_record_no_trgm   ON medical_records USING gin (record_no gin_trgm_ops)` | [001_init.sql:6719](../../../backend/migrations/001_init.sql#L6719) |
+| `idx_medical_records_clinic_revisit_target` | NO | `revisit_intake_target_id IS NOT NULL` | `CREATE INDEX idx_medical_records_clinic_revisit_target     ON medical_records(clinic_id, revisit_intake_target_id)     WHERE revisit_intake_target_id IS NOT NULL` | [001_init.sql:7871](../../../backend/migrations/001_init.sql#L7871) |

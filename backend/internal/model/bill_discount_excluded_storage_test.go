@@ -14,7 +14,7 @@ import (
 func TestBillDiscountExcluded007Migration_Structure(t *testing.T) {
 	t.Parallel()
 
-	sql := readBillDiscountExcluded007Migration(t)
+	sql := readConsolidatedMigrationSection(t, "007_bill_discount_excluded_and_master_versions.sql")
 
 	flagTables := []string{
 		"consultations",
@@ -150,14 +150,6 @@ func TestBillDiscountExcludedModelTags(t *testing.T) {
 			t.Fatalf("%s.Version must not be serialized by the model, got json tag %q", m.name, got)
 		}
 	}
-}
-
-// readBillDiscountExcluded007Migration returns the A01 DDL section absorbed
-// into 001_init.sql from the former
-// backend/migrations/007_bill_discount_excluded_and_master_versions.sql.
-func readBillDiscountExcluded007Migration(t *testing.T) string {
-	t.Helper()
-	return readConsolidatedMigrationSection(t, "007_bill_discount_excluded_and_master_versions.sql")
 }
 
 // stripSQLLineComments removes `--` line comments so statement checks are not

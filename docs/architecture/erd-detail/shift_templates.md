@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2720](../../../backend/migrations/001_init.sql#L2720) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2721](../../../backend/migrations/001_init.sql#L2721) |
-| `name` | `varchar(100)` | NOT NULL | — | — | [001_init.sql:2722](../../../backend/migrations/001_init.sql#L2722) |
-| `shift_type` | `shift_type` | NOT NULL | `'full'` | — | [001_init.sql:2723](../../../backend/migrations/001_init.sql#L2723) |
-| `start_time` | `time` | NULL | — | — | [001_init.sql:2724](../../../backend/migrations/001_init.sql#L2724) |
-| `end_time` | `time` | NULL | — | — | [001_init.sql:2725](../../../backend/migrations/001_init.sql#L2725) |
-| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:2726](../../../backend/migrations/001_init.sql#L2726) |
-| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:2727](../../../backend/migrations/001_init.sql#L2727) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:2728](../../../backend/migrations/001_init.sql#L2728) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2729](../../../backend/migrations/001_init.sql#L2729) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2730](../../../backend/migrations/001_init.sql#L2730) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:2731](../../../backend/migrations/001_init.sql#L2731) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2722](../../../backend/migrations/001_init.sql#L2722) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2723](../../../backend/migrations/001_init.sql#L2723) |
+| `name` | `varchar(100)` | NOT NULL | — | — | [001_init.sql:2724](../../../backend/migrations/001_init.sql#L2724) |
+| `shift_type` | `shift_type` | NOT NULL | `'full'` | — | [001_init.sql:2725](../../../backend/migrations/001_init.sql#L2725) |
+| `start_time` | `time` | NULL | — | — | [001_init.sql:2726](../../../backend/migrations/001_init.sql#L2726) |
+| `end_time` | `time` | NULL | — | — | [001_init.sql:2727](../../../backend/migrations/001_init.sql#L2727) |
+| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:2728](../../../backend/migrations/001_init.sql#L2728) |
+| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:2729](../../../backend/migrations/001_init.sql#L2729) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:2730](../../../backend/migrations/001_init.sql#L2730) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2731](../../../backend/migrations/001_init.sql#L2731) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2732](../../../backend/migrations/001_init.sql#L2732) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:2733](../../../backend/migrations/001_init.sql#L2733) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -58,7 +58,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `shift_templates_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:2721](../../../backend/migrations/001_init.sql#L2721) |
+| `shift_templates_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:2723](../../../backend/migrations/001_init.sql#L2723) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -68,10 +68,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `shift_templates_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2720](../../../backend/migrations/001_init.sql#L2720) |
+| `shift_templates_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2722](../../../backend/migrations/001_init.sql#L2722) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uk_shift_templates_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uk_shift_templates_clinic_name ON shift_templates(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2735](../../../backend/migrations/001_init.sql#L2735) |
+| `uk_shift_templates_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uk_shift_templates_clinic_name ON shift_templates(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2737](../../../backend/migrations/001_init.sql#L2737) |

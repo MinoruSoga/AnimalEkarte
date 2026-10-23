@@ -35,7 +35,7 @@
 <a id="requirement-fr-common-safety-audit"></a>
 ### FR-common-safety-audit — 意味のある変更を追えること
 
-臨床・会計・権限の重要変更は明示された監査経路でactor・時刻を追跡する。全241テーブルの一律自動監査とはしない。integrityが必要な経路は必要監査失敗時にfail-closed。同一txの有無と選定仕様／現行実装差は[共通技術接続](../../design/shared/integration-contracts.md)で分ける。担当医を編集actorの代用にせず、確認医師・編集者・担当・指名は別概念を維持する。
+臨床・会計・権限の重要変更は明示された監査経路でactor・時刻を追跡する。全253テーブルの一律自動監査とはしない。integrityが必要な経路は必要監査失敗時にfail-closed。同一txの有無と選定仕様／現行実装差は[共通技術接続](../../design/shared/integration-contracts.md)で分ける。担当医を編集actorの代用にせず、確認医師・編集者・担当・指名は別概念を維持する。
 
 <a id="requirement-fr-common-safety-automation"></a>
 ### FR-common-safety-automation — 自動化の停止・失敗・監査

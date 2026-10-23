@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1478](../../../backend/migrations/001_init.sql#L1478) |
-| `medical_record_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:1479](../../../backend/migrations/001_init.sql#L1479) |
-| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:1480](../../../backend/migrations/001_init.sql#L1480) |
-| `author_user_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:1481](../../../backend/migrations/001_init.sql#L1481) |
-| `before_text` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:1482](../../../backend/migrations/001_init.sql#L1482) |
-| `after_text` | `TEXT` | NOT NULL | — | — | [001_init.sql:1483](../../../backend/migrations/001_init.sql#L1483) |
-| `reason` | `TEXT` | NOT NULL | — | — | [001_init.sql:1484](../../../backend/migrations/001_init.sql#L1484) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:1485](../../../backend/migrations/001_init.sql#L1485) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1480](../../../backend/migrations/001_init.sql#L1480) |
+| `medical_record_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:1481](../../../backend/migrations/001_init.sql#L1481) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:1482](../../../backend/migrations/001_init.sql#L1482) |
+| `author_user_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:1483](../../../backend/migrations/001_init.sql#L1483) |
+| `before_text` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:1484](../../../backend/migrations/001_init.sql#L1484) |
+| `after_text` | `TEXT` | NOT NULL | — | — | [001_init.sql:1485](../../../backend/migrations/001_init.sql#L1485) |
+| `reason` | `TEXT` | NOT NULL | — | — | [001_init.sql:1486](../../../backend/migrations/001_init.sql#L1486) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:1487](../../../backend/migrations/001_init.sql#L1487) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -58,9 +58,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `medical_record_addenda_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1479](../../../backend/migrations/001_init.sql#L1479) |
-| `medical_record_addenda_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1480](../../../backend/migrations/001_init.sql#L1480) |
-| `medical_record_addenda_author_user_id_fkey` | `author_user_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1481](../../../backend/migrations/001_init.sql#L1481) |
+| `medical_record_addenda_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1481](../../../backend/migrations/001_init.sql#L1481) |
+| `medical_record_addenda_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1482](../../../backend/migrations/001_init.sql#L1482) |
+| `medical_record_addenda_author_user_id_fkey` | `author_user_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1483](../../../backend/migrations/001_init.sql#L1483) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -72,12 +72,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `medical_record_addenda_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1478](../../../backend/migrations/001_init.sql#L1478) |
+| `medical_record_addenda_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1480](../../../backend/migrations/001_init.sql#L1480) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_medical_record_addenda_medical_record_id` | NO | — | `CREATE INDEX idx_medical_record_addenda_medical_record_id ON medical_record_addenda (medical_record_id)` | [001_init.sql:1488](../../../backend/migrations/001_init.sql#L1488) |
-| `idx_medical_record_addenda_clinic_id` | NO | — | `CREATE INDEX idx_medical_record_addenda_clinic_id         ON medical_record_addenda (clinic_id)` | [001_init.sql:1489](../../../backend/migrations/001_init.sql#L1489) |
-| `idx_medical_record_addenda_created_at` | NO | — | `CREATE INDEX idx_medical_record_addenda_created_at        ON medical_record_addenda (created_at)` | [001_init.sql:1490](../../../backend/migrations/001_init.sql#L1490) |
+| `idx_medical_record_addenda_medical_record_id` | NO | — | `CREATE INDEX idx_medical_record_addenda_medical_record_id ON medical_record_addenda (medical_record_id)` | [001_init.sql:1490](../../../backend/migrations/001_init.sql#L1490) |
+| `idx_medical_record_addenda_clinic_id` | NO | — | `CREATE INDEX idx_medical_record_addenda_clinic_id         ON medical_record_addenda (clinic_id)` | [001_init.sql:1491](../../../backend/migrations/001_init.sql#L1491) |
+| `idx_medical_record_addenda_created_at` | NO | — | `CREATE INDEX idx_medical_record_addenda_created_at        ON medical_record_addenda (created_at)` | [001_init.sql:1492](../../../backend/migrations/001_init.sql#L1492) |

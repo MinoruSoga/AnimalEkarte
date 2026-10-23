@@ -11,24 +11,24 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:289](../../../backend/migrations/001_init.sql#L289) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:290](../../../backend/migrations/001_init.sql#L290) |
-| `account_id` | `bigint` | NULL | — | FK | [001_init.sql:291](../../../backend/migrations/001_init.sql#L291) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:292](../../../backend/migrations/001_init.sql#L292) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:293](../../../backend/migrations/001_init.sql#L293) |
-| `license_number` | `text` | NOT NULL | `''` | — | [001_init.sql:294](../../../backend/migrations/001_init.sql#L294) |
-| `occupation_id` | `bigint` | NULL | — | FK | [001_init.sql:295](../../../backend/migrations/001_init.sql#L295) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:296](../../../backend/migrations/001_init.sql#L296) |
-| `staff_type` | `staff_type` | NOT NULL | `'doctor'` | — | [001_init.sql:297](../../../backend/migrations/001_init.sql#L297) |
-| `reservation_display_name` | `text` | NOT NULL | `''` | — | [001_init.sql:298](../../../backend/migrations/001_init.sql#L298) |
-| `reservation_visible` | `boolean` | NOT NULL | `true` | — | [001_init.sql:299](../../../backend/migrations/001_init.sql#L299) |
-| `reservation_comment` | `text` | NOT NULL | `''` | — | [001_init.sql:300](../../../backend/migrations/001_init.sql#L300) |
-| `reservation_image_url` | `text` | NOT NULL | `''` | — | [001_init.sql:301](../../../backend/migrations/001_init.sql#L301) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:302](../../../backend/migrations/001_init.sql#L302) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:303](../../../backend/migrations/001_init.sql#L303) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:304](../../../backend/migrations/001_init.sql#L304) |
-| `position_name` | `text` | NULL | — | — | [001_init.sql:8954](../../../backend/migrations/001_init.sql#L8954) |
-| `employment_category` | `text` | NULL | — | — | [001_init.sql:8954](../../../backend/migrations/001_init.sql#L8954) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:291](../../../backend/migrations/001_init.sql#L291) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:292](../../../backend/migrations/001_init.sql#L292) |
+| `account_id` | `bigint` | NULL | — | FK | [001_init.sql:293](../../../backend/migrations/001_init.sql#L293) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:294](../../../backend/migrations/001_init.sql#L294) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:295](../../../backend/migrations/001_init.sql#L295) |
+| `license_number` | `text` | NOT NULL | `''` | — | [001_init.sql:296](../../../backend/migrations/001_init.sql#L296) |
+| `occupation_id` | `bigint` | NULL | — | FK | [001_init.sql:297](../../../backend/migrations/001_init.sql#L297) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:298](../../../backend/migrations/001_init.sql#L298) |
+| `staff_type` | `staff_type` | NOT NULL | `'doctor'` | — | [001_init.sql:299](../../../backend/migrations/001_init.sql#L299) |
+| `reservation_display_name` | `text` | NOT NULL | `''` | — | [001_init.sql:300](../../../backend/migrations/001_init.sql#L300) |
+| `reservation_visible` | `boolean` | NOT NULL | `true` | — | [001_init.sql:301](../../../backend/migrations/001_init.sql#L301) |
+| `reservation_comment` | `text` | NOT NULL | `''` | — | [001_init.sql:302](../../../backend/migrations/001_init.sql#L302) |
+| `reservation_image_url` | `text` | NOT NULL | `''` | — | [001_init.sql:303](../../../backend/migrations/001_init.sql#L303) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:304](../../../backend/migrations/001_init.sql#L304) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:305](../../../backend/migrations/001_init.sql#L305) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:306](../../../backend/migrations/001_init.sql#L306) |
+| `position_name` | `text` | NULL | — | — | [001_init.sql:8956](../../../backend/migrations/001_init.sql#L8956) |
+| `employment_category` | `text` | NULL | — | — | [001_init.sql:8956](../../../backend/migrations/001_init.sql#L8956) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -78,9 +78,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `staffs_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:290](../../../backend/migrations/001_init.sql#L290) |
-| `staffs_account_id_fkey` | `account_id` | [accounts](accounts.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:291](../../../backend/migrations/001_init.sql#L291) |
-| `staffs_occupation_id_fkey` | `occupation_id` | [occupations](occupations.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:295](../../../backend/migrations/001_init.sql#L295) |
+| `staffs_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:292](../../../backend/migrations/001_init.sql#L292) |
+| `staffs_account_id_fkey` | `account_id` | [accounts](accounts.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:293](../../../backend/migrations/001_init.sql#L293) |
+| `staffs_occupation_id_fkey` | `occupation_id` | [occupations](occupations.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:297](../../../backend/migrations/001_init.sql#L297) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -92,13 +92,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `staffs_pkey` | primary | `PRIMARY KEY` | [001_init.sql:289](../../../backend/migrations/001_init.sql#L289) |
-| `uq_staffs_id_clinic` | unique | `CONSTRAINT uq_staffs_id_clinic         UNIQUE (id, clinic_id)` | [001_init.sql:5716](../../../backend/migrations/001_init.sql#L5716) |
+| `staffs_pkey` | primary | `PRIMARY KEY` | [001_init.sql:291](../../../backend/migrations/001_init.sql#L291) |
+| `uq_staffs_id_clinic` | unique | `CONSTRAINT uq_staffs_id_clinic         UNIQUE (id, clinic_id)` | [001_init.sql:5718](../../../backend/migrations/001_init.sql#L5718) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_staffs_account` | NO | — | `CREATE INDEX idx_staffs_account ON staffs(account_id)` | [001_init.sql:307](../../../backend/migrations/001_init.sql#L307) |
-| `idx_staffs_clinic` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_staffs_clinic ON staffs(clinic_id) WHERE deleted_at IS NULL` | [001_init.sql:308](../../../backend/migrations/001_init.sql#L308) |
-| `idx_staffs_occupation_id` | NO | — | `CREATE INDEX idx_staffs_occupation_id ON staffs(occupation_id)` | [001_init.sql:2448](../../../backend/migrations/001_init.sql#L2448) |
+| `idx_staffs_account` | NO | — | `CREATE INDEX idx_staffs_account ON staffs(account_id)` | [001_init.sql:309](../../../backend/migrations/001_init.sql#L309) |
+| `idx_staffs_clinic` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_staffs_clinic ON staffs(clinic_id) WHERE deleted_at IS NULL` | [001_init.sql:310](../../../backend/migrations/001_init.sql#L310) |
+| `idx_staffs_occupation_id` | NO | — | `CREATE INDEX idx_staffs_occupation_id ON staffs(occupation_id)` | [001_init.sql:2450](../../../backend/migrations/001_init.sql#L2450) |

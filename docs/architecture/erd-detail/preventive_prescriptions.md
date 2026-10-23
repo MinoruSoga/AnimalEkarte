@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9172](../../../backend/migrations/001_init.sql#L9172) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9173](../../../backend/migrations/001_init.sql#L9173) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9174](../../../backend/migrations/001_init.sql#L9174) |
-| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:9175](../../../backend/migrations/001_init.sql#L9175) |
-| `source_treatment_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:9176](../../../backend/migrations/001_init.sql#L9176) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9177](../../../backend/migrations/001_init.sql#L9177) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9174](../../../backend/migrations/001_init.sql#L9174) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9175](../../../backend/migrations/001_init.sql#L9175) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9176](../../../backend/migrations/001_init.sql#L9176) |
+| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:9177](../../../backend/migrations/001_init.sql#L9177) |
+| `source_treatment_id` | `bigint` | NULL | — | FK, UK | [001_init.sql:9178](../../../backend/migrations/001_init.sql#L9178) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9179](../../../backend/migrations/001_init.sql#L9179) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -65,12 +65,12 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `preventive_prescriptions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9173](../../../backend/migrations/001_init.sql#L9173) |
-| `preventive_prescriptions_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:9180](../../../backend/migrations/001_init.sql#L9180) |
-| `preventive_prescriptions_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9181](../../../backend/migrations/001_init.sql#L9181) |
-| `preventive_prescriptions_source_treatment_id_clinic_id_fkey` | `source_treatment_id, clinic_id` | [treatments](treatments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9182](../../../backend/migrations/001_init.sql#L9182) |
-| `fk_preventive_record_patient` | `medical_record_id, clinic_id, pet_id` | [medical_records](medical_records.md) | `id, clinic_id, pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10114](../../../backend/migrations/001_init.sql#L10114) |
-| `fk_prescription_source_record` | `source_treatment_id, clinic_id, medical_record_id` | [treatments](treatments.md) | `id, clinic_id, medical_record_id` | `ON DELETE RESTRICT` | [001_init.sql:10118](../../../backend/migrations/001_init.sql#L10118) |
+| `preventive_prescriptions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9175](../../../backend/migrations/001_init.sql#L9175) |
+| `preventive_prescriptions_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:9182](../../../backend/migrations/001_init.sql#L9182) |
+| `preventive_prescriptions_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9183](../../../backend/migrations/001_init.sql#L9183) |
+| `preventive_prescriptions_source_treatment_id_clinic_id_fkey` | `source_treatment_id, clinic_id` | [treatments](treatments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9184](../../../backend/migrations/001_init.sql#L9184) |
+| `fk_preventive_record_patient` | `medical_record_id, clinic_id, pet_id` | [medical_records](medical_records.md) | `id, clinic_id, pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10116](../../../backend/migrations/001_init.sql#L10116) |
+| `fk_prescription_source_record` | `source_treatment_id, clinic_id, medical_record_id` | [treatments](treatments.md) | `id, clinic_id, medical_record_id` | `ON DELETE RESTRICT` | [001_init.sql:10120](../../../backend/migrations/001_init.sql#L10120) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -85,10 +85,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `preventive_prescriptions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9172](../../../backend/migrations/001_init.sql#L9172) |
-| `preventive_prescriptions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9178](../../../backend/migrations/001_init.sql#L9178) |
-| `preventive_prescriptions_clinic_id_source_treatment_id_key` | unique | `UNIQUE (clinic_id,source_treatment_id)` | [001_init.sql:9179](../../../backend/migrations/001_init.sql#L9179) |
-| `ck_prescription_source_record` | check | `CONSTRAINT ck_prescription_source_record CHECK(source_treatment_id IS NULL OR medical_record_id IS NOT NULL)` | [001_init.sql:10117](../../../backend/migrations/001_init.sql#L10117) |
+| `preventive_prescriptions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9174](../../../backend/migrations/001_init.sql#L9174) |
+| `preventive_prescriptions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9180](../../../backend/migrations/001_init.sql#L9180) |
+| `preventive_prescriptions_clinic_id_source_treatment_id_key` | unique | `UNIQUE (clinic_id,source_treatment_id)` | [001_init.sql:9181](../../../backend/migrations/001_init.sql#L9181) |
+| `ck_prescription_source_record` | check | `CONSTRAINT ck_prescription_source_record CHECK(source_treatment_id IS NULL OR medical_record_id IS NOT NULL)` | [001_init.sql:10119](../../../backend/migrations/001_init.sql#L10119) |
 
 ## インデックス
 

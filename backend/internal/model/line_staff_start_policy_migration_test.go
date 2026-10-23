@@ -1,7 +1,9 @@
 package model
 
-// line_staff_start_policy_migration_test.go — static checks for
-// backend/migrations/010_line_staff_start_policy_and_reservation_anchor.sql
+// line_staff_start_policy_migration_test.go — static checks for the per-staff
+// start policy and reservation anchor storage DDL (the former
+// backend/migrations/010_line_staff_start_policy_and_reservation_anchor.sql,
+// now a 001_init.sql section)
 // and the matching GORM model tags (EMR-446/466 A02 staff start policy +
 // EMR-492 follow-up anchor, contract §4.1/§4.3). NOT_RUN yet in this
 // workspace. Shared helpers live in clinic_operating_hours_migration_test.go

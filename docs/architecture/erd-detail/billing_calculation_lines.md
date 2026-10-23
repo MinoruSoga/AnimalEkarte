@@ -11,22 +11,22 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK, UK | [001_init.sql:9431](../../../backend/migrations/001_init.sql#L9431) |
-| `calculation_id` | `bigint` | NOT NULL | — | PK, FK, UK | [001_init.sql:9432](../../../backend/migrations/001_init.sql#L9432) |
-| `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9433](../../../backend/migrations/001_init.sql#L9433) |
-| `billing_item_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9434](../../../backend/migrations/001_init.sql#L9434) |
-| `ordinal` | `integer` | NOT NULL | — | UK | [001_init.sql:9435](../../../backend/migrations/001_init.sql#L9435) |
-| `unit_price` | `numeric` | NOT NULL | — | — | [001_init.sql:9436](../../../backend/migrations/001_init.sql#L9436) |
-| `quantity` | `numeric` | NOT NULL | — | — | [001_init.sql:9437](../../../backend/migrations/001_init.sql#L9437) |
-| `source_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9438](../../../backend/migrations/001_init.sql#L9438) |
-| `discount_conditions` | `jsonb` | NOT NULL | — | — | [001_init.sql:9439](../../../backend/migrations/001_init.sql#L9439) |
-| `requested_discount_amount` | `numeric` | NOT NULL | — | — | [001_init.sql:9440](../../../backend/migrations/001_init.sql#L9440) |
-| `applied_discount_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9441](../../../backend/migrations/001_init.sql#L9441) |
-| `allocated_bill_discount` | `bigint` | NOT NULL | — | — | [001_init.sql:9442](../../../backend/migrations/001_init.sql#L9442) |
-| `net_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9443](../../../backend/migrations/001_init.sql#L9443) |
-| `tax_rate` | `numeric` | NOT NULL | — | — | [001_init.sql:9444](../../../backend/migrations/001_init.sql#L9444) |
-| `tax_category` | `text` | NOT NULL | — | — | [001_init.sql:9445](../../../backend/migrations/001_init.sql#L9445) |
-| `insurance_category` | `text` | NOT NULL | — | — | [001_init.sql:9446](../../../backend/migrations/001_init.sql#L9446) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK, UK | [001_init.sql:9433](../../../backend/migrations/001_init.sql#L9433) |
+| `calculation_id` | `bigint` | NOT NULL | — | PK, FK, UK | [001_init.sql:9434](../../../backend/migrations/001_init.sql#L9434) |
+| `billing_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9435](../../../backend/migrations/001_init.sql#L9435) |
+| `billing_item_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9436](../../../backend/migrations/001_init.sql#L9436) |
+| `ordinal` | `integer` | NOT NULL | — | UK | [001_init.sql:9437](../../../backend/migrations/001_init.sql#L9437) |
+| `unit_price` | `numeric` | NOT NULL | — | — | [001_init.sql:9438](../../../backend/migrations/001_init.sql#L9438) |
+| `quantity` | `numeric` | NOT NULL | — | — | [001_init.sql:9439](../../../backend/migrations/001_init.sql#L9439) |
+| `source_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9440](../../../backend/migrations/001_init.sql#L9440) |
+| `discount_conditions` | `jsonb` | NOT NULL | — | — | [001_init.sql:9441](../../../backend/migrations/001_init.sql#L9441) |
+| `requested_discount_amount` | `numeric` | NOT NULL | — | — | [001_init.sql:9442](../../../backend/migrations/001_init.sql#L9442) |
+| `applied_discount_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9443](../../../backend/migrations/001_init.sql#L9443) |
+| `allocated_bill_discount` | `bigint` | NOT NULL | — | — | [001_init.sql:9444](../../../backend/migrations/001_init.sql#L9444) |
+| `net_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9445](../../../backend/migrations/001_init.sql#L9445) |
+| `tax_rate` | `numeric` | NOT NULL | — | — | [001_init.sql:9446](../../../backend/migrations/001_init.sql#L9446) |
+| `tax_category` | `text` | NOT NULL | — | — | [001_init.sql:9447](../../../backend/migrations/001_init.sql#L9447) |
+| `insurance_category` | `text` | NOT NULL | — | — | [001_init.sql:9448](../../../backend/migrations/001_init.sql#L9448) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -78,9 +78,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `billing_calculation_lines_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9431](../../../backend/migrations/001_init.sql#L9431) |
-| `billing_calculation_lines_calculation_id_clinic_id_billing_fkey` | `calculation_id, clinic_id, billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9449](../../../backend/migrations/001_init.sql#L9449) |
-| `billing_calculation_lines_billing_item_id_clinic_id_billin_fkey` | `billing_item_id, clinic_id, billing_id` | [billing_items](billing_items.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9450](../../../backend/migrations/001_init.sql#L9450) |
+| `billing_calculation_lines_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9433](../../../backend/migrations/001_init.sql#L9433) |
+| `billing_calculation_lines_calculation_id_clinic_id_billing_fkey` | `calculation_id, clinic_id, billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9451](../../../backend/migrations/001_init.sql#L9451) |
+| `billing_calculation_lines_billing_item_id_clinic_id_billin_fkey` | `billing_item_id, clinic_id, billing_id` | [billing_items](billing_items.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9452](../../../backend/migrations/001_init.sql#L9452) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -92,15 +92,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `billing_calculation_lines_ordinal_check` | check | `CHECK (ordinal > 0)` | [001_init.sql:9435](../../../backend/migrations/001_init.sql#L9435) |
-| `billing_calculation_lines_quantity_check` | check | `CHECK (quantity > 0)` | [001_init.sql:9437](../../../backend/migrations/001_init.sql#L9437) |
-| `billing_calculation_lines_source_snapshot_check` | check | `CHECK (jsonb_typeof(source_snapshot)='object')` | [001_init.sql:9438](../../../backend/migrations/001_init.sql#L9438) |
-| `billing_calculation_lines_discount_conditions_check` | check | `CHECK (jsonb_typeof(discount_conditions)='object')` | [001_init.sql:9439](../../../backend/migrations/001_init.sql#L9439) |
-| `billing_calculation_lines_applied_discount_amount_check` | check | `CHECK (applied_discount_amount >= 0)` | [001_init.sql:9441](../../../backend/migrations/001_init.sql#L9441) |
-| `billing_calculation_lines_allocated_bill_discount_check` | check | `CHECK (allocated_bill_discount >= 0)` | [001_init.sql:9442](../../../backend/migrations/001_init.sql#L9442) |
-| `billing_calculation_lines_net_amount_check` | check | `CHECK (net_amount >= 0)` | [001_init.sql:9443](../../../backend/migrations/001_init.sql#L9443) |
-| `billing_calculation_lines_pkey` | primary | `PRIMARY KEY (clinic_id,calculation_id,billing_item_id)` | [001_init.sql:9447](../../../backend/migrations/001_init.sql#L9447) |
-| `billing_calculation_lines_clinic_id_calculation_id_ordinal_key` | unique | `UNIQUE (clinic_id,calculation_id,ordinal)` | [001_init.sql:9448](../../../backend/migrations/001_init.sql#L9448) |
+| `billing_calculation_lines_ordinal_check` | check | `CHECK (ordinal > 0)` | [001_init.sql:9437](../../../backend/migrations/001_init.sql#L9437) |
+| `billing_calculation_lines_quantity_check` | check | `CHECK (quantity > 0)` | [001_init.sql:9439](../../../backend/migrations/001_init.sql#L9439) |
+| `billing_calculation_lines_source_snapshot_check` | check | `CHECK (jsonb_typeof(source_snapshot)='object')` | [001_init.sql:9440](../../../backend/migrations/001_init.sql#L9440) |
+| `billing_calculation_lines_discount_conditions_check` | check | `CHECK (jsonb_typeof(discount_conditions)='object')` | [001_init.sql:9441](../../../backend/migrations/001_init.sql#L9441) |
+| `billing_calculation_lines_applied_discount_amount_check` | check | `CHECK (applied_discount_amount >= 0)` | [001_init.sql:9443](../../../backend/migrations/001_init.sql#L9443) |
+| `billing_calculation_lines_allocated_bill_discount_check` | check | `CHECK (allocated_bill_discount >= 0)` | [001_init.sql:9444](../../../backend/migrations/001_init.sql#L9444) |
+| `billing_calculation_lines_net_amount_check` | check | `CHECK (net_amount >= 0)` | [001_init.sql:9445](../../../backend/migrations/001_init.sql#L9445) |
+| `billing_calculation_lines_pkey` | primary | `PRIMARY KEY (clinic_id,calculation_id,billing_item_id)` | [001_init.sql:9449](../../../backend/migrations/001_init.sql#L9449) |
+| `billing_calculation_lines_clinic_id_calculation_id_ordinal_key` | unique | `UNIQUE (clinic_id,calculation_id,ordinal)` | [001_init.sql:9450](../../../backend/migrations/001_init.sql#L9450) |
 
 ## インデックス
 

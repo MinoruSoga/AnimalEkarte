@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1111](../../../backend/migrations/001_init.sql#L1111) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1112](../../../backend/migrations/001_init.sql#L1112) |
-| `category` | `text` | NOT NULL | `''` | — | [001_init.sql:1113](../../../backend/migrations/001_init.sql#L1113) |
-| `title` | `text` | NOT NULL | — | — | [001_init.sql:1114](../../../backend/migrations/001_init.sql#L1114) |
-| `content` | `text` | NOT NULL | `''` | — | [001_init.sql:1115](../../../backend/migrations/001_init.sql#L1115) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1116](../../../backend/migrations/001_init.sql#L1116) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1117](../../../backend/migrations/001_init.sql#L1117) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1118](../../../backend/migrations/001_init.sql#L1118) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1119](../../../backend/migrations/001_init.sql#L1119) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1120](../../../backend/migrations/001_init.sql#L1120) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1113](../../../backend/migrations/001_init.sql#L1113) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1114](../../../backend/migrations/001_init.sql#L1114) |
+| `category` | `text` | NOT NULL | `''` | — | [001_init.sql:1115](../../../backend/migrations/001_init.sql#L1115) |
+| `title` | `text` | NOT NULL | — | — | [001_init.sql:1116](../../../backend/migrations/001_init.sql#L1116) |
+| `content` | `text` | NOT NULL | `''` | — | [001_init.sql:1117](../../../backend/migrations/001_init.sql#L1117) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1118](../../../backend/migrations/001_init.sql#L1118) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1119](../../../backend/migrations/001_init.sql#L1119) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1120](../../../backend/migrations/001_init.sql#L1120) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1121](../../../backend/migrations/001_init.sql#L1121) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1122](../../../backend/migrations/001_init.sql#L1122) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,7 +54,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `inquiry_templates_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1112](../../../backend/migrations/001_init.sql#L1112) |
+| `inquiry_templates_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1114](../../../backend/migrations/001_init.sql#L1114) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,12 +64,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `inquiry_templates_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1111](../../../backend/migrations/001_init.sql#L1111) |
+| `inquiry_templates_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1113](../../../backend/migrations/001_init.sql#L1113) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_inquiry_templates_clinic_id` | NO | — | `CREATE INDEX idx_inquiry_templates_clinic_id ON inquiry_templates(clinic_id)` | [001_init.sql:2254](../../../backend/migrations/001_init.sql#L2254) |
-| `idx_inquiry_templates_clinic_category` | NO | — | `CREATE INDEX idx_inquiry_templates_clinic_category ON inquiry_templates(clinic_id, category)` | [001_init.sql:2255](../../../backend/migrations/001_init.sql#L2255) |
-| `idx_inquiry_templates_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_inquiry_templates_active ON inquiry_templates(id) WHERE deleted_at IS NULL` | [001_init.sql:2503](../../../backend/migrations/001_init.sql#L2503) |
+| `idx_inquiry_templates_clinic_id` | NO | — | `CREATE INDEX idx_inquiry_templates_clinic_id ON inquiry_templates(clinic_id)` | [001_init.sql:2256](../../../backend/migrations/001_init.sql#L2256) |
+| `idx_inquiry_templates_clinic_category` | NO | — | `CREATE INDEX idx_inquiry_templates_clinic_category ON inquiry_templates(clinic_id, category)` | [001_init.sql:2257](../../../backend/migrations/001_init.sql#L2257) |
+| `idx_inquiry_templates_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_inquiry_templates_active ON inquiry_templates(id) WHERE deleted_at IS NULL` | [001_init.sql:2505](../../../backend/migrations/001_init.sql#L2505) |

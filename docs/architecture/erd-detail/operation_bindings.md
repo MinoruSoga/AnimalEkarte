@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8861](../../../backend/migrations/001_init.sql#L8861) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8862](../../../backend/migrations/001_init.sql#L8862) |
-| `owner_kind` | `text` | NOT NULL | — | UK | [001_init.sql:8863](../../../backend/migrations/001_init.sql#L8863) |
-| `actor_kind` | `text` | NOT NULL | — | UK | [001_init.sql:8864](../../../backend/migrations/001_init.sql#L8864) |
-| `actor_ref` | `text` | NOT NULL | — | UK | [001_init.sql:8865](../../../backend/migrations/001_init.sql#L8865) |
-| `intent` | `text` | NOT NULL | — | UK | [001_init.sql:8866](../../../backend/migrations/001_init.sql#L8866) |
-| `operation_key` | `uuid` | NOT NULL | — | UK | [001_init.sql:8867](../../../backend/migrations/001_init.sql#L8867) |
-| `fingerprint` | `bytea` | NOT NULL | — | — | [001_init.sql:8868](../../../backend/migrations/001_init.sql#L8868) |
-| `fingerprint_key_version` | `text` | NOT NULL | — | — | [001_init.sql:8869](../../../backend/migrations/001_init.sql#L8869) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8870](../../../backend/migrations/001_init.sql#L8870) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8863](../../../backend/migrations/001_init.sql#L8863) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8864](../../../backend/migrations/001_init.sql#L8864) |
+| `owner_kind` | `text` | NOT NULL | — | UK | [001_init.sql:8865](../../../backend/migrations/001_init.sql#L8865) |
+| `actor_kind` | `text` | NOT NULL | — | UK | [001_init.sql:8866](../../../backend/migrations/001_init.sql#L8866) |
+| `actor_ref` | `text` | NOT NULL | — | UK | [001_init.sql:8867](../../../backend/migrations/001_init.sql#L8867) |
+| `intent` | `text` | NOT NULL | — | UK | [001_init.sql:8868](../../../backend/migrations/001_init.sql#L8868) |
+| `operation_key` | `uuid` | NOT NULL | — | UK | [001_init.sql:8869](../../../backend/migrations/001_init.sql#L8869) |
+| `fingerprint` | `bytea` | NOT NULL | — | — | [001_init.sql:8870](../../../backend/migrations/001_init.sql#L8870) |
+| `fingerprint_key_version` | `text` | NOT NULL | — | — | [001_init.sql:8871](../../../backend/migrations/001_init.sql#L8871) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8872](../../../backend/migrations/001_init.sql#L8872) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,7 +54,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `operation_bindings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8862](../../../backend/migrations/001_init.sql#L8862) |
+| `operation_bindings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8864](../../../backend/migrations/001_init.sql#L8864) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,15 +64,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `operation_bindings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8861](../../../backend/migrations/001_init.sql#L8861) |
-| `operation_bindings_owner_kind_check` | check | `CHECK (btrim(owner_kind)<>'')` | [001_init.sql:8863](../../../backend/migrations/001_init.sql#L8863) |
-| `operation_bindings_actor_kind_check` | check | `CHECK (actor_kind IN ('staff','customer','system'))` | [001_init.sql:8864](../../../backend/migrations/001_init.sql#L8864) |
-| `operation_bindings_actor_ref_check` | check | `CHECK (btrim(actor_ref)<>'')` | [001_init.sql:8865](../../../backend/migrations/001_init.sql#L8865) |
-| `operation_bindings_intent_check` | check | `CHECK (btrim(intent)<>'')` | [001_init.sql:8866](../../../backend/migrations/001_init.sql#L8866) |
-| `operation_bindings_fingerprint_check` | check | `CHECK (octet_length(fingerprint)=32)` | [001_init.sql:8868](../../../backend/migrations/001_init.sql#L8868) |
-| `operation_bindings_fingerprint_key_version_check` | check | `CHECK (btrim(fingerprint_key_version)<>'')` | [001_init.sql:8869](../../../backend/migrations/001_init.sql#L8869) |
-| `operation_bindings_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:8871](../../../backend/migrations/001_init.sql#L8871) |
-| `operation_bindings_clinic_id_owner_kind_actor_kind_actor_re_key` | unique | `UNIQUE (clinic_id,owner_kind,actor_kind,actor_ref,intent,operation_key)` | [001_init.sql:8872](../../../backend/migrations/001_init.sql#L8872) |
+| `operation_bindings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8863](../../../backend/migrations/001_init.sql#L8863) |
+| `operation_bindings_owner_kind_check` | check | `CHECK (btrim(owner_kind)<>'')` | [001_init.sql:8865](../../../backend/migrations/001_init.sql#L8865) |
+| `operation_bindings_actor_kind_check` | check | `CHECK (actor_kind IN ('staff','customer','system'))` | [001_init.sql:8866](../../../backend/migrations/001_init.sql#L8866) |
+| `operation_bindings_actor_ref_check` | check | `CHECK (btrim(actor_ref)<>'')` | [001_init.sql:8867](../../../backend/migrations/001_init.sql#L8867) |
+| `operation_bindings_intent_check` | check | `CHECK (btrim(intent)<>'')` | [001_init.sql:8868](../../../backend/migrations/001_init.sql#L8868) |
+| `operation_bindings_fingerprint_check` | check | `CHECK (octet_length(fingerprint)=32)` | [001_init.sql:8870](../../../backend/migrations/001_init.sql#L8870) |
+| `operation_bindings_fingerprint_key_version_check` | check | `CHECK (btrim(fingerprint_key_version)<>'')` | [001_init.sql:8871](../../../backend/migrations/001_init.sql#L8871) |
+| `operation_bindings_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:8873](../../../backend/migrations/001_init.sql#L8873) |
+| `operation_bindings_clinic_id_owner_kind_actor_kind_actor_re_key` | unique | `UNIQUE (clinic_id,owner_kind,actor_kind,actor_ref,intent,operation_key)` | [001_init.sql:8874](../../../backend/migrations/001_init.sql#L8874) |
 
 ## インデックス
 

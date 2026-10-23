@@ -11,10 +11,10 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10380](../../../backend/migrations/001_init.sql#L10380) |
-| `capacity_kind` | `text` | NOT NULL | — | PK | [001_init.sql:10381](../../../backend/migrations/001_init.sql#L10381) |
-| `resource_key` | `text` | NOT NULL | — | PK | [001_init.sql:10382](../../../backend/migrations/001_init.sql#L10382) |
-| `generation` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10382](../../../backend/migrations/001_init.sql#L10382) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10382](../../../backend/migrations/001_init.sql#L10382) |
+| `capacity_kind` | `text` | NOT NULL | — | PK | [001_init.sql:10383](../../../backend/migrations/001_init.sql#L10383) |
+| `resource_key` | `text` | NOT NULL | — | PK | [001_init.sql:10384](../../../backend/migrations/001_init.sql#L10384) |
+| `generation` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10384](../../../backend/migrations/001_init.sql#L10384) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -42,7 +42,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `reservation_capacity_gates_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10380](../../../backend/migrations/001_init.sql#L10380) |
+| `reservation_capacity_gates_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10382](../../../backend/migrations/001_init.sql#L10382) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -52,9 +52,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `reservation_capacity_gates_capacity_kind_check` | check | `CHECK(capacity_kind IN('line_general','trimming','hotel'))` | [001_init.sql:10381](../../../backend/migrations/001_init.sql#L10381) |
-| `reservation_capacity_gates_generation_check` | check | `CHECK(generation>0)` | [001_init.sql:10382](../../../backend/migrations/001_init.sql#L10382) |
-| `reservation_capacity_gates_pkey` | primary | `PRIMARY KEY(clinic_id,capacity_kind,resource_key)` | [001_init.sql:10383](../../../backend/migrations/001_init.sql#L10383) |
+| `reservation_capacity_gates_capacity_kind_check` | check | `CHECK(capacity_kind IN('line_general','trimming','hotel'))` | [001_init.sql:10383](../../../backend/migrations/001_init.sql#L10383) |
+| `reservation_capacity_gates_generation_check` | check | `CHECK(generation>0)` | [001_init.sql:10384](../../../backend/migrations/001_init.sql#L10384) |
+| `reservation_capacity_gates_pkey` | primary | `PRIMARY KEY(clinic_id,capacity_kind,resource_key)` | [001_init.sql:10385](../../../backend/migrations/001_init.sql#L10385) |
 
 ## インデックス
 
