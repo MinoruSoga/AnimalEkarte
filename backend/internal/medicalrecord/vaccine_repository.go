@@ -36,9 +36,18 @@ func NewVaccineRepository(db *gorm.DB) VaccineRepository {
 	return &vaccineRepository{db: db}
 }
 
+// vaccineReadColumns は is_bill_discount_excluded を含む明示列（EMR-447 A.3）。
+// SELECT * だけでは列未接続と DB NULL を区別できないため、読取は列名を明示する。
+var vaccineReadColumns = []string{
+	"id", "clinic_id", "name", "price", "is_active", "description",
+	"species", "interval", "inventory_id", "parent_id", "sort_order",
+	"is_non_insurance", colIsBillDiscountExcluded,
+	"version", "created_at", "updated_at", "deleted_at",
+}
+
 func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, species *string) ([]model.Vaccine, error) {
 	vaccines := make([]model.Vaccine, 0)
-	q := r.db.WithContext(ctx).Model(&model.Vaccine{}).Scopes(persistence.ClinicScope(clinicID))
+	q := r.db.WithContext(ctx).Model(&model.Vaccine{}).Select(vaccineReadColumns).Scopes(persistence.ClinicScope(clinicID))
 	if species != nil {
 		q = q.Where("species = ?", *species)
 	}
@@ -50,7 +59,7 @@ func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, specie
 
 func (r *vaccineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
 	var vaccine model.Vaccine
-	db := persistence.DBOrTx(ctx, r.db)
+	db := persistence.DBOrTx(ctx, r.db).Select(vaccineReadColumns)
 	if persistence.TxFromContext(ctx) != nil {
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}

@@ -23,6 +23,8 @@ type CreateCheckupTypeInput struct {
 	// IsNonInsurance は nil=省略（新規初期値 true を明示保存）。
 	// 明示 null は request の binding 層で 400 になるため service には届かない（EMR-456）。
 	IsNonInsurance *bool
+	// IsBillDiscountExcluded は nil=省略（新規初期値 false を明示保存、EMR-447 A01）。
+	IsBillDiscountExcluded *bool
 	// ActorID は保険設定の監査に使う操作スタッフ ID。
 	ActorID *uint64
 }
@@ -41,6 +43,8 @@ type UpdateCheckupTypeInput struct {
 	// IsNonInsurance は nil=省略（変更なし）。NULL（未保存）へ戻す経路は持たない（EMR-456）。
 	// 明示 null は request の binding 層で 400 になるため service には届かない。
 	IsNonInsurance *bool
+	// IsBillDiscountExcluded は nil=省略（変更なし、EMR-447 A01）。
+	IsBillDiscountExcluded *bool
 	// Version は楽観ロックの期待版。更新要求では必須（nil は検証エラー・review 4320626569）。
 	Version *int64
 	// ActorID は保険設定の監査に使う操作スタッフ ID。
@@ -101,6 +105,7 @@ func buildCheckupTypeUpdate(input *UpdateCheckupTypeInput) map[string]any {
 	if input.IsNonInsurance != nil {
 		fields[colCheckupTypeNonIns] = *input.IsNonInsurance
 	}
+	setBillDiscountExcludedField(fields, input.IsBillDiscountExcluded)
 	return fields
 }
 
@@ -165,8 +170,15 @@ func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input 
 		ParentID:       input.ParentID,
 		SortOrder:      &input.SortOrder,
 		IsNonInsurance: &isNonInsurance,
+
+		IsBillDiscountExcluded: createBillDiscountExcluded(input.IsBillDiscountExcluded),
 	}
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		// EMR-456 F1: 子 Create は親 soft-delete と共通 parent row lock で直列化する。
+		// lock → 親存在確認 → INSERT の順に同一 tx で行う（FOR UPDATE、FOR KEY SHARE は不可）。
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, 0, input.ParentID); err != nil {
+			return err
+		}
 		if err := s.validateParentOwnership(txCtx, clinicID, input.ParentID); err != nil {
 			return err
 		}
@@ -181,7 +193,10 @@ func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input 
 			}
 			return apperrors.Wrap(err, "failed to create checkup type")
 		}
-		return s.auditInsuranceTx(txCtx, clinicID, input.ActorID, checkupTypeAuditActionCreate, nil, checkupType)
+		if err := s.auditInsuranceTx(txCtx, clinicID, input.ActorID, checkupTypeAuditActionCreate, nil, checkupType); err != nil {
+			return err
+		}
+		return logBillDiscountAuditTx(txCtx, s.auditTx, clinicID, input.ActorID, checkupTypeAuditResource, checkupTypeAuditActionCreate, billDiscountChange{ResourceID: checkupType.ID, After: checkupType.IsBillDiscountExcluded})
 	}); err != nil {
 		return nil, err
 	}
@@ -210,6 +225,11 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	}
 	var checkupType *model.CheckupType
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		// EMR-456 F1: 対象行と指定親を ID 昇順で同じ tx 内に lock してから before-image と親所属を読む。
+		// 親 soft-delete と直列化し、診察・処置・予防接種の Update（PR #730 の指摘対応）と同じ lock 集合に揃える。
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, input.ParentID); err != nil {
+			return err
+		}
 		before, err := s.repo.FindByID(txCtx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get checkup type")
@@ -244,6 +264,11 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 				return err
 			}
 		}
+		if input.IsBillDiscountExcluded != nil {
+			if err := logBillDiscountAuditTx(txCtx, s.auditTx, clinicID, input.ActorID, checkupTypeAuditResource, checkupTypeAuditActionUpdate, billDiscountChange{ResourceID: id, BeforeExists: true, Before: before.IsBillDiscountExcluded, After: updated.IsBillDiscountExcluded}); err != nil {
+				return err
+			}
+		}
 		checkupType = updated
 		return nil
 	}); err != nil {
@@ -253,25 +278,36 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	return checkupType, nil
 }
 func (s *checkupTypeService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to get checkup type")
-	}
-	childCount, err := s.repo.CountChildrenByParentID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to check checkup type children")
-	}
-	if childCount > 0 {
-		return apperrors.WrapConflict("この定期健診種別にはサブ種別が登録されているため削除できません")
-	}
-	count, err := s.repo.CountUsageByCheckupTypeID(ctx, clinicID, id)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to check checkup type dependencies")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("この定期健診種別は健診記録で使用中のため削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		return apperrors.Wrap(err, "failed to delete checkup type")
+	// EMR-456 F1: 親 soft-delete は lock → 新鮮な statement で子/使用確認 → soft-delete の順に
+	// 単一 tx で行う。NOT EXISTS だけの単一 DELETE statement では、statement 開始後に commit された
+	// 子 INSERT を直列化できないため、lock 待ち後に READ COMMITTED の新 snapshot で再確認する。
+	if err := s.withTx(ctx, func(txCtx context.Context) error {
+		if err := lockMasterWriteRows(txCtx, s.repo, clinicID, id, nil); err != nil {
+			return err
+		}
+		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to get checkup type")
+		}
+		childCount, err := s.repo.CountChildrenByParentID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check checkup type children")
+		}
+		if childCount > 0 {
+			return apperrors.WrapConflict("この定期健診種別にはサブ種別が登録されているため削除できません")
+		}
+		count, err := s.repo.CountUsageByCheckupTypeID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to check checkup type dependencies")
+		}
+		if count > 0 {
+			return apperrors.WrapConflict("この定期健診種別は健診記録で使用中のため削除できません")
+		}
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to delete checkup type")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "checkup type deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("checkup_type_id", id))
 	return nil

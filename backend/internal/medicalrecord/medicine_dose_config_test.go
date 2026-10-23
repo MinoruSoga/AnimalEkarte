@@ -36,11 +36,14 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 		_, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{
 			Name: "メロキシカム", CalculationType: strptr("per_weight"),
 			MedicineUnit: strptr("per_tablet"), Strength: exactNumPtr("1.5"),
+			ActorID: masterTestActorID(),
 		})
 		require.NoError(t, err)
-		require.Len(t, audit.entries, 1)
+		// EMR-447: per_weight 有効化監査に加えて is_bill_discount_excluded の field 別監査が同じ tx に入る。
+		require.Len(t, audit.entries, 2)
 		assert.Equal(t, model.AuditActionMedicinePerWeightEnable, audit.entries[0].Action)
 		assert.Equal(t, model.AuditResourceMedicine, audit.entries[0].Resource)
+		assert.Equal(t, colIsBillDiscountExcluded, billAuditField(audit.entries[1]))
 	})
 
 	t.Run("per_weight + per_dose は拒否（誤 per_weight・audit なし）", func(t *testing.T) {
@@ -77,10 +80,14 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 		}
 		audit := &mockTreatmentAuditTxLogger{}
 		svc := medicineServiceWithAudit(repo, audit)
-		med, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{Name: "通常薬"})
+		med, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{
+			Name: "通常薬", ActorID: masterTestActorID(),
+		})
 		require.NoError(t, err)
 		assert.Equal(t, model.MedicineCalculationTypeNone, med.CalculationType)
-		assert.Empty(t, audit.entries)
+		// EMR-447: per_weight 監査はないが is_bill_discount_excluded の create 監査は必ず入る。
+		require.Len(t, audit.entries, 1)
+		assert.Equal(t, colIsBillDiscountExcluded, billAuditField(audit.entries[0]))
 	})
 
 	// BE-refactor.md R1-2: per_weight 有効化監査（LogEntryTx）が失敗すると Create 全体が失敗する
@@ -95,6 +102,7 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 		_, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{
 			Name: "メロキシカム2", CalculationType: strptr("per_weight"),
 			MedicineUnit: strptr("per_tablet"), Strength: exactNumPtr("1.5"),
+			ActorID: masterTestActorID(),
 		})
 		require.Error(t, err, "audit 失敗は作成全体を失敗させる")
 	})

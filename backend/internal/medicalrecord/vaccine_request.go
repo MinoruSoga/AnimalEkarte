@@ -31,6 +31,10 @@ type createVaccineRequest struct {
 	// IsNonInsurance は品目の保険対象外設定（EMR-455）。未送信=新規初期値 true（対象外）、
 	// 明示 null は 400（省略と null を区別するため *bool は使わない）、true/false=明示値。
 	IsNonInsurance vaccineInsuranceSettingField `json:"is_non_insurance"`
+
+	// EMR-447 A01: 全体割引除外。未送信=新規初期値 false を service が明示保存、
+	// 明示 null / 非 boolean は 400。
+	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
 }
 
 func (r *createVaccineRequest) toServiceInput() *CreateVaccineInput {
@@ -44,6 +48,8 @@ func (r *createVaccineRequest) toServiceInput() *CreateVaccineInput {
 		ParentID:       r.ParentID,
 		SortOrder:      r.SortOrder,
 		IsNonInsurance: r.IsNonInsurance.value,
+
+		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toCreateInput(),
 	}
 }
 
@@ -60,6 +66,9 @@ type updateVaccineRequest struct {
 	SortOrder     *int    `json:"sort_order"`
 	// IsNonInsurance は未送信=変更なし、true/false=明示保存。null は明示値を欠落へ戻すため拒否する。
 	IsNonInsurance vaccineInsuranceSettingField `json:"is_non_insurance"`
+
+	// EMR-447 A01: 未送信=変更なし（NULL/false/true 保持）、null/非 boolean=400、true/false=明示 SET。
+	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
 }
 
 func (r updateVaccineRequest) toServiceInput() *UpdateVaccineInput {
@@ -75,6 +84,8 @@ func (r updateVaccineRequest) toServiceInput() *UpdateVaccineInput {
 		ClearParentID:  r.ClearParentID,
 		SortOrder:      r.SortOrder,
 		IsNonInsurance: r.IsNonInsurance.value,
+
+		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toUpdateInput(),
 	}
 }
 

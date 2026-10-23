@@ -55,6 +55,8 @@ type createCheckupTypeRequest struct {
 	SortOrder   int     `json:"sort_order"`
 	// EMR-456: 省略 → service が新規初期値（保険対象外=true）を明示保存。明示 null は binding 層で 400。
 	IsNonInsurance checkupTypeInsuranceField `json:"is_non_insurance"`
+	// EMR-447 A01: 省略 → service が新規初期値 false を明示保存。明示 null / 非 boolean は 400。
+	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
 }
 
 func (r *createCheckupTypeRequest) toServiceInput() *CreateCheckupTypeInput {
@@ -68,6 +70,8 @@ func (r *createCheckupTypeRequest) toServiceInput() *CreateCheckupTypeInput {
 		ParentID:       r.ParentID,
 		SortOrder:      r.SortOrder,
 		IsNonInsurance: r.IsNonInsurance.toServiceInput(),
+
+		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toCreateInput(),
 	}
 }
 
@@ -83,6 +87,8 @@ type updateCheckupTypeRequest struct {
 	SortOrder     *int    `json:"sort_order"`
 	// EMR-456: 省略 → 変更なし。明示 null は binding 層で 400。NULL（未保存）へ戻す経路は持たない。
 	IsNonInsurance checkupTypeInsuranceField `json:"is_non_insurance"`
+	// EMR-447 A01: 省略 → 変更なし（NULL/false/true 保持）。明示 null / 非 boolean は 400。
+	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
 	// EMR-456: 楽観ロックの期待版。更新要求では必須（未指定は 400）。不一致は 409・書込なし。
 	Version *int64 `json:"version" binding:"required,min=1"`
 }
@@ -99,6 +105,8 @@ func (r updateCheckupTypeRequest) toServiceInput() *UpdateCheckupTypeInput {
 		ClearParentID:  r.ClearParentID,
 		SortOrder:      r.SortOrder,
 		IsNonInsurance: r.IsNonInsurance.toServiceInput(),
-		Version:        r.Version,
+
+		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toUpdateInput(),
+		Version:                r.Version,
 	}
 }

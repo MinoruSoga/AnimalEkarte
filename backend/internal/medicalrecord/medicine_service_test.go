@@ -273,6 +273,8 @@ func TestMedicineService_Create(t *testing.T) {
 				},
 			}
 			svc := newTestMedicineService(repo)
+			// EMR-447 A.5: create は常に bill-discount 監査を書くため trusted actor が必要。
+			tt.input.ActorID = masterTestActorID()
 
 			medicine, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -528,7 +530,7 @@ func TestMedicineService_Create_ExactDecimalDefaults(t *testing.T) {
 	}
 	svc := medicineServiceWithAudit(repo, &mockTreatmentAuditTxLogger{})
 
-	_, err := svc.Create(context.Background(), 1, &CreateMedicineInput{Name: "既定薬"})
+	_, err := svc.Create(context.Background(), 1, &CreateMedicineInput{Name: "既定薬", ActorID: masterTestActorID()})
 	require.NoError(t, err)
 	require.NotNil(t, created)
 	assert.Nil(t, created.DefaultQuantity, "省略は DB 既定（1）へ委ねる")
@@ -537,7 +539,7 @@ func TestMedicineService_Create_ExactDecimalDefaults(t *testing.T) {
 	assert.Equal(t, 0, *created.SortOrder)
 
 	_, err = svc.Create(context.Background(), 1, &CreateMedicineInput{
-		Name: "明示0薬", DefaultQuantity: exactNumPtr("0"), TaxRate: exactNumPtr("0"), SortOrder: 4,
+		Name: "明示0薬", DefaultQuantity: exactNumPtr("0"), TaxRate: exactNumPtr("0"), SortOrder: 4, ActorID: masterTestActorID(),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, created.DefaultQuantity)
