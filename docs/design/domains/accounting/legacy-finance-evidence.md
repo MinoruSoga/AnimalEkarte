@@ -287,7 +287,7 @@ outcome_refとsource_candidate_refは当該delivery内のlocal参照であり、
 | `legacy_evidence_projection_revisions` | id、clinic_id、domain_kind、projection logical ref、revision_ref、mapping/transform profile、payload fingerprint、closed payload | 同projection/同版の異内容拒否。raw observationを上書きしない |
 | `legacy_evidence_projection_inputs` | clinic_id、projection_revision_id、observation_id、resolution_id、stable入力列参照 | 多対多。全入力行/解決版を固定。同clinic・observationへのresolution所属を複合FK検証 |
 | `legacy_evidence_outcomes` | id、clinic_id、outcome_kind、projection_revision/candidate/observation/resolution参照、stage、disposition、rule、artifact/output参照、reason | source/projection kind別NOT NULL/CHECK/FK。sourceはprojection参照NULLを許可、実candidate/observation/resolution必須。emitted/excluded/heldを分離 |
-| `legacy_evidence_link_events` | id、clinic_id、対象evidence、expected_revision、previous_event_id、action、closed target refs、検証根拠、actor、reason、recorded_at | append-only。add/correct/revoke。期待版を同transactionで比較 |
+| `legacy_evidence_link_events` | id、clinic_id、evidence_kind、evidence_id、event_revision、expected_revision、previous_event_id、action、closed target refs、検証根拠、actor、reason、recorded_at | append-only。履歴粒度(clinic_id,evidence_kind,evidence_id)。同履歴event_revision UNIQUE、非NULL previousのsingle-successor UNIQUE、NULL previousの初版partial UNIQUE、前eventへの同clinic/同履歴複合FK。前版+1/最新headをvalidator検証 |
 | `legacy_evidence_chunk_receipts` | id、clinic_id、delivery_id、chunk_ref、chunk digest、件数、保存ID集合のdigest（全てNOT NULL） | UNIQUE(clinic_id,delivery_id,chunk_ref)。同キー同内容は既存receipt、異内容conflict。同時実行でも一件だけcommit、digestを一意キーへ足さない |
 | `legacy_evidence_publication_receipts` | id、clinic_id、delivery_id、固定manifest digest、全chunk/lineage検証結果参照、公開revision、recorded_at（manifest digest/公開revision NOT NULL） | UNIQUE(clinic_id,delivery_id)。全必要chunk/lineage検証後に一成功receipt。並行公開は同内容照合、異内容conflict。事前checkだけに依存しない |
 | `legacy_evidence_publication_bindings` | clinic_id、publication_receipt_id、domain_kind、typed evidence、resolution_id、basis_kind、projection_revision_id/source_outcome_id、read_field_profile_ref | basis_kind=projection/source_outcomeで対応根拠どちらか一方のみCHECK。source_observation公開は固定resolution_id必須。projectionは全固定入力解決版を参照、domain別field集合を固定 |
@@ -363,7 +363,12 @@ raw/resolution/projection/publicationのlatest参照をUPDATEで差し替えず�
 
 targetがnullならその関係を確認済みとは扱わない。他の非null target同士の矛盾をnull欄で隠さない。無関係な同院患者や矛盾する組合せは拒否し、証明不足は当該linkを未リンク保留にする。部分的に証明できたlinkを採る場合も、採用する全組合せが整合することを要し、未証明targetをverifiedに含めない。譲渡前の正当なowner帰属を現在ownerへ自動移管せず、履歴上の関係証明とread時の現在認可を別検査にする。
 
-追加/訂正/撤回は期待link revisionと現在の前eventを同TXで照合し、競合時は追記も有効link切替も行わない。原eventをUPDATE/DELETEせず、撤回も新eventで残す。期待版/競合error等の具体wireは未採択。認可付きowner/pet filterはこの検証を通った有効な関係だけへ適用し、未リンク保留や撤回済みlinkを他患者への検索入口に使わない。
+<a id="legacy-evidence-link-history-concurrency"></a>
+追加/訂正/撤回の同一履歴粒度は(clinic_id,evidence種別,evidence_id)。期待revision/previous_event_idと最新headを検証し、event_revision=前版+1（初版1、previous=NULL）でINSERTする。immutable observation/projection rootへのSELECT FOR UPDATEやUPDATE grant追加は行わない。
+
+DB制約は①UNIQUE(clinic_id,evidence_kind,evidence_id,event_revision)、②previous_event_id非NULLの同履歴single-successor UNIQUE、③previous_event_id=NULLの同履歴初版partial UNIQUE、④前eventへの同clinic/同履歴複合FK。前版revision+1/最新head条件を必須validatorで検査し、初版又は同前eventからの並行correct/revokeは片方だけを許可する。unique競合は失敗TX全rollback後、現在認可付き別readで現版を確認して競合を返す。追加lock tableは作らない。
+
+有効link切替/catalog更新は成功event INSERTと同TXで既存mutable catalogへ反映する。失敗側はevent/link/catalogの変更0。原event UPDATE/DELETE不可で、readonly grantへ書込権限を追加しない。linkwriteの具体wire/grantは未閉鎖の受領依存。認可付きowner/pet filterは検証済み有効関係だけへ適用し、未リンク保留/撤回済みを他患者への入口に使わない。
 
 全原本bundleは既存の保護領域へ保管する。同時に画面に必要な対象原値をDBへ耐久保存し、外部bundle/fileの喪失で詳細画面が空になる設計にしない。raw payload bytesを外部参照だけにせず、DBに保存する対象範囲・encoding/bytes digest・typed projectionとの対応を選定する必要がある。大容量の全bundleを無制限にDBへ複製する採択ではなく、サイズ/保持/backupの具体設計は未受領。ローカルquarantineに置くだけで製品閲覧完成としない。
 
@@ -395,7 +400,7 @@ targetがnullならその関係を確認済みとは扱わない。他の非null
 
 一覧responseは `{ items, next_cursor, catalog_revision }`。itemsは固定summary型で、`evidence_id, record_type, snapshot_count, semantic_status, hold_reason_codes, link_state`のみです。原値本文は詳細で読みます。正常な0件はitems=[]とnext_cursor=null。reader障害を空成功にしません。
 
-詳細の基本responseは `{ evidence_id, record_type, domain_kind, snapshot_count, provenance, semantic_status, hold_reason_codes, sections }`。sectionsは利用可能なsection名の配列で、 `raw_cells | derived_fields | outcomes | inputs | snapshots | link_history` の許可区画を表します。無制限に全lineageを埋め込まず、詳細queryに `section, cursor, limit` を用意し、sectionは一つ、limit1〜100、既定50、section指定responseは `{ evidence_id, section, catalog_revision, items, next_cursor }` とします。itemsはsection別の固定schemaに分岐し、任意JSONにしません。raw_cellsは公開bindingの固定解決版から許可されたRawCell。derived_fieldsはDerivedFieldの同じexact key集合を持つReadDerivedFieldとし、source_field_refsだけはStoredRawFieldRefへ解決済みの配列で返す。outcomesは§4のclosed read union（ReadSourceOutcome/ReadProjectionOutcome）で、producer wire型を直返却しない。inputsは `{ observation_id, resolution_id, snapshot_id, field_ids }`、snapshotsは未閉鎖SnapshotBindingの受領後のみ、link_historyは後述の検証済み公開範囲に制限する。該当しないsectionは400です。最初の詳細取得では基本情報と利用可能section名を返し、各sectionの本文は明示requestで取得します。
+詳細の基本responseは `{ evidence_id, record_type, domain_kind, snapshot_count, provenance, semantic_status, hold_reason_codes, sections, catalog_revision }`。sectionsは利用可能なsection名の配列で、 `raw_cells | derived_fields | outcomes | inputs | snapshots | link_history` の許可区画を表します。無制限に全lineageを埋め込まず、section queryに `section, cursor, limit, expected_catalog_revision` を用意し、sectionは一つ、limit1〜100、既定50、section指定responseは `{ evidence_id, section, catalog_revision, items, next_cursor }` とします。itemsはsection別の固定schemaに分岐し、任意JSONにしません。raw_cellsは公開bindingの固定解決版から許可されたRawCell。derived_fieldsはDerivedFieldの同じexact key集合を持つReadDerivedFieldとし、source_field_refsだけはStoredRawFieldRefへ解決済みの配列で返す。outcomesは§4のclosed read union（ReadSourceOutcome/ReadProjectionOutcome）で、producer wire型を直返却しない。inputsは `{ observation_id, resolution_id, snapshot_id, field_ids }`、snapshotsは未閉鎖SnapshotBindingの受領後のみ、link_historyは後述の検証済み公開範囲に制限する。該当しないsectionは400です。最初の詳細取得では基本情報と利用可能section名を返し、各sectionの本文は明示requestで取得します。
 
 <a id="legacy-evidence-snapshot-set-read"></a>
 ### 複数snapshotの集合とpaging
@@ -408,6 +413,13 @@ targetがnullならその関係を確認済みとは扱わない。他の非null
 - snapshot_countはsource_observationで1、projectionは全入力snapshotのdistinct件数。候補で元snapshot未確認のものを0件の公開済みprojectionにしない。sourceなし生成projectionの許容は今回選定しない。
 
 snapshot集合・inputsはimmutable projection入力解決版から導出し、後日別snapshotのcandidateが追加されても過去projectionの集合を変更しない。
+
+<a id="legacy-evidence-detail-catalog-binding"></a>
+### baseから最初のsectionへのcatalog束縛
+
+基本detailはmetadataとcatalog_revisionを同じDBsnapshotから返す。section内容と返却catalog_revisionもそれぞれ同じDBsnapshotで取得する。section requestのexpected_catalog_revisionは初回/継続とも必須の十進文字列（共通の版表現）。初回はbase値をそのまま渡し、継続はrequest期待版＝署名cursor版＝現在catalog版を要求する。
+
+毎pageの現在認可/元scopeを優先し、既存401/403/404の非開示を維持する。期待版の不足/型不正、requestとcursorの束縛不一致は400 LEGACY_EVIDENCE_INVALID_REQUEST。正常なrequest/cursorの期待版と現在catalogが違えば409 LEGACY_EVIDENCE_VIEW_CHANGED。409後はbaseから再取得し、旧sectionと新metadataを混ぜない。GETで修復/書込を行わない。
 
 cursorはopaqueな署名付きserver形式で、version、clinic、domain、全filter、sort、section、最終位置、catalog_revisionに束縛します。閲覧権限の代替にはしません。公開receiptまたはlink変更・競合検知でcatalog_revisionを更新し、途中で変わったcursorには409 `LEGACY_EVIDENCE_VIEW_CHANGED` を返して再検索させます。単なる最大IDによるwatermarkで整合性を偽装しません。履歴のimmutable本文と現在のlink/競合状態の混在を防ぎます。
 
@@ -513,6 +525,9 @@ DerivedFieldのsemantic_statusは従前の2値を維持し、record-levelだけ�
 22. 2snapshotのprojectionはsnapshot_count=2、snapshots両件、inputs対応を保持。snapshot filterはmembershipのみで集合を切り詰めず、一覧に一件だけ返す。
 23. chunk/field/payload上限が未登録なら実データ受入は無効。無制限を既定値にしない。verification_refの参照先不存在・別clinic・別候補集合・別前版・producer自己申告のUUIDを拒否し、検証receipt供給未受領なら実データ解決版採用を無効にする。
 
+24. 初版link同時作成と同じ前eventへのcorrect/revoke並行は成功一件、他方event/link/catalog変更0。競合TXをrollbackしてから別の現在認可付きreadで現版を確認し、immutable root lock/UPDATE grant追加なし。
+25. base→初section間とpage間の公開/link/conflict変更は409でbaseから再取得。base/sectionの本文と版は各同snapshot。期待版欠落/不正、request/cursor不一致は400。失権/跨scopeは既存401/403/404を優先し、旧section混合/GET修復なし。
+
 これらはfixtureの作成条件です。今回テスト実行や実DB受入を依頼していません。現時点はNOT_RUNです。
 
 ### 依存先
@@ -595,4 +610,4 @@ producerには元バイト位置locatorが存在しないという報告であ�
 <a id="producer-report-remaining-receipts"></a>
 ### 未受領と未実装の最終区分
 
-共通構造・専用保存table群の役割/関係制約・型付きread API/ページング/エラー・合成条件（初回14＋レビュー追補9）は今回選定済み。6入れ子型は[§3の未閉鎖型](#legacy-evidence-open-nested-types)を参照。6入れ子型に加え、consumer検証記録/verification_refの保存schema・供給binding、delivery-local参照からstable candidate/outcome/projection/artifact UUIDへの耐久対応、chunk件数/bytes・field長・payload上限も未閉鎖。source実型/原値表現/日時、登録profile、取得artifact/snapshot/manifestの実binding、集約元全列挙も未解消。MIG-41の静的報告は受領済みでも、実artifact一致/実行receiptは未検証。保存/認可read/UI/通常writer分離の実装、DDL適用、試験/受入は別の未完工程であり、全wire完成や正式移行GOとしない。
+共通構造・専用保存table群の役割/関係制約・型付きread API/ページング/エラー・合成条件（初回14＋レビュー追補11）は今回選定済み。6入れ子型は[§3の未閉鎖型](#legacy-evidence-open-nested-types)を参照。6入れ子型に加え、consumer検証記録/verification_refの保存schema・供給binding、delivery-local参照からstable candidate/outcome/projection/artifact UUIDへの耐久対応、chunk件数/bytes・field長・payload上限も未閉鎖。source実型/原値表現/日時、登録profile、取得artifact/snapshot/manifestの実binding、集約元全列挙も未解消。MIG-41の静的報告は受領済みでも、実artifact一致/実行receiptは未検証。保存/認可read/UI/通常writer分離の実装、DDL適用、試験/受入は別の未完工程であり、全wire完成や正式移行GOとしない。
