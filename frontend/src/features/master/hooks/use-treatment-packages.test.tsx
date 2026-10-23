@@ -4,13 +4,14 @@ import type { ReactNode } from "react";
 import { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axios } from "@/lib/axios";
+import { handleApiError } from "@/lib/handle-api-error";
 import {
+  useCreateTreatmentPackage,
   useDeleteTreatmentPackage,
   useReorderTreatmentPackages,
   useTreatmentPackageEditor,
   useUpdateTreatmentPackage,
 } from "./use-treatment-packages";
-import { draftFromPackage } from "../lib/treatment-package-form";
 import type { TreatmentPackage } from "../api/treatment-packages";
 
 vi.mock("@/lib/axios", () => ({
@@ -73,15 +74,64 @@ describe("editor session（CAS・競合・入力保持）", () => {
 
   it("create 応答不明は create-unknown で盲目再送しない", async () => {
     const { result } = renderHook(() => useTreatmentPackageEditor("new"), { wrapper: wrapper() });
+    // draft を直接 mutate せず、editor の更新 API（イミュータブル）で入力する。
     act(() => {
       result.current.updateDraft({ name: "n" });
-      result.current.draft!.components[0]!.masterId = "1";
+      result.current.updateComponents(
+        result.current.draft!.components.map((c) => ({ ...c, masterId: "1" })),
+      );
     });
     const create = vi.fn().mockRejectedValue(new AxiosError("network"));
-    const outcome = await result.current.save({ create, update: vi.fn() });
+    let outcome!: Awaited<ReturnType<typeof result.current.save>>;
+    await act(async () => {
+      outcome = await result.current.save({ create, update: vi.fn() });
+    });
     expect(outcome.kind).toBe("create-unknown");
     expect(create).toHaveBeenCalledTimes(1);
     expect(result.current.createUnknown).toBe(true);
+  });
+
+  it("A1-01: 保存中に編集 session が変わったら discarded（conflict 化しない）", async () => {
+    const { result } = renderHook(() => useTreatmentPackageEditor(pkg), { wrapper: wrapper() });
+    act(() => result.current.updateDraft({ name: "変更" }));
+    let resolvePatch!: (v: unknown) => void;
+    const update = vi.fn().mockImplementation(
+      () =>
+        new Promise((r) => {
+          resolvePatch = r;
+        }),
+    );
+    let promise!: Promise<Awaited<ReturnType<typeof result.current.save>>>;
+    await act(async () => {
+      promise = result.current.save({ create: vi.fn(), update }, () => true);
+    });
+    await act(async () => {
+      resolvePatch(pkg);
+    });
+    expect((await promise).kind).toBe("discarded");
+    expect(result.current.conflict).toBe(false);
+    expect(result.current.draft!.name).toBe("変更");
+  });
+
+  it("A1-01: 遅延 409 も discarded で conflict 化しない", async () => {
+    const { result } = renderHook(() => useTreatmentPackageEditor(pkg), { wrapper: wrapper() });
+    act(() => result.current.updateDraft({ name: "変更" }));
+    let rejectPatch!: (e: unknown) => void;
+    const update = vi.fn().mockImplementation(
+      () =>
+        new Promise((_r, rej) => {
+          rejectPatch = rej;
+        }),
+    );
+    let promise!: Promise<Awaited<ReturnType<typeof result.current.save>>>;
+    await act(async () => {
+      promise = result.current.save({ create: vi.fn(), update }, () => true);
+    });
+    await act(async () => {
+      rejectPatch(conflict());
+    });
+    expect((await promise).kind).toBe("discarded");
+    expect(result.current.conflict).toBe(false);
   });
 });
 
@@ -111,5 +161,102 @@ describe("mutation の版規則", () => {
       order_version: "17",
       ids: ["201", "202"],
     });
+  });
+});
+
+describe("S07/S08: HTTP status helpers", () => {
+  const withStatus = (status: number) => {
+    const config = { headers: new AxiosHeaders() } as InternalAxiosRequestConfig;
+    return new AxiosError("e", String(status), config, undefined, {
+      status,
+      statusText: "",
+      headers: {},
+      config,
+      data: {},
+    });
+  };
+
+  it("isForbiddenError は 403 のみ、isNotFoundError は 404 のみ", async () => {
+    const { isForbiddenError, isNotFoundError } = await import("./use-treatment-packages");
+    expect(isForbiddenError(withStatus(403))).toBe(true);
+    expect(isForbiddenError(withStatus(500))).toBe(false);
+    expect(isForbiddenError(new Error("network"))).toBe(false);
+    expect(isNotFoundError(withStatus(404))).toBe(true);
+    expect(isNotFoundError(withStatus(403))).toBe(false);
+  });
+
+  it("R4: update 409/403 は handleApiError を呼ばない", async () => {
+    const { result } = renderHook(() => useUpdateTreatmentPackage(), { wrapper: wrapper() });
+    const send = () => result.current.mutateAsync({ id: "201", req: { version: "3" } });
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(409));
+    await expect(send()).rejects.toThrow();
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(403));
+    await expect(send()).rejects.toThrow();
+    expect(handleApiError).not.toHaveBeenCalled();
+  });
+
+  it("R4: update 500 は handleApiError を呼ぶ", async () => {
+    const { result } = renderHook(() => useUpdateTreatmentPackage(), { wrapper: wrapper() });
+    const send = () => result.current.mutateAsync({ id: "201", req: { version: "3" } });
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(500));
+    await expect(send()).rejects.toThrow();
+    expect(handleApiError).toHaveBeenCalledTimes(1);
+  });
+
+  it("R4: create 403 は handleApiError を呼ばない（失権表示は画面側）", async () => {
+    const { result } = renderHook(() => useCreateTreatmentPackage(), { wrapper: wrapper() });
+    vi.mocked(axios.post).mockRejectedValue(withStatus(403));
+    await expect(result.current.mutateAsync({ name: "n", components: [] })).rejects.toThrow();
+    expect(handleApiError).not.toHaveBeenCalled();
+  });
+
+  it("R4: create 409 は画面側で扱わないため汎用 toast を維持する", async () => {
+    const { result } = renderHook(() => useCreateTreatmentPackage(), { wrapper: wrapper() });
+    vi.mocked(axios.post).mockRejectedValue(withStatus(409));
+    await expect(result.current.mutateAsync({ name: "n", components: [] })).rejects.toThrow();
+    expect(handleApiError).toHaveBeenCalledTimes(1);
+  });
+
+  it("R4: create 500 は handleApiError を呼ぶ", async () => {
+    const { result } = renderHook(() => useCreateTreatmentPackage(), { wrapper: wrapper() });
+    vi.mocked(axios.post).mockRejectedValue(withStatus(500));
+    await expect(result.current.mutateAsync({ name: "n", components: [] })).rejects.toThrow();
+    expect(handleApiError).toHaveBeenCalledTimes(1);
+  });
+
+  it("R4: delete 409/403 は handleApiError を呼ばない", async () => {
+    const { result } = renderHook(() => useDeleteTreatmentPackage(), { wrapper: wrapper() });
+    const send = () => result.current.mutateAsync({ id: "201", version: "3" });
+    vi.mocked(axios.delete).mockRejectedValue(withStatus(409));
+    await expect(send()).rejects.toThrow();
+    vi.mocked(axios.delete).mockRejectedValue(withStatus(403));
+    await expect(send()).rejects.toThrow();
+    expect(handleApiError).not.toHaveBeenCalled();
+  });
+
+  it("R4: delete 500 は handleApiError を呼ぶ", async () => {
+    const { result } = renderHook(() => useDeleteTreatmentPackage(), { wrapper: wrapper() });
+    vi.mocked(axios.delete).mockRejectedValue(withStatus(500));
+    await expect(result.current.mutateAsync({ id: "201", version: "3" })).rejects.toThrow();
+    expect(handleApiError).toHaveBeenCalledTimes(1);
+  });
+
+  it("R4: reorder 409/403 は handleApiError を呼ばない", async () => {
+    const { result } = renderHook(() => useReorderTreatmentPackages(), { wrapper: wrapper() });
+    const send = () => result.current.mutateAsync({ order_version: "17", ids: ["201"] });
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(409));
+    await expect(send()).rejects.toThrow();
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(403));
+    await expect(send()).rejects.toThrow();
+    expect(handleApiError).not.toHaveBeenCalled();
+  });
+
+  it("R4: reorder 500 は handleApiError を呼ぶ", async () => {
+    const { result } = renderHook(() => useReorderTreatmentPackages(), { wrapper: wrapper() });
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(500));
+    await expect(
+      result.current.mutateAsync({ order_version: "17", ids: ["201"] }),
+    ).rejects.toThrow();
+    expect(handleApiError).toHaveBeenCalledTimes(1);
   });
 });

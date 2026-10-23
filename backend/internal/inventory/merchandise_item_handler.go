@@ -82,7 +82,14 @@ func (h *Handler) CreateMerchandiseItem(c *gin.Context) {
 		return
 	}
 
-	item, err := h.merchandiseItem.Create(c.Request.Context(), clinicID, req.toServiceInput())
+	// EMR-449: 監査 actor は trusted request context から取得し、body から受け取らない。
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	input := req.toServiceInput()
+	input.ActorID = &actorID
+	item, err := h.merchandiseItem.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -113,9 +120,17 @@ func (h *Handler) UpdateMerchandiseItem(c *gin.Context) {
 		return
 	}
 
-	item, err := h.merchandiseItem.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
+	// EMR-449: 監査 actor は trusted request context から取得し、body から受け取らない。
+	actorID, ok := httpapi.ExtractStaffID(c)
+	if !ok {
+		return
+	}
+	input := req.toServiceInput()
+	input.ActorID = &actorID
+	item, err := h.merchandiseItem.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		// EMR-449 A.4: 版不一致は既存の競合 response（409）で返す。
+		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
 	}
 	resp, err := toMerchandiseItemResponse(item)

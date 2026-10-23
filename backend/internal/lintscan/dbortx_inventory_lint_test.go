@@ -254,6 +254,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// so service write+reload stays atomic under Transactor.WithTx.
 	"medicalrecord/treatment_plan_repository.go|treatmentPlanRepository.Create":           {},
 	"medicalrecord/treatment_plan_repository.go|treatmentPlanRepository.clinicScopeQuery": {},
+	// EMR-532/S06: reorder verifies membership against the uncapped full set under
+	// FOR UPDATE inside the catalog-write transaction (clinic -> catalog -> packages).
+	"medicalrecord/treatment_package_repository.go|treatmentPackageRepositoryImpl.LockAllPackagesForReorder": {},
 	// care_plan_item / hospitalization (BE9-2D ⑤: DischargeWithBilling の repos.Transaction→
 	// Transactor.WithTx 化。FOR UPDATE 直列化・退院status更新・care plan read を billing 書込と
 	// 同一 ambient tx に参加させる＝二重会計防止。BE9-2E-0ではCreate/Updateのclinic/master
@@ -395,9 +398,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/examination_revision_workflow_repository.go|examinationRepository.AppendOfficialRevisionFromWorking": {},
 	"medicalrecord/examination_revision_workflow_repository.go|examinationRepository.AdvanceRevisionCAS":                {},
 
-	"medicalrecord/exam_type_repository.go|examTypeRepository.FindByID":                      {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.findByID":                      {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Create":                        {},
-	"medicalrecord/exam_type_repository.go|examTypeRepository.update":                        {},
+	"medicalrecord/exam_type_repository.go|examTypeRepository.Update":                        {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Delete":                        {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.Reorder":                       {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.CountUsageByExamTypeID":        {},
@@ -491,6 +494,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.FindByID": {},
 	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Create":   {},
 	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.Update":   {},
+	// EMR-456 F1: the parent row lock and the fresh child/usage checks after it join the
+	// create/update/delete write tx (fail-closed without an ambient tx for the lock).
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.LockWriteRows":             {},
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.CountUsageByCheckupTypeID": {},
+	"medicalrecord/checkup_type_repository.go|checkupTypeRepository.CountChildrenByParentID":   {},
 	// Clinical master unused-delete joins ambient tx (NOT EXISTS usage/child predicates).
 	// Runtime: clinical_master_delete_tx_atomicity_test.go
 	"medicalrecord/consultation_repository.go|consultationRepositoryImpl.FindAll":                    {},
@@ -901,20 +909,20 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
 	// EMR-502: Upsert は廃止。ambient-tx 参加メソッドは全て participant の
 	// owner transaction 内で使われる EditTxStore / 公開read helper。
-	"manualarticle/repository.go|repository.publishedBase":               {},
+	"manualarticle/repository.go|repository.publishedBase":                {},
 	"manualarticle/repository.go|repository.FindArticleByCategoryAndSlug": {},
-	"manualarticle/repository.go|repository.FindVersionsByArticleID":     {},
-	"manualarticle/repository.go|repository.Delete":                      {},
-	"manualarticle/repository.go|repository.InsertOperationTarget":       {},
-	"manualarticle/repository.go|repository.ResolveOperationTarget":      {},
-	"manualarticle/repository.go|repository.FindArticleByID":             {},
-	"manualarticle/repository.go|repository.FindVersionByID":             {},
-	"manualarticle/repository.go|repository.LockArticleForUpdate":        {},
-	"manualarticle/repository.go|repository.NextContentRevision":         {},
-	"manualarticle/repository.go|repository.InsertVersion":               {},
-	"manualarticle/repository.go|repository.UpdateCurrentVersionCAS":     {},
-	"manualarticle/repository.go|repository.InsertOperation":             {},
-	"owner/repository.go|ownerRepository.CreateWithPets": {},
+	"manualarticle/repository.go|repository.FindVersionsByArticleID":      {},
+	"manualarticle/repository.go|repository.Delete":                       {},
+	"manualarticle/repository.go|repository.InsertOperationTarget":        {},
+	"manualarticle/repository.go|repository.ResolveOperationTarget":       {},
+	"manualarticle/repository.go|repository.FindArticleByID":              {},
+	"manualarticle/repository.go|repository.FindVersionByID":              {},
+	"manualarticle/repository.go|repository.LockArticleForUpdate":         {},
+	"manualarticle/repository.go|repository.NextContentRevision":          {},
+	"manualarticle/repository.go|repository.InsertVersion":                {},
+	"manualarticle/repository.go|repository.UpdateCurrentVersionCAS":      {},
+	"manualarticle/repository.go|repository.InsertOperation":              {},
+	"owner/repository.go|ownerRepository.CreateWithPets":                  {},
 	// SEC-CS-F15: UpdateAndFindApplying owns DBOrTx + LockByIDForUpdate; UpdateAndFind is a thin
 	// delegate without its own DBOrTx shape (removed from allowlist after F15).
 	// Runtime: owner_discount_toctou_test.go.
@@ -945,7 +953,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// r.db.WithContext(ctx).Transaction → dbOrTx(ctx, r.db).Transaction. Allowlist backfill
 	// discovered during G6-2 (X-6 landed without registering these).
 	"medicalrecord/medicine_repository.go|medicineRepository.Create":                  {},
-	"medicalrecord/medicine_repository.go|medicineRepository.update":                  {},
+	"medicalrecord/medicine_repository.go|medicineRepository.Update":                  {},
 	"medicalrecord/medicine_repository.go|medicineRepository.Delete":                  {},
 	"medicalrecord/medicine_repository.go|medicineRepository.FindAll":                 {},
 	"medicalrecord/medicine_repository.go|medicineRepository.FindByID":                {},
@@ -970,7 +978,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// BE-ACT-CAMPAIGN-TARGET-SERIALIZATION: FindByID joins ambient tx and takes FOR SHARE so
 	// campaign target attachment serializes with concurrent merchandise soft-delete.
 	// Runtime: TestMerchandiseItemRepository_FindByID_HoldsShareLockForAmbientTransaction.
-	"inventory/merchandise_item_repository.go|merchandiseItemRepository.FindByID": {},
+	"inventory/merchandise_item_repository.go|merchandiseItemRepository.findByID": {},
 	// BE-ACT-MERCHANDISE-ATOMIC-DELETE: soft-delete + billing/estimate/campaign-target usage
 	// re-check join the service-owned ambient transaction. Runtime:
 	// TestMerchandiseItemService_Delete_ConcurrentAttachFirstYieldsConflict /

@@ -23,7 +23,7 @@ func TestMedicineService_Create_NameConflictMapsDomainCode(t *testing.T) {
 	}
 	svc := newTestMedicineService(repo)
 
-	got, err := svc.Create(context.Background(), 1, &CreateMedicineInput{Name: "V04薬剤"})
+	got, err := svc.Create(context.Background(), 1, &CreateMedicineInput{Name: "V04薬剤", ActorID: masterTestActorID()})
 	require.Error(t, err)
 	assert.Nil(t, got)
 	assert.True(t, apperrors.IsNameConflict(err, apperrors.CodeMedicineNameConflict))
@@ -64,7 +64,7 @@ func TestMedicineService_Create_GenericAlreadyExistsNotElevated(t *testing.T) {
 		},
 	}
 	svc := newTestMedicineService(repo)
-	_, err := svc.Create(context.Background(), 1, &CreateMedicineInput{Name: "X"})
+	_, err := svc.Create(context.Background(), 1, &CreateMedicineInput{Name: "X", ActorID: masterTestActorID()})
 	require.Error(t, err)
 	assert.False(t, apperrors.IsNameConflict(err, apperrors.CodeMedicineNameConflict))
 	assert.True(t, apperrors.IsAlreadyExists(err))

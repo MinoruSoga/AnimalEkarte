@@ -3,8 +3,10 @@ package medicalrecord
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -34,9 +36,23 @@ func NewCheckupTypeRepository(db *gorm.DB) CheckupTypeRepository {
 	return &checkupTypeRepository{db: db}
 }
 
+// checkupTypeReadColumns は is_bill_discount_excluded を含む明示列（EMR-447 A.3）。
+// SELECT * だけでは列未接続と DB NULL を区別できないため、読取は列名を明示する。
+var checkupTypeReadColumns = []string{
+	"id", "clinic_id", "name", "price", "is_active", "description",
+	"interval", "target_age", "parent_id", "sort_order",
+	"import_namespace", "import_key", "is_non_insurance", colIsBillDiscountExcluded,
+	"version", "created_at", "updated_at", "deleted_at",
+}
+
 func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
 	checkupTypes := make([]model.CheckupType, 0)
-	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).Order("sort_order ASC, name ASC").Find(&checkupTypes).Error
+	err := r.db.WithContext(ctx).
+		Model(&model.CheckupType{}).
+		Select(checkupTypeReadColumns).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Order("sort_order ASC, name ASC").
+		Find(&checkupTypes).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup_type", "")
 	}
@@ -45,7 +61,31 @@ func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([
 
 // FindByID は ambient tx に参加する（EMR-456: Update の前値読取と parent 検証を書込と同じ tx で行う）。
 func (r *checkupTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
-	return persistence.FindByIDScoped[model.CheckupType](ctx, persistence.DBOrTx(ctx, r.db), "checkup_type", clinicID, id)
+	return persistence.FindByIDScoped[model.CheckupType](ctx, persistence.DBOrTx(ctx, r.db).Select(checkupTypeReadColumns), "checkup_type", clinicID, id)
+}
+
+// LockWriteRows locks target and requested parent rows in a global order before
+// validation/mutation（EMR-456 F1: 親 soft-delete と子 Create/親変更の直列化）。
+// soft-delete は非 key UPDATE のため FOR KEY SHARE では衝突しない。FOR UPDATE を使う。
+func (r *checkupTypeRepository) LockWriteRows(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if persistence.TxFromContext(ctx) == nil {
+		return apperrors.WrapInternalServerError("checkup type parent lock requires an ambient transaction")
+	}
+	ordered := append([]uint64(nil), ids...)
+	sort.Slice(ordered, func(i, j int) bool { return ordered[i] < ordered[j] })
+	for i, id := range ordered {
+		if id == 0 {
+			return apperrors.WrapInvalidInput("checkup type ID must be positive")
+		}
+		if i > 0 && id == ordered[i-1] {
+			continue
+		}
+		db := persistence.DBOrTx(ctx, r.db).Clauses(clause.Locking{Strength: "UPDATE"})
+		if _, err := persistence.FindByIDScoped[model.CheckupType](ctx, db, "checkup_type", clinicID, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Create は ambient tx に参加し、service の保険設定監査と同じ tx に載る（EMR-456）。
@@ -139,10 +179,11 @@ func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, id
 }
 
 // CountUsageByCheckupTypeID は定期健診種別を参照している checkups の件数を返す（BUG-107）
-// checkups テーブルは直接 clinic_id を持つためテナント分離を直接適用する
+// checkups テーブルは直接 clinic_id を持つためテナント分離を直接適用する。
+// ambient tx に参加する（EMR-456 F1: lock 後の新鮮な statement で確認するため）。
 func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, clinicID, checkupTypeID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Checkup{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("checkup_type_id = ? AND deleted_at IS NULL", checkupTypeID).
@@ -153,9 +194,10 @@ func (r *checkupTypeRepository) CountUsageByCheckupTypeID(ctx context.Context, c
 }
 
 // CountChildrenByParentID は指定した親 ID を持つ子健診種別の件数を返す。
+// ambient tx に参加する（EMR-456 F1: lock 待ち後に READ COMMITTED の新 snapshot で再確認するため）。
 func (r *checkupTypeRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.CheckupType{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("parent_id = ? AND deleted_at IS NULL", parentID).

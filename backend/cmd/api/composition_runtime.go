@@ -258,6 +258,7 @@ func newRuntimeDomainCompositions(
 		inventory: newRuntimeInventory(
 			repositories,
 			transactor,
+			auditKernel,
 		),
 		trimming: newRuntimeTrimming(
 			repositories,
@@ -472,11 +473,13 @@ func newRuntimeAuthComposition(
 func newRuntimeInventory(
 	repositories runtimeRepositories,
 	transactor persistence.Transactor,
+	auditKernel audit.Kernel,
 ) inventoryRuntime {
 	return inventoryRuntime{
 		inventory: inventory.NewInventoryService(repositories.inventory),
 		// BE-ACT-MERCHANDISE-ATOMIC-DELETE: Delete soft-delete + usage re-check share one tx.
-		merchandiseItems: inventory.NewMerchandiseItemService(repositories.merchandiseItems, transactor),
+		// EMR-449: is_bill_discount_excluded の書込と監査を同一 tx に載せる（fail-closed）。
+		merchandiseItems: inventory.NewMerchandiseItemServiceWithAudit(repositories.merchandiseItems, transactor, inventoryAuditTxAdapter{inner: auditKernel}),
 	}
 }
 

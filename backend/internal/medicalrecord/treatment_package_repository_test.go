@@ -5,6 +5,7 @@ package medicalrecord
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -114,4 +115,46 @@ func TestTreatmentPackageRepository_SoftDeleteCASHistoryPreserved(t *testing.T) 
 	require.NoError(t, db.Unscoped().First(&stored, "id = ?", pkg.ID).Error)
 	assert.NotNil(t, stored.DeletedAt)
 	assert.NotNil(t, stored.DeletedBy)
+}
+
+// S06: reorder の全件照合は表示 cap（MaxMasterListRows）に依存しない。
+// LockAllPackagesForReorder は 10,001件を cap 無し・id 昇順で返し、
+// soft-deleted 行と他院行を母集合から外す。
+func TestTreatmentPackageRepository_LockAllForReorderBeyondListCap(t *testing.T) {
+	db, clinicID := setupPackageTestDB(t)
+	repo := NewTreatmentPackageRepository(db)
+	now := time.Now()
+
+	const total = 10001
+	rows := make([]model.TreatmentPackage, 0, total)
+	for i := 0; i < total; i++ {
+		rows = append(rows, model.TreatmentPackage{
+			ClinicID: clinicID, Name: fmt.Sprintf("p%05d", i), IsActive: i%2 == 0,
+			SortOrder: i, Version: 1,
+			CreatedBy: 1, UpdatedBy: 1, CreatedAt: now, UpdatedAt: now,
+		})
+	}
+	require.NoError(t, db.CreateInBatches(rows, 1000).Error)
+
+	other := model.Clinic{Name: "other clinic", CompanyID: 1}
+	require.NoError(t, db.Create(&other).Error)
+	require.NoError(t, db.Create(&model.TreatmentPackage{
+		ClinicID: other.ID, Name: "foreign", SortOrder: 0, Version: 1,
+		CreatedBy: 1, UpdatedBy: 1, CreatedAt: now, UpdatedAt: now,
+	}).Error)
+	require.NoError(t, db.Create(&model.TreatmentPackage{
+		ClinicID: clinicID, Name: "deleted", SortOrder: total, Version: 1,
+		CreatedBy: 1, UpdatedBy: 1, CreatedAt: now, UpdatedAt: now, DeletedAt: &now,
+	}).Error)
+
+	var got []model.TreatmentPackage
+	packageWithTx(t, db, func(txCtx context.Context) error {
+		var err error
+		got, err = repo.LockAllPackagesForReorder(txCtx, clinicID)
+		return err
+	})
+	require.Len(t, got, total)
+	for i := 1; i < len(got); i++ {
+		assert.Less(t, got[i-1].ID, got[i].ID) // id 昇順。
+	}
 }

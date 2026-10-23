@@ -40,6 +40,8 @@
 
 2026-10-22の[限定参加契約§4.1](../../../work/emr/emr-540-308-462-506-selected-handoff-20261022.md#posthumous-selected-participation)で、結果照会は認証医院・同一actor・保存済み元対象anchorから解決した対象への現在`accounting:view`とし、失権/元対象解決失敗時は非開示と選定した。mutationは既存金融write grantを維持する。一般506 wire等の未選定・製品実装/受入未完は同追補で区別し、この参照で実装済みとはしない。
 
+受領・配賦と方法/日時誤記訂正の[506技術候補一覧](../../../work/emr/emr-506-fund-wire-design-candidates-20261022.md)は未採択で、既決業務を変更しない。候補route/金額・ID wire/tokenの検討とAPI/実装・受入完了を区別する。
+
 過去の確定済み未納は未請求候補とは別。払う額は自由に決められるが、元の確定済み請求を作り直さず、入金を元請求へ紐づけて残額を管理する。新しい請求と過去分回収を一度に扱う場合も、それぞれの請求帰属を保持する。第二群で[古い請求からの充当・スタッフ変更と釣銭](#requirement-fr-accounting-oldest-payment-allocation)、[予約への前金](#requirement-fr-accounting-reservation-advance)を合意した。自由な支払額の合意を全額回収の強制へ戻さない。第三群で飼主単位の預り金と予約紐づけ任意、同じ飼主の別予約・別ペット会計への確認付き利用を合意。超過入金を預り金へ無断で自動繰越しない。
 
 <a id="requirement-fr-accounting-receivable-partial-zero"></a>

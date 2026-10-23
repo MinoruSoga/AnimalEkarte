@@ -26,6 +26,11 @@ type MerchandiseItemRepository interface {
 
 type merchandiseItemRepository struct{ db *gorm.DB }
 
+// merchandiseItemSelectColumns は物販 reader の明示列リスト（EMR-449 A.3 read 証拠）。
+// SELECT * + struct scan では列未接続が nil に黙って化けるため、新列
+// is_bill_discount_excluded / version を含む明示取得で列欠落・読取失敗を error として表面化させる。
+const merchandiseItemSelectColumns = "id, clinic_id, name, category, unit_price, tax_type, tax_rate, is_active, is_bill_discount_excluded, sort_order, version, created_at, updated_at, deleted_at"
+
 // NewMerchandiseItemRepository constructs the merchandise-item repository.
 func NewMerchandiseItemRepository(db *gorm.DB) MerchandiseItemRepository {
 	return &merchandiseItemRepository{db: db}
@@ -38,7 +43,7 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 		q = q.Where("category = ?", category)
 	}
 	// G2F-11: vaccine/procedure/consultation と同型の master list safety Limit（unbounded Find 防止）。
-	if err := q.Order("sort_order ASC, name ASC").Limit(persistence.MaxMasterListRows).Find(&items).Error; err != nil {
+	if err := q.Select(merchandiseItemSelectColumns).Order("sort_order ASC, name ASC").Limit(persistence.MaxMasterListRows).Find(&items).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "merchandise_item", "")
 	}
 	return items, nil
@@ -48,12 +53,29 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 // transaction it takes FOR SHARE so concurrent soft-delete/update waits until
 // the caller commits (campaign target attachment serialization).
 func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
+	return r.findByID(ctx, clinicID, id, false)
+}
+
+// FindByIDForUpdate は FindByID と同じ query を ambient tx の行で FOR UPDATE
+// ロックして読む。更新 TX の前値読取だけが使う（EMR-449 A-2）。
+func (r *merchandiseItemRepository) FindByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
+	return r.findByID(ctx, clinicID, id, true)
+}
+
+func (r *merchandiseItemRepository) findByID(ctx context.Context, clinicID, id uint64, forUpdate bool) (*model.MerchandiseItem, error) {
 	var item model.MerchandiseItem
 	db := persistence.DBOrTx(ctx, r.db)
 	if persistence.TxFromContext(ctx) != nil {
-		db = db.Clauses(clause.Locking{Strength: "SHARE"})
+		// EMR-449 A-2: 既定は参照直列化の FOR SHARE。更新 TX の前値読取だけ
+		// FOR UPDATE へ切替え、同版 PATCH が SHARE 保持後の UPDATE 昇格で
+		// 相互待ち（40P01）しないようにする。
+		strength := "SHARE"
+		if forUpdate {
+			strength = "UPDATE"
+		}
+		db = db.Clauses(clause.Locking{Strength: strength})
 	}
-	if err := db.Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&item).Error; err != nil {
+	if err := db.Select(merchandiseItemSelectColumns).Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&item).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
 	}
 	return &item, nil
@@ -78,23 +100,42 @@ func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.Merc
 
 // Update updates fields and reloads the row in one transaction so a reload
 // failure cannot invert a committed write into a failure response (BUG-465).
+// cmd.Version が送信された場合は編集開始版を WHERE で照合する（EMR-449 A.4）。
+// version 列は書かない: app_private.entity_version_guard() トリガが実変更時だけ増分させる。
 func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
-	return r.updateAndReload(ctx, clinicID, id, buildMerchandiseItemUpdate(&cmd))
+	return r.updateAndReload(ctx, clinicID, id, buildMerchandiseItemUpdate(&cmd), cmd.Version)
 }
 
-func (r *merchandiseItemRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.MerchandiseItem{}, "merchandise_item", clinicID, id, fields)
+func (r *merchandiseItemRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int64) error {
+	db := persistence.DBOrTx(ctx, r.db).Model(&model.MerchandiseItem{}).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id)
+	if expectedVersion != nil {
+		db = db.Where("version = ?", *expectedVersion)
+	}
+	result := db.Updates(fields)
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		// 版不一致（行は存在）と行欠落を区別する: 既存の競合 response（409）と not found をそのまま使う。
+		if _, err := r.FindByID(ctx, clinicID, id); err != nil {
+			return err
+		}
+		return apperrors.WrapConflict("編集後に変更されています。再読み込みしてから保存してください")
+	}
+	return nil
 }
 
-func (r *merchandiseItemRepository) updateAndReload(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
+func (r *merchandiseItemRepository) updateAndReload(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int64) (*model.MerchandiseItem, error) {
 	var loaded *model.MerchandiseItem
 	err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		txCtx := persistence.WithTxValue(ctx, tx)
-		if err := r.update(txCtx, clinicID, id, fields); err != nil {
+		if err := r.update(txCtx, clinicID, id, fields, expectedVersion); err != nil {
 			return err
 		}
 		var err error
-		loaded, err = persistence.FindByIDScoped[model.MerchandiseItem](txCtx, tx, "merchandise_item", clinicID, id)
+		loaded, err = persistence.FindByIDScoped[model.MerchandiseItem](txCtx, tx.Select(merchandiseItemSelectColumns), "merchandise_item", clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "reload merchandise_item after update")
 		}

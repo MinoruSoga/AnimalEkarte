@@ -84,6 +84,8 @@ func applyMedicineCoreUpdateFields(fields map[string]any, input *UpdateMedicineI
 	if input.IsNonInsurance != nil {
 		fields[colMedicineIsNonInsurance] = *input.IsNonInsurance
 	}
+	// EMR-447 A.2: 明示送信時だけ対象列を SET。省略は UPDATE map へ入れず既存値を保持する。
+	setBillDiscountExcludedField(fields, input.IsBillDiscountExcluded)
 }
 
 func applyMedicineDoseUpdateFields(fields map[string]any, input *UpdateMedicineInput) {
@@ -120,6 +122,8 @@ type CreateMedicineInput struct {
 	TaxType         *string             // nil = "excluded" (default)
 	TaxRate         *model.ExactNumeric // nil = 0.10 (default)。明示 0 は 0
 	IsNonInsurance  bool
+	// IsBillDiscountExcluded は nil=省略（service が false を明示保存・EMR-447 A.2）。
+	IsBillDiscountExcluded *bool
 
 	// #201 投与量計算（製品軸）。CalculationType nil/"" = none（default-deny）。
 	CalculationType     *string
@@ -145,6 +149,10 @@ type UpdateMedicineInput struct {
 	TaxType         *string
 	TaxRate         *model.ExactNumeric // nil = 未指定（EMR-447 exact decimal）
 	IsNonInsurance  *bool
+	// IsBillDiscountExcluded は nil=省略（変更なし）。送信時は Version が必須（EMR-447 A.4）。
+	IsBillDiscountExcluded *bool
+	// Version は任意送信の期待版。非 nil なら >0 必須で repository が WHERE 照合する。
+	Version *int64
 
 	// #201 投与量計算（製品軸）。nil = 未指定。
 	CalculationType     *string
@@ -337,9 +345,24 @@ func (s *medicineService) auditPerWeightEnableTx(ctx context.Context, clinicID u
 	return nil
 }
 
+// EMR-447 A.4: 版の wire 検証メッセージ（checkup_type / exam_type と同型）。
+const (
+	errMsgMedicineVersionConflict = "他のユーザーがこの薬剤を変更しました。再読み込みしてください"
+	errMsgMedicineVersionRequired = "version を指定してください（編集開始時の版）"
+	errMsgMedicineVersionInvalid  = "version は正の整数で指定してください"
+)
+
 func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMedicineInput) (*model.Medicine, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput(errMsgInputNotNil)
+	}
+	// EMR-447 A.4: 新設定を含む PATCH は編集開始版必須。送信された版は >0 でなければならず、
+	// 新設定を含まない旧 PATCH の version 省略は従来互換（CAS なし）を維持する。
+	if input.IsBillDiscountExcluded != nil && input.Version == nil {
+		return nil, apperrors.WrapInvalidInput(errMsgMedicineVersionRequired)
+	}
+	if input.Version != nil && *input.Version <= 0 {
+		return nil, apperrors.WrapInvalidInput(errMsgMedicineVersionInvalid)
 	}
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
@@ -400,6 +423,15 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		}
 		if perWeightEnabling {
 			if auditErr := s.auditPerWeightEnableTx(txCtx, clinicID, input.ActorID, id, existing, result); auditErr != nil {
+				return auditErr
+			}
+		}
+		// EMR-447 A.5: 新 field が送信された時だけ、raw NULL/false/true を区別した
+		// 前後値監査を業務書込と同じ tx で記録する（is_non_insurance / per_weight 監査とは別 field）。
+		if input.IsBillDiscountExcluded != nil {
+			if auditErr := logBillDiscountAuditTx(txCtx, s.auditTx, clinicID, input.ActorID,
+				model.AuditResourceMedicine, "medicine.update",
+				billDiscountChange{ResourceID: result.ID, BeforeExists: true, Before: existing.IsBillDiscountExcluded, After: result.IsBillDiscountExcluded}); auditErr != nil {
 				return auditErr
 			}
 		}

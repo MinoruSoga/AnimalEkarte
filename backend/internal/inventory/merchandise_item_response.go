@@ -34,8 +34,12 @@ type merchandiseItemResponse struct {
 	TaxRate   string             `json:"tax_rate"`
 	IsActive  bool               `json:"is_active"`
 	SortOrder int                `json:"sort_order"`
-	CreatedAt time.Time          `json:"created_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
+	// EMR-449 A01/A.3: 保存値 true/false/null を raw のまま返す（omitempty なし・NULL を false へ書換えない）。
+	IsBillDiscountExcluded *bool `json:"is_bill_discount_excluded"`
+	// EMR-449 A.4: 実保存版を返す（create 補償 UPDATE 後の再読取値を含む）。
+	Version   int64     `json:"version"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func toMerchandiseItemResponse(m *model.MerchandiseItem) (merchandiseItemResponse, error) {
@@ -53,7 +57,10 @@ func toMerchandiseItemResponse(m *model.MerchandiseItem) (merchandiseItemRespons
 		TaxRate:   taxRate,
 		IsActive:  m.IsActive,
 		SortOrder: m.SortOrder,
-		CreatedAt: httpapi.LocalTime(m.CreatedAt),
-		UpdatedAt: httpapi.LocalTime(m.UpdatedAt),
+
+		IsBillDiscountExcluded: m.IsBillDiscountExcluded,
+		Version:                m.Version,
+		CreatedAt:              httpapi.LocalTime(m.CreatedAt),
+		UpdatedAt:              httpapi.LocalTime(m.UpdatedAt),
 	}, nil
 }

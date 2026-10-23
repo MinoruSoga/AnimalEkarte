@@ -2,14 +2,17 @@ import { describe, expect, it } from "vitest";
 import type { TreatmentPackage } from "../api/treatment-packages";
 import {
   buildReorderBody,
+  canSendReorder,
   draftFromPackage,
   emptyPackageDraft,
   isDraftEqual,
   moveId,
   newComponentDraft,
+  reorderBlockReason,
   requireEditingVersion,
   toCreateBody,
   toPatchBody,
+  treatmentPackageKindViewResource,
   validateDraft,
 } from "./treatment-package-form";
 
@@ -139,5 +142,108 @@ describe("requireEditingVersion / reorder / moveId / isDraftEqual", () => {
   });
   it("isDraftEqual は未変更で true", () => {
     expect(isDraftEqual(draftFromPackage(basePkg), basePkg)).toBe(true);
+  });
+});
+
+describe("Q1: reorderBlockReason（raw 件数・pending/error/order_version で事前抑止）", () => {
+  const base = { isPending: false, isError: false, orderVersion: "17", rawItemCount: 0 };
+  it("9,999件は抑止しない", () => {
+    expect(reorderBlockReason({ ...base, rawItemCount: 9999 })).toBeNull();
+  });
+  it("10,000件・10,001件は抑止する（保守的制約）", () => {
+    expect(reorderBlockReason({ ...base, rawItemCount: 10000 })).toBe("count-guard");
+    expect(reorderBlockReason({ ...base, rawItemCount: 10001 })).toBe("count-guard");
+  });
+  it("pending / error / order_version なしは送信不可", () => {
+    expect(reorderBlockReason({ ...base, isPending: true })).toBe("pending");
+    expect(reorderBlockReason({ ...base, isError: true })).toBe("error");
+    expect(reorderBlockReason({ ...base, orderVersion: undefined })).toBe("no-order-version");
+  });
+});
+
+describe("B2-02: canSendReorder（handler 抑止・ボタン disabled と独立）", () => {
+  const base = {
+    authorizationLost: false,
+    block: null as ReturnType<typeof reorderBlockReason>,
+    orderVersion: "17" as string | undefined,
+    canEdit: true,
+  };
+  it("全て通れば送信可", () => {
+    expect(canSendReorder(base)).toBe(true);
+  });
+  it("pending / error / 件数閾値 / 版なし / 失権 / 編集権限なしは送信不可", () => {
+    expect(canSendReorder({ ...base, block: "pending" })).toBe(false);
+    expect(canSendReorder({ ...base, block: "error" })).toBe(false);
+    expect(canSendReorder({ ...base, block: "no-order-version" })).toBe(false);
+    expect(canSendReorder({ ...base, block: "count-guard" })).toBe(false);
+    expect(canSendReorder({ ...base, orderVersion: undefined })).toBe(false);
+    expect(canSendReorder({ ...base, authorizationLost: true })).toBe(false);
+    expect(canSendReorder({ ...base, canEdit: false })).toBe(false);
+  });
+});
+
+describe("Q3: treatmentPackageKindViewResource（backend 型別 view resource と対応）", () => {
+  it("checkup_type → checkups / merchandise_item → master-merchandise / 他 → master-medical", () => {
+    expect(treatmentPackageKindViewResource("consultation")).toBe("master-medical");
+    expect(treatmentPackageKindViewResource("procedure")).toBe("master-medical");
+    expect(treatmentPackageKindViewResource("medicine")).toBe("master-medical");
+    expect(treatmentPackageKindViewResource("examination_type")).toBe("master-medical");
+    expect(treatmentPackageKindViewResource("vaccine")).toBe("master-medical");
+    expect(treatmentPackageKindViewResource("checkup_type")).toBe("checkups");
+    expect(treatmentPackageKindViewResource("merchandise_item")).toBe("master-merchandise");
+  });
+});
+
+describe("S08 diff helpers（draftPackageDiff / component summary）", () => {
+  it("項目別に差分を返す（構成は全置換比較）", async () => {
+    const { draftPackageDiff } = await import("./treatment-package-form");
+    const draft = draftFromPackage(basePkg);
+    const same = draftPackageDiff(draft, basePkg);
+    expect(same).toEqual({ name: false, description: false, isActive: false, components: false });
+
+    draft.name = "別名";
+    draft.isActive = !basePkg.is_active;
+    draft.components[0]!.masterId = "999";
+    const changed = draftPackageDiff(draft, basePkg);
+    expect(changed.name).toBe(true);
+    expect(changed.isActive).toBe(true);
+    expect(changed.components).toBe(true);
+    expect(changed.description).toBe(false);
+  });
+
+  it("構成サマリは kind ラベル + 識別子 + 数量（number 化しない）", async () => {
+    const {
+      draftComponentSummary,
+      wireComponentSummary,
+      draftFromPackage: dfp,
+    } = await import("./treatment-package-form");
+    const draft = dfp(basePkg);
+    expect(draftComponentSummary(draft.components[0]!)).toBe("診察 101 ×1");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("手入力（その他）");
+    expect(wireComponentSummary(basePkg.components[0]!)).toBe("診察 101 ×1");
+    expect(wireComponentSummary(basePkg.components[6]!)).toContain("物販");
+  });
+
+  it("A1-02/A2-01: manual の全更新可能フィールドを文字列のまま表示する", async () => {
+    const {
+      draftComponentSummary,
+      wireComponentSummary,
+      draftFromPackage: dfp,
+    } = await import("./treatment-package-form");
+    const draft = dfp(basePkg);
+    expect(draftComponentSummary(draft.components[7]!)).toContain("単価:110円");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("税込(税率0.1)");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("理由:理由");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("単位:なし");
+    expect(draftComponentSummary(draft.components[7]!)).toContain("保険外");
+    expect(wireComponentSummary(basePkg.components[7]!)).toContain("単価:110円");
+    expect(wireComponentSummary(basePkg.components[7]!)).toContain("税込(税率0.1)");
+    expect(wireComponentSummary(basePkg.components[7]!)).toContain("保険外");
+    // 単価だけが違う場合はサマリ文字列が異なり、差分が可視化される。
+    const changed = dfp({ ...basePkg, components: [basePkg.components[7]!] });
+    changed.components[0]!.manual.unitPrice = "120";
+    expect(draftComponentSummary(changed.components[0]!)).not.toBe(
+      wireComponentSummary(basePkg.components[7]!),
+    );
   });
 });

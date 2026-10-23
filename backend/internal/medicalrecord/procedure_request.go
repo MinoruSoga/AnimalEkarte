@@ -15,6 +15,9 @@ type createProcedureRequest struct {
 	// EMR-454: 品目別保険設定。省略時は新規登録の初期値=保険対象外（true）を保存する。
 	// 明示 null は 400（null を省略と同一視しない）。
 	IsNonInsurance boolCreateField `json:"is_non_insurance"`
+
+	// EMR-447 A01: 全体割引除外。省略時は新規登録の初期値=false を service が明示保存。
+	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
 }
 
 func (r *createProcedureRequest) toServiceInput() *CreateProcedureInput {
@@ -31,6 +34,8 @@ func (r *createProcedureRequest) toServiceInput() *CreateProcedureInput {
 		TaxRate:     r.TaxRate,
 
 		IsNonInsurance: r.IsNonInsurance.toServiceInput(),
+
+		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toCreateInput(),
 	}
 }
 
@@ -50,6 +55,9 @@ type updateProcedureRequest struct {
 
 	// EMR-454: 省略=変更なし、null=400、true/false=明示更新。
 	IsNonInsurance boolUpdateField `json:"is_non_insurance"`
+
+	// EMR-447 A01: 省略=変更なし（NULL/false/true 保持）、null/非 boolean=400、true/false=明示 SET。
+	IsBillDiscountExcluded billDiscountExcludedField `json:"is_bill_discount_excluded"`
 }
 
 func (r *updateProcedureRequest) toServiceInput() *UpdateProcedureInput {
@@ -68,5 +76,7 @@ func (r *updateProcedureRequest) toServiceInput() *UpdateProcedureInput {
 		TaxRate:       r.TaxRate,
 
 		IsNonInsurance: r.IsNonInsurance.toServiceInput(),
+
+		IsBillDiscountExcluded: r.IsBillDiscountExcluded.toUpdateInput(),
 	}
 }

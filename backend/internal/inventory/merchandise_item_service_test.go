@@ -48,7 +48,14 @@ func (m *mockMerchandiseItemRepository) CountUsageByMerchandiseItemID(ctx contex
 }
 
 func (m *mockMerchandiseItemRepository) Create(ctx context.Context, item *model.MerchandiseItem) error {
-	return m.createFn(ctx, item)
+	if err := m.createFn(ctx, item); err != nil {
+		return err
+	}
+	// 永続化された行は必ず ID を持つ。create 監査（EMR-449 A.5）は非 0 の resource ID を要求する。
+	if item.ID == 0 {
+		item.ID = 1
+	}
+	return nil
 }
 
 func (m *mockMerchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateMerchandiseItemInput) (*model.MerchandiseItem, error) {
@@ -81,12 +88,14 @@ func (m *mockMerchandiseItemTransactor) WithTx(ctx context.Context, fn func(cont
 	return fn(ctx)
 }
 
+// 監査 double は merchandise_item_bill_discount_test.go の merchandiseBillDiscountAuditRecorder を共有する。
+// create は常に新列を書くため監査依存が必須（EMR-449 A.5・欠落は fail-closed）。
 func newTestMerchandiseItemService(repo *mockMerchandiseItemRepository) MerchandiseItemService {
-	return NewMerchandiseItemService(repo, &mockMerchandiseItemTransactor{})
+	return NewMerchandiseItemServiceWithAudit(repo, &mockMerchandiseItemTransactor{}, &merchandiseBillDiscountAuditRecorder{})
 }
 
 func newTestMerchandiseItemServiceWithTx(repo *mockMerchandiseItemRepository, tx Transactor) MerchandiseItemService {
-	return NewMerchandiseItemService(repo, tx)
+	return NewMerchandiseItemServiceWithAudit(repo, tx, &merchandiseBillDiscountAuditRecorder{})
 }
 
 // ---- List テスト ----
@@ -309,7 +318,9 @@ func TestMerchandiseItemService_Create(t *testing.T) {
 			}
 			svc := newTestMerchandiseItemService(repo)
 
-			item, err := svc.Create(context.Background(), 1, tt.input)
+			input := *tt.input
+			input.ActorID = merchandiseTestActorID()
+			item, err := svc.Create(context.Background(), 1, &input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -340,6 +351,7 @@ func TestMerchandiseItemService_Create_CustomTaxTypeAndRate(t *testing.T) {
 		UnitPrice: 500,
 		TaxType:   "included",
 		TaxRate:   &customRate,
+		ActorID:   merchandiseTestActorID(),
 	})
 
 	assert.NoError(t, err)
@@ -800,7 +812,9 @@ func TestMerchandiseItemService_Create_DefaultTaxRateValue(t *testing.T) {
 				},
 			}
 			svc := newTestMerchandiseItemService(repo)
-			item, err := svc.Create(context.Background(), 1, req.toServiceInput())
+			input := req.toServiceInput()
+			input.ActorID = merchandiseTestActorID()
+			item, err := svc.Create(context.Background(), 1, input)
 			require.NoError(t, err)
 			require.NotNil(t, item)
 			require.NotNil(t, created)
@@ -823,7 +837,9 @@ func TestMerchandiseItemService_Create_DefaultTaxRateValue(t *testing.T) {
 			},
 		}
 		svc := newTestMerchandiseItemService(repo)
-		_, err := svc.Create(context.Background(), 1, req.toServiceInput())
+		input := req.toServiceInput()
+		input.ActorID = merchandiseTestActorID()
+		_, err := svc.Create(context.Background(), 1, input)
 		require.NoError(t, err)
 		require.NotNil(t, created)
 		assert.True(t, equalTaxRate(mustTaxRate(t, "0"), created.TaxRate),

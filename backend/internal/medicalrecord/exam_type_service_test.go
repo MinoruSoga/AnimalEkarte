@@ -38,6 +38,11 @@ func (m *mockExamTypeRepository) FindByID(ctx context.Context, clinicID, id uint
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
+// FindByIDForUpdate は更新 TX 前値読取の optional interface を mock でも通す。
+func (m *mockExamTypeRepository) FindByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error) {
+	return m.findByIDFn(ctx, clinicID, id)
+}
+
 func (m *mockExamTypeRepository) Create(ctx context.Context, exType *model.ExaminationType) error {
 	return m.createFn(ctx, exType)
 }
@@ -302,12 +307,17 @@ func TestExamTypeService_Create(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			createCalled := false
 			repo := &mockExamTypeRepository{
-				createFn: func(_ context.Context, _ *model.ExaminationType) error {
+				createFn: func(_ context.Context, exType *model.ExaminationType) error {
 					createCalled = true
+					// EMR-447 A.5: create 成功系は同 tx の監査が ResourceID>0 を要求するため、
+					// mock は実 repository と同じく保存 ID を採番する。
+					exType.ID = 10
 					return tt.repoErr
 				},
 			}
-			svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
+			// EMR-447 A.5: create は常に bill-discount 監査を書くため audit double を注入する。
+			svc := NewExamTypeServiceWithAudit(repo, passthroughExamTypeTransactor{}, masterTestAudit{})
+			tt.input.ActorID = masterTestActorID()
 
 			result, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -682,10 +692,10 @@ func TestExamTypeService_Create_ValidatesParentInsideTx(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExamTypeService(repo, passthroughExamTypeTransactor{})
+	svc := NewExamTypeServiceWithAudit(repo, passthroughExamTypeTransactor{}, masterTestAudit{})
 	parentID := uint64(9)
 	got, err := svc.Create(context.Background(), 1, &CreateExamTypeInput{
-		Name: "blood", ParentID: &parentID, IsActive: true,
+		Name: "blood", ParentID: &parentID, IsActive: true, ActorID: masterTestActorID(),
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, got)

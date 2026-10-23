@@ -20,6 +20,10 @@ type masterInsuranceChange struct {
 	SkipInsuranceAudit bool
 	Before             *bool
 	After              *bool
+	// BillDiscount は is_bill_discount_excluded の前後監査を同じ transaction に載せる。
+	// nil = この書込で対象列を送っていない（PATCH 省略）ため監査しない。
+	// ResourceID は write が change.ID から補完する。
+	BillDiscount *billDiscountChange
 }
 
 func masterInsuranceAuditValue(setting *bool) map[string]any {
@@ -45,21 +49,26 @@ func (d MasterInsuranceWriteDependencies) write(
 		if err != nil {
 			return err
 		}
-		if change.SkipInsuranceAudit {
+		if !change.SkipInsuranceAudit {
+			var before any
+			if change.BeforeExists {
+				before = masterInsuranceAuditValue(change.Before)
+			}
+			if err := d.Audit.LogEntryTx(txCtx, &AuditEntry{
+				ClinicID: &clinicID, ActorID: actorID, ActorType: model.AuditActorTypeStaff,
+				Action: action, Resource: resource, ResourceID: &change.ID,
+				OldValue: before, NewValue: masterInsuranceAuditValue(change.After),
+				Metadata: map[string]any{"field": "is_non_insurance"},
+			}); err != nil {
+				return apperrors.Wrap(err, "failed to write master insurance audit")
+			}
+		}
+		if change.BillDiscount == nil {
 			return nil
 		}
-		var before any
-		if change.BeforeExists {
-			before = masterInsuranceAuditValue(change.Before)
-		}
-		if err := d.Audit.LogEntryTx(txCtx, &AuditEntry{
-			ClinicID: &clinicID, ActorID: actorID, ActorType: model.AuditActorTypeStaff,
-			Action: action, Resource: resource, ResourceID: &change.ID,
-			OldValue: before, NewValue: masterInsuranceAuditValue(change.After),
-			Metadata: map[string]any{"field": "is_non_insurance"},
-		}); err != nil {
-			return apperrors.Wrap(err, "failed to write master insurance audit")
-		}
-		return nil
+		// 保険監査とは別 entry（field=is_bill_discount_excluded）。失敗は同じ tx を rollback させる。
+		bill := *change.BillDiscount
+		bill.ResourceID = change.ID
+		return logBillDiscountAuditTx(txCtx, d.Audit, clinicID, actorID, resource, action, bill)
 	})
 }

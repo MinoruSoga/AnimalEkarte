@@ -36,10 +36,21 @@ func NewConsultationRepository(db *gorm.DB) ConsultationRepository {
 	return &consultationRepositoryImpl{db: db}
 }
 
+// consultationReadColumns は is_bill_discount_excluded を含む明示列（EMR-447 A.3）。
+// SELECT * だけでは列未接続と DB NULL を区別できないため、読取は列名を明示する。
+var consultationReadColumns = []string{
+	"id", "clinic_id", "name", "price", "is_active", "description",
+	"time_condition", "duration", "parent_id", "tax_type", "tax_rate",
+	"sort_order", "is_non_insurance", colIsBillDiscountExcluded,
+	"version", "created_at", "updated_at", "deleted_at",
+}
+
 func (r *consultationRepositoryImpl) FindAll(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
 	consultations := make([]model.Consultation, 0)
 	// G2F-11: vaccine/procedure と同型の master list safety Limit（unbounded Find 防止）。
 	err := persistence.DBOrTx(ctx, r.db).
+		Model(&model.Consultation{}).
+		Select(consultationReadColumns).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Order("sort_order ASC, name ASC").
 		Limit(persistence.MaxMasterListRows).
@@ -51,7 +62,7 @@ func (r *consultationRepositoryImpl) FindAll(ctx context.Context, clinicID uint6
 }
 
 func (r *consultationRepositoryImpl) FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
-	db := persistence.DBOrTx(ctx, r.db)
+	db := persistence.DBOrTx(ctx, r.db).Select(consultationReadColumns)
 	return persistence.FindByIDScoped[model.Consultation](ctx, db, "consultation", clinicID, id)
 }
 

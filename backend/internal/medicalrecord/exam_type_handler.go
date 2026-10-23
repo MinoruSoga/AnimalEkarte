@@ -212,7 +212,9 @@ func (h *ExamTypeHandler) CreateExaminationType(c *gin.Context) {
 		return
 	}
 
-	examType, err := h.service.Create(c.Request.Context(), clinicID, req.toServiceInput())
+	createInput := req.toServiceInput()
+	createInput.ActorID = httpapi.OptionalStaffID(c) // EMR-447 A.5: 割引除外監査の実施者
+	examType, err := h.service.Create(c.Request.Context(), clinicID, createInput)
 	if err != nil {
 		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return
@@ -237,7 +239,9 @@ func (h *ExamTypeHandler) UpdateExaminationType(c *gin.Context) {
 		return
 	}
 
-	exType, err := h.service.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
+	updateInput := req.toServiceInput()
+	updateInput.ActorID = httpapi.OptionalStaffID(c) // EMR-447 A.5: 割引除外監査の実施者
+	exType, err := h.service.Update(c.Request.Context(), clinicID, id, updateInput)
 	if err != nil {
 		httpapi.RespondErrorPreferringConflictCode(c, err)
 		return

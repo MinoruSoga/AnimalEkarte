@@ -27,6 +27,9 @@ type consultationResponse struct {
 
 	// EMR-454: 品目別保険設定。true=保険対象外 / false=保険対象 / null=未保存・旧欠落。
 	IsNonInsurance *bool `json:"is_non_insurance"`
+
+	// EMR-447 A01: 全体割引除外。null=未保存・旧欠落を raw のまま返し false に書換えない。
+	IsBillDiscountExcluded *bool `json:"is_bill_discount_excluded"`
 }
 
 func toConsultationResponse(c *model.Consultation) consultationResponse {
@@ -48,5 +51,7 @@ func toConsultationResponse(c *model.Consultation) consultationResponse {
 		UpdatedAt:     httpapi.LocalTime(c.UpdatedAt),
 
 		IsNonInsurance: c.IsNonInsurance,
+
+		IsBillDiscountExcluded: c.IsBillDiscountExcluded,
 	}
 }

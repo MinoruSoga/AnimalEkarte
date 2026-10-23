@@ -17,22 +17,24 @@ func medicineFromCreateInput(
 	// model.SortOrder は *int（#729）。request の int をそのまま保存する（EMR-447）。
 	sortOrder := input.SortOrder
 	medicine := &model.Medicine{
-		ClinicID:            clinicID,
-		Name:                input.Name,
-		ParentID:            input.ParentID,
-		Price:               input.Price,
-		IsActive:            input.IsActive,
-		Description:         input.Description,
-		InventoryID:         input.InventoryID,
-		DefaultQuantity:     input.DefaultQuantity,
-		SortOrder:           &sortOrder,
-		TaxType:             taxType,
-		TaxRate:             taxRate,
-		IsNonInsurance:      input.IsNonInsurance,
-		CalculationType:     calcType,
-		Strength:            input.Strength,
-		FrequencyPerDay:     input.FrequencyPerDay,
-		DefaultDurationDays: input.DefaultDurationDays,
+		ClinicID:        clinicID,
+		Name:            input.Name,
+		ParentID:        input.ParentID,
+		Price:           input.Price,
+		IsActive:        input.IsActive,
+		Description:     input.Description,
+		InventoryID:     input.InventoryID,
+		DefaultQuantity: input.DefaultQuantity,
+		SortOrder:       &sortOrder,
+		TaxType:         taxType,
+		TaxRate:         taxRate,
+		IsNonInsurance:  input.IsNonInsurance,
+		// EMR-447 A.2: 省略は false を明示保存し、DB default / Go ゼロ値に任せない。
+		IsBillDiscountExcluded: createBillDiscountExcluded(input.IsBillDiscountExcluded),
+		CalculationType:        calcType,
+		Strength:               input.Strength,
+		FrequencyPerDay:        input.FrequencyPerDay,
+		DefaultDurationDays:    input.DefaultDurationDays,
 	}
 	if input.DosageForm != nil && *input.DosageForm != "" {
 		df := model.DosageForm(*input.DosageForm)
@@ -75,9 +77,13 @@ func (s *medicineService) createMedicineInTx(
 	if inventoryItem.ID != 0 {
 		invID := inventoryItem.ID
 		medicine.InventoryID = &invID
-		if _, err := s.repo.Update(txCtx, clinicID, medicine.ID, UpdateMedicineInput{InventoryID: &invID}); err != nil {
+		// EMR-447 A.4: この補償 UPDATE でも entity_version_guard が版を進めるため、
+		// 同じ tx で再読取した実保存版を medicine へ反映する（応答が古い版を返さない）。
+		stored, err := s.repo.Update(txCtx, clinicID, medicine.ID, UpdateMedicineInput{InventoryID: &invID})
+		if err != nil {
 			return apperrors.Wrap(err, "failed to link inventory item to medicine")
 		}
+		*medicine = *stored
 	}
 	// #201 B-2: per_weight 有効化は安全クリティカル設定変更 → 監査（fail-closed）。
 	if calcType == model.MedicineCalculationTypePerWeight {
@@ -85,5 +91,8 @@ func (s *medicineService) createMedicineInTx(
 			return err
 		}
 	}
-	return nil
+	// EMR-447 A.5: create は常に新 field を書くため、前値なしの監査を同じ tx で必須記録する。
+	return logBillDiscountAuditTx(txCtx, s.auditTx, clinicID, input.ActorID,
+		model.AuditResourceMedicine, "medicine.create",
+		billDiscountChange{ResourceID: medicine.ID, After: medicine.IsBillDiscountExcluded})
 }
