@@ -48,7 +48,7 @@ Plane が採番する `EMR-N` を使う。旧来の `TASK-XXX` 連番採番は�
 
 1. 親票を作成（目的・全体受入・子票への導線のみ）
 2. 子票（BE / FE）を `parent` に親の UUID を指定して作成
-3. 依存側（FE）の本文に「`EMR-N`（BE）完了後に着手」と明記し、state は Backlog に留める
+3. 依存は[必要subset4状態](../../../docs/ops/plane-ticket-conventions.md#adopted-baseline-and-dependency-subsets)・供給owner/票・受領SHAで記す。必要API/契約/runtimeの受領待ちと、許可されたmock/契約先行の限定成果を区別し、BE親票全体のDoneを一律gateにしない
 
 ---
 
@@ -93,7 +93,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 調査結果を以下のカテゴリに分類:
 - **DB変更が必要**: テーブル追加・カラム追加・マイグレーション
-- **Backendモデル変更**: model/*.go の修正 → `make codegen` 必要
+- **Backendモデル変更**: model/*.go の修正 → 必要入力の同一固定SHAを基準に本人が`make codegen`を実行し、agentは正規成果を受領する。agent自動実行/生成物手編集は禁止。必要成果未受領は前提未受領/未完成であり、試験NOT_RUNとは別
 - **Backend API変更**: 新規エンドポイント or 既存修正
 - **Frontend API変更**: api/ の追加・修正
 - **Frontend UI変更**: components/ or routes/ の修正
@@ -185,7 +185,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ## Phase 5: FE 子票（BE/FE 分割時のみ）
 
-同様に FE 子票を作成。本文に「`EMR-N`（BE）完了後に着手」を明記し、state は Backlog。
+同様に FE 子票を作成。[着手契約](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)で必要なAPI/型/契約/runtime subsetと受領条件を示す。mock先行等の独立成果は明示した範囲で判断し、実機能のactivationやBE親票全体の完了とは分ける。未受領の機能scopeをReadyにしない。
 
 ---
 
@@ -200,8 +200,9 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 - EMR-NNN: タイトル — state / labels
 
 ### 実装順序
-1. EMR-NNN（BE: DB + API）
-2. EMR-NNN（FE: UI）— EMR-NNN 完了後に着手可能
+1. EMR-NNN — 宣言した契約/基盤又は機能の成功単位・共有owner
+2. EMR-NNN — 必要subset/file/symbol・供給票/採用SHAを受領後に結線（許可済みmock/契約先行scopeは別記）
+未受領/未選定・停止範囲・activation gate・検証statusを別に報告
 
 状態の正本は Plane。出典があるものは todo.md 該当節に対応行を追記済み。
 ```
@@ -213,32 +214,19 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 各チケットは以下の条件を満たす粒度で切る:
 
 1. **単一責務**: 1チケット = 1つの明確な変更目的
-2. **自己完結**: チケット内の情報だけで実装を開始できる（外部コンテキスト不要）
+2. **自己完結**: 本文と固定版参照で必要な採択契約・前提・停止条件が分かる（着手時の最新main差分再確認は必要）
 3. **コード参照付き**: 変更対象のファイルパス・行番号・現在のコードを記載
 4. **Before/After明確**: 何を何に変えるかが具体的
 5. **完了条件が検証可能**: 「〜が動く」ではなく「〜のレスポンスに〜が含まれる」
-6. **1-2時間で完了**: 人間なら1-2時間、AIなら1セッションで完了できる規模
+6. **宣言した成果が完結**: [規約の成功単位/1PR完了条件](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)を正とする。時間/票数/層の小ささだけで判断せず、必要な安全性・共有編集・後続受領まで対応を明記
 
 ### 分割の判断基準
 
-| 分割する | 分割しない |
-|---------|-----------|
-| DB変更 + API実装 → 別チケット | 同一ファイル内の小修正 |
-| 新規エンドポイント追加 | 既存エンドポイントの軽微修正 |
-| 新規コンポーネント作成 | 既存コンポーネントのprops追加 |
-| feature間で独立した変更 | 同一featureの関連変更 |
+[Plane規約の粒度・必要subset・先行成果/機能PRの区別](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)に従う。DBとAPI、endpoint単位、component単位という層/ファイル形状だけで機械分割しない。共有file・依存・原子的な成功単位から、宣言した成果が検証可能な形で完結するscopeを決める。
 
-### BE チケットの粒度
+DB+Model/共有API/library/mock FEの先行成果は明示可能だが、供給file/symbol/契約版/固定SHA・後続owner/票・受入・activation gateを必須とする。機能PRは必要なcaller/DI/reader/writer/adapter/routeまで閉じ、helperだけで全機能完了にしない。未選定は[限定停止/質問](../../../docs/ops/plane-ticket-conventions.md#decision-and-shared-edit-boundaries)へ分離する。
 
-- **DB + Model 変更**: 1チケット（`make codegen` まで含む）
-- **新規 API エンドポイント**: 1チケット（contract・security boundary・必要な凝集package・testsのセット）
-- **既存 API 修正**: 影響範囲が明確なら1チケット
-
-### FE チケットの粒度
-
-- **新規 API hook + 型定義**: 1チケット
-- **UI コンポーネント変更**: 画面単位で1チケット
-- **新規共有コンポーネント**: 1チケット
+`make codegen`は本人実行。必要model入力を採用した同一固定SHAと必要出力を渡し、agentは正規成果を受領する。未生成/未受領の必要型はコード未完成/前提未受領であり、試験を実行していないNOT_RUNとは別に記録する。個人Skill、生成物、権限を本ガイドから横変更しない。
 
 ---
 
