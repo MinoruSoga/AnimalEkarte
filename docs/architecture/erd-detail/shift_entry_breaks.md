@@ -11,10 +11,10 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2708](../../../backend/migrations/001_init.sql#L2708) |
-| `shift_entry_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2709](../../../backend/migrations/001_init.sql#L2709) |
-| `starts_at` | `timestamptz` | NULL | — | — | [001_init.sql:8964](../../../backend/migrations/001_init.sql#L8964) |
-| `ends_at` | `timestamptz` | NULL | — | — | [001_init.sql:8965](../../../backend/migrations/001_init.sql#L8965) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2710](../../../backend/migrations/001_init.sql#L2710) |
+| `shift_entry_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2711](../../../backend/migrations/001_init.sql#L2711) |
+| `starts_at` | `timestamptz` | NULL | — | — | [001_init.sql:8966](../../../backend/migrations/001_init.sql#L8966) |
+| `ends_at` | `timestamptz` | NULL | — | — | [001_init.sql:8967](../../../backend/migrations/001_init.sql#L8967) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -42,7 +42,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `shift_entry_breaks_shift_entry_id_fkey` | `shift_entry_id` | [shift_entries](shift_entries.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2709](../../../backend/migrations/001_init.sql#L2709) |
+| `shift_entry_breaks_shift_entry_id_fkey` | `shift_entry_id` | [shift_entries](shift_entries.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2711](../../../backend/migrations/001_init.sql#L2711) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -52,11 +52,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `shift_entry_breaks_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2708](../../../backend/migrations/001_init.sql#L2708) |
-| `ck_shift_break_explicit_interval` | check | `CONSTRAINT ck_shift_break_explicit_interval CHECK ((starts_at IS NULL AND ends_at IS NULL)       OR (starts_at IS NOT NULL AND ends_at IS NOT NULL AND ends_at>starts_at))` | [001_init.sql:8966](../../../backend/migrations/001_init.sql#L8966) |
+| `shift_entry_breaks_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2710](../../../backend/migrations/001_init.sql#L2710) |
+| `ck_shift_break_explicit_interval` | check | `CONSTRAINT ck_shift_break_explicit_interval CHECK ((starts_at IS NULL AND ends_at IS NULL)       OR (starts_at IS NOT NULL AND ends_at IS NOT NULL AND ends_at>starts_at))` | [001_init.sql:8968](../../../backend/migrations/001_init.sql#L8968) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_shift_entry_breaks_entry` | NO | — | `CREATE INDEX idx_shift_entry_breaks_entry ON shift_entry_breaks(shift_entry_id)` | [001_init.sql:2713](../../../backend/migrations/001_init.sql#L2713) |
+| `idx_shift_entry_breaks_entry` | NO | — | `CREATE INDEX idx_shift_entry_breaks_entry ON shift_entry_breaks(shift_entry_id)` | [001_init.sql:2715](../../../backend/migrations/001_init.sql#L2715) |

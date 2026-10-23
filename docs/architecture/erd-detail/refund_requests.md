@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9671](../../../backend/migrations/001_init.sql#L9671) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9672](../../../backend/migrations/001_init.sql#L9672) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9673](../../../backend/migrations/001_init.sql#L9673) |
-| `fund_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9674](../../../backend/migrations/001_init.sql#L9674) |
-| `billing_id` | `bigint` | NULL | — | FK | [001_init.sql:9675](../../../backend/migrations/001_init.sql#L9675) |
-| `requested_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9676](../../../backend/migrations/001_init.sql#L9676) |
-| `state` | `text` | NOT NULL | — | — | [001_init.sql:9677](../../../backend/migrations/001_init.sql#L9677) |
-| `actual_refund_event_id` | `bigint` | NULL | — | FK | [001_init.sql:9678](../../../backend/migrations/001_init.sql#L9678) |
-| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9679](../../../backend/migrations/001_init.sql#L9679) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9680](../../../backend/migrations/001_init.sql#L9680) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9681](../../../backend/migrations/001_init.sql#L9681) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9682](../../../backend/migrations/001_init.sql#L9682) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9673](../../../backend/migrations/001_init.sql#L9673) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9674](../../../backend/migrations/001_init.sql#L9674) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9675](../../../backend/migrations/001_init.sql#L9675) |
+| `fund_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9676](../../../backend/migrations/001_init.sql#L9676) |
+| `billing_id` | `bigint` | NULL | — | FK | [001_init.sql:9677](../../../backend/migrations/001_init.sql#L9677) |
+| `requested_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9678](../../../backend/migrations/001_init.sql#L9678) |
+| `state` | `text` | NOT NULL | — | — | [001_init.sql:9679](../../../backend/migrations/001_init.sql#L9679) |
+| `actual_refund_event_id` | `bigint` | NULL | — | FK | [001_init.sql:9680](../../../backend/migrations/001_init.sql#L9680) |
+| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9681](../../../backend/migrations/001_init.sql#L9681) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9682](../../../backend/migrations/001_init.sql#L9682) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9683](../../../backend/migrations/001_init.sql#L9683) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9684](../../../backend/migrations/001_init.sql#L9684) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -81,11 +81,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `refund_requests_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9672](../../../backend/migrations/001_init.sql#L9672) |
-| `refund_requests_fund_id_clinic_id_owner_id_fkey` | `fund_id, clinic_id, owner_id` | [payment_funds](payment_funds.md) | `id, clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:9685](../../../backend/migrations/001_init.sql#L9685) |
-| `refund_requests_actual_refund_event_id_clinic_id_owner_id__fkey` | `actual_refund_event_id, clinic_id, owner_id, fund_id` | [fund_consumption_events](fund_consumption_events.md) | `id, clinic_id, owner_id, fund_id` | `ON DELETE RESTRICT` | [001_init.sql:9686](../../../backend/migrations/001_init.sql#L9686) |
-| `refund_requests_billing_id_clinic_id_fkey` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9687](../../../backend/migrations/001_init.sql#L9687) |
-| `refund_requests_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9688](../../../backend/migrations/001_init.sql#L9688) |
+| `refund_requests_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9674](../../../backend/migrations/001_init.sql#L9674) |
+| `refund_requests_fund_id_clinic_id_owner_id_fkey` | `fund_id, clinic_id, owner_id` | [payment_funds](payment_funds.md) | `id, clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:9687](../../../backend/migrations/001_init.sql#L9687) |
+| `refund_requests_actual_refund_event_id_clinic_id_owner_id__fkey` | `actual_refund_event_id, clinic_id, owner_id, fund_id` | [fund_consumption_events](fund_consumption_events.md) | `id, clinic_id, owner_id, fund_id` | `ON DELETE RESTRICT` | [001_init.sql:9688](../../../backend/migrations/001_init.sql#L9688) |
+| `refund_requests_billing_id_clinic_id_fkey` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9689](../../../backend/migrations/001_init.sql#L9689) |
+| `refund_requests_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9690](../../../backend/migrations/001_init.sql#L9690) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -99,13 +99,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `refund_requests_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9671](../../../backend/migrations/001_init.sql#L9671) |
-| `refund_requests_requested_amount_check` | check | `CHECK (requested_amount > 0)` | [001_init.sql:9676](../../../backend/migrations/001_init.sql#L9676) |
-| `refund_requests_state_check` | check | `CHECK (state IN ('pending','performed','cancelled'))` | [001_init.sql:9677](../../../backend/migrations/001_init.sql#L9677) |
-| `refund_requests_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9679](../../../backend/migrations/001_init.sql#L9679) |
-| `refund_requests_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9680](../../../backend/migrations/001_init.sql#L9680) |
-| `refund_requests_check` | check | `CHECK ((state='performed' AND actual_refund_event_id IS NOT NULL) OR (state IN ('pending','cancelled') AND actual_refund_event_id IS NULL))` | [001_init.sql:9683](../../../backend/migrations/001_init.sql#L9683) |
-| `refund_requests_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9684](../../../backend/migrations/001_init.sql#L9684) |
+| `refund_requests_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9673](../../../backend/migrations/001_init.sql#L9673) |
+| `refund_requests_requested_amount_check` | check | `CHECK (requested_amount > 0)` | [001_init.sql:9678](../../../backend/migrations/001_init.sql#L9678) |
+| `refund_requests_state_check` | check | `CHECK (state IN ('pending','performed','cancelled'))` | [001_init.sql:9679](../../../backend/migrations/001_init.sql#L9679) |
+| `refund_requests_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9681](../../../backend/migrations/001_init.sql#L9681) |
+| `refund_requests_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9682](../../../backend/migrations/001_init.sql#L9682) |
+| `refund_requests_check` | check | `CHECK ((state='performed' AND actual_refund_event_id IS NOT NULL) OR (state IN ('pending','cancelled') AND actual_refund_event_id IS NULL))` | [001_init.sql:9685](../../../backend/migrations/001_init.sql#L9685) |
+| `refund_requests_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9686](../../../backend/migrations/001_init.sql#L9686) |
 
 ## インデックス
 

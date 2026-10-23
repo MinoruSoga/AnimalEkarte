@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `uuid` | NOT NULL | `gen_random_uuid()` | PK, UK | [001_init.sql:588](../../../backend/migrations/001_init.sql#L588) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:589](../../../backend/migrations/001_init.sql#L589) |
-| `csv_type` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:590](../../../backend/migrations/001_init.sql#L590) |
-| `file_name` | `varchar(255)` | NOT NULL | — | — | [001_init.sql:591](../../../backend/migrations/001_init.sql#L591) |
-| `uploaded_by_user_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:592](../../../backend/migrations/001_init.sql#L592) |
-| `row_count` | `int` | NOT NULL | `0` | — | [001_init.sql:593](../../../backend/migrations/001_init.sql#L593) |
-| `success_count` | `int` | NOT NULL | `0` | — | [001_init.sql:594](../../../backend/migrations/001_init.sql#L594) |
-| `error_count` | `int` | NOT NULL | `0` | — | [001_init.sql:595](../../../backend/migrations/001_init.sql#L595) |
-| `status` | `varchar(20)` | NOT NULL | `'pending'` | — | [001_init.sql:596](../../../backend/migrations/001_init.sql#L596) |
-| `error_log` | `jsonb` | NULL | — | — | [001_init.sql:597](../../../backend/migrations/001_init.sql#L597) |
-| `imported_at` | `timestamptz` | NULL | — | — | [001_init.sql:598](../../../backend/migrations/001_init.sql#L598) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:599](../../../backend/migrations/001_init.sql#L599) |
+| `id` | `uuid` | NOT NULL | `gen_random_uuid()` | PK, UK | [001_init.sql:590](../../../backend/migrations/001_init.sql#L590) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:591](../../../backend/migrations/001_init.sql#L591) |
+| `csv_type` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:592](../../../backend/migrations/001_init.sql#L592) |
+| `file_name` | `varchar(255)` | NOT NULL | — | — | [001_init.sql:593](../../../backend/migrations/001_init.sql#L593) |
+| `uploaded_by_user_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:594](../../../backend/migrations/001_init.sql#L594) |
+| `row_count` | `int` | NOT NULL | `0` | — | [001_init.sql:595](../../../backend/migrations/001_init.sql#L595) |
+| `success_count` | `int` | NOT NULL | `0` | — | [001_init.sql:596](../../../backend/migrations/001_init.sql#L596) |
+| `error_count` | `int` | NOT NULL | `0` | — | [001_init.sql:597](../../../backend/migrations/001_init.sql#L597) |
+| `status` | `varchar(20)` | NOT NULL | `'pending'` | — | [001_init.sql:598](../../../backend/migrations/001_init.sql#L598) |
+| `error_log` | `jsonb` | NULL | — | — | [001_init.sql:599](../../../backend/migrations/001_init.sql#L599) |
+| `imported_at` | `timestamptz` | NULL | — | — | [001_init.sql:600](../../../backend/migrations/001_init.sql#L600) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:601](../../../backend/migrations/001_init.sql#L601) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -62,8 +62,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lstep_csv_imports_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:589](../../../backend/migrations/001_init.sql#L589) |
-| `lstep_csv_imports_uploaded_by_user_id_fkey` | `uploaded_by_user_id` | [accounts](accounts.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:592](../../../backend/migrations/001_init.sql#L592) |
+| `lstep_csv_imports_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:591](../../../backend/migrations/001_init.sql#L591) |
+| `lstep_csv_imports_uploaded_by_user_id_fkey` | `uploaded_by_user_id` | [accounts](accounts.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:594](../../../backend/migrations/001_init.sql#L594) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -74,11 +74,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_csv_imports_pkey` | primary | `PRIMARY KEY` | [001_init.sql:588](../../../backend/migrations/001_init.sql#L588) |
-| `uq_lstep_csv_imports_clinic_id_id` | unique | `CONSTRAINT uq_lstep_csv_imports_clinic_id_id     UNIQUE (clinic_id, id)` | [001_init.sql:3880](../../../backend/migrations/001_init.sql#L3880) |
+| `lstep_csv_imports_pkey` | primary | `PRIMARY KEY` | [001_init.sql:590](../../../backend/migrations/001_init.sql#L590) |
+| `uq_lstep_csv_imports_clinic_id_id` | unique | `CONSTRAINT uq_lstep_csv_imports_clinic_id_id     UNIQUE (clinic_id, id)` | [001_init.sql:3882](../../../backend/migrations/001_init.sql#L3882) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lstep_csv_imports_clinic_imported` | NO | — | `CREATE INDEX idx_lstep_csv_imports_clinic_imported     ON lstep_csv_imports (clinic_id, imported_at DESC)` | [001_init.sql:602](../../../backend/migrations/001_init.sql#L602) |
+| `idx_lstep_csv_imports_clinic_imported` | NO | — | `CREATE INDEX idx_lstep_csv_imports_clinic_imported     ON lstep_csv_imports (clinic_id, imported_at DESC)` | [001_init.sql:604](../../../backend/migrations/001_init.sql#L604) |

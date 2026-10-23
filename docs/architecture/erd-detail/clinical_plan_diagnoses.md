@@ -11,19 +11,19 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:10997](../../../backend/migrations/001_init.sql#L10997) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10997](../../../backend/migrations/001_init.sql#L10997) |
-| `clinical_plan_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10998](../../../backend/migrations/001_init.sql#L10998) |
-| `diagnosis_slot` | `smallint` | NOT NULL | — | — | [001_init.sql:10998](../../../backend/migrations/001_init.sql#L10998) |
-| `diagnosis_type_id` | `bigint` | NULL | — | FK | [001_init.sql:10999](../../../backend/migrations/001_init.sql#L10999) |
-| `diagnosis_name_id` | `bigint` | NULL | — | FK | [001_init.sql:10999](../../../backend/migrations/001_init.sql#L10999) |
-| `diagnosis_name_snapshot` | `text` | NULL | — | — | [001_init.sql:10999](../../../backend/migrations/001_init.sql#L10999) |
-| `category_name_snapshot` | `text` | NULL | — | — | [001_init.sql:10999](../../../backend/migrations/001_init.sql#L10999) |
-| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:11000](../../../backend/migrations/001_init.sql#L11000) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:11000](../../../backend/migrations/001_init.sql#L11000) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11001](../../../backend/migrations/001_init.sql#L11001) |
-| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11001](../../../backend/migrations/001_init.sql#L11001) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:11001](../../../backend/migrations/001_init.sql#L11001) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:10999](../../../backend/migrations/001_init.sql#L10999) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10999](../../../backend/migrations/001_init.sql#L10999) |
+| `clinical_plan_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:11000](../../../backend/migrations/001_init.sql#L11000) |
+| `diagnosis_slot` | `smallint` | NOT NULL | — | — | [001_init.sql:11000](../../../backend/migrations/001_init.sql#L11000) |
+| `diagnosis_type_id` | `bigint` | NULL | — | FK | [001_init.sql:11001](../../../backend/migrations/001_init.sql#L11001) |
+| `diagnosis_name_id` | `bigint` | NULL | — | FK | [001_init.sql:11001](../../../backend/migrations/001_init.sql#L11001) |
+| `diagnosis_name_snapshot` | `text` | NULL | — | — | [001_init.sql:11001](../../../backend/migrations/001_init.sql#L11001) |
+| `category_name_snapshot` | `text` | NULL | — | — | [001_init.sql:11001](../../../backend/migrations/001_init.sql#L11001) |
+| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:11002](../../../backend/migrations/001_init.sql#L11002) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:11002](../../../backend/migrations/001_init.sql#L11002) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11003](../../../backend/migrations/001_init.sql#L11003) |
+| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11003](../../../backend/migrations/001_init.sql#L11003) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:11003](../../../backend/migrations/001_init.sql#L11003) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -75,10 +75,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinical_plan_diagnoses_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10997](../../../backend/migrations/001_init.sql#L10997) |
-| `clinical_plan_diagnoses_clinical_plan_id_clinic_id_fkey` | `clinical_plan_id, clinic_id` | [clinical_plans](clinical_plans.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11002](../../../backend/migrations/001_init.sql#L11002) |
-| `clinical_plan_diagnoses_diagnosis_type_id_clinic_id_fkey` | `diagnosis_type_id, clinic_id` | [diagnosis_types](diagnosis_types.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11003](../../../backend/migrations/001_init.sql#L11003) |
-| `clinical_plan_diagnoses_diagnosis_name_id_clinic_id_fkey` | `diagnosis_name_id, clinic_id` | [diagnosis_names](diagnosis_names.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11004](../../../backend/migrations/001_init.sql#L11004) |
+| `clinical_plan_diagnoses_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10999](../../../backend/migrations/001_init.sql#L10999) |
+| `clinical_plan_diagnoses_clinical_plan_id_clinic_id_fkey` | `clinical_plan_id, clinic_id` | [clinical_plans](clinical_plans.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11004](../../../backend/migrations/001_init.sql#L11004) |
+| `clinical_plan_diagnoses_diagnosis_type_id_clinic_id_fkey` | `diagnosis_type_id, clinic_id` | [diagnosis_types](diagnosis_types.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11005](../../../backend/migrations/001_init.sql#L11005) |
+| `clinical_plan_diagnoses_diagnosis_name_id_clinic_id_fkey` | `diagnosis_name_id, clinic_id` | [diagnosis_names](diagnosis_names.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11006](../../../backend/migrations/001_init.sql#L11006) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -91,12 +91,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `clinical_plan_diagnoses_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10997](../../../backend/migrations/001_init.sql#L10997) |
-| `clinical_plan_diagnoses_diagnosis_slot_check` | check | `CHECK(diagnosis_slot IN(1,2))` | [001_init.sql:10998](../../../backend/migrations/001_init.sql#L10998) |
-| `clinical_plan_diagnoses_version_check` | check | `CHECK(version>0)` | [001_init.sql:11000](../../../backend/migrations/001_init.sql#L11000) |
+| `clinical_plan_diagnoses_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10999](../../../backend/migrations/001_init.sql#L10999) |
+| `clinical_plan_diagnoses_diagnosis_slot_check` | check | `CHECK(diagnosis_slot IN(1,2))` | [001_init.sql:11000](../../../backend/migrations/001_init.sql#L11000) |
+| `clinical_plan_diagnoses_version_check` | check | `CHECK(version>0)` | [001_init.sql:11002](../../../backend/migrations/001_init.sql#L11002) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_clinical_plan_diagnoses_group` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_clinical_plan_diagnoses_group ON clinical_plan_diagnoses(clinic_id,clinical_plan_id,diagnosis_slot,sort_order,id) WHERE deleted_at IS NULL` | [001_init.sql:11006](../../../backend/migrations/001_init.sql#L11006) |
+| `idx_clinical_plan_diagnoses_group` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_clinical_plan_diagnoses_group ON clinical_plan_diagnoses(clinic_id,clinical_plan_id,diagnosis_slot,sort_order,id) WHERE deleted_at IS NULL` | [001_init.sql:11008](../../../backend/migrations/001_init.sql#L11008) |

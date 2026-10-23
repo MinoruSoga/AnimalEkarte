@@ -11,25 +11,25 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:314](../../../backend/migrations/001_init.sql#L314) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:315](../../../backend/migrations/001_init.sql#L315) |
-| `remarks` | `text` | NOT NULL | `''` | — | [001_init.sql:329](../../../backend/migrations/001_init.sql#L329) |
-| `is_dangerous` | `boolean` | NOT NULL | `false` | — | [001_init.sql:330](../../../backend/migrations/001_init.sql#L330) |
-| `discount_rate` | `numeric(5,2)` | NOT NULL | `0` | — | [001_init.sql:331](../../../backend/migrations/001_init.sql#L331) |
-| `membership_type` | `membership_type` | NOT NULL | `'non_member'` | — | [001_init.sql:332](../../../backend/migrations/001_init.sql#L332) |
-| `lstep_opt_out` | `boolean` | NOT NULL | `false` | — | [001_init.sql:336](../../../backend/migrations/001_init.sql#L336) |
-| `lstep_opt_out_at` | `timestamptz` | NULL | — | — | [001_init.sql:337](../../../backend/migrations/001_init.sql#L337) |
-| `lstep_opt_out_reason` | `text` | NULL | — | — | [001_init.sql:338](../../../backend/migrations/001_init.sql#L338) |
-| `delivery_excluded` | `boolean` | NOT NULL | `false` | — | [001_init.sql:345](../../../backend/migrations/001_init.sql#L345) |
-| `delivery_excluded_reason` | `varchar(100)` | NULL | — | — | [001_init.sql:346](../../../backend/migrations/001_init.sql#L346) |
-| `is_transferred` | `boolean` | NOT NULL | `false` | — | [001_init.sql:347](../../../backend/migrations/001_init.sql#L347) |
-| `transfer_at` | `timestamptz` | NULL | — | — | [001_init.sql:348](../../../backend/migrations/001_init.sql#L348) |
-| `delivery_caution` | `boolean` | NOT NULL | `false` | — | [001_init.sql:350](../../../backend/migrations/001_init.sql#L350) |
-| `delivery_caution_reason` | `varchar(100)` | NULL | — | — | [001_init.sql:351](../../../backend/migrations/001_init.sql#L351) |
-| `dm_preference` | `boolean` | NULL | — | — | [001_init.sql:353](../../../backend/migrations/001_init.sql#L353) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:354](../../../backend/migrations/001_init.sql#L354) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:355](../../../backend/migrations/001_init.sql#L355) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:356](../../../backend/migrations/001_init.sql#L356) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:316](../../../backend/migrations/001_init.sql#L316) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:317](../../../backend/migrations/001_init.sql#L317) |
+| `remarks` | `text` | NOT NULL | `''` | — | [001_init.sql:331](../../../backend/migrations/001_init.sql#L331) |
+| `is_dangerous` | `boolean` | NOT NULL | `false` | — | [001_init.sql:332](../../../backend/migrations/001_init.sql#L332) |
+| `discount_rate` | `numeric(5,2)` | NOT NULL | `0` | — | [001_init.sql:333](../../../backend/migrations/001_init.sql#L333) |
+| `membership_type` | `membership_type` | NOT NULL | `'non_member'` | — | [001_init.sql:334](../../../backend/migrations/001_init.sql#L334) |
+| `lstep_opt_out` | `boolean` | NOT NULL | `false` | — | [001_init.sql:338](../../../backend/migrations/001_init.sql#L338) |
+| `lstep_opt_out_at` | `timestamptz` | NULL | — | — | [001_init.sql:339](../../../backend/migrations/001_init.sql#L339) |
+| `lstep_opt_out_reason` | `text` | NULL | — | — | [001_init.sql:340](../../../backend/migrations/001_init.sql#L340) |
+| `delivery_excluded` | `boolean` | NOT NULL | `false` | — | [001_init.sql:347](../../../backend/migrations/001_init.sql#L347) |
+| `delivery_excluded_reason` | `varchar(100)` | NULL | — | — | [001_init.sql:348](../../../backend/migrations/001_init.sql#L348) |
+| `is_transferred` | `boolean` | NOT NULL | `false` | — | [001_init.sql:349](../../../backend/migrations/001_init.sql#L349) |
+| `transfer_at` | `timestamptz` | NULL | — | — | [001_init.sql:350](../../../backend/migrations/001_init.sql#L350) |
+| `delivery_caution` | `boolean` | NOT NULL | `false` | — | [001_init.sql:352](../../../backend/migrations/001_init.sql#L352) |
+| `delivery_caution_reason` | `varchar(100)` | NULL | — | — | [001_init.sql:353](../../../backend/migrations/001_init.sql#L353) |
+| `dm_preference` | `boolean` | NULL | — | — | [001_init.sql:355](../../../backend/migrations/001_init.sql#L355) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:356](../../../backend/migrations/001_init.sql#L356) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:357](../../../backend/migrations/001_init.sql#L357) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:358](../../../backend/migrations/001_init.sql#L358) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -72,7 +72,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `owners_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:315](../../../backend/migrations/001_init.sql#L315) |
+| `owners_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:317](../../../backend/migrations/001_init.sql#L317) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -82,14 +82,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `owners_pkey` | primary | `PRIMARY KEY` | [001_init.sql:314](../../../backend/migrations/001_init.sql#L314) |
-| `uq_owners_clinic_id_id` | unique | `CONSTRAINT uq_owners_clinic_id_id     UNIQUE (clinic_id, id)` | [001_init.sql:4114](../../../backend/migrations/001_init.sql#L4114) |
+| `owners_pkey` | primary | `PRIMARY KEY` | [001_init.sql:316](../../../backend/migrations/001_init.sql#L316) |
+| `uq_owners_clinic_id_id` | unique | `CONSTRAINT uq_owners_clinic_id_id     UNIQUE (clinic_id, id)` | [001_init.sql:4116](../../../backend/migrations/001_init.sql#L4116) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_owners_delivery_excluded` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_owners_delivery_excluded     ON owners (clinic_id, delivery_excluded)     WHERE deleted_at IS NULL` | [001_init.sql:380](../../../backend/migrations/001_init.sql#L380) |
-| `idx_owners_is_transferred` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_owners_is_transferred     ON owners (clinic_id, is_transferred)     WHERE deleted_at IS NULL` | [001_init.sql:384](../../../backend/migrations/001_init.sql#L384) |
-| `idx_owners_clinic_id` | NO | — | `CREATE INDEX idx_owners_clinic_id ON owners(clinic_id)` | [001_init.sql:2258](../../../backend/migrations/001_init.sql#L2258) |
-| `idx_owners_id_text` | NO | — | `CREATE INDEX idx_owners_id_text   ON owners ((id::text))` | [001_init.sql:6705](../../../backend/migrations/001_init.sql#L6705) |
+| `idx_owners_delivery_excluded` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_owners_delivery_excluded     ON owners (clinic_id, delivery_excluded)     WHERE deleted_at IS NULL` | [001_init.sql:382](../../../backend/migrations/001_init.sql#L382) |
+| `idx_owners_is_transferred` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_owners_is_transferred     ON owners (clinic_id, is_transferred)     WHERE deleted_at IS NULL` | [001_init.sql:386](../../../backend/migrations/001_init.sql#L386) |
+| `idx_owners_clinic_id` | NO | — | `CREATE INDEX idx_owners_clinic_id ON owners(clinic_id)` | [001_init.sql:2260](../../../backend/migrations/001_init.sql#L2260) |
+| `idx_owners_id_text` | NO | — | `CREATE INDEX idx_owners_id_text   ON owners ((id::text))` | [001_init.sql:6707](../../../backend/migrations/001_init.sql#L6707) |

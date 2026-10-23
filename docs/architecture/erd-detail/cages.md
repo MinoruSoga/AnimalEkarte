@@ -11,19 +11,19 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:802](../../../backend/migrations/001_init.sql#L802) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:803](../../../backend/migrations/001_init.sql#L803) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:804](../../../backend/migrations/001_init.sql#L804) |
-| `price` | `bigint` | NULL | — | — | [001_init.sql:805](../../../backend/migrations/001_init.sql#L805) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:806](../../../backend/migrations/001_init.sql#L806) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:807](../../../backend/migrations/001_init.sql#L807) |
-| `cage_type` | `cage_type` | NOT NULL | — | — | [001_init.sql:808](../../../backend/migrations/001_init.sql#L808) |
-| `cage_size` | `cage_size` | NOT NULL | — | — | [001_init.sql:809](../../../backend/migrations/001_init.sql#L809) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:810](../../../backend/migrations/001_init.sql#L810) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:811](../../../backend/migrations/001_init.sql#L811) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:812](../../../backend/migrations/001_init.sql#L812) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:813](../../../backend/migrations/001_init.sql#L813) |
-| `merged_into_cage_id` | `bigint` | NULL | — | FK | [001_init.sql:7179](../../../backend/migrations/001_init.sql#L7179) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:804](../../../backend/migrations/001_init.sql#L804) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:805](../../../backend/migrations/001_init.sql#L805) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:806](../../../backend/migrations/001_init.sql#L806) |
+| `price` | `bigint` | NULL | — | — | [001_init.sql:807](../../../backend/migrations/001_init.sql#L807) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:808](../../../backend/migrations/001_init.sql#L808) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:809](../../../backend/migrations/001_init.sql#L809) |
+| `cage_type` | `cage_type` | NOT NULL | — | — | [001_init.sql:810](../../../backend/migrations/001_init.sql#L810) |
+| `cage_size` | `cage_size` | NOT NULL | — | — | [001_init.sql:811](../../../backend/migrations/001_init.sql#L811) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:812](../../../backend/migrations/001_init.sql#L812) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:813](../../../backend/migrations/001_init.sql#L813) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:814](../../../backend/migrations/001_init.sql#L814) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:815](../../../backend/migrations/001_init.sql#L815) |
+| `merged_into_cage_id` | `bigint` | NULL | — | FK | [001_init.sql:7181](../../../backend/migrations/001_init.sql#L7181) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -61,8 +61,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `cages_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:803](../../../backend/migrations/001_init.sql#L803) |
-| `fk_cages_merged_into_cage` | `merged_into_cage_id, clinic_id` | [cages](cages.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7182](../../../backend/migrations/001_init.sql#L7182) |
+| `cages_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:805](../../../backend/migrations/001_init.sql#L805) |
+| `fk_cages_merged_into_cage` | `merged_into_cage_id, clinic_id` | [cages](cages.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7184](../../../backend/migrations/001_init.sql#L7184) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -73,15 +73,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `cages_pkey` | primary | `PRIMARY KEY` | [001_init.sql:802](../../../backend/migrations/001_init.sql#L802) |
-| `uq_cages_id_clinic` | unique | `CONSTRAINT uq_cages_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:817](../../../backend/migrations/001_init.sql#L817) |
+| `cages_pkey` | primary | `PRIMARY KEY` | [001_init.sql:804](../../../backend/migrations/001_init.sql#L804) |
+| `uq_cages_id_clinic` | unique | `CONSTRAINT uq_cages_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:819](../../../backend/migrations/001_init.sql#L819) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_cages_clinic_id` | NO | — | `CREATE INDEX idx_cages_clinic_id ON cages(clinic_id)` | [001_init.sql:2239](../../../backend/migrations/001_init.sql#L2239) |
-| `idx_cages_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_cages_clinic_sort             ON cages(clinic_id, sort_order)                   WHERE deleted_at IS NULL` | [001_init.sql:2277](../../../backend/migrations/001_init.sql#L2277) |
-| `idx_cages_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_cages_clinic_name ON cages(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2475](../../../backend/migrations/001_init.sql#L2475) |
-| `idx_cages_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_cages_active ON cages(id) WHERE deleted_at IS NULL` | [001_init.sql:2494](../../../backend/migrations/001_init.sql#L2494) |
-| `idx_cages_merged_into_cage_id` | NO | `merged_into_cage_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_cages_merged_into_cage_id     ON cages (clinic_id, merged_into_cage_id)     WHERE merged_into_cage_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:7190](../../../backend/migrations/001_init.sql#L7190) |
+| `idx_cages_clinic_id` | NO | — | `CREATE INDEX idx_cages_clinic_id ON cages(clinic_id)` | [001_init.sql:2241](../../../backend/migrations/001_init.sql#L2241) |
+| `idx_cages_clinic_sort` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_cages_clinic_sort             ON cages(clinic_id, sort_order)                   WHERE deleted_at IS NULL` | [001_init.sql:2279](../../../backend/migrations/001_init.sql#L2279) |
+| `idx_cages_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_cages_clinic_name ON cages(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:2477](../../../backend/migrations/001_init.sql#L2477) |
+| `idx_cages_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_cages_active ON cages(id) WHERE deleted_at IS NULL` | [001_init.sql:2496](../../../backend/migrations/001_init.sql#L2496) |
+| `idx_cages_merged_into_cage_id` | NO | `merged_into_cage_id IS NOT NULL AND deleted_at IS NULL` | `CREATE INDEX idx_cages_merged_into_cage_id     ON cages (clinic_id, merged_into_cage_id)     WHERE merged_into_cage_id IS NOT NULL AND deleted_at IS NULL` | [001_init.sql:7192](../../../backend/migrations/001_init.sql#L7192) |

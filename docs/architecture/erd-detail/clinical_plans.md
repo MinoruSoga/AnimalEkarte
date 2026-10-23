@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1586](../../../backend/migrations/001_init.sql#L1586) |
-| `medical_record_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1587](../../../backend/migrations/001_init.sql#L1587) |
-| `physical_exam` | `text` | NOT NULL | `''` | — | [001_init.sql:1588](../../../backend/migrations/001_init.sql#L1588) |
-| `diagnosis_details` | `text` | NOT NULL | `''` | — | [001_init.sql:1593](../../../backend/migrations/001_init.sql#L1593) |
-| `treatment_policy` | `text` | NOT NULL | `''` | — | [001_init.sql:1594](../../../backend/migrations/001_init.sql#L1594) |
-| `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:1595](../../../backend/migrations/001_init.sql#L1595) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1596](../../../backend/migrations/001_init.sql#L1596) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1597](../../../backend/migrations/001_init.sql#L1597) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1598](../../../backend/migrations/001_init.sql#L1598) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10990](../../../backend/migrations/001_init.sql#L10990) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1588](../../../backend/migrations/001_init.sql#L1588) |
+| `medical_record_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1589](../../../backend/migrations/001_init.sql#L1589) |
+| `physical_exam` | `text` | NOT NULL | `''` | — | [001_init.sql:1590](../../../backend/migrations/001_init.sql#L1590) |
+| `diagnosis_details` | `text` | NOT NULL | `''` | — | [001_init.sql:1595](../../../backend/migrations/001_init.sql#L1595) |
+| `treatment_policy` | `text` | NOT NULL | `''` | — | [001_init.sql:1596](../../../backend/migrations/001_init.sql#L1596) |
+| `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:1597](../../../backend/migrations/001_init.sql#L1597) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1598](../../../backend/migrations/001_init.sql#L1598) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1599](../../../backend/migrations/001_init.sql#L1599) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1600](../../../backend/migrations/001_init.sql#L1600) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10992](../../../backend/migrations/001_init.sql#L10992) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -60,9 +60,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinical_plans_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1587](../../../backend/migrations/001_init.sql#L1587) |
-| `fk_clinical_plan_clinic` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10991](../../../backend/migrations/001_init.sql#L10991) |
-| `fk_clinical_plan_record_clinic` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10993](../../../backend/migrations/001_init.sql#L10993) |
+| `clinical_plans_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1589](../../../backend/migrations/001_init.sql#L1589) |
+| `fk_clinical_plan_clinic` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10993](../../../backend/migrations/001_init.sql#L10993) |
+| `fk_clinical_plan_record_clinic` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10995](../../../backend/migrations/001_init.sql#L10995) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -74,12 +74,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `clinical_plans_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1586](../../../backend/migrations/001_init.sql#L1586) |
-| `clinical_plans_medical_record_id_key` | unique | `UNIQUE` | [001_init.sql:1587](../../../backend/migrations/001_init.sql#L1587) |
-| `uq_clinical_plan_id_clinic` | unique | `CONSTRAINT uq_clinical_plan_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10992](../../../backend/migrations/001_init.sql#L10992) |
+| `clinical_plans_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1588](../../../backend/migrations/001_init.sql#L1588) |
+| `clinical_plans_medical_record_id_key` | unique | `UNIQUE` | [001_init.sql:1589](../../../backend/migrations/001_init.sql#L1589) |
+| `uq_clinical_plan_id_clinic` | unique | `CONSTRAINT uq_clinical_plan_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10994](../../../backend/migrations/001_init.sql#L10994) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_clinical_plans_medical_record_id` | NO | — | `CREATE INDEX idx_clinical_plans_medical_record_id ON clinical_plans(medical_record_id)` | [001_init.sql:2312](../../../backend/migrations/001_init.sql#L2312) |
+| `idx_clinical_plans_medical_record_id` | NO | — | `CREATE INDEX idx_clinical_plans_medical_record_id ON clinical_plans(medical_record_id)` | [001_init.sql:2314](../../../backend/migrations/001_init.sql#L2314) |

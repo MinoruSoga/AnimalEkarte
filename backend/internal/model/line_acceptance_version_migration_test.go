@@ -1,7 +1,9 @@
 package model
 
-// line_acceptance_version_migration_test.go — static checks for
-// backend/migrations/009_line_acceptance_version.sql and the new model fields
+// line_acceptance_version_migration_test.go — static checks for the LINE
+// acceptance version storage DDL (the former
+// backend/migrations/009_line_acceptance_version.sql, now a 001_init.sql
+// section) and the new model fields
 // (EMR-446/466 A03 LINE acceptance, contract §3.1). NOT_RUN yet in this
 // workspace. Shared helpers live in clinic_operating_hours_migration_test.go
 // (stack base).

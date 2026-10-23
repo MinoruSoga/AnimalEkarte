@@ -11,10 +11,10 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9049](../../../backend/migrations/001_init.sql#L9049) |
-| `draft_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9050](../../../backend/migrations/001_init.sql#L9050) |
-| `operation_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9051](../../../backend/migrations/001_init.sql#L9051) |
-| `input_generation` | `bigint` | NOT NULL | — | — | [001_init.sql:9052](../../../backend/migrations/001_init.sql#L9052) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9051](../../../backend/migrations/001_init.sql#L9051) |
+| `draft_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9052](../../../backend/migrations/001_init.sql#L9052) |
+| `operation_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9053](../../../backend/migrations/001_init.sql#L9053) |
+| `input_generation` | `bigint` | NOT NULL | — | — | [001_init.sql:9054](../../../backend/migrations/001_init.sql#L9054) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -52,9 +52,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `staff_record_draft_operations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9049](../../../backend/migrations/001_init.sql#L9049) |
-| `staff_record_draft_operations_draft_id_clinic_id_fkey` | `draft_id, clinic_id` | [staff_record_drafts](staff_record_drafts.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9054](../../../backend/migrations/001_init.sql#L9054) |
-| `staff_record_draft_operations_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9055](../../../backend/migrations/001_init.sql#L9055) |
+| `staff_record_draft_operations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9051](../../../backend/migrations/001_init.sql#L9051) |
+| `staff_record_draft_operations_draft_id_clinic_id_fkey` | `draft_id, clinic_id` | [staff_record_drafts](staff_record_drafts.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9056](../../../backend/migrations/001_init.sql#L9056) |
+| `staff_record_draft_operations_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9057](../../../backend/migrations/001_init.sql#L9057) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -66,8 +66,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `staff_record_draft_operations_input_generation_check` | check | `CHECK (input_generation > 0)` | [001_init.sql:9052](../../../backend/migrations/001_init.sql#L9052) |
-| `staff_record_draft_operations_pkey` | primary | `PRIMARY KEY (clinic_id,draft_id,operation_id)` | [001_init.sql:9053](../../../backend/migrations/001_init.sql#L9053) |
+| `staff_record_draft_operations_input_generation_check` | check | `CHECK (input_generation > 0)` | [001_init.sql:9054](../../../backend/migrations/001_init.sql#L9054) |
+| `staff_record_draft_operations_pkey` | primary | `PRIMARY KEY (clinic_id,draft_id,operation_id)` | [001_init.sql:9055](../../../backend/migrations/001_init.sql#L9055) |
 
 ## インデックス
 

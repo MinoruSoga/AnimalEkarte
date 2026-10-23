@@ -11,19 +11,19 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9511](../../../backend/migrations/001_init.sql#L9511) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9512](../../../backend/migrations/001_init.sql#L9512) |
-| `estimate_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9513](../../../backend/migrations/001_init.sql#L9513) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9514](../../../backend/migrations/001_init.sql#L9514) |
-| `estimate_version` | `bigint` | NOT NULL | — | — | [001_init.sql:9515](../../../backend/migrations/001_init.sql#L9515) |
-| `content_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:9516](../../../backend/migrations/001_init.sql#L9516) |
-| `recipient_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9517](../../../backend/migrations/001_init.sql#L9517) |
-| `valid_until` | `date` | NULL | — | — | [001_init.sql:9518](../../../backend/migrations/001_init.sql#L9518) |
-| `line_count` | `integer` | NOT NULL | — | — | [001_init.sql:9520](../../../backend/migrations/001_init.sql#L9520) |
-| `presented_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9521](../../../backend/migrations/001_init.sql#L9521) |
-| `presented_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9522](../../../backend/migrations/001_init.sql#L9522) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9523](../../../backend/migrations/001_init.sql#L9523) |
-| `calculation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10986](../../../backend/migrations/001_init.sql#L10986) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9513](../../../backend/migrations/001_init.sql#L9513) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9514](../../../backend/migrations/001_init.sql#L9514) |
+| `estimate_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9515](../../../backend/migrations/001_init.sql#L9515) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9516](../../../backend/migrations/001_init.sql#L9516) |
+| `estimate_version` | `bigint` | NOT NULL | — | — | [001_init.sql:9517](../../../backend/migrations/001_init.sql#L9517) |
+| `content_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:9518](../../../backend/migrations/001_init.sql#L9518) |
+| `recipient_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9519](../../../backend/migrations/001_init.sql#L9519) |
+| `valid_until` | `date` | NULL | — | — | [001_init.sql:9520](../../../backend/migrations/001_init.sql#L9520) |
+| `line_count` | `integer` | NOT NULL | — | — | [001_init.sql:9522](../../../backend/migrations/001_init.sql#L9522) |
+| `presented_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9523](../../../backend/migrations/001_init.sql#L9523) |
+| `presented_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9524](../../../backend/migrations/001_init.sql#L9524) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9525](../../../backend/migrations/001_init.sql#L9525) |
+| `calculation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10988](../../../backend/migrations/001_init.sql#L10988) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -80,11 +80,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `estimate_presentations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9512](../../../backend/migrations/001_init.sql#L9512) |
-| `estimate_presentations_presented_by_fkey` | `presented_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9521](../../../backend/migrations/001_init.sql#L9521) |
-| `estimate_presentations_estimate_id_clinic_id_fkey` | `estimate_id, clinic_id` | [estimates](estimates.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9526](../../../backend/migrations/001_init.sql#L9526) |
-| `estimate_presentations_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9527](../../../backend/migrations/001_init.sql#L9527) |
-| `fk_estimate_presented_calculation` | `calculation_id, clinic_id, estimate_id` | [estimate_calculation_revisions](estimate_calculation_revisions.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:10987](../../../backend/migrations/001_init.sql#L10987) |
+| `estimate_presentations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9514](../../../backend/migrations/001_init.sql#L9514) |
+| `estimate_presentations_presented_by_fkey` | `presented_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9523](../../../backend/migrations/001_init.sql#L9523) |
+| `estimate_presentations_estimate_id_clinic_id_fkey` | `estimate_id, clinic_id` | [estimates](estimates.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9528](../../../backend/migrations/001_init.sql#L9528) |
+| `estimate_presentations_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9529](../../../backend/migrations/001_init.sql#L9529) |
+| `fk_estimate_presented_calculation` | `calculation_id, clinic_id, estimate_id` | [estimate_calculation_revisions](estimate_calculation_revisions.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:10989](../../../backend/migrations/001_init.sql#L10989) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -98,14 +98,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `estimate_presentations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9511](../../../backend/migrations/001_init.sql#L9511) |
-| `estimate_presentations_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9514](../../../backend/migrations/001_init.sql#L9514) |
-| `estimate_presentations_estimate_version_check` | check | `CHECK (estimate_version > 0)` | [001_init.sql:9515](../../../backend/migrations/001_init.sql#L9515) |
-| `estimate_presentations_content_digest_check` | check | `CHECK (octet_length(content_digest)=32)` | [001_init.sql:9516](../../../backend/migrations/001_init.sql#L9516) |
-| `estimate_presentations_recipient_snapshot_check` | check | `CHECK (jsonb_typeof(recipient_snapshot)='object')` | [001_init.sql:9517](../../../backend/migrations/001_init.sql#L9517) |
-| `estimate_presentations_line_count_check` | check | `CHECK (line_count >= 0)` | [001_init.sql:9520](../../../backend/migrations/001_init.sql#L9520) |
-| `estimate_presentations_id_clinic_id_estimate_id_key` | unique | `UNIQUE (id,clinic_id,estimate_id)` | [001_init.sql:9524](../../../backend/migrations/001_init.sql#L9524) |
-| `estimate_presentations_clinic_id_estimate_id_revision_key` | unique | `UNIQUE (clinic_id,estimate_id,revision)` | [001_init.sql:9525](../../../backend/migrations/001_init.sql#L9525) |
+| `estimate_presentations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9513](../../../backend/migrations/001_init.sql#L9513) |
+| `estimate_presentations_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9516](../../../backend/migrations/001_init.sql#L9516) |
+| `estimate_presentations_estimate_version_check` | check | `CHECK (estimate_version > 0)` | [001_init.sql:9517](../../../backend/migrations/001_init.sql#L9517) |
+| `estimate_presentations_content_digest_check` | check | `CHECK (octet_length(content_digest)=32)` | [001_init.sql:9518](../../../backend/migrations/001_init.sql#L9518) |
+| `estimate_presentations_recipient_snapshot_check` | check | `CHECK (jsonb_typeof(recipient_snapshot)='object')` | [001_init.sql:9519](../../../backend/migrations/001_init.sql#L9519) |
+| `estimate_presentations_line_count_check` | check | `CHECK (line_count >= 0)` | [001_init.sql:9522](../../../backend/migrations/001_init.sql#L9522) |
+| `estimate_presentations_id_clinic_id_estimate_id_key` | unique | `UNIQUE (id,clinic_id,estimate_id)` | [001_init.sql:9526](../../../backend/migrations/001_init.sql#L9526) |
+| `estimate_presentations_clinic_id_estimate_id_revision_key` | unique | `UNIQUE (clinic_id,estimate_id,revision)` | [001_init.sql:9527](../../../backend/migrations/001_init.sql#L9527) |
 
 ## インデックス
 

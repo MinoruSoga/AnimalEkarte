@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8058](../../../backend/migrations/001_init.sql#L8058) |
-| `booking_revision_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8059](../../../backend/migrations/001_init.sql#L8059) |
-| `option_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8060](../../../backend/migrations/001_init.sql#L8060) |
-| `option_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8061](../../../backend/migrations/001_init.sql#L8061) |
-| `duration_minutes` | `integer` | NOT NULL | — | — | [001_init.sql:8062](../../../backend/migrations/001_init.sql#L8062) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8060](../../../backend/migrations/001_init.sql#L8060) |
+| `booking_revision_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8061](../../../backend/migrations/001_init.sql#L8061) |
+| `option_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8062](../../../backend/migrations/001_init.sql#L8062) |
+| `option_version` | `bigint` | NOT NULL | — | — | [001_init.sql:8063](../../../backend/migrations/001_init.sql#L8063) |
+| `duration_minutes` | `integer` | NOT NULL | — | — | [001_init.sql:8064](../../../backend/migrations/001_init.sql#L8064) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,9 +54,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_booking_revision_options_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8058](../../../backend/migrations/001_init.sql#L8058) |
-| `trimming_booking_revision_opt_booking_revision_id_clinic_i_fkey` | `booking_revision_id, clinic_id` | [trimming_booking_revisions](trimming_booking_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8064](../../../backend/migrations/001_init.sql#L8064) |
-| `trimming_booking_revision_options_option_id_clinic_id_fkey` | `option_id, clinic_id` | [trimming_options](trimming_options.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8065](../../../backend/migrations/001_init.sql#L8065) |
+| `trimming_booking_revision_options_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8060](../../../backend/migrations/001_init.sql#L8060) |
+| `trimming_booking_revision_opt_booking_revision_id_clinic_i_fkey` | `booking_revision_id, clinic_id` | [trimming_booking_revisions](trimming_booking_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8066](../../../backend/migrations/001_init.sql#L8066) |
+| `trimming_booking_revision_options_option_id_clinic_id_fkey` | `option_id, clinic_id` | [trimming_options](trimming_options.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8067](../../../backend/migrations/001_init.sql#L8067) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -68,9 +68,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_booking_revision_options_option_version_check` | check | `CHECK (option_version > 0)` | [001_init.sql:8061](../../../backend/migrations/001_init.sql#L8061) |
-| `trimming_booking_revision_options_duration_minutes_check` | check | `CHECK (duration_minutes >= 0)` | [001_init.sql:8062](../../../backend/migrations/001_init.sql#L8062) |
-| `trimming_booking_revision_options_pkey` | primary | `PRIMARY KEY (clinic_id, booking_revision_id, option_id)` | [001_init.sql:8063](../../../backend/migrations/001_init.sql#L8063) |
+| `trimming_booking_revision_options_option_version_check` | check | `CHECK (option_version > 0)` | [001_init.sql:8063](../../../backend/migrations/001_init.sql#L8063) |
+| `trimming_booking_revision_options_duration_minutes_check` | check | `CHECK (duration_minutes >= 0)` | [001_init.sql:8064](../../../backend/migrations/001_init.sql#L8064) |
+| `trimming_booking_revision_options_pkey` | primary | `PRIMARY KEY (clinic_id, booking_revision_id, option_id)` | [001_init.sql:8065](../../../backend/migrations/001_init.sql#L8065) |
 
 ## インデックス
 

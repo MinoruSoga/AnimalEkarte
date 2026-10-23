@@ -11,9 +11,9 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10375](../../../backend/migrations/001_init.sql#L10375) |
-| `pet_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10375](../../../backend/migrations/001_init.sql#L10375) |
-| `generation` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10376](../../../backend/migrations/001_init.sql#L10376) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10377](../../../backend/migrations/001_init.sql#L10377) |
+| `pet_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10377](../../../backend/migrations/001_init.sql#L10377) |
+| `generation` | `bigint` | NOT NULL | `1` | — | [001_init.sql:10378](../../../backend/migrations/001_init.sql#L10378) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -45,8 +45,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `patient_operation_gates_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10375](../../../backend/migrations/001_init.sql#L10375) |
-| `patient_operation_gates_pet_id_clinic_id_fkey` | `pet_id, clinic_id` | [pets](pets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10377](../../../backend/migrations/001_init.sql#L10377) |
+| `patient_operation_gates_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10377](../../../backend/migrations/001_init.sql#L10377) |
+| `patient_operation_gates_pet_id_clinic_id_fkey` | `pet_id, clinic_id` | [pets](pets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10379](../../../backend/migrations/001_init.sql#L10379) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -57,8 +57,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `patient_operation_gates_generation_check` | check | `CHECK(generation>0)` | [001_init.sql:10376](../../../backend/migrations/001_init.sql#L10376) |
-| `patient_operation_gates_pkey` | primary | `PRIMARY KEY(clinic_id,pet_id)` | [001_init.sql:10376](../../../backend/migrations/001_init.sql#L10376) |
+| `patient_operation_gates_generation_check` | check | `CHECK(generation>0)` | [001_init.sql:10378](../../../backend/migrations/001_init.sql#L10378) |
+| `patient_operation_gates_pkey` | primary | `PRIMARY KEY(clinic_id,pet_id)` | [001_init.sql:10378](../../../backend/migrations/001_init.sql#L10378) |
 
 ## インデックス
 

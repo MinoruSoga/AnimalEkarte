@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2928](../../../backend/migrations/001_init.sql#L2928) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2929](../../../backend/migrations/001_init.sql#L2929) |
-| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:2930](../../../backend/migrations/001_init.sql#L2930) |
-| `start_date` | `date` | NOT NULL | — | — | [001_init.sql:2931](../../../backend/migrations/001_init.sql#L2931) |
-| `end_date` | `date` | NOT NULL | — | — | [001_init.sql:2932](../../../backend/migrations/001_init.sql#L2932) |
-| `discount_type` | `campaign_discount_type` | NOT NULL | `'rate'` | — | [001_init.sql:2933](../../../backend/migrations/001_init.sql#L2933) |
-| `discount_value` | `numeric(12,2)` | NOT NULL | `0` | — | [001_init.sql:2934](../../../backend/migrations/001_init.sql#L2934) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:2935](../../../backend/migrations/001_init.sql#L2935) |
-| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:2936](../../../backend/migrations/001_init.sql#L2936) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2937](../../../backend/migrations/001_init.sql#L2937) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2938](../../../backend/migrations/001_init.sql#L2938) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:2939](../../../backend/migrations/001_init.sql#L2939) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2930](../../../backend/migrations/001_init.sql#L2930) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2931](../../../backend/migrations/001_init.sql#L2931) |
+| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:2932](../../../backend/migrations/001_init.sql#L2932) |
+| `start_date` | `date` | NOT NULL | — | — | [001_init.sql:2933](../../../backend/migrations/001_init.sql#L2933) |
+| `end_date` | `date` | NOT NULL | — | — | [001_init.sql:2934](../../../backend/migrations/001_init.sql#L2934) |
+| `discount_type` | `campaign_discount_type` | NOT NULL | `'rate'` | — | [001_init.sql:2935](../../../backend/migrations/001_init.sql#L2935) |
+| `discount_value` | `numeric(12,2)` | NOT NULL | `0` | — | [001_init.sql:2936](../../../backend/migrations/001_init.sql#L2936) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:2937](../../../backend/migrations/001_init.sql#L2937) |
+| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:2938](../../../backend/migrations/001_init.sql#L2938) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2939](../../../backend/migrations/001_init.sql#L2939) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2940](../../../backend/migrations/001_init.sql#L2940) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:2941](../../../backend/migrations/001_init.sql#L2941) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -58,7 +58,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `campaigns_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2929](../../../backend/migrations/001_init.sql#L2929) |
+| `campaigns_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:2931](../../../backend/migrations/001_init.sql#L2931) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -68,12 +68,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `campaigns_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2928](../../../backend/migrations/001_init.sql#L2928) |
-| `chk_campaigns_period` | check | `CONSTRAINT chk_campaigns_period CHECK (end_date >= start_date)` | [001_init.sql:2940](../../../backend/migrations/001_init.sql#L2940) |
+| `campaigns_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2930](../../../backend/migrations/001_init.sql#L2930) |
+| `chk_campaigns_period` | check | `CONSTRAINT chk_campaigns_period CHECK (end_date >= start_date)` | [001_init.sql:2942](../../../backend/migrations/001_init.sql#L2942) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_campaigns_clinic` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_campaigns_clinic         ON campaigns(clinic_id) WHERE deleted_at IS NULL` | [001_init.sql:2957](../../../backend/migrations/001_init.sql#L2957) |
-| `idx_campaigns_clinic_period` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_campaigns_clinic_period  ON campaigns(clinic_id, start_date, end_date) WHERE deleted_at IS NULL` | [001_init.sql:2958](../../../backend/migrations/001_init.sql#L2958) |
+| `idx_campaigns_clinic` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_campaigns_clinic         ON campaigns(clinic_id) WHERE deleted_at IS NULL` | [001_init.sql:2959](../../../backend/migrations/001_init.sql#L2959) |
+| `idx_campaigns_clinic_period` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_campaigns_clinic_period  ON campaigns(clinic_id, start_date, end_date) WHERE deleted_at IS NULL` | [001_init.sql:2960](../../../backend/migrations/001_init.sql#L2960) |

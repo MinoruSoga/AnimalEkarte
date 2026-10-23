@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1753](../../../backend/migrations/001_init.sql#L1753) |
-| `hospitalization_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1754](../../../backend/migrations/001_init.sql#L1754) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1755](../../../backend/migrations/001_init.sql#L1755) |
-| `date` | `date` | NOT NULL | — | UK | [001_init.sql:1756](../../../backend/migrations/001_init.sql#L1756) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1757](../../../backend/migrations/001_init.sql#L1757) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1758](../../../backend/migrations/001_init.sql#L1758) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1755](../../../backend/migrations/001_init.sql#L1755) |
+| `hospitalization_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1756](../../../backend/migrations/001_init.sql#L1756) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1757](../../../backend/migrations/001_init.sql#L1757) |
+| `date` | `date` | NOT NULL | — | UK | [001_init.sql:1758](../../../backend/migrations/001_init.sql#L1758) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1759](../../../backend/migrations/001_init.sql#L1759) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1760](../../../backend/migrations/001_init.sql#L1760) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -50,8 +50,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `daily_records_hospitalization_id_fkey` | `hospitalization_id` | [hospitalizations](hospitalizations.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1754](../../../backend/migrations/001_init.sql#L1754) |
-| `daily_records_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1755](../../../backend/migrations/001_init.sql#L1755) |
+| `daily_records_hospitalization_id_fkey` | `hospitalization_id` | [hospitalizations](hospitalizations.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1756](../../../backend/migrations/001_init.sql#L1756) |
+| `daily_records_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1757](../../../backend/migrations/001_init.sql#L1757) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -62,11 +62,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `daily_records_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1753](../../../backend/migrations/001_init.sql#L1753) |
+| `daily_records_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1755](../../../backend/migrations/001_init.sql#L1755) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_daily_records_hosp_date` | YES | — | `CREATE UNIQUE INDEX idx_daily_records_hosp_date ON daily_records(hospitalization_id, date)` | [001_init.sql:2211](../../../backend/migrations/001_init.sql#L2211) |
-| `idx_daily_records_clinic_id` | NO | — | `CREATE INDEX idx_daily_records_clinic_id ON daily_records(clinic_id)` | [001_init.sql:2467](../../../backend/migrations/001_init.sql#L2467) |
+| `idx_daily_records_hosp_date` | YES | — | `CREATE UNIQUE INDEX idx_daily_records_hosp_date ON daily_records(hospitalization_id, date)` | [001_init.sql:2213](../../../backend/migrations/001_init.sql#L2213) |
+| `idx_daily_records_clinic_id` | NO | — | `CREATE INDEX idx_daily_records_clinic_id ON daily_records(clinic_id)` | [001_init.sql:2469](../../../backend/migrations/001_init.sql#L2469) |

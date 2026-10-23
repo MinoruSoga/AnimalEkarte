@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:4122](../../../backend/migrations/001_init.sql#L4122) |
-| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4123](../../../backend/migrations/001_init.sql#L4123) |
-| `pet_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:4124](../../../backend/migrations/001_init.sql#L4124) |
-| `owner_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:4125](../../../backend/migrations/001_init.sql#L4125) |
-| `relationship` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:4126](../../../backend/migrations/001_init.sql#L4126) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4127](../../../backend/migrations/001_init.sql#L4127) |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4128](../../../backend/migrations/001_init.sql#L4128) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:4124](../../../backend/migrations/001_init.sql#L4124) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:4125](../../../backend/migrations/001_init.sql#L4125) |
+| `pet_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:4126](../../../backend/migrations/001_init.sql#L4126) |
+| `owner_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:4127](../../../backend/migrations/001_init.sql#L4127) |
+| `relationship` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:4128](../../../backend/migrations/001_init.sql#L4128) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4129](../../../backend/migrations/001_init.sql#L4129) |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:4130](../../../backend/migrations/001_init.sql#L4130) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -58,9 +58,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `pet_owners_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:4123](../../../backend/migrations/001_init.sql#L4123) |
-| `pet_owners_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE NO ACTION` | [001_init.sql:4130](../../../backend/migrations/001_init.sql#L4130) |
-| `pet_owners_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE NO ACTION` | [001_init.sql:4131](../../../backend/migrations/001_init.sql#L4131) |
+| `pet_owners_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE NO ACTION` | [001_init.sql:4125](../../../backend/migrations/001_init.sql#L4125) |
+| `pet_owners_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE NO ACTION` | [001_init.sql:4132](../../../backend/migrations/001_init.sql#L4132) |
+| `pet_owners_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE NO ACTION` | [001_init.sql:4133](../../../backend/migrations/001_init.sql#L4133) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -72,12 +72,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `pet_owners_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4122](../../../backend/migrations/001_init.sql#L4122) |
-| `pet_owners_pet_id_owner_id_key` | unique | `UNIQUE (pet_id, owner_id)` | [001_init.sql:4129](../../../backend/migrations/001_init.sql#L4129) |
+| `pet_owners_pkey` | primary | `PRIMARY KEY` | [001_init.sql:4124](../../../backend/migrations/001_init.sql#L4124) |
+| `pet_owners_pet_id_owner_id_key` | unique | `UNIQUE (pet_id, owner_id)` | [001_init.sql:4131](../../../backend/migrations/001_init.sql#L4131) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_pet_owners_clinic_pet` | NO | — | `CREATE INDEX idx_pet_owners_clinic_pet ON pet_owners (clinic_id, pet_id)` | [001_init.sql:4134](../../../backend/migrations/001_init.sql#L4134) |
-| `idx_pet_owners_clinic_owner` | NO | — | `CREATE INDEX idx_pet_owners_clinic_owner ON pet_owners (clinic_id, owner_id)` | [001_init.sql:4135](../../../backend/migrations/001_init.sql#L4135) |
+| `idx_pet_owners_clinic_pet` | NO | — | `CREATE INDEX idx_pet_owners_clinic_pet ON pet_owners (clinic_id, pet_id)` | [001_init.sql:4136](../../../backend/migrations/001_init.sql#L4136) |
+| `idx_pet_owners_clinic_owner` | NO | — | `CREATE INDEX idx_pet_owners_clinic_owner ON pet_owners (clinic_id, owner_id)` | [001_init.sql:4137](../../../backend/migrations/001_init.sql#L4137) |

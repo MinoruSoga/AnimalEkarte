@@ -11,9 +11,9 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2944](../../../backend/migrations/001_init.sql#L2944) |
-| `campaign_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2945](../../../backend/migrations/001_init.sql#L2945) |
-| `category` | `item_category` | NOT NULL | — | UK | [001_init.sql:2946](../../../backend/migrations/001_init.sql#L2946) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2946](../../../backend/migrations/001_init.sql#L2946) |
+| `campaign_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2947](../../../backend/migrations/001_init.sql#L2947) |
+| `category` | `item_category` | NOT NULL | — | UK | [001_init.sql:2948](../../../backend/migrations/001_init.sql#L2948) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -40,7 +40,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `campaign_target_categories_campaign_id_fkey` | `campaign_id` | [campaigns](campaigns.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2945](../../../backend/migrations/001_init.sql#L2945) |
+| `campaign_target_categories_campaign_id_fkey` | `campaign_id` | [campaigns](campaigns.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2947](../../../backend/migrations/001_init.sql#L2947) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -50,11 +50,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `campaign_target_categories_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2944](../../../backend/migrations/001_init.sql#L2944) |
-| `uq_campaign_target_categories` | unique | `CONSTRAINT uq_campaign_target_categories UNIQUE (campaign_id, category)` | [001_init.sql:2947](../../../backend/migrations/001_init.sql#L2947) |
+| `campaign_target_categories_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2946](../../../backend/migrations/001_init.sql#L2946) |
+| `uq_campaign_target_categories` | unique | `CONSTRAINT uq_campaign_target_categories UNIQUE (campaign_id, category)` | [001_init.sql:2949](../../../backend/migrations/001_init.sql#L2949) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_campaign_target_categories_campaign` | NO | — | `CREATE INDEX idx_campaign_target_categories_campaign ON campaign_target_categories(campaign_id)` | [001_init.sql:2959](../../../backend/migrations/001_init.sql#L2959) |
+| `idx_campaign_target_categories_campaign` | NO | — | `CREATE INDEX idx_campaign_target_categories_campaign ON campaign_target_categories(campaign_id)` | [001_init.sql:2961](../../../backend/migrations/001_init.sql#L2961) |

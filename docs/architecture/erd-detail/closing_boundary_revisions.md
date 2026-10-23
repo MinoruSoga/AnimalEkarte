@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9884](../../../backend/migrations/001_init.sql#L9884) |
-| `revision` | `bigint` | NOT NULL | — | PK | [001_init.sql:9885](../../../backend/migrations/001_init.sql#L9885) |
-| `boundary_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9886](../../../backend/migrations/001_init.sql#L9886) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9887](../../../backend/migrations/001_init.sql#L9887) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9888](../../../backend/migrations/001_init.sql#L9888) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9886](../../../backend/migrations/001_init.sql#L9886) |
+| `revision` | `bigint` | NOT NULL | — | PK | [001_init.sql:9887](../../../backend/migrations/001_init.sql#L9887) |
+| `boundary_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9888](../../../backend/migrations/001_init.sql#L9888) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9889](../../../backend/migrations/001_init.sql#L9889) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9890](../../../backend/migrations/001_init.sql#L9890) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -49,8 +49,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `closing_boundary_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9884](../../../backend/migrations/001_init.sql#L9884) |
-| `closing_boundary_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9890](../../../backend/migrations/001_init.sql#L9890) |
+| `closing_boundary_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9886](../../../backend/migrations/001_init.sql#L9886) |
+| `closing_boundary_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9892](../../../backend/migrations/001_init.sql#L9892) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -61,9 +61,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `closing_boundary_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9885](../../../backend/migrations/001_init.sql#L9885) |
-| `closing_boundary_revisions_boundary_snapshot_check` | check | `CHECK (jsonb_typeof(boundary_snapshot)='object')` | [001_init.sql:9886](../../../backend/migrations/001_init.sql#L9886) |
-| `closing_boundary_revisions_pkey` | primary | `PRIMARY KEY (clinic_id,revision)` | [001_init.sql:9889](../../../backend/migrations/001_init.sql#L9889) |
+| `closing_boundary_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9887](../../../backend/migrations/001_init.sql#L9887) |
+| `closing_boundary_revisions_boundary_snapshot_check` | check | `CHECK (jsonb_typeof(boundary_snapshot)='object')` | [001_init.sql:9888](../../../backend/migrations/001_init.sql#L9888) |
+| `closing_boundary_revisions_pkey` | primary | `PRIMARY KEY (clinic_id,revision)` | [001_init.sql:9891](../../../backend/migrations/001_init.sql#L9891) |
 
 ## インデックス
 

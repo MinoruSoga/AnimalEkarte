@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:10008](../../../backend/migrations/001_init.sql#L10008) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10008](../../../backend/migrations/001_init.sql#L10008) |
-| `article_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10009](../../../backend/migrations/001_init.sql#L10009) |
-| `operation_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10010](../../../backend/migrations/001_init.sql#L10010) |
-| `intent` | `text` | NOT NULL | — | — | [001_init.sql:10010](../../../backend/migrations/001_init.sql#L10010) |
-| `previous_version` | `bigint` | NOT NULL | — | — | [001_init.sql:10011](../../../backend/migrations/001_init.sql#L10011) |
-| `resulting_version` | `bigint` | NOT NULL | — | UK | [001_init.sql:10011](../../../backend/migrations/001_init.sql#L10011) |
-| `content_version_id` | `bigint` | NULL | — | FK | [001_init.sql:10012](../../../backend/migrations/001_init.sql#L10012) |
-| `published_version_id` | `bigint` | NULL | — | FK | [001_init.sql:10012](../../../backend/migrations/001_init.sql#L10012) |
-| `restored_from_id` | `bigint` | NULL | — | FK | [001_init.sql:10012](../../../backend/migrations/001_init.sql#L10012) |
-| `before_state` | `jsonb` | NOT NULL | — | — | [001_init.sql:10013](../../../backend/migrations/001_init.sql#L10013) |
-| `after_state` | `jsonb` | NOT NULL | — | — | [001_init.sql:10013](../../../backend/migrations/001_init.sql#L10013) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10014](../../../backend/migrations/001_init.sql#L10014) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10014](../../../backend/migrations/001_init.sql#L10014) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:10010](../../../backend/migrations/001_init.sql#L10010) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10010](../../../backend/migrations/001_init.sql#L10010) |
+| `article_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10011](../../../backend/migrations/001_init.sql#L10011) |
+| `operation_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10012](../../../backend/migrations/001_init.sql#L10012) |
+| `intent` | `text` | NOT NULL | — | — | [001_init.sql:10012](../../../backend/migrations/001_init.sql#L10012) |
+| `previous_version` | `bigint` | NOT NULL | — | — | [001_init.sql:10013](../../../backend/migrations/001_init.sql#L10013) |
+| `resulting_version` | `bigint` | NOT NULL | — | UK | [001_init.sql:10013](../../../backend/migrations/001_init.sql#L10013) |
+| `content_version_id` | `bigint` | NULL | — | FK | [001_init.sql:10014](../../../backend/migrations/001_init.sql#L10014) |
+| `published_version_id` | `bigint` | NULL | — | FK | [001_init.sql:10014](../../../backend/migrations/001_init.sql#L10014) |
+| `restored_from_id` | `bigint` | NULL | — | FK | [001_init.sql:10014](../../../backend/migrations/001_init.sql#L10014) |
+| `before_state` | `jsonb` | NOT NULL | — | — | [001_init.sql:10015](../../../backend/migrations/001_init.sql#L10015) |
+| `after_state` | `jsonb` | NOT NULL | — | — | [001_init.sql:10015](../../../backend/migrations/001_init.sql#L10015) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -82,13 +82,13 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `manual_article_operations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10008](../../../backend/migrations/001_init.sql#L10008) |
-| `manual_article_operations_article_id_fkey` | `article_id` | [manual_articles](manual_articles.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10009](../../../backend/migrations/001_init.sql#L10009) |
-| `manual_article_operations_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10014](../../../backend/migrations/001_init.sql#L10014) |
-| `manual_article_operations_content_version_id_article_id_fkey` | `content_version_id, article_id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
-| `manual_article_operations_published_version_id_article_id_fkey` | `published_version_id, article_id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:10017](../../../backend/migrations/001_init.sql#L10017) |
-| `manual_article_operations_restored_from_id_article_id_fkey` | `restored_from_id, article_id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:10018](../../../backend/migrations/001_init.sql#L10018) |
-| `manual_article_operations_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10019](../../../backend/migrations/001_init.sql#L10019) |
+| `manual_article_operations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10010](../../../backend/migrations/001_init.sql#L10010) |
+| `manual_article_operations_article_id_fkey` | `article_id` | [manual_articles](manual_articles.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10011](../../../backend/migrations/001_init.sql#L10011) |
+| `manual_article_operations_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10016](../../../backend/migrations/001_init.sql#L10016) |
+| `manual_article_operations_content_version_id_article_id_fkey` | `content_version_id, article_id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:10018](../../../backend/migrations/001_init.sql#L10018) |
+| `manual_article_operations_published_version_id_article_id_fkey` | `published_version_id, article_id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:10019](../../../backend/migrations/001_init.sql#L10019) |
+| `manual_article_operations_restored_from_id_article_id_fkey` | `restored_from_id, article_id` | [manual_article_versions](manual_article_versions.md) | `id, article_id` | `ON DELETE RESTRICT` | [001_init.sql:10020](../../../backend/migrations/001_init.sql#L10020) |
+| `manual_article_operations_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10021](../../../backend/migrations/001_init.sql#L10021) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -104,16 +104,16 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `manual_article_operations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10008](../../../backend/migrations/001_init.sql#L10008) |
-| `manual_article_operations_intent_check` | check | `CHECK(intent IN('edit','publish','restore','hide','remove_override'))` | [001_init.sql:10010](../../../backend/migrations/001_init.sql#L10010) |
-| `manual_article_operations_previous_version_check` | check | `CHECK(previous_version>0)` | [001_init.sql:10011](../../../backend/migrations/001_init.sql#L10011) |
-| `manual_article_operations_check` | check | `CHECK(resulting_version=previous_version+1)` | [001_init.sql:10011](../../../backend/migrations/001_init.sql#L10011) |
-| `manual_article_operations_before_state_check` | check | `CHECK(jsonb_typeof(before_state)='object')` | [001_init.sql:10013](../../../backend/migrations/001_init.sql#L10013) |
-| `manual_article_operations_after_state_check` | check | `CHECK(jsonb_typeof(after_state)='object')` | [001_init.sql:10013](../../../backend/migrations/001_init.sql#L10013) |
-| `manual_article_operations_article_id_resulting_version_key` | unique | `UNIQUE(article_id,resulting_version)` | [001_init.sql:10015](../../../backend/migrations/001_init.sql#L10015) |
-| `manual_article_operations_clinic_id_operation_id_key` | unique | `UNIQUE(clinic_id,operation_id)` | [001_init.sql:10015](../../../backend/migrations/001_init.sql#L10015) |
-| `manual_article_operations_check1` | check | `CHECK(intent<>'restore' OR(restored_from_id IS NOT NULL AND content_version_id IS NOT NULL))` | [001_init.sql:10020](../../../backend/migrations/001_init.sql#L10020) |
-| `manual_article_operations_check2` | check | `CHECK(intent<>'publish' OR published_version_id IS NOT NULL)` | [001_init.sql:10021](../../../backend/migrations/001_init.sql#L10021) |
+| `manual_article_operations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10010](../../../backend/migrations/001_init.sql#L10010) |
+| `manual_article_operations_intent_check` | check | `CHECK(intent IN('edit','publish','restore','hide','remove_override'))` | [001_init.sql:10012](../../../backend/migrations/001_init.sql#L10012) |
+| `manual_article_operations_previous_version_check` | check | `CHECK(previous_version>0)` | [001_init.sql:10013](../../../backend/migrations/001_init.sql#L10013) |
+| `manual_article_operations_check` | check | `CHECK(resulting_version=previous_version+1)` | [001_init.sql:10013](../../../backend/migrations/001_init.sql#L10013) |
+| `manual_article_operations_before_state_check` | check | `CHECK(jsonb_typeof(before_state)='object')` | [001_init.sql:10015](../../../backend/migrations/001_init.sql#L10015) |
+| `manual_article_operations_after_state_check` | check | `CHECK(jsonb_typeof(after_state)='object')` | [001_init.sql:10015](../../../backend/migrations/001_init.sql#L10015) |
+| `manual_article_operations_article_id_resulting_version_key` | unique | `UNIQUE(article_id,resulting_version)` | [001_init.sql:10017](../../../backend/migrations/001_init.sql#L10017) |
+| `manual_article_operations_clinic_id_operation_id_key` | unique | `UNIQUE(clinic_id,operation_id)` | [001_init.sql:10017](../../../backend/migrations/001_init.sql#L10017) |
+| `manual_article_operations_check1` | check | `CHECK(intent<>'restore' OR(restored_from_id IS NOT NULL AND content_version_id IS NOT NULL))` | [001_init.sql:10022](../../../backend/migrations/001_init.sql#L10022) |
+| `manual_article_operations_check2` | check | `CHECK(intent<>'publish' OR published_version_id IS NOT NULL)` | [001_init.sql:10023](../../../backend/migrations/001_init.sql#L10023) |
 
 ## インデックス
 

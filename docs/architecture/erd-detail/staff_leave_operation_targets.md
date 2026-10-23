@@ -11,10 +11,10 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11449](../../../backend/migrations/001_init.sql#L11449) |
-| `binding_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11450](../../../backend/migrations/001_init.sql#L11450) |
-| `staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:11451](../../../backend/migrations/001_init.sql#L11451) |
-| `leave_period_id` | `bigint` | NULL | — | FK | [001_init.sql:11452](../../../backend/migrations/001_init.sql#L11452) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11451](../../../backend/migrations/001_init.sql#L11451) |
+| `binding_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11452](../../../backend/migrations/001_init.sql#L11452) |
+| `staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:11453](../../../backend/migrations/001_init.sql#L11453) |
+| `leave_period_id` | `bigint` | NULL | — | FK | [001_init.sql:11454](../../../backend/migrations/001_init.sql#L11454) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -52,9 +52,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `staff_leave_operation_targets_binding_id_clinic_id_fkey` | `binding_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11454](../../../backend/migrations/001_init.sql#L11454) |
-| `staff_leave_operation_targets_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11455](../../../backend/migrations/001_init.sql#L11455) |
-| `staff_leave_operation_targets_leave_period_id_clinic_id_fkey` | `leave_period_id, clinic_id` | [staff_leave_periods](staff_leave_periods.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11456](../../../backend/migrations/001_init.sql#L11456) |
+| `staff_leave_operation_targets_binding_id_clinic_id_fkey` | `binding_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11456](../../../backend/migrations/001_init.sql#L11456) |
+| `staff_leave_operation_targets_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11457](../../../backend/migrations/001_init.sql#L11457) |
+| `staff_leave_operation_targets_leave_period_id_clinic_id_fkey` | `leave_period_id, clinic_id` | [staff_leave_periods](staff_leave_periods.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11458](../../../backend/migrations/001_init.sql#L11458) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -66,11 +66,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `staff_leave_operation_targets_clinic_id_check` | check | `CHECK (clinic_id > 0)` | [001_init.sql:11449](../../../backend/migrations/001_init.sql#L11449) |
-| `staff_leave_operation_targets_binding_id_check` | check | `CHECK (binding_id > 0)` | [001_init.sql:11450](../../../backend/migrations/001_init.sql#L11450) |
-| `staff_leave_operation_targets_staff_id_check` | check | `CHECK (staff_id > 0)` | [001_init.sql:11451](../../../backend/migrations/001_init.sql#L11451) |
-| `staff_leave_operation_targets_leave_period_id_check` | check | `CHECK (leave_period_id IS NULL OR leave_period_id > 0)` | [001_init.sql:11452](../../../backend/migrations/001_init.sql#L11452) |
-| `staff_leave_operation_targets_pkey` | primary | `PRIMARY KEY (clinic_id, binding_id)` | [001_init.sql:11453](../../../backend/migrations/001_init.sql#L11453) |
+| `staff_leave_operation_targets_clinic_id_check` | check | `CHECK (clinic_id > 0)` | [001_init.sql:11451](../../../backend/migrations/001_init.sql#L11451) |
+| `staff_leave_operation_targets_binding_id_check` | check | `CHECK (binding_id > 0)` | [001_init.sql:11452](../../../backend/migrations/001_init.sql#L11452) |
+| `staff_leave_operation_targets_staff_id_check` | check | `CHECK (staff_id > 0)` | [001_init.sql:11453](../../../backend/migrations/001_init.sql#L11453) |
+| `staff_leave_operation_targets_leave_period_id_check` | check | `CHECK (leave_period_id IS NULL OR leave_period_id > 0)` | [001_init.sql:11454](../../../backend/migrations/001_init.sql#L11454) |
+| `staff_leave_operation_targets_pkey` | primary | `PRIMARY KEY (clinic_id, binding_id)` | [001_init.sql:11455](../../../backend/migrations/001_init.sql#L11455) |
 
 ## インデックス
 

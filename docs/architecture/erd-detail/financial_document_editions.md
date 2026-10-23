@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9711](../../../backend/migrations/001_init.sql#L9711) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9712](../../../backend/migrations/001_init.sql#L9712) |
-| `document_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9713](../../../backend/migrations/001_init.sql#L9713) |
-| `edition` | `bigint` | NOT NULL | — | UK | [001_init.sql:9714](../../../backend/migrations/001_init.sql#L9714) |
-| `calculation_id` | `bigint` | NULL | — | FK | [001_init.sql:9715](../../../backend/migrations/001_init.sql#L9715) |
-| `billing_id` | `bigint` | NULL | — | FK | [001_init.sql:9716](../../../backend/migrations/001_init.sql#L9716) |
-| `source_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9717](../../../backend/migrations/001_init.sql#L9717) |
-| `display_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9718](../../../backend/migrations/001_init.sql#L9718) |
-| `layout_version` | `text` | NOT NULL | — | — | [001_init.sql:9719](../../../backend/migrations/001_init.sql#L9719) |
-| `issued_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9720](../../../backend/migrations/001_init.sql#L9720) |
-| `issued_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9721](../../../backend/migrations/001_init.sql#L9721) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9722](../../../backend/migrations/001_init.sql#L9722) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9713](../../../backend/migrations/001_init.sql#L9713) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9714](../../../backend/migrations/001_init.sql#L9714) |
+| `document_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9715](../../../backend/migrations/001_init.sql#L9715) |
+| `edition` | `bigint` | NOT NULL | — | UK | [001_init.sql:9716](../../../backend/migrations/001_init.sql#L9716) |
+| `calculation_id` | `bigint` | NULL | — | FK | [001_init.sql:9717](../../../backend/migrations/001_init.sql#L9717) |
+| `billing_id` | `bigint` | NULL | — | FK | [001_init.sql:9718](../../../backend/migrations/001_init.sql#L9718) |
+| `source_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9719](../../../backend/migrations/001_init.sql#L9719) |
+| `display_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9720](../../../backend/migrations/001_init.sql#L9720) |
+| `layout_version` | `text` | NOT NULL | — | — | [001_init.sql:9721](../../../backend/migrations/001_init.sql#L9721) |
+| `issued_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9722](../../../backend/migrations/001_init.sql#L9722) |
+| `issued_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9723](../../../backend/migrations/001_init.sql#L9723) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9724](../../../backend/migrations/001_init.sql#L9724) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -83,12 +83,12 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `financial_document_editions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9712](../../../backend/migrations/001_init.sql#L9712) |
-| `financial_document_editions_issued_by_fkey` | `issued_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9720](../../../backend/migrations/001_init.sql#L9720) |
-| `financial_document_editions_billing_id_clinic_id_fkey` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9726](../../../backend/migrations/001_init.sql#L9726) |
-| `financial_document_editions_document_id_clinic_id_fkey` | `document_id, clinic_id` | [financial_document_identities](financial_document_identities.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9727](../../../backend/migrations/001_init.sql#L9727) |
-| `financial_document_editions_calculation_id_clinic_id_billi_fkey` | `calculation_id, clinic_id, billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9728](../../../backend/migrations/001_init.sql#L9728) |
-| `financial_document_editions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9729](../../../backend/migrations/001_init.sql#L9729) |
+| `financial_document_editions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9714](../../../backend/migrations/001_init.sql#L9714) |
+| `financial_document_editions_issued_by_fkey` | `issued_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9722](../../../backend/migrations/001_init.sql#L9722) |
+| `financial_document_editions_billing_id_clinic_id_fkey` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9728](../../../backend/migrations/001_init.sql#L9728) |
+| `financial_document_editions_document_id_clinic_id_fkey` | `document_id, clinic_id` | [financial_document_identities](financial_document_identities.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9729](../../../backend/migrations/001_init.sql#L9729) |
+| `financial_document_editions_calculation_id_clinic_id_billi_fkey` | `calculation_id, clinic_id, billing_id` | [billing_calculation_snapshots](billing_calculation_snapshots.md) | `id, clinic_id, billing_id` | `ON DELETE RESTRICT` | [001_init.sql:9730](../../../backend/migrations/001_init.sql#L9730) |
+| `financial_document_editions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9731](../../../backend/migrations/001_init.sql#L9731) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -103,13 +103,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `financial_document_editions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9711](../../../backend/migrations/001_init.sql#L9711) |
-| `financial_document_editions_edition_check` | check | `CHECK (edition > 0)` | [001_init.sql:9714](../../../backend/migrations/001_init.sql#L9714) |
-| `financial_document_editions_source_snapshot_check` | check | `CHECK (jsonb_typeof(source_snapshot)='object')` | [001_init.sql:9717](../../../backend/migrations/001_init.sql#L9717) |
-| `financial_document_editions_display_snapshot_check` | check | `CHECK (jsonb_typeof(display_snapshot)='object')` | [001_init.sql:9718](../../../backend/migrations/001_init.sql#L9718) |
-| `financial_document_editions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9723](../../../backend/migrations/001_init.sql#L9723) |
-| `financial_document_editions_clinic_id_document_id_edition_key` | unique | `UNIQUE (clinic_id,document_id,edition)` | [001_init.sql:9724](../../../backend/migrations/001_init.sql#L9724) |
-| `financial_document_editions_check` | check | `CHECK (calculation_id IS NULL OR billing_id IS NOT NULL)` | [001_init.sql:9725](../../../backend/migrations/001_init.sql#L9725) |
+| `financial_document_editions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9713](../../../backend/migrations/001_init.sql#L9713) |
+| `financial_document_editions_edition_check` | check | `CHECK (edition > 0)` | [001_init.sql:9716](../../../backend/migrations/001_init.sql#L9716) |
+| `financial_document_editions_source_snapshot_check` | check | `CHECK (jsonb_typeof(source_snapshot)='object')` | [001_init.sql:9719](../../../backend/migrations/001_init.sql#L9719) |
+| `financial_document_editions_display_snapshot_check` | check | `CHECK (jsonb_typeof(display_snapshot)='object')` | [001_init.sql:9720](../../../backend/migrations/001_init.sql#L9720) |
+| `financial_document_editions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9725](../../../backend/migrations/001_init.sql#L9725) |
+| `financial_document_editions_clinic_id_document_id_edition_key` | unique | `UNIQUE (clinic_id,document_id,edition)` | [001_init.sql:9726](../../../backend/migrations/001_init.sql#L9726) |
+| `financial_document_editions_check` | check | `CHECK (calculation_id IS NULL OR billing_id IS NOT NULL)` | [001_init.sql:9727](../../../backend/migrations/001_init.sql#L9727) |
 
 ## インデックス
 

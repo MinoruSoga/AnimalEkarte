@@ -9,7 +9,7 @@
 <!-- ERD:TABLE_COUNT=253 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **最終照合**: 2026-10-19 consolidated baseline | **対象**: `backend/migrations/001_init.sql`（現行241テーブル。001〜038統合直後は164テーブル。以下の旧ファイル名は履歴識別子で、現行ファイルは 001 のみ）。DDL の正本は 001、旧増分の原文は `consolidated from` マーカーと git 履歴を参照する。稼働DBの適用状態・実データ・STG/本番受入は未確認。
+> **最終照合**: 2026-10-23 consolidated baseline | **対象**: `backend/migrations/001_init.sql`（現行253テーブル＝CREATE/DROP適用後の物理数。001〜038統合直後の旧基準では164テーブル。以下の旧ファイル名は履歴識別子で、現行ファイルは 001 のみ）。DDL の正本は 001、旧増分の原文は `consolidated from` マーカーと git 履歴を参照する。STG は 2026-10-23 時点で本統合前の DDL 未適用（本人確認・PR #839 で記録）。稼働DBの適用状態・実データ・STG/本番受入は未確認。
 >
 > **確認範囲**: repo内DDL・関連コードとの静的照合。稼働DBのmigration適用状態・実データ・STG/本番受入は未確認。DDLの存在をDB適用済みとは扱わない。後続変更は [migration方針](../../backend/migrations/README.md) に従う。EMR-446の本人決定により、別途承認される初回本番切替で001を凍結し、その後は増分とする。凍結前の承認済み001整合から、既存DBの自動適用・checksum書換え・reset許可を推定しない。
 

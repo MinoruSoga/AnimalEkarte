@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10182](../../../backend/migrations/001_init.sql#L10182) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10182](../../../backend/migrations/001_init.sql#L10182) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10183](../../../backend/migrations/001_init.sql#L10183) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10183](../../../backend/migrations/001_init.sql#L10183) |
-| `medical_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10183](../../../backend/migrations/001_init.sql#L10183) |
-| `checkup_id` | `bigint` | NULL | — | FK | [001_init.sql:10184](../../../backend/migrations/001_init.sql#L10184) |
-| `purpose` | `text` | NOT NULL | — | — | [001_init.sql:10184](../../../backend/migrations/001_init.sql#L10184) |
-| `source_version` | `bigint` | NOT NULL | — | — | [001_init.sql:10185](../../../backend/migrations/001_init.sql#L10185) |
-| `source_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:10185](../../../backend/migrations/001_init.sql#L10185) |
-| `performed_confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10186](../../../backend/migrations/001_init.sql#L10186) |
-| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10186](../../../backend/migrations/001_init.sql#L10186) |
-| `doctor_designated_by` | `bigint` | NULL | — | FK | [001_init.sql:10187](../../../backend/migrations/001_init.sql#L10187) |
-| `doctor_designated_at` | `timestamptz` | NULL | — | — | [001_init.sql:10187](../../../backend/migrations/001_init.sql#L10187) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10188](../../../backend/migrations/001_init.sql#L10188) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10184](../../../backend/migrations/001_init.sql#L10184) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10184](../../../backend/migrations/001_init.sql#L10184) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10185](../../../backend/migrations/001_init.sql#L10185) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10185](../../../backend/migrations/001_init.sql#L10185) |
+| `medical_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10185](../../../backend/migrations/001_init.sql#L10185) |
+| `checkup_id` | `bigint` | NULL | — | FK | [001_init.sql:10186](../../../backend/migrations/001_init.sql#L10186) |
+| `purpose` | `text` | NOT NULL | — | — | [001_init.sql:10186](../../../backend/migrations/001_init.sql#L10186) |
+| `source_version` | `bigint` | NOT NULL | — | — | [001_init.sql:10187](../../../backend/migrations/001_init.sql#L10187) |
+| `source_digest` | `bytea` | NOT NULL | — | — | [001_init.sql:10187](../../../backend/migrations/001_init.sql#L10187) |
+| `performed_confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10188](../../../backend/migrations/001_init.sql#L10188) |
+| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10188](../../../backend/migrations/001_init.sql#L10188) |
+| `doctor_designated_by` | `bigint` | NULL | — | FK | [001_init.sql:10189](../../../backend/migrations/001_init.sql#L10189) |
+| `doctor_designated_at` | `timestamptz` | NULL | — | — | [001_init.sql:10189](../../../backend/migrations/001_init.sql#L10189) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10190](../../../backend/migrations/001_init.sql#L10190) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -88,13 +88,13 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `followup_confirmations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10182](../../../backend/migrations/001_init.sql#L10182) |
-| `followup_confirmations_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10186](../../../backend/migrations/001_init.sql#L10186) |
-| `followup_confirmations_doctor_designated_by_fkey` | `doctor_designated_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10187](../../../backend/migrations/001_init.sql#L10187) |
-| `followup_confirmations_owner_id_clinic_id_fkey` | `owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10190](../../../backend/migrations/001_init.sql#L10190) |
-| `followup_confirmations_medical_record_id_clinic_id_pet_id_fkey` | `medical_record_id, clinic_id, pet_id` | [medical_records](medical_records.md) | `id, clinic_id, pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10191](../../../backend/migrations/001_init.sql#L10191) |
-| `followup_confirmations_checkup_id_clinic_id_fkey` | `checkup_id, clinic_id` | [checkups](checkups.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10192](../../../backend/migrations/001_init.sql#L10192) |
-| `followup_confirmations_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10193](../../../backend/migrations/001_init.sql#L10193) |
+| `followup_confirmations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10184](../../../backend/migrations/001_init.sql#L10184) |
+| `followup_confirmations_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10188](../../../backend/migrations/001_init.sql#L10188) |
+| `followup_confirmations_doctor_designated_by_fkey` | `doctor_designated_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10189](../../../backend/migrations/001_init.sql#L10189) |
+| `followup_confirmations_owner_id_clinic_id_fkey` | `owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10192](../../../backend/migrations/001_init.sql#L10192) |
+| `followup_confirmations_medical_record_id_clinic_id_pet_id_fkey` | `medical_record_id, clinic_id, pet_id` | [medical_records](medical_records.md) | `id, clinic_id, pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10193](../../../backend/migrations/001_init.sql#L10193) |
+| `followup_confirmations_checkup_id_clinic_id_fkey` | `checkup_id, clinic_id` | [checkups](checkups.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10194](../../../backend/migrations/001_init.sql#L10194) |
+| `followup_confirmations_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10195](../../../backend/migrations/001_init.sql#L10195) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -110,12 +110,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `followup_confirmations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10182](../../../backend/migrations/001_init.sql#L10182) |
-| `followup_confirmations_purpose_check` | check | `CHECK(purpose IN('general_guidance','medical_followup'))` | [001_init.sql:10184](../../../backend/migrations/001_init.sql#L10184) |
-| `followup_confirmations_source_version_check` | check | `CHECK(source_version>0)` | [001_init.sql:10185](../../../backend/migrations/001_init.sql#L10185) |
-| `followup_confirmations_source_digest_check` | check | `CHECK(octet_length(source_digest)=32)` | [001_init.sql:10185](../../../backend/migrations/001_init.sql#L10185) |
-| `followup_confirmations_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10188](../../../backend/migrations/001_init.sql#L10188) |
-| `followup_confirmations_check` | check | `CHECK(purpose<>'medical_followup' OR(doctor_designated_by IS NOT NULL AND doctor_designated_at IS NOT NULL))` | [001_init.sql:10189](../../../backend/migrations/001_init.sql#L10189) |
+| `followup_confirmations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10184](../../../backend/migrations/001_init.sql#L10184) |
+| `followup_confirmations_purpose_check` | check | `CHECK(purpose IN('general_guidance','medical_followup'))` | [001_init.sql:10186](../../../backend/migrations/001_init.sql#L10186) |
+| `followup_confirmations_source_version_check` | check | `CHECK(source_version>0)` | [001_init.sql:10187](../../../backend/migrations/001_init.sql#L10187) |
+| `followup_confirmations_source_digest_check` | check | `CHECK(octet_length(source_digest)=32)` | [001_init.sql:10187](../../../backend/migrations/001_init.sql#L10187) |
+| `followup_confirmations_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10190](../../../backend/migrations/001_init.sql#L10190) |
+| `followup_confirmations_check` | check | `CHECK(purpose<>'medical_followup' OR(doctor_designated_by IS NOT NULL AND doctor_designated_at IS NOT NULL))` | [001_init.sql:10191](../../../backend/migrations/001_init.sql#L10191) |
 
 ## インデックス
 

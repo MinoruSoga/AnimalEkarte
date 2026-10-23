@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2145](../../../backend/migrations/001_init.sql#L2145) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2146](../../../backend/migrations/001_init.sql#L2146) |
-| `start_date` | `date` | NOT NULL | — | — | [001_init.sql:2147](../../../backend/migrations/001_init.sql#L2147) |
-| `end_date` | `date` | NOT NULL | — | — | [001_init.sql:2148](../../../backend/migrations/001_init.sql#L2148) |
-| `am_pm_boundary` | `time` | NOT NULL | — | — | [001_init.sql:2149](../../../backend/migrations/001_init.sql#L2149) |
-| `pm_end` | `time` | NOT NULL | — | — | [001_init.sql:2150](../../../backend/migrations/001_init.sql#L2150) |
-| `note` | `varchar(100)` | NOT NULL | `''` | — | [001_init.sql:2151](../../../backend/migrations/001_init.sql#L2151) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2152](../../../backend/migrations/001_init.sql#L2152) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2153](../../../backend/migrations/001_init.sql#L2153) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2147](../../../backend/migrations/001_init.sql#L2147) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2148](../../../backend/migrations/001_init.sql#L2148) |
+| `start_date` | `date` | NOT NULL | — | — | [001_init.sql:2149](../../../backend/migrations/001_init.sql#L2149) |
+| `end_date` | `date` | NOT NULL | — | — | [001_init.sql:2150](../../../backend/migrations/001_init.sql#L2150) |
+| `am_pm_boundary` | `time` | NOT NULL | — | — | [001_init.sql:2151](../../../backend/migrations/001_init.sql#L2151) |
+| `pm_end` | `time` | NOT NULL | — | — | [001_init.sql:2152](../../../backend/migrations/001_init.sql#L2152) |
+| `note` | `varchar(100)` | NOT NULL | `''` | — | [001_init.sql:2153](../../../backend/migrations/001_init.sql#L2153) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2154](../../../backend/migrations/001_init.sql#L2154) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:2155](../../../backend/migrations/001_init.sql#L2155) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -52,7 +52,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `closing_special_periods_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2146](../../../backend/migrations/001_init.sql#L2146) |
+| `closing_special_periods_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2148](../../../backend/migrations/001_init.sql#L2148) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -62,13 +62,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `closing_special_periods_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2145](../../../backend/migrations/001_init.sql#L2145) |
-| `chk_closing_special_periods_date_range` | check | `CONSTRAINT chk_closing_special_periods_date_range CHECK (start_date <= end_date)` | [001_init.sql:2154](../../../backend/migrations/001_init.sql#L2154) |
-| `chk_closing_special_periods_time_order` | check | `CONSTRAINT chk_closing_special_periods_time_order CHECK (am_pm_boundary < pm_end)` | [001_init.sql:2155](../../../backend/migrations/001_init.sql#L2155) |
-| `excl_closing_special_periods_clinic_daterange` | exclude | `CONSTRAINT excl_closing_special_periods_clinic_daterange     EXCLUDE USING gist (         clinic_id WITH =,         daterange(start_date, end_date, '[]') WITH &&     )` | [001_init.sql:4594](../../../backend/migrations/001_init.sql#L4594) |
+| `closing_special_periods_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2147](../../../backend/migrations/001_init.sql#L2147) |
+| `chk_closing_special_periods_date_range` | check | `CONSTRAINT chk_closing_special_periods_date_range CHECK (start_date <= end_date)` | [001_init.sql:2156](../../../backend/migrations/001_init.sql#L2156) |
+| `chk_closing_special_periods_time_order` | check | `CONSTRAINT chk_closing_special_periods_time_order CHECK (am_pm_boundary < pm_end)` | [001_init.sql:2157](../../../backend/migrations/001_init.sql#L2157) |
+| `excl_closing_special_periods_clinic_daterange` | exclude | `CONSTRAINT excl_closing_special_periods_clinic_daterange     EXCLUDE USING gist (         clinic_id WITH =,         daterange(start_date, end_date, '[]') WITH &&     )` | [001_init.sql:4596](../../../backend/migrations/001_init.sql#L4596) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_closing_special_periods_clinic` | NO | — | `CREATE INDEX idx_closing_special_periods_clinic ON closing_special_periods(clinic_id, start_date, end_date)` | [001_init.sql:2158](../../../backend/migrations/001_init.sql#L2158) |
+| `idx_closing_special_periods_clinic` | NO | — | `CREATE INDEX idx_closing_special_periods_clinic ON closing_special_periods(clinic_id, start_date, end_date)` | [001_init.sql:2160](../../../backend/migrations/001_init.sql#L2160) |

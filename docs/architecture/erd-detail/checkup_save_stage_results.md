@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9965](../../../backend/migrations/001_init.sql#L9965) |
-| `attempt_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9965](../../../backend/migrations/001_init.sql#L9965) |
-| `stage` | `text` | NOT NULL | — | PK | [001_init.sql:9966](../../../backend/migrations/001_init.sql#L9966) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9966](../../../backend/migrations/001_init.sql#L9966) |
-| `medical_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9967](../../../backend/migrations/001_init.sql#L9967) |
-| `checkup_id` | `bigint` | NULL | — | FK | [001_init.sql:9967](../../../backend/migrations/001_init.sql#L9967) |
-| `result_revision` | `bigint` | NULL | — | — | [001_init.sql:9967](../../../backend/migrations/001_init.sql#L9967) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9968](../../../backend/migrations/001_init.sql#L9968) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9967](../../../backend/migrations/001_init.sql#L9967) |
+| `attempt_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9967](../../../backend/migrations/001_init.sql#L9967) |
+| `stage` | `text` | NOT NULL | — | PK | [001_init.sql:9968](../../../backend/migrations/001_init.sql#L9968) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9968](../../../backend/migrations/001_init.sql#L9968) |
+| `medical_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9969](../../../backend/migrations/001_init.sql#L9969) |
+| `checkup_id` | `bigint` | NULL | — | FK | [001_init.sql:9969](../../../backend/migrations/001_init.sql#L9969) |
+| `result_revision` | `bigint` | NULL | — | — | [001_init.sql:9969](../../../backend/migrations/001_init.sql#L9969) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9970](../../../backend/migrations/001_init.sql#L9970) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -70,11 +70,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `checkup_save_stage_results_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9965](../../../backend/migrations/001_init.sql#L9965) |
-| `checkup_save_stage_results_attempt_id_clinic_id_fkey` | `attempt_id, clinic_id` | [checkup_save_attempts](checkup_save_attempts.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9972](../../../backend/migrations/001_init.sql#L9972) |
-| `checkup_save_stage_results_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9973](../../../backend/migrations/001_init.sql#L9973) |
-| `checkup_save_stage_results_checkup_id_clinic_id_fkey` | `checkup_id, clinic_id` | [checkups](checkups.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9974](../../../backend/migrations/001_init.sql#L9974) |
-| `checkup_save_stage_results_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9975](../../../backend/migrations/001_init.sql#L9975) |
+| `checkup_save_stage_results_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9967](../../../backend/migrations/001_init.sql#L9967) |
+| `checkup_save_stage_results_attempt_id_clinic_id_fkey` | `attempt_id, clinic_id` | [checkup_save_attempts](checkup_save_attempts.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9974](../../../backend/migrations/001_init.sql#L9974) |
+| `checkup_save_stage_results_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9975](../../../backend/migrations/001_init.sql#L9975) |
+| `checkup_save_stage_results_checkup_id_clinic_id_fkey` | `checkup_id, clinic_id` | [checkups](checkups.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9976](../../../backend/migrations/001_init.sql#L9976) |
+| `checkup_save_stage_results_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9977](../../../backend/migrations/001_init.sql#L9977) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -88,9 +88,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `checkup_save_stage_results_stage_check` | check | `CHECK(stage IN ('parent','checkup','results'))` | [001_init.sql:9966](../../../backend/migrations/001_init.sql#L9966) |
-| `checkup_save_stage_results_pkey` | primary | `PRIMARY KEY(clinic_id,attempt_id,stage)` | [001_init.sql:9968](../../../backend/migrations/001_init.sql#L9968) |
-| `checkup_save_stage_results_check` | check | `CHECK((stage='parent' AND checkup_id IS NULL AND result_revision IS NULL)  OR(stage='checkup' AND checkup_id IS NOT NULL AND result_revision IS NULL)  OR(stage='results' AND checkup_id IS NOT NULL AND result_revision>0))` | [001_init.sql:9969](../../../backend/migrations/001_init.sql#L9969) |
+| `checkup_save_stage_results_stage_check` | check | `CHECK(stage IN ('parent','checkup','results'))` | [001_init.sql:9968](../../../backend/migrations/001_init.sql#L9968) |
+| `checkup_save_stage_results_pkey` | primary | `PRIMARY KEY(clinic_id,attempt_id,stage)` | [001_init.sql:9970](../../../backend/migrations/001_init.sql#L9970) |
+| `checkup_save_stage_results_check` | check | `CHECK((stage='parent' AND checkup_id IS NULL AND result_revision IS NULL)  OR(stage='checkup' AND checkup_id IS NOT NULL AND result_revision IS NULL)  OR(stage='results' AND checkup_id IS NOT NULL AND result_revision>0))` | [001_init.sql:9971](../../../backend/migrations/001_init.sql#L9971) |
 
 ## インデックス
 

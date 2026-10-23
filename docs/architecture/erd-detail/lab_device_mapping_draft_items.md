@@ -11,24 +11,24 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:7018](../../../backend/migrations/001_init.sql#L7018) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:7019](../../../backend/migrations/001_init.sql#L7019) |
-| `draft_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:7020](../../../backend/migrations/001_init.sql#L7020) |
-| `device_item_code` | `varchar(64)` | NOT NULL | `''` | — | [001_init.sql:7021](../../../backend/migrations/001_init.sql#L7021) |
-| `value_raw` | `text` | NOT NULL | `''` | — | [001_init.sql:7022](../../../backend/migrations/001_init.sql#L7022) |
-| `device_unit` | `varchar(64)` | NOT NULL | `''` | — | [001_init.sql:7023](../../../backend/migrations/001_init.sql#L7023) |
-| `chart_unit` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:7024](../../../backend/migrations/001_init.sql#L7024) |
-| `unit_mismatch` | `boolean` | NOT NULL | `false` | — | [001_init.sql:7025](../../../backend/migrations/001_init.sql#L7025) |
-| `exam_type_field_id` | `bigint` | NULL | — | FK | [001_init.sql:7026](../../../backend/migrations/001_init.sql#L7026) |
-| `proposed_field_name` | `varchar(255)` | NOT NULL | `''` | — | [001_init.sql:7027](../../../backend/migrations/001_init.sql#L7027) |
-| `item_source` | `varchar(32)` | NOT NULL | — | — | [001_init.sql:7028](../../../backend/migrations/001_init.sql#L7028) |
-| `llm_request` | `jsonb` | NULL | — | — | [001_init.sql:7029](../../../backend/migrations/001_init.sql#L7029) |
-| `llm_response` | `jsonb` | NULL | — | — | [001_init.sql:7030](../../../backend/migrations/001_init.sql#L7030) |
-| `llm_error` | `varchar(64)` | NOT NULL | `''` | — | [001_init.sql:7031](../../../backend/migrations/001_init.sql#L7031) |
-| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:7032](../../../backend/migrations/001_init.sql#L7032) |
-| `confirmed` | `boolean` | NOT NULL | `false` | — | [001_init.sql:7033](../../../backend/migrations/001_init.sql#L7033) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:7034](../../../backend/migrations/001_init.sql#L7034) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:7035](../../../backend/migrations/001_init.sql#L7035) |
+| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:7020](../../../backend/migrations/001_init.sql#L7020) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:7021](../../../backend/migrations/001_init.sql#L7021) |
+| `draft_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:7022](../../../backend/migrations/001_init.sql#L7022) |
+| `device_item_code` | `varchar(64)` | NOT NULL | `''` | — | [001_init.sql:7023](../../../backend/migrations/001_init.sql#L7023) |
+| `value_raw` | `text` | NOT NULL | `''` | — | [001_init.sql:7024](../../../backend/migrations/001_init.sql#L7024) |
+| `device_unit` | `varchar(64)` | NOT NULL | `''` | — | [001_init.sql:7025](../../../backend/migrations/001_init.sql#L7025) |
+| `chart_unit` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:7026](../../../backend/migrations/001_init.sql#L7026) |
+| `unit_mismatch` | `boolean` | NOT NULL | `false` | — | [001_init.sql:7027](../../../backend/migrations/001_init.sql#L7027) |
+| `exam_type_field_id` | `bigint` | NULL | — | FK | [001_init.sql:7028](../../../backend/migrations/001_init.sql#L7028) |
+| `proposed_field_name` | `varchar(255)` | NOT NULL | `''` | — | [001_init.sql:7029](../../../backend/migrations/001_init.sql#L7029) |
+| `item_source` | `varchar(32)` | NOT NULL | — | — | [001_init.sql:7030](../../../backend/migrations/001_init.sql#L7030) |
+| `llm_request` | `jsonb` | NULL | — | — | [001_init.sql:7031](../../../backend/migrations/001_init.sql#L7031) |
+| `llm_response` | `jsonb` | NULL | — | — | [001_init.sql:7032](../../../backend/migrations/001_init.sql#L7032) |
+| `llm_error` | `varchar(64)` | NOT NULL | `''` | — | [001_init.sql:7033](../../../backend/migrations/001_init.sql#L7033) |
+| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:7034](../../../backend/migrations/001_init.sql#L7034) |
+| `confirmed` | `boolean` | NOT NULL | `false` | — | [001_init.sql:7035](../../../backend/migrations/001_init.sql#L7035) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:7036](../../../backend/migrations/001_init.sql#L7036) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:7037](../../../backend/migrations/001_init.sql#L7037) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -80,9 +80,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lab_device_mapping_draft_items_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7019](../../../backend/migrations/001_init.sql#L7019) |
-| `fk_lab_device_mapping_draft_items_field_clinic` | `exam_type_field_id, clinic_id` | [exam_type_fields](exam_type_fields.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7045](../../../backend/migrations/001_init.sql#L7045) |
-| `fk_lab_device_mapping_draft_items_draft_clinic` | `clinic_id, draft_id` | [lab_device_mapping_drafts](lab_device_mapping_drafts.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:7149](../../../backend/migrations/001_init.sql#L7149) |
+| `lab_device_mapping_draft_items_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7021](../../../backend/migrations/001_init.sql#L7021) |
+| `fk_lab_device_mapping_draft_items_field_clinic` | `exam_type_field_id, clinic_id` | [exam_type_fields](exam_type_fields.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7047](../../../backend/migrations/001_init.sql#L7047) |
+| `fk_lab_device_mapping_draft_items_draft_clinic` | `clinic_id, draft_id` | [lab_device_mapping_drafts](lab_device_mapping_drafts.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:7151](../../../backend/migrations/001_init.sql#L7151) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -94,11 +94,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_device_mapping_draft_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:7018](../../../backend/migrations/001_init.sql#L7018) |
-| `chk_lab_device_mapping_draft_items_source` | check | `CONSTRAINT chk_lab_device_mapping_draft_items_source         CHECK (item_source IN ('dictionary', 'llm', 'blank', 'comment'))` | [001_init.sql:7040](../../../backend/migrations/001_init.sql#L7040) |
+| `lab_device_mapping_draft_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:7020](../../../backend/migrations/001_init.sql#L7020) |
+| `chk_lab_device_mapping_draft_items_source` | check | `CONSTRAINT chk_lab_device_mapping_draft_items_source         CHECK (item_source IN ('dictionary', 'llm', 'blank', 'comment'))` | [001_init.sql:7042](../../../backend/migrations/001_init.sql#L7042) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lab_device_mapping_draft_items_clinic_draft` | NO | — | `CREATE INDEX idx_lab_device_mapping_draft_items_clinic_draft     ON lab_device_mapping_draft_items (clinic_id, draft_id, sort_order)` | [001_init.sql:7050](../../../backend/migrations/001_init.sql#L7050) |
+| `idx_lab_device_mapping_draft_items_clinic_draft` | NO | — | `CREATE INDEX idx_lab_device_mapping_draft_items_clinic_draft     ON lab_device_mapping_draft_items (clinic_id, draft_id, sort_order)` | [001_init.sql:7052](../../../backend/migrations/001_init.sql#L7052) |

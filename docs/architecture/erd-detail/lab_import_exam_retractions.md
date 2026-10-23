@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:5460](../../../backend/migrations/001_init.sql#L5460) |
-| `clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:5461](../../../backend/migrations/001_init.sql#L5461) |
-| `job_id` | `UUID` | NOT NULL | — | FK, UK | [001_init.sql:5462](../../../backend/migrations/001_init.sql#L5462) |
-| `exam_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:5463](../../../backend/migrations/001_init.sql#L5463) |
-| `actor_id` | `BIGINT` | NULL | — | — | [001_init.sql:5464](../../../backend/migrations/001_init.sql#L5464) |
-| `reason` | `TEXT` | NOT NULL | — | — | [001_init.sql:5465](../../../backend/migrations/001_init.sql#L5465) |
-| `parent_snapshot` | `JSONB` | NOT NULL | — | — | [001_init.sql:5466](../../../backend/migrations/001_init.sql#L5466) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:5467](../../../backend/migrations/001_init.sql#L5467) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:5462](../../../backend/migrations/001_init.sql#L5462) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:5463](../../../backend/migrations/001_init.sql#L5463) |
+| `job_id` | `UUID` | NOT NULL | — | FK, UK | [001_init.sql:5464](../../../backend/migrations/001_init.sql#L5464) |
+| `exam_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:5465](../../../backend/migrations/001_init.sql#L5465) |
+| `actor_id` | `BIGINT` | NULL | — | — | [001_init.sql:5466](../../../backend/migrations/001_init.sql#L5466) |
+| `reason` | `TEXT` | NOT NULL | — | — | [001_init.sql:5467](../../../backend/migrations/001_init.sql#L5467) |
+| `parent_snapshot` | `JSONB` | NOT NULL | — | — | [001_init.sql:5468](../../../backend/migrations/001_init.sql#L5468) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:5469](../../../backend/migrations/001_init.sql#L5469) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -57,8 +57,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `fk_lab_import_exam_retractions_clinic_job` | `clinic_id, job_id` | [lab_import_jobs](lab_import_jobs.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5481](../../../backend/migrations/001_init.sql#L5481) |
-| `fk_lab_import_exam_retractions_clinic_exam_job` | `clinic_id, exam_id, job_id` | [exams](exams.md) | `clinic_id, id, job_id` | `ON DELETE RESTRICT` | [001_init.sql:5487](../../../backend/migrations/001_init.sql#L5487) |
+| `fk_lab_import_exam_retractions_clinic_job` | `clinic_id, job_id` | [lab_import_jobs](lab_import_jobs.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5483](../../../backend/migrations/001_init.sql#L5483) |
+| `fk_lab_import_exam_retractions_clinic_exam_job` | `clinic_id, exam_id, job_id` | [exams](exams.md) | `clinic_id, id, job_id` | `ON DELETE RESTRICT` | [001_init.sql:5489](../../../backend/migrations/001_init.sql#L5489) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -69,12 +69,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_import_exam_retractions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5460](../../../backend/migrations/001_init.sql#L5460) |
-| `uq_lab_import_exam_retractions_clinic_id_job_exam` | unique | `CONSTRAINT uq_lab_import_exam_retractions_clinic_id_job_exam         UNIQUE (clinic_id, id, job_id, exam_id)` | [001_init.sql:5468](../../../backend/migrations/001_init.sql#L5468) |
+| `lab_import_exam_retractions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5462](../../../backend/migrations/001_init.sql#L5462) |
+| `uq_lab_import_exam_retractions_clinic_id_job_exam` | unique | `CONSTRAINT uq_lab_import_exam_retractions_clinic_id_job_exam         UNIQUE (clinic_id, id, job_id, exam_id)` | [001_init.sql:5470](../../../backend/migrations/001_init.sql#L5470) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lab_import_exam_retractions_clinic_job` | NO | — | `CREATE INDEX idx_lab_import_exam_retractions_clinic_job     ON lab_import_exam_retractions (clinic_id, job_id, exam_id, id)` | [001_init.sql:5473](../../../backend/migrations/001_init.sql#L5473) |
-| `idx_lab_import_exam_retractions_clinic_exam_job` | NO | — | `CREATE INDEX idx_lab_import_exam_retractions_clinic_exam_job     ON lab_import_exam_retractions (clinic_id, exam_id, job_id)` | [001_init.sql:5477](../../../backend/migrations/001_init.sql#L5477) |
+| `idx_lab_import_exam_retractions_clinic_job` | NO | — | `CREATE INDEX idx_lab_import_exam_retractions_clinic_job     ON lab_import_exam_retractions (clinic_id, job_id, exam_id, id)` | [001_init.sql:5475](../../../backend/migrations/001_init.sql#L5475) |
+| `idx_lab_import_exam_retractions_clinic_exam_job` | NO | — | `CREATE INDEX idx_lab_import_exam_retractions_clinic_exam_job     ON lab_import_exam_retractions (clinic_id, exam_id, job_id)` | [001_init.sql:5479](../../../backend/migrations/001_init.sql#L5479) |

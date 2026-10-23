@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1131](../../../backend/migrations/001_init.sql#L1131) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1132](../../../backend/migrations/001_init.sql#L1132) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1133](../../../backend/migrations/001_init.sql#L1133) |
-| `pet_number` | `text` | NOT NULL | `''` | — | [001_init.sql:1134](../../../backend/migrations/001_init.sql#L1134) |
-| `insurance_id` | `bigint` | NULL | — | FK | [001_init.sql:1151](../../../backend/migrations/001_init.sql#L1151) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1159](../../../backend/migrations/001_init.sql#L1159) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1160](../../../backend/migrations/001_init.sql#L1160) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1161](../../../backend/migrations/001_init.sql#L1161) |
-| `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:4165](../../../backend/migrations/001_init.sql#L4165) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1133](../../../backend/migrations/001_init.sql#L1133) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1134](../../../backend/migrations/001_init.sql#L1134) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1135](../../../backend/migrations/001_init.sql#L1135) |
+| `pet_number` | `text` | NOT NULL | `''` | — | [001_init.sql:1136](../../../backend/migrations/001_init.sql#L1136) |
+| `insurance_id` | `bigint` | NULL | — | FK | [001_init.sql:1153](../../../backend/migrations/001_init.sql#L1153) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1161](../../../backend/migrations/001_init.sql#L1161) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1162](../../../backend/migrations/001_init.sql#L1162) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1163](../../../backend/migrations/001_init.sql#L1163) |
+| `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:4167](../../../backend/migrations/001_init.sql#L4167) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -62,10 +62,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `pets_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1132](../../../backend/migrations/001_init.sql#L1132) |
-| `pets_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1133](../../../backend/migrations/001_init.sql#L1133) |
-| `pets_insurance_id_fkey` | `insurance_id` | [insurances](insurances.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1151](../../../backend/migrations/001_init.sql#L1151) |
-| `fk_pets_clinic_owner` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4296](../../../backend/migrations/001_init.sql#L4296) |
+| `pets_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1134](../../../backend/migrations/001_init.sql#L1134) |
+| `pets_owner_id_fkey` | `owner_id` | [owners](owners.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1135](../../../backend/migrations/001_init.sql#L1135) |
+| `pets_insurance_id_fkey` | `insurance_id` | [insurances](insurances.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1153](../../../backend/migrations/001_init.sql#L1153) |
+| `fk_pets_clinic_owner` | `clinic_id, owner_id` | [owners](owners.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4298](../../../backend/migrations/001_init.sql#L4298) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -78,14 +78,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `pets_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1131](../../../backend/migrations/001_init.sql#L1131) |
-| `uq_pets_clinic_id_id` | unique | `CONSTRAINT uq_pets_clinic_id_id     UNIQUE (clinic_id, id)` | [001_init.sql:4110](../../../backend/migrations/001_init.sql#L4110) |
+| `pets_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1133](../../../backend/migrations/001_init.sql#L1133) |
+| `uq_pets_clinic_id_id` | unique | `CONSTRAINT uq_pets_clinic_id_id     UNIQUE (clinic_id, id)` | [001_init.sql:4112](../../../backend/migrations/001_init.sql#L4112) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_pets_clinic_id` | NO | — | `CREATE INDEX idx_pets_clinic_id ON pets(clinic_id)` | [001_init.sql:2259](../../../backend/migrations/001_init.sql#L2259) |
-| `idx_pets_owner_id` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_pets_owner_id   ON pets(owner_id)   WHERE deleted_at IS NULL` | [001_init.sql:2407](../../../backend/migrations/001_init.sql#L2407) |
-| `idx_pets_insurance_id` | NO | `insurance_id IS NOT NULL` | `CREATE INDEX idx_pets_insurance_id ON pets(insurance_id) WHERE insurance_id IS NOT NULL` | [001_init.sql:2450](../../../backend/migrations/001_init.sql#L2450) |
-| `idx_pets_pet_number_trgm` | NO | — | `CREATE INDEX idx_pets_pet_number_trgm   ON pets USING gin (pet_number gin_trgm_ops)` | [001_init.sql:6714](../../../backend/migrations/001_init.sql#L6714) |
+| `idx_pets_clinic_id` | NO | — | `CREATE INDEX idx_pets_clinic_id ON pets(clinic_id)` | [001_init.sql:2261](../../../backend/migrations/001_init.sql#L2261) |
+| `idx_pets_owner_id` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_pets_owner_id   ON pets(owner_id)   WHERE deleted_at IS NULL` | [001_init.sql:2409](../../../backend/migrations/001_init.sql#L2409) |
+| `idx_pets_insurance_id` | NO | `insurance_id IS NOT NULL` | `CREATE INDEX idx_pets_insurance_id ON pets(insurance_id) WHERE insurance_id IS NOT NULL` | [001_init.sql:2452](../../../backend/migrations/001_init.sql#L2452) |
+| `idx_pets_pet_number_trgm` | NO | — | `CREATE INDEX idx_pets_pet_number_trgm   ON pets USING gin (pet_number gin_trgm_ops)` | [001_init.sql:6716](../../../backend/migrations/001_init.sql#L6716) |

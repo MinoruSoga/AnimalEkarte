@@ -11,40 +11,40 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10772](../../../backend/migrations/001_init.sql#L10772) |
-| `common_pet_id` | `uuid` | NOT NULL | — | FK, UK | [001_init.sql:10772](../../../backend/migrations/001_init.sql#L10772) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10773](../../../backend/migrations/001_init.sql#L10773) |
-| `source_clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10773](../../../backend/migrations/001_init.sql#L10773) |
-| `source_local_pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10774](../../../backend/migrations/001_init.sql#L10774) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10774](../../../backend/migrations/001_init.sql#L10774) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:10775](../../../backend/migrations/001_init.sql#L10775) |
-| `name_kana` | `text` | NULL | — | — | [001_init.sql:10775](../../../backend/migrations/001_init.sql#L10775) |
-| `animal_species_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10775](../../../backend/migrations/001_init.sql#L10775) |
-| `breed` | `text` | NULL | — | — | [001_init.sql:10776](../../../backend/migrations/001_init.sql#L10776) |
-| `gender` | `pet_gender` | NULL | — | — | [001_init.sql:10776](../../../backend/migrations/001_init.sql#L10776) |
-| `status` | `pet_status` | NULL | — | — | [001_init.sql:10776](../../../backend/migrations/001_init.sql#L10776) |
-| `birth_date` | `date` | NULL | — | — | [001_init.sql:10776](../../../backend/migrations/001_init.sql#L10776) |
-| `color` | `text` | NULL | — | — | [001_init.sql:10776](../../../backend/migrations/001_init.sql#L10776) |
-| `registration_weight` | `numeric` | NULL | — | — | [001_init.sql:10777](../../../backend/migrations/001_init.sql#L10777) |
-| `registration_weight_unit` | `text` | NULL | — | — | [001_init.sql:10777](../../../backend/migrations/001_init.sql#L10777) |
-| `neutered_status` | `pet_neutered_status` | NOT NULL | `'unknown'` | — | [001_init.sql:10777](../../../backend/migrations/001_init.sql#L10777) |
-| `neutered_date` | `date` | NULL | — | — | [001_init.sql:10777](../../../backend/migrations/001_init.sql#L10777) |
-| `acquisition_type` | `acquisition_type` | NULL | — | — | [001_init.sql:10778](../../../backend/migrations/001_init.sql#L10778) |
-| `danger_level` | `danger_level` | NULL | — | — | [001_init.sql:10778](../../../backend/migrations/001_init.sql#L10778) |
-| `danger_reason` | `text` | NULL | — | — | [001_init.sql:10778](../../../backend/migrations/001_init.sql#L10778) |
-| `food` | `text` | NULL | — | — | [001_init.sql:10778](../../../backend/migrations/001_init.sql#L10778) |
-| `environment` | `text` | NULL | — | — | [001_init.sql:10778](../../../backend/migrations/001_init.sql#L10778) |
-| `phone` | `text` | NULL | — | — | [001_init.sql:10778](../../../backend/migrations/001_init.sql#L10778) |
-| `remarks` | `text` | NULL | — | — | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
-| `deceased_at` | `timestamptz` | NULL | — | — | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
-| `deceased_reason` | `text` | NULL | — | — | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
-| `blood_type` | `text` | NULL | — | — | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
-| `microchip_number` | `text` | NULL | — | — | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
-| `name_origin` | `text` | NULL | — | — | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
-| `meeting_story` | `text` | NULL | — | — | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
-| `provenance` | `jsonb` | NOT NULL | — | — | [001_init.sql:10780](../../../backend/migrations/001_init.sql#L10780) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10780](../../../backend/migrations/001_init.sql#L10780) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10781](../../../backend/migrations/001_init.sql#L10781) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10774](../../../backend/migrations/001_init.sql#L10774) |
+| `common_pet_id` | `uuid` | NOT NULL | — | FK, UK | [001_init.sql:10774](../../../backend/migrations/001_init.sql#L10774) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10775](../../../backend/migrations/001_init.sql#L10775) |
+| `source_clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10775](../../../backend/migrations/001_init.sql#L10775) |
+| `source_local_pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10776](../../../backend/migrations/001_init.sql#L10776) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10776](../../../backend/migrations/001_init.sql#L10776) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:10777](../../../backend/migrations/001_init.sql#L10777) |
+| `name_kana` | `text` | NULL | — | — | [001_init.sql:10777](../../../backend/migrations/001_init.sql#L10777) |
+| `animal_species_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10777](../../../backend/migrations/001_init.sql#L10777) |
+| `breed` | `text` | NULL | — | — | [001_init.sql:10778](../../../backend/migrations/001_init.sql#L10778) |
+| `gender` | `pet_gender` | NULL | — | — | [001_init.sql:10778](../../../backend/migrations/001_init.sql#L10778) |
+| `status` | `pet_status` | NULL | — | — | [001_init.sql:10778](../../../backend/migrations/001_init.sql#L10778) |
+| `birth_date` | `date` | NULL | — | — | [001_init.sql:10778](../../../backend/migrations/001_init.sql#L10778) |
+| `color` | `text` | NULL | — | — | [001_init.sql:10778](../../../backend/migrations/001_init.sql#L10778) |
+| `registration_weight` | `numeric` | NULL | — | — | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
+| `registration_weight_unit` | `text` | NULL | — | — | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
+| `neutered_status` | `pet_neutered_status` | NOT NULL | `'unknown'` | — | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
+| `neutered_date` | `date` | NULL | — | — | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
+| `acquisition_type` | `acquisition_type` | NULL | — | — | [001_init.sql:10780](../../../backend/migrations/001_init.sql#L10780) |
+| `danger_level` | `danger_level` | NULL | — | — | [001_init.sql:10780](../../../backend/migrations/001_init.sql#L10780) |
+| `danger_reason` | `text` | NULL | — | — | [001_init.sql:10780](../../../backend/migrations/001_init.sql#L10780) |
+| `food` | `text` | NULL | — | — | [001_init.sql:10780](../../../backend/migrations/001_init.sql#L10780) |
+| `environment` | `text` | NULL | — | — | [001_init.sql:10780](../../../backend/migrations/001_init.sql#L10780) |
+| `phone` | `text` | NULL | — | — | [001_init.sql:10780](../../../backend/migrations/001_init.sql#L10780) |
+| `remarks` | `text` | NULL | — | — | [001_init.sql:10781](../../../backend/migrations/001_init.sql#L10781) |
+| `deceased_at` | `timestamptz` | NULL | — | — | [001_init.sql:10781](../../../backend/migrations/001_init.sql#L10781) |
+| `deceased_reason` | `text` | NULL | — | — | [001_init.sql:10781](../../../backend/migrations/001_init.sql#L10781) |
+| `blood_type` | `text` | NULL | — | — | [001_init.sql:10781](../../../backend/migrations/001_init.sql#L10781) |
+| `microchip_number` | `text` | NULL | — | — | [001_init.sql:10781](../../../backend/migrations/001_init.sql#L10781) |
+| `name_origin` | `text` | NULL | — | — | [001_init.sql:10781](../../../backend/migrations/001_init.sql#L10781) |
+| `meeting_story` | `text` | NULL | — | — | [001_init.sql:10781](../../../backend/migrations/001_init.sql#L10781) |
+| `provenance` | `jsonb` | NOT NULL | — | — | [001_init.sql:10782](../../../backend/migrations/001_init.sql#L10782) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10782](../../../backend/migrations/001_init.sql#L10782) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10783](../../../backend/migrations/001_init.sql#L10783) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -124,12 +124,12 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `common_pet_basic_revisions_common_pet_id_fkey` | `common_pet_id` | [common_pet_subjects](common_pet_subjects.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10772](../../../backend/migrations/001_init.sql#L10772) |
-| `common_pet_basic_revisions_source_clinic_id_fkey` | `source_clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10773](../../../backend/migrations/001_init.sql#L10773) |
-| `common_pet_basic_revisions_animal_species_id_fkey` | `animal_species_id` | [animal_species](animal_species.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10775](../../../backend/migrations/001_init.sql#L10775) |
-| `common_pet_basic_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10780](../../../backend/migrations/001_init.sql#L10780) |
-| `common_pet_basic_revisions_source_local_pet_id_source_clin_fkey` | `source_local_pet_id, source_clinic_id` | [pets](pets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10782](../../../backend/migrations/001_init.sql#L10782) |
-| `common_pet_basic_revisions_operation_id_source_clinic_id_fkey` | `operation_id, source_clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10783](../../../backend/migrations/001_init.sql#L10783) |
+| `common_pet_basic_revisions_common_pet_id_fkey` | `common_pet_id` | [common_pet_subjects](common_pet_subjects.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10774](../../../backend/migrations/001_init.sql#L10774) |
+| `common_pet_basic_revisions_source_clinic_id_fkey` | `source_clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10775](../../../backend/migrations/001_init.sql#L10775) |
+| `common_pet_basic_revisions_animal_species_id_fkey` | `animal_species_id` | [animal_species](animal_species.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10777](../../../backend/migrations/001_init.sql#L10777) |
+| `common_pet_basic_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10782](../../../backend/migrations/001_init.sql#L10782) |
+| `common_pet_basic_revisions_source_local_pet_id_source_clin_fkey` | `source_local_pet_id, source_clinic_id` | [pets](pets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10784](../../../backend/migrations/001_init.sql#L10784) |
+| `common_pet_basic_revisions_operation_id_source_clinic_id_fkey` | `operation_id, source_clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10785](../../../backend/migrations/001_init.sql#L10785) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -144,15 +144,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `common_pet_basic_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10772](../../../backend/migrations/001_init.sql#L10772) |
-| `common_pet_basic_revisions_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10773](../../../backend/migrations/001_init.sql#L10773) |
-| `common_pet_basic_revisions_name_check` | check | `CHECK(btrim(name)<>'')` | [001_init.sql:10775](../../../backend/migrations/001_init.sql#L10775) |
-| `common_pet_basic_revisions_name_kana_check` | check | `CHECK(name_kana IS NULL OR name_kana !~ '[ァ-ヶ]')` | [001_init.sql:10775](../../../backend/migrations/001_init.sql#L10775) |
-| `common_pet_basic_revisions_registration_weight_check` | check | `CHECK(registration_weight IS NULL OR registration_weight>0)` | [001_init.sql:10777](../../../backend/migrations/001_init.sql#L10777) |
-| `common_pet_basic_revisions_provenance_check` | check | `CHECK(jsonb_typeof(provenance)='object')` | [001_init.sql:10780](../../../backend/migrations/001_init.sql#L10780) |
-| `common_pet_basic_revisions_id_common_pet_id_key` | unique | `UNIQUE(id,common_pet_id)` | [001_init.sql:10781](../../../backend/migrations/001_init.sql#L10781) |
-| `common_pet_basic_revisions_common_pet_id_revision_key` | unique | `UNIQUE(common_pet_id,revision)` | [001_init.sql:10781](../../../backend/migrations/001_init.sql#L10781) |
-| `ck_common_pet_danger_reason` | check | `CONSTRAINT ck_common_pet_danger_reason CHECK(danger_level IS DISTINCT FROM 'high' OR(danger_reason IS NOT NULL AND btrim(danger_reason)<>''))` | [001_init.sql:11202](../../../backend/migrations/001_init.sql#L11202) |
+| `common_pet_basic_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10774](../../../backend/migrations/001_init.sql#L10774) |
+| `common_pet_basic_revisions_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10775](../../../backend/migrations/001_init.sql#L10775) |
+| `common_pet_basic_revisions_name_check` | check | `CHECK(btrim(name)<>'')` | [001_init.sql:10777](../../../backend/migrations/001_init.sql#L10777) |
+| `common_pet_basic_revisions_name_kana_check` | check | `CHECK(name_kana IS NULL OR name_kana !~ '[ァ-ヶ]')` | [001_init.sql:10777](../../../backend/migrations/001_init.sql#L10777) |
+| `common_pet_basic_revisions_registration_weight_check` | check | `CHECK(registration_weight IS NULL OR registration_weight>0)` | [001_init.sql:10779](../../../backend/migrations/001_init.sql#L10779) |
+| `common_pet_basic_revisions_provenance_check` | check | `CHECK(jsonb_typeof(provenance)='object')` | [001_init.sql:10782](../../../backend/migrations/001_init.sql#L10782) |
+| `common_pet_basic_revisions_id_common_pet_id_key` | unique | `UNIQUE(id,common_pet_id)` | [001_init.sql:10783](../../../backend/migrations/001_init.sql#L10783) |
+| `common_pet_basic_revisions_common_pet_id_revision_key` | unique | `UNIQUE(common_pet_id,revision)` | [001_init.sql:10783](../../../backend/migrations/001_init.sql#L10783) |
+| `ck_common_pet_danger_reason` | check | `CONSTRAINT ck_common_pet_danger_reason CHECK(danger_level IS DISTINCT FROM 'high' OR(danger_reason IS NOT NULL AND btrim(danger_reason)<>''))` | [001_init.sql:11204](../../../backend/migrations/001_init.sql#L11204) |
 
 ## インデックス
 

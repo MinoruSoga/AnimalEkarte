@@ -11,9 +11,9 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `jti` | `TEXT` | NOT NULL | — | PK | [001_init.sql:445](../../../backend/migrations/001_init.sql#L445) |
-| `expires_at` | `TIMESTAMPTZ` | NOT NULL | — | — | [001_init.sql:446](../../../backend/migrations/001_init.sql#L446) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:447](../../../backend/migrations/001_init.sql#L447) |
+| `jti` | `TEXT` | NOT NULL | — | PK | [001_init.sql:447](../../../backend/migrations/001_init.sql#L447) |
+| `expires_at` | `TIMESTAMPTZ` | NOT NULL | — | — | [001_init.sql:448](../../../backend/migrations/001_init.sql#L448) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:449](../../../backend/migrations/001_init.sql#L449) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -40,10 +40,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `token_blacklist_pkey` | primary | `PRIMARY KEY` | [001_init.sql:445](../../../backend/migrations/001_init.sql#L445) |
+| `token_blacklist_pkey` | primary | `PRIMARY KEY` | [001_init.sql:447](../../../backend/migrations/001_init.sql#L447) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_token_blacklist_expires_at` | NO | — | `CREATE INDEX idx_token_blacklist_expires_at ON token_blacklist(expires_at)` | [001_init.sql:457](../../../backend/migrations/001_init.sql#L457) |
+| `idx_token_blacklist_expires_at` | NO | — | `CREATE INDEX idx_token_blacklist_expires_at ON token_blacklist(expires_at)` | [001_init.sql:459](../../../backend/migrations/001_init.sql#L459) |

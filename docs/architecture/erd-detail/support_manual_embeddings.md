@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `cache_key` | `text` | NOT NULL | — | PK | [001_init.sql:7582](../../../backend/migrations/001_init.sql#L7582) |
-| `model` | `text` | NOT NULL | — | — | [001_init.sql:7583](../../../backend/migrations/001_init.sql#L7583) |
-| `task_type` | `text` | NOT NULL | — | — | [001_init.sql:7584](../../../backend/migrations/001_init.sql#L7584) |
-| `chunker_version` | `integer` | NOT NULL | — | — | [001_init.sql:7585](../../../backend/migrations/001_init.sql#L7585) |
-| `dimensions` | `integer` | NOT NULL | — | — | [001_init.sql:7586](../../../backend/migrations/001_init.sql#L7586) |
-| `embedding` | `real[]` | NOT NULL | — | — | [001_init.sql:7587](../../../backend/migrations/001_init.sql#L7587) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:7588](../../../backend/migrations/001_init.sql#L7588) |
+| `cache_key` | `text` | NOT NULL | — | PK | [001_init.sql:7584](../../../backend/migrations/001_init.sql#L7584) |
+| `model` | `text` | NOT NULL | — | — | [001_init.sql:7585](../../../backend/migrations/001_init.sql#L7585) |
+| `task_type` | `text` | NOT NULL | — | — | [001_init.sql:7586](../../../backend/migrations/001_init.sql#L7586) |
+| `chunker_version` | `integer` | NOT NULL | — | — | [001_init.sql:7587](../../../backend/migrations/001_init.sql#L7587) |
+| `dimensions` | `integer` | NOT NULL | — | — | [001_init.sql:7588](../../../backend/migrations/001_init.sql#L7588) |
+| `embedding` | `real[]` | NOT NULL | — | — | [001_init.sql:7589](../../../backend/migrations/001_init.sql#L7589) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:7590](../../../backend/migrations/001_init.sql#L7590) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -48,11 +48,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `support_manual_embeddings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:7582](../../../backend/migrations/001_init.sql#L7582) |
-| `support_manual_embeddings_dimensions_chk` | check | `CONSTRAINT support_manual_embeddings_dimensions_chk CHECK (dimensions = 1536)` | [001_init.sql:7589](../../../backend/migrations/001_init.sql#L7589) |
-| `support_manual_embeddings_length_chk` | check | `CONSTRAINT support_manual_embeddings_length_chk CHECK (         array_ndims(embedding) = 1 AND cardinality(embedding) = 1536 AND array_lower(embedding, 1) = 1     )` | [001_init.sql:7590](../../../backend/migrations/001_init.sql#L7590) |
-| `support_manual_embeddings_task_chk` | check | `CONSTRAINT support_manual_embeddings_task_chk CHECK (task_type = 'RETRIEVAL_DOCUMENT')` | [001_init.sql:7593](../../../backend/migrations/001_init.sql#L7593) |
-| `support_manual_embeddings_version_chk` | check | `CONSTRAINT support_manual_embeddings_version_chk CHECK (chunker_version = 1)` | [001_init.sql:7594](../../../backend/migrations/001_init.sql#L7594) |
+| `support_manual_embeddings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:7584](../../../backend/migrations/001_init.sql#L7584) |
+| `support_manual_embeddings_dimensions_chk` | check | `CONSTRAINT support_manual_embeddings_dimensions_chk CHECK (dimensions = 1536)` | [001_init.sql:7591](../../../backend/migrations/001_init.sql#L7591) |
+| `support_manual_embeddings_length_chk` | check | `CONSTRAINT support_manual_embeddings_length_chk CHECK (         array_ndims(embedding) = 1 AND cardinality(embedding) = 1536 AND array_lower(embedding, 1) = 1     )` | [001_init.sql:7592](../../../backend/migrations/001_init.sql#L7592) |
+| `support_manual_embeddings_task_chk` | check | `CONSTRAINT support_manual_embeddings_task_chk CHECK (task_type = 'RETRIEVAL_DOCUMENT')` | [001_init.sql:7595](../../../backend/migrations/001_init.sql#L7595) |
+| `support_manual_embeddings_version_chk` | check | `CONSTRAINT support_manual_embeddings_version_chk CHECK (chunker_version = 1)` | [001_init.sql:7596](../../../backend/migrations/001_init.sql#L7596) |
 
 ## インデックス
 

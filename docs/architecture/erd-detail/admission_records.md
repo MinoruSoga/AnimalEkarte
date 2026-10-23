@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9316](../../../backend/migrations/001_init.sql#L9316) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9317](../../../backend/migrations/001_init.sql#L9317) |
-| `hospitalization_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9318](../../../backend/migrations/001_init.sql#L9318) |
-| `stay_case_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9319](../../../backend/migrations/001_init.sql#L9319) |
-| `admission_event_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9320](../../../backend/migrations/001_init.sql#L9320) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9321](../../../backend/migrations/001_init.sql#L9321) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9318](../../../backend/migrations/001_init.sql#L9318) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9319](../../../backend/migrations/001_init.sql#L9319) |
+| `hospitalization_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9320](../../../backend/migrations/001_init.sql#L9320) |
+| `stay_case_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9321](../../../backend/migrations/001_init.sql#L9321) |
+| `admission_event_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9322](../../../backend/migrations/001_init.sql#L9322) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9323](../../../backend/migrations/001_init.sql#L9323) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -57,9 +57,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `admission_records_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9317](../../../backend/migrations/001_init.sql#L9317) |
-| `admission_records_hospitalization_id_clinic_id_fkey` | `hospitalization_id, clinic_id` | [hospitalizations](hospitalizations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9324](../../../backend/migrations/001_init.sql#L9324) |
-| `admission_records_admission_event_id_clinic_id_stay_case_i_fkey` | `admission_event_id, clinic_id, stay_case_id` | [stay_movement_events](stay_movement_events.md) | `id, clinic_id, stay_case_id` | `ON DELETE RESTRICT` | [001_init.sql:9325](../../../backend/migrations/001_init.sql#L9325) |
+| `admission_records_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9319](../../../backend/migrations/001_init.sql#L9319) |
+| `admission_records_hospitalization_id_clinic_id_fkey` | `hospitalization_id, clinic_id` | [hospitalizations](hospitalizations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9326](../../../backend/migrations/001_init.sql#L9326) |
+| `admission_records_admission_event_id_clinic_id_stay_case_i_fkey` | `admission_event_id, clinic_id, stay_case_id` | [stay_movement_events](stay_movement_events.md) | `id, clinic_id, stay_case_id` | `ON DELETE RESTRICT` | [001_init.sql:9327](../../../backend/migrations/001_init.sql#L9327) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -71,9 +71,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `admission_records_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9316](../../../backend/migrations/001_init.sql#L9316) |
-| `admission_records_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9322](../../../backend/migrations/001_init.sql#L9322) |
-| `admission_records_clinic_id_stay_case_id_key` | unique | `UNIQUE (clinic_id,stay_case_id)` | [001_init.sql:9323](../../../backend/migrations/001_init.sql#L9323) |
+| `admission_records_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9318](../../../backend/migrations/001_init.sql#L9318) |
+| `admission_records_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9324](../../../backend/migrations/001_init.sql#L9324) |
+| `admission_records_clinic_id_stay_case_id_key` | unique | `UNIQUE (clinic_id,stay_case_id)` | [001_init.sql:9325](../../../backend/migrations/001_init.sql#L9325) |
 
 ## インデックス
 

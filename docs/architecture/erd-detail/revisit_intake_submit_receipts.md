@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7652](../../../backend/migrations/001_init.sql#L7652) |
-| `author_customer_id` | `bigint` | NOT NULL | — | PK | [001_init.sql:7653](../../../backend/migrations/001_init.sql#L7653) |
-| `operation_key` | `uuid` | NOT NULL | — | PK | [001_init.sql:7654](../../../backend/migrations/001_init.sql#L7654) |
-| `author_subject_hash` | `bytea` | NOT NULL | — | — | [001_init.sql:7655](../../../backend/migrations/001_init.sql#L7655) |
-| `fingerprint_version` | `smallint` | NOT NULL | `1` | — | [001_init.sql:7656](../../../backend/migrations/001_init.sql#L7656) |
-| `request_hash` | `bytea` | NOT NULL | — | — | [001_init.sql:7657](../../../backend/migrations/001_init.sql#L7657) |
-| `state` | `text` | NOT NULL | `'claimed'` | — | [001_init.sql:7658](../../../backend/migrations/001_init.sql#L7658) |
-| `result_answer_id` | `bigint` | NULL | — | FK | [001_init.sql:7659](../../../backend/migrations/001_init.sql#L7659) |
-| `claimed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7660](../../../backend/migrations/001_init.sql#L7660) |
-| `committed_at` | `timestamptz` | NULL | — | — | [001_init.sql:7661](../../../backend/migrations/001_init.sql#L7661) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7654](../../../backend/migrations/001_init.sql#L7654) |
+| `author_customer_id` | `bigint` | NOT NULL | — | PK | [001_init.sql:7655](../../../backend/migrations/001_init.sql#L7655) |
+| `operation_key` | `uuid` | NOT NULL | — | PK | [001_init.sql:7656](../../../backend/migrations/001_init.sql#L7656) |
+| `author_subject_hash` | `bytea` | NOT NULL | — | — | [001_init.sql:7657](../../../backend/migrations/001_init.sql#L7657) |
+| `fingerprint_version` | `smallint` | NOT NULL | `1` | — | [001_init.sql:7658](../../../backend/migrations/001_init.sql#L7658) |
+| `request_hash` | `bytea` | NOT NULL | — | — | [001_init.sql:7659](../../../backend/migrations/001_init.sql#L7659) |
+| `state` | `text` | NOT NULL | `'claimed'` | — | [001_init.sql:7660](../../../backend/migrations/001_init.sql#L7660) |
+| `result_answer_id` | `bigint` | NULL | — | FK | [001_init.sql:7661](../../../backend/migrations/001_init.sql#L7661) |
+| `claimed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7662](../../../backend/migrations/001_init.sql#L7662) |
+| `committed_at` | `timestamptz` | NULL | — | — | [001_init.sql:7663](../../../backend/migrations/001_init.sql#L7663) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -59,8 +59,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `revisit_intake_submit_receipts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7652](../../../backend/migrations/001_init.sql#L7652) |
-| `fk_revisit_receipt_answer` | `clinic_id, result_answer_id` | [revisit_intake_answers](revisit_intake_answers.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:7704](../../../backend/migrations/001_init.sql#L7704) |
+| `revisit_intake_submit_receipts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7654](../../../backend/migrations/001_init.sql#L7654) |
+| `fk_revisit_receipt_answer` | `clinic_id, result_answer_id` | [revisit_intake_answers](revisit_intake_answers.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:7706](../../../backend/migrations/001_init.sql#L7706) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -71,14 +71,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `revisit_intake_submit_receipts_author_customer_id_check` | check | `CHECK (author_customer_id > 0)` | [001_init.sql:7653](../../../backend/migrations/001_init.sql#L7653) |
-| `revisit_intake_submit_receipts_author_subject_hash_check` | check | `CHECK (octet_length(author_subject_hash) = 32)` | [001_init.sql:7655](../../../backend/migrations/001_init.sql#L7655) |
-| `revisit_intake_submit_receipts_fingerprint_version_check` | check | `CHECK (fingerprint_version = 1)` | [001_init.sql:7656](../../../backend/migrations/001_init.sql#L7656) |
-| `revisit_intake_submit_receipts_request_hash_check` | check | `CHECK (octet_length(request_hash) = 32)` | [001_init.sql:7657](../../../backend/migrations/001_init.sql#L7657) |
-| `revisit_intake_submit_receipts_state_check` | check | `CHECK (state IN ('claimed', 'succeeded'))` | [001_init.sql:7658](../../../backend/migrations/001_init.sql#L7658) |
-| `revisit_intake_submit_receipts_pkey` | primary | `PRIMARY KEY (clinic_id, author_customer_id, operation_key)` | [001_init.sql:7662](../../../backend/migrations/001_init.sql#L7662) |
-| `revisit_intake_submit_receipts_check` | check | `CHECK ((state = 'claimed' AND result_answer_id IS NULL AND committed_at IS NULL)         OR (state = 'succeeded' AND result_answer_id IS NOT NULL AND committed_at IS NOT NULL))` | [001_init.sql:7663](../../../backend/migrations/001_init.sql#L7663) |
-| `revisit_intake_submit_receipts_check1` | check | `CHECK (committed_at IS NULL OR committed_at >= claimed_at)` | [001_init.sql:7665](../../../backend/migrations/001_init.sql#L7665) |
+| `revisit_intake_submit_receipts_author_customer_id_check` | check | `CHECK (author_customer_id > 0)` | [001_init.sql:7655](../../../backend/migrations/001_init.sql#L7655) |
+| `revisit_intake_submit_receipts_author_subject_hash_check` | check | `CHECK (octet_length(author_subject_hash) = 32)` | [001_init.sql:7657](../../../backend/migrations/001_init.sql#L7657) |
+| `revisit_intake_submit_receipts_fingerprint_version_check` | check | `CHECK (fingerprint_version = 1)` | [001_init.sql:7658](../../../backend/migrations/001_init.sql#L7658) |
+| `revisit_intake_submit_receipts_request_hash_check` | check | `CHECK (octet_length(request_hash) = 32)` | [001_init.sql:7659](../../../backend/migrations/001_init.sql#L7659) |
+| `revisit_intake_submit_receipts_state_check` | check | `CHECK (state IN ('claimed', 'succeeded'))` | [001_init.sql:7660](../../../backend/migrations/001_init.sql#L7660) |
+| `revisit_intake_submit_receipts_pkey` | primary | `PRIMARY KEY (clinic_id, author_customer_id, operation_key)` | [001_init.sql:7664](../../../backend/migrations/001_init.sql#L7664) |
+| `revisit_intake_submit_receipts_check` | check | `CHECK ((state = 'claimed' AND result_answer_id IS NULL AND committed_at IS NULL)         OR (state = 'succeeded' AND result_answer_id IS NOT NULL AND committed_at IS NOT NULL))` | [001_init.sql:7665](../../../backend/migrations/001_init.sql#L7665) |
+| `revisit_intake_submit_receipts_check1` | check | `CHECK (committed_at IS NULL OR committed_at >= claimed_at)` | [001_init.sql:7667](../../../backend/migrations/001_init.sql#L7667) |
 
 ## インデックス
 

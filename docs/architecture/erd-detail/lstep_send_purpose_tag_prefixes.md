@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:670](../../../backend/migrations/001_init.sql#L670) |
-| `purpose` | `VARCHAR(100)` | NOT NULL | — | UK | [001_init.sql:671](../../../backend/migrations/001_init.sql#L671) |
-| `tag_prefix` | `VARCHAR(100)` | NOT NULL | — | — | [001_init.sql:672](../../../backend/migrations/001_init.sql#L672) |
-| `description` | `TEXT` | NULL | — | — | [001_init.sql:673](../../../backend/migrations/001_init.sql#L673) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:674](../../../backend/migrations/001_init.sql#L674) |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:675](../../../backend/migrations/001_init.sql#L675) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:672](../../../backend/migrations/001_init.sql#L672) |
+| `purpose` | `VARCHAR(100)` | NOT NULL | — | UK | [001_init.sql:673](../../../backend/migrations/001_init.sql#L673) |
+| `tag_prefix` | `VARCHAR(100)` | NOT NULL | — | — | [001_init.sql:674](../../../backend/migrations/001_init.sql#L674) |
+| `description` | `TEXT` | NULL | — | — | [001_init.sql:675](../../../backend/migrations/001_init.sql#L675) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:676](../../../backend/migrations/001_init.sql#L676) |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:677](../../../backend/migrations/001_init.sql#L677) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -46,8 +46,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_send_purpose_tag_prefixes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:670](../../../backend/migrations/001_init.sql#L670) |
-| `lstep_send_purpose_tag_prefixes_purpose_key` | unique | `UNIQUE` | [001_init.sql:671](../../../backend/migrations/001_init.sql#L671) |
+| `lstep_send_purpose_tag_prefixes_pkey` | primary | `PRIMARY KEY` | [001_init.sql:672](../../../backend/migrations/001_init.sql#L672) |
+| `lstep_send_purpose_tag_prefixes_purpose_key` | unique | `UNIQUE` | [001_init.sql:673](../../../backend/migrations/001_init.sql#L673) |
 
 ## インデックス
 

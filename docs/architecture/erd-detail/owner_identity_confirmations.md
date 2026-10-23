@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10387](../../../backend/migrations/001_init.sql#L10387) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10387](../../../backend/migrations/001_init.sql#L10387) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10388](../../../backend/migrations/001_init.sql#L10388) |
-| `candidate_owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10388](../../../backend/migrations/001_init.sql#L10388) |
-| `determination` | `text` | NOT NULL | — | — | [001_init.sql:10388](../../../backend/migrations/001_init.sql#L10388) |
-| `evidence` | `jsonb` | NOT NULL | — | — | [001_init.sql:10389](../../../backend/migrations/001_init.sql#L10389) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10389](../../../backend/migrations/001_init.sql#L10389) |
-| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10390](../../../backend/migrations/001_init.sql#L10390) |
-| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10390](../../../backend/migrations/001_init.sql#L10390) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10389](../../../backend/migrations/001_init.sql#L10389) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10389](../../../backend/migrations/001_init.sql#L10389) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10390](../../../backend/migrations/001_init.sql#L10390) |
+| `candidate_owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10390](../../../backend/migrations/001_init.sql#L10390) |
+| `determination` | `text` | NOT NULL | — | — | [001_init.sql:10390](../../../backend/migrations/001_init.sql#L10390) |
+| `evidence` | `jsonb` | NOT NULL | — | — | [001_init.sql:10391](../../../backend/migrations/001_init.sql#L10391) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10391](../../../backend/migrations/001_init.sql#L10391) |
+| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10392](../../../backend/migrations/001_init.sql#L10392) |
+| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10392](../../../backend/migrations/001_init.sql#L10392) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -67,11 +67,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `owner_identity_confirmations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10387](../../../backend/migrations/001_init.sql#L10387) |
-| `owner_identity_confirmations_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10390](../../../backend/migrations/001_init.sql#L10390) |
-| `owner_identity_confirmations_owner_id_clinic_id_fkey` | `owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10392](../../../backend/migrations/001_init.sql#L10392) |
-| `owner_identity_confirmations_candidate_owner_id_clinic_id_fkey` | `candidate_owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10393](../../../backend/migrations/001_init.sql#L10393) |
-| `owner_identity_confirmations_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10394](../../../backend/migrations/001_init.sql#L10394) |
+| `owner_identity_confirmations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10389](../../../backend/migrations/001_init.sql#L10389) |
+| `owner_identity_confirmations_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10392](../../../backend/migrations/001_init.sql#L10392) |
+| `owner_identity_confirmations_owner_id_clinic_id_fkey` | `owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10394](../../../backend/migrations/001_init.sql#L10394) |
+| `owner_identity_confirmations_candidate_owner_id_clinic_id_fkey` | `candidate_owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10395](../../../backend/migrations/001_init.sql#L10395) |
+| `owner_identity_confirmations_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10396](../../../backend/migrations/001_init.sql#L10396) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -85,11 +85,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `owner_identity_confirmations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10387](../../../backend/migrations/001_init.sql#L10387) |
-| `owner_identity_confirmations_determination_check` | check | `CHECK(determination IN('same_person','different_people'))` | [001_init.sql:10388](../../../backend/migrations/001_init.sql#L10388) |
-| `owner_identity_confirmations_evidence_check` | check | `CHECK(jsonb_typeof(evidence)='object')` | [001_init.sql:10389](../../../backend/migrations/001_init.sql#L10389) |
-| `owner_identity_confirmations_check` | check | `CHECK(owner_id<>candidate_owner_id)` | [001_init.sql:10391](../../../backend/migrations/001_init.sql#L10391) |
-| `owner_identity_confirmations_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10391](../../../backend/migrations/001_init.sql#L10391) |
+| `owner_identity_confirmations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10389](../../../backend/migrations/001_init.sql#L10389) |
+| `owner_identity_confirmations_determination_check` | check | `CHECK(determination IN('same_person','different_people'))` | [001_init.sql:10390](../../../backend/migrations/001_init.sql#L10390) |
+| `owner_identity_confirmations_evidence_check` | check | `CHECK(jsonb_typeof(evidence)='object')` | [001_init.sql:10391](../../../backend/migrations/001_init.sql#L10391) |
+| `owner_identity_confirmations_check` | check | `CHECK(owner_id<>candidate_owner_id)` | [001_init.sql:10393](../../../backend/migrations/001_init.sql#L10393) |
+| `owner_identity_confirmations_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10393](../../../backend/migrations/001_init.sql#L10393) |
 
 ## インデックス
 

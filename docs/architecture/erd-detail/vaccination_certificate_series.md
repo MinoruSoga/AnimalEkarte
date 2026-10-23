@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8331](../../../backend/migrations/001_init.sql#L8331) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8332](../../../backend/migrations/001_init.sql#L8332) |
-| `vaccination_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8333](../../../backend/migrations/001_init.sql#L8333) |
-| `certificate_kind` | `text` | NOT NULL | — | UK | [001_init.sql:8334](../../../backend/migrations/001_init.sql#L8334) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8335](../../../backend/migrations/001_init.sql#L8335) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8333](../../../backend/migrations/001_init.sql#L8333) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8334](../../../backend/migrations/001_init.sql#L8334) |
+| `vaccination_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8335](../../../backend/migrations/001_init.sql#L8335) |
+| `certificate_kind` | `text` | NOT NULL | — | UK | [001_init.sql:8336](../../../backend/migrations/001_init.sql#L8336) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8337](../../../backend/migrations/001_init.sql#L8337) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -49,8 +49,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `vaccination_certificate_series_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8332](../../../backend/migrations/001_init.sql#L8332) |
-| `vaccination_certificate_series_vaccination_id_clinic_id_fkey` | `vaccination_id, clinic_id` | [vaccinations](vaccinations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8338](../../../backend/migrations/001_init.sql#L8338) |
+| `vaccination_certificate_series_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8334](../../../backend/migrations/001_init.sql#L8334) |
+| `vaccination_certificate_series_vaccination_id_clinic_id_fkey` | `vaccination_id, clinic_id` | [vaccinations](vaccinations.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8340](../../../backend/migrations/001_init.sql#L8340) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -61,10 +61,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `vaccination_certificate_series_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8331](../../../backend/migrations/001_init.sql#L8331) |
-| `vaccination_certificate_series_certificate_kind_check` | check | `CHECK (certificate_kind IN ('normal','rabies'))` | [001_init.sql:8334](../../../backend/migrations/001_init.sql#L8334) |
-| `vaccination_certificate_series_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:8336](../../../backend/migrations/001_init.sql#L8336) |
-| `vaccination_certificate_serie_clinic_id_vaccination_id_cert_key` | unique | `UNIQUE (clinic_id,vaccination_id,certificate_kind)` | [001_init.sql:8337](../../../backend/migrations/001_init.sql#L8337) |
+| `vaccination_certificate_series_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8333](../../../backend/migrations/001_init.sql#L8333) |
+| `vaccination_certificate_series_certificate_kind_check` | check | `CHECK (certificate_kind IN ('normal','rabies'))` | [001_init.sql:8336](../../../backend/migrations/001_init.sql#L8336) |
+| `vaccination_certificate_series_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:8338](../../../backend/migrations/001_init.sql#L8338) |
+| `vaccination_certificate_serie_clinic_id_vaccination_id_cert_key` | unique | `UNIQUE (clinic_id,vaccination_id,certificate_kind)` | [001_init.sql:8339](../../../backend/migrations/001_init.sql#L8339) |
 
 ## インデックス
 

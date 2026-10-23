@@ -11,10 +11,10 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9058](../../../backend/migrations/001_init.sql#L9058) |
-| `medical_record_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9059](../../../backend/migrations/001_init.sql#L9059) |
-| `owner_kind` | `text` | NOT NULL | — | PK | [001_init.sql:9060](../../../backend/migrations/001_init.sql#L9060) |
-| `revision` | `bigint` | NOT NULL | — | — | [001_init.sql:9061](../../../backend/migrations/001_init.sql#L9061) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9060](../../../backend/migrations/001_init.sql#L9060) |
+| `medical_record_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9061](../../../backend/migrations/001_init.sql#L9061) |
+| `owner_kind` | `text` | NOT NULL | — | PK | [001_init.sql:9062](../../../backend/migrations/001_init.sql#L9062) |
+| `revision` | `bigint` | NOT NULL | — | — | [001_init.sql:9063](../../../backend/migrations/001_init.sql#L9063) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -47,8 +47,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `medical_record_dependency_versions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9058](../../../backend/migrations/001_init.sql#L9058) |
-| `medical_record_dependency_vers_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9063](../../../backend/migrations/001_init.sql#L9063) |
+| `medical_record_dependency_versions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9060](../../../backend/migrations/001_init.sql#L9060) |
+| `medical_record_dependency_vers_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9065](../../../backend/migrations/001_init.sql#L9065) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -59,8 +59,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `medical_record_dependency_versions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9061](../../../backend/migrations/001_init.sql#L9061) |
-| `medical_record_dependency_versions_pkey` | primary | `PRIMARY KEY (clinic_id,medical_record_id,owner_kind)` | [001_init.sql:9062](../../../backend/migrations/001_init.sql#L9062) |
+| `medical_record_dependency_versions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9063](../../../backend/migrations/001_init.sql#L9063) |
+| `medical_record_dependency_versions_pkey` | primary | `PRIMARY KEY (clinic_id,medical_record_id,owner_kind)` | [001_init.sql:9064](../../../backend/migrations/001_init.sql#L9064) |
 
 ## インデックス
 

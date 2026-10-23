@@ -286,24 +286,24 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `2dd4ab48d4b342ddaae53c1570e23469a5d04bbbec1c82191e7b04d051317651`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `5d65cadbcda6a88037732d7635f6d54a333641300ddf9525813542934b496b17`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
-| [001_init.sql](../../../backend/migrations/001_init.sql) | `0deaf2dbf235a5b4ce97c47e2b5dd54fd30f80c16e89bf475ca6ba3edbc0e298` |
+| [001_init.sql](../../../backend/migrations/001_init.sql) | `f8f440437aaf36c49211c68b831a7bd811c41e592cb06ec2c712d8614e2a1ef6` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 
-- 001_init.sql:3040 sha256=1f2d68c8a027d0a56679a58d695bb875d8916a8349b50fd5495ccea35839b2e8 rls_policy
-- 001_init.sql:3862 sha256=7b22dfd85b61582c63f7b7c69eaffe5d6f6c60e4f33be57395476e479c0e335e data_assertion
-- 001_init.sql:3934 sha256=2d7574c417ab8910cc806bddfdecaca8d3a7386db3a356a50276c028f9885af4 data_assertion
-- 001_init.sql:4879 sha256=45920ac83a22c2ad218f09b590835f888ffcc40130aac19753b9d217a42e1edd data_cleanup
-- 001_init.sql:5247 sha256=75ddac964c4f3c96c68336d52d31f6d0716f7ed89f4a3fc8bb9ac232fd2aba17 drop_checkup_parent
-- 001_init.sql:5265 sha256=229b993c292b1849d80bf76664311627d4e1743c830260813d5af110ab32462f add_checkup_parent
-- 001_init.sql:5351 sha256=aa8a1ace3fb3ecfa46c6d0ca4c961cf1072501c0f01fde5bfe69a0eed3b26f09 data_assertion
-- 001_init.sql:6441 sha256=0d8177b1a72683892e1e2ee88f6f3ae2e147ecd10a7e72ce0afc5ac80600ca50 checksum
-- 001_init.sql:6509 sha256=bb8145f87b85e4e433021540faa2cdc794b0a57b0cbebc937c6e396f80f3ba04 data_assertion
-- 001_init.sql:6527 sha256=1ef0b2b7e415cda4a466684aa33120d6c7c70eafea515ce7ef28350349241322 checksum
-- 001_init.sql:6894 sha256=5fa63dccad7cd9c60ceebee5735eed2c41e828f0c5668ba107e5b15d18420afd checksum
-- 001_init.sql:7396 sha256=f6382ad0b0e4c1b49a7ad03cc005aecaa0180cbaab1a9580c23bbf0aa4948942 data_warning
-- 001_init.sql:7461 sha256=a2a0d54165c328b2ce6e41ba40d202cad9168941086cc888bccaadda1d27cedb data_assertion
+- 001_init.sql:3042 sha256=1f2d68c8a027d0a56679a58d695bb875d8916a8349b50fd5495ccea35839b2e8 rls_policy
+- 001_init.sql:3864 sha256=7b22dfd85b61582c63f7b7c69eaffe5d6f6c60e4f33be57395476e479c0e335e data_assertion
+- 001_init.sql:3936 sha256=2d7574c417ab8910cc806bddfdecaca8d3a7386db3a356a50276c028f9885af4 data_assertion
+- 001_init.sql:4881 sha256=45920ac83a22c2ad218f09b590835f888ffcc40130aac19753b9d217a42e1edd data_cleanup
+- 001_init.sql:5249 sha256=75ddac964c4f3c96c68336d52d31f6d0716f7ed89f4a3fc8bb9ac232fd2aba17 drop_checkup_parent
+- 001_init.sql:5267 sha256=229b993c292b1849d80bf76664311627d4e1743c830260813d5af110ab32462f add_checkup_parent
+- 001_init.sql:5353 sha256=aa8a1ace3fb3ecfa46c6d0ca4c961cf1072501c0f01fde5bfe69a0eed3b26f09 data_assertion
+- 001_init.sql:6443 sha256=0d8177b1a72683892e1e2ee88f6f3ae2e147ecd10a7e72ce0afc5ac80600ca50 checksum
+- 001_init.sql:6511 sha256=bb8145f87b85e4e433021540faa2cdc794b0a57b0cbebc937c6e396f80f3ba04 data_assertion
+- 001_init.sql:6529 sha256=1ef0b2b7e415cda4a466684aa33120d6c7c70eafea515ce7ef28350349241322 checksum
+- 001_init.sql:6896 sha256=5fa63dccad7cd9c60ceebee5735eed2c41e828f0c5668ba107e5b15d18420afd checksum
+- 001_init.sql:7398 sha256=f6382ad0b0e4c1b49a7ad03cc005aecaa0180cbaab1a9580c23bbf0aa4948942 data_warning
+- 001_init.sql:7463 sha256=a2a0d54165c328b2ce6e41ba40d202cad9168941086cc888bccaadda1d27cedb data_assertion

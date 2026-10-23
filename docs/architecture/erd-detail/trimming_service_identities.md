@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:7959](../../../backend/migrations/001_init.sql#L7959) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:7960](../../../backend/migrations/001_init.sql#L7960) |
-| `display_name` | `text` | NULL | — | — | [001_init.sql:7961](../../../backend/migrations/001_init.sql#L7961) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7962](../../../backend/migrations/001_init.sql#L7962) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:7963](../../../backend/migrations/001_init.sql#L7963) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:7961](../../../backend/migrations/001_init.sql#L7961) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:7962](../../../backend/migrations/001_init.sql#L7962) |
+| `display_name` | `text` | NULL | — | — | [001_init.sql:7963](../../../backend/migrations/001_init.sql#L7963) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7964](../../../backend/migrations/001_init.sql#L7964) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:7965](../../../backend/migrations/001_init.sql#L7965) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -44,7 +44,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_service_identities_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7960](../../../backend/migrations/001_init.sql#L7960) |
+| `trimming_service_identities_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7962](../../../backend/migrations/001_init.sql#L7962) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -54,8 +54,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_service_identities_pkey` | primary | `PRIMARY KEY` | [001_init.sql:7959](../../../backend/migrations/001_init.sql#L7959) |
-| `trimming_service_identities_id_clinic_id_key` | unique | `UNIQUE (id, clinic_id)` | [001_init.sql:7964](../../../backend/migrations/001_init.sql#L7964) |
+| `trimming_service_identities_pkey` | primary | `PRIMARY KEY` | [001_init.sql:7961](../../../backend/migrations/001_init.sql#L7961) |
+| `trimming_service_identities_id_clinic_id_key` | unique | `UNIQUE (id, clinic_id)` | [001_init.sql:7966](../../../backend/migrations/001_init.sql#L7966) |
 
 ## インデックス
 

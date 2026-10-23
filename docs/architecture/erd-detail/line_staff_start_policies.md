@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11800](../../../backend/migrations/001_init.sql#L11800) |
-| `reservation_type_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11801](../../../backend/migrations/001_init.sql#L11801) |
-| `assignment_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11802](../../../backend/migrations/001_init.sql#L11802) |
-| `staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:11803](../../../backend/migrations/001_init.sql#L11803) |
-| `schema_version` | `text` | NOT NULL | — | — | [001_init.sql:11804](../../../backend/migrations/001_init.sql#L11804) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:11805](../../../backend/migrations/001_init.sql#L11805) |
-| `weekly_times` | `jsonb` | NOT NULL | — | — | [001_init.sql:11806](../../../backend/migrations/001_init.sql#L11806) |
-| `date_overrides` | `jsonb` | NOT NULL | — | — | [001_init.sql:11807](../../../backend/migrations/001_init.sql#L11807) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:11808](../../../backend/migrations/001_init.sql#L11808) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11809](../../../backend/migrations/001_init.sql#L11809) |
-| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11810](../../../backend/migrations/001_init.sql#L11810) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11802](../../../backend/migrations/001_init.sql#L11802) |
+| `reservation_type_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11803](../../../backend/migrations/001_init.sql#L11803) |
+| `assignment_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11804](../../../backend/migrations/001_init.sql#L11804) |
+| `staff_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:11805](../../../backend/migrations/001_init.sql#L11805) |
+| `schema_version` | `text` | NOT NULL | — | — | [001_init.sql:11806](../../../backend/migrations/001_init.sql#L11806) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:11807](../../../backend/migrations/001_init.sql#L11807) |
+| `weekly_times` | `jsonb` | NOT NULL | — | — | [001_init.sql:11808](../../../backend/migrations/001_init.sql#L11808) |
+| `date_overrides` | `jsonb` | NOT NULL | — | — | [001_init.sql:11809](../../../backend/migrations/001_init.sql#L11809) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:11810](../../../backend/migrations/001_init.sql#L11810) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11811](../../../backend/migrations/001_init.sql#L11811) |
+| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11812](../../../backend/migrations/001_init.sql#L11812) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -67,9 +67,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `line_staff_start_policies_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11800](../../../backend/migrations/001_init.sql#L11800) |
-| `line_staff_start_policies_reservation_type_id_clinic_id_fkey` | `reservation_type_id, clinic_id` | [reservation_types](reservation_types.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11812](../../../backend/migrations/001_init.sql#L11812) |
-| `line_staff_start_policies_assignment_id_staff_id_clinic_id_fkey` | `assignment_id, staff_id, clinic_id` | [staff_clinic_assignments](staff_clinic_assignments.md) | `id, staff_id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11813](../../../backend/migrations/001_init.sql#L11813) |
+| `line_staff_start_policies_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11802](../../../backend/migrations/001_init.sql#L11802) |
+| `line_staff_start_policies_reservation_type_id_clinic_id_fkey` | `reservation_type_id, clinic_id` | [reservation_types](reservation_types.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11814](../../../backend/migrations/001_init.sql#L11814) |
+| `line_staff_start_policies_assignment_id_staff_id_clinic_id_fkey` | `assignment_id, staff_id, clinic_id` | [staff_clinic_assignments](staff_clinic_assignments.md) | `id, staff_id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11815](../../../backend/migrations/001_init.sql#L11815) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -81,14 +81,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `line_staff_start_policies_schema_version_check` | check | `CHECK (schema_version = 'trimming-registered-starts/v1')` | [001_init.sql:11804](../../../backend/migrations/001_init.sql#L11804) |
-| `line_staff_start_policies_version_check` | check | `CHECK (version > 0)` | [001_init.sql:11805](../../../backend/migrations/001_init.sql#L11805) |
-| `line_staff_start_policies_weekly_times_check` | check | `CHECK (jsonb_typeof(weekly_times) = 'array' AND jsonb_array_length(weekly_times) = 7)` | [001_init.sql:11806](../../../backend/migrations/001_init.sql#L11806) |
-| `line_staff_start_policies_date_overrides_check` | check | `CHECK (jsonb_typeof(date_overrides) = 'array')` | [001_init.sql:11807](../../../backend/migrations/001_init.sql#L11807) |
-| `line_staff_start_policies_pkey` | primary | `PRIMARY KEY (clinic_id, reservation_type_id, assignment_id)` | [001_init.sql:11811](../../../backend/migrations/001_init.sql#L11811) |
+| `line_staff_start_policies_schema_version_check` | check | `CHECK (schema_version = 'trimming-registered-starts/v1')` | [001_init.sql:11806](../../../backend/migrations/001_init.sql#L11806) |
+| `line_staff_start_policies_version_check` | check | `CHECK (version > 0)` | [001_init.sql:11807](../../../backend/migrations/001_init.sql#L11807) |
+| `line_staff_start_policies_weekly_times_check` | check | `CHECK (jsonb_typeof(weekly_times) = 'array' AND jsonb_array_length(weekly_times) = 7)` | [001_init.sql:11808](../../../backend/migrations/001_init.sql#L11808) |
+| `line_staff_start_policies_date_overrides_check` | check | `CHECK (jsonb_typeof(date_overrides) = 'array')` | [001_init.sql:11809](../../../backend/migrations/001_init.sql#L11809) |
+| `line_staff_start_policies_pkey` | primary | `PRIMARY KEY (clinic_id, reservation_type_id, assignment_id)` | [001_init.sql:11813](../../../backend/migrations/001_init.sql#L11813) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_line_staff_start_policies_clinic_staff` | NO | — | `CREATE INDEX idx_line_staff_start_policies_clinic_staff ON line_staff_start_policies (clinic_id, staff_id)` | [001_init.sql:11815](../../../backend/migrations/001_init.sql#L11815) |
+| `idx_line_staff_start_policies_clinic_staff` | NO | — | `CREATE INDEX idx_line_staff_start_policies_clinic_staff ON line_staff_start_policies (clinic_id, staff_id)` | [001_init.sql:11817](../../../backend/migrations/001_init.sql#L11817) |

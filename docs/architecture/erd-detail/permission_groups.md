@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1218](../../../backend/migrations/001_init.sql#L1218) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1219](../../../backend/migrations/001_init.sql#L1219) |
-| `name` | `varchar(100)` | NOT NULL | — | — | [001_init.sql:1220](../../../backend/migrations/001_init.sql#L1220) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1221](../../../backend/migrations/001_init.sql#L1221) |
-| `color` | `varchar(7)` | NOT NULL | `'#6B7280'` | — | [001_init.sql:1222](../../../backend/migrations/001_init.sql#L1222) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1223](../../../backend/migrations/001_init.sql#L1223) |
-| `sort_order` | `int` | NOT NULL | `0` | — | [001_init.sql:1224](../../../backend/migrations/001_init.sql#L1224) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1225](../../../backend/migrations/001_init.sql#L1225) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1226](../../../backend/migrations/001_init.sql#L1226) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1227](../../../backend/migrations/001_init.sql#L1227) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1220](../../../backend/migrations/001_init.sql#L1220) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1221](../../../backend/migrations/001_init.sql#L1221) |
+| `name` | `varchar(100)` | NOT NULL | — | — | [001_init.sql:1222](../../../backend/migrations/001_init.sql#L1222) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1223](../../../backend/migrations/001_init.sql#L1223) |
+| `color` | `varchar(7)` | NOT NULL | `'#6B7280'` | — | [001_init.sql:1224](../../../backend/migrations/001_init.sql#L1224) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:1225](../../../backend/migrations/001_init.sql#L1225) |
+| `sort_order` | `int` | NOT NULL | `0` | — | [001_init.sql:1226](../../../backend/migrations/001_init.sql#L1226) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1227](../../../backend/migrations/001_init.sql#L1227) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1228](../../../backend/migrations/001_init.sql#L1228) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1229](../../../backend/migrations/001_init.sql#L1229) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,7 +54,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `permission_groups_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1219](../../../backend/migrations/001_init.sql#L1219) |
+| `permission_groups_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1221](../../../backend/migrations/001_init.sql#L1221) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,10 +64,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `permission_groups_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1218](../../../backend/migrations/001_init.sql#L1218) |
+| `permission_groups_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1220](../../../backend/migrations/001_init.sql#L1220) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uk_permission_groups` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uk_permission_groups ON permission_groups(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:1230](../../../backend/migrations/001_init.sql#L1230) |
+| `uk_permission_groups` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX uk_permission_groups ON permission_groups(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:1232](../../../backend/migrations/001_init.sql#L1232) |

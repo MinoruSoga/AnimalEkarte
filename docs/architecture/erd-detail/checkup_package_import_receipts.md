@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:5291](../../../backend/migrations/001_init.sql#L5291) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:5292](../../../backend/migrations/001_init.sql#L5292) |
-| `namespace` | `text` | NOT NULL | — | UK | [001_init.sql:5293](../../../backend/migrations/001_init.sql#L5293) |
-| `version` | `text` | NOT NULL | — | UK | [001_init.sql:5294](../../../backend/migrations/001_init.sql#L5294) |
-| `content_digest` | `text` | NOT NULL | — | — | [001_init.sql:5295](../../../backend/migrations/001_init.sql#L5295) |
-| `status` | `text` | NOT NULL | — | — | [001_init.sql:5296](../../../backend/migrations/001_init.sql#L5296) |
-| `actor_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:5297](../../../backend/migrations/001_init.sql#L5297) |
-| `types_created` | `integer` | NOT NULL | `0` | — | [001_init.sql:5298](../../../backend/migrations/001_init.sql#L5298) |
-| `fields_created` | `integer` | NOT NULL | `0` | — | [001_init.sql:5299](../../../backend/migrations/001_init.sql#L5299) |
-| `resource_mapping` | `jsonb` | NOT NULL | `'{}'::jsonb` | — | [001_init.sql:5300](../../../backend/migrations/001_init.sql#L5300) |
-| `clinical_approval_ref` | `text` | NOT NULL | `''` | — | [001_init.sql:5301](../../../backend/migrations/001_init.sql#L5301) |
-| `created_at` | `timestamptz` | NOT NULL | `CURRENT_TIMESTAMP` | — | [001_init.sql:5302](../../../backend/migrations/001_init.sql#L5302) |
+| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:5293](../../../backend/migrations/001_init.sql#L5293) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:5294](../../../backend/migrations/001_init.sql#L5294) |
+| `namespace` | `text` | NOT NULL | — | UK | [001_init.sql:5295](../../../backend/migrations/001_init.sql#L5295) |
+| `version` | `text` | NOT NULL | — | UK | [001_init.sql:5296](../../../backend/migrations/001_init.sql#L5296) |
+| `content_digest` | `text` | NOT NULL | — | — | [001_init.sql:5297](../../../backend/migrations/001_init.sql#L5297) |
+| `status` | `text` | NOT NULL | — | — | [001_init.sql:5298](../../../backend/migrations/001_init.sql#L5298) |
+| `actor_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:5299](../../../backend/migrations/001_init.sql#L5299) |
+| `types_created` | `integer` | NOT NULL | `0` | — | [001_init.sql:5300](../../../backend/migrations/001_init.sql#L5300) |
+| `fields_created` | `integer` | NOT NULL | `0` | — | [001_init.sql:5301](../../../backend/migrations/001_init.sql#L5301) |
+| `resource_mapping` | `jsonb` | NOT NULL | `'{}'::jsonb` | — | [001_init.sql:5302](../../../backend/migrations/001_init.sql#L5302) |
+| `clinical_approval_ref` | `text` | NOT NULL | `''` | — | [001_init.sql:5303](../../../backend/migrations/001_init.sql#L5303) |
+| `created_at` | `timestamptz` | NOT NULL | `CURRENT_TIMESTAMP` | — | [001_init.sql:5304](../../../backend/migrations/001_init.sql#L5304) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -62,8 +62,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `checkup_package_import_receipts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:5292](../../../backend/migrations/001_init.sql#L5292) |
-| `checkup_package_import_receipts_actor_id_fkey` | `actor_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:5297](../../../backend/migrations/001_init.sql#L5297) |
+| `checkup_package_import_receipts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:5294](../../../backend/migrations/001_init.sql#L5294) |
+| `checkup_package_import_receipts_actor_id_fkey` | `actor_id` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:5299](../../../backend/migrations/001_init.sql#L5299) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -74,15 +74,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `checkup_package_import_receipts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5291](../../../backend/migrations/001_init.sql#L5291) |
-| `checkup_package_import_receipts_status_check` | check | `CHECK (status IN ('applied', 'noop', 'conflict', 'failed'))` | [001_init.sql:5296](../../../backend/migrations/001_init.sql#L5296) |
-| `checkup_package_import_receipts_types_created_check` | check | `CHECK (types_created >= 0)` | [001_init.sql:5298](../../../backend/migrations/001_init.sql#L5298) |
-| `checkup_package_import_receipts_fields_created_check` | check | `CHECK (fields_created >= 0)` | [001_init.sql:5299](../../../backend/migrations/001_init.sql#L5299) |
-| `uq_checkup_package_import_receipts_clinic_ns_ver` | unique | `CONSTRAINT uq_checkup_package_import_receipts_clinic_ns_ver         UNIQUE (clinic_id, namespace, version)` | [001_init.sql:5303](../../../backend/migrations/001_init.sql#L5303) |
+| `checkup_package_import_receipts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5293](../../../backend/migrations/001_init.sql#L5293) |
+| `checkup_package_import_receipts_status_check` | check | `CHECK (status IN ('applied', 'noop', 'conflict', 'failed'))` | [001_init.sql:5298](../../../backend/migrations/001_init.sql#L5298) |
+| `checkup_package_import_receipts_types_created_check` | check | `CHECK (types_created >= 0)` | [001_init.sql:5300](../../../backend/migrations/001_init.sql#L5300) |
+| `checkup_package_import_receipts_fields_created_check` | check | `CHECK (fields_created >= 0)` | [001_init.sql:5301](../../../backend/migrations/001_init.sql#L5301) |
+| `uq_checkup_package_import_receipts_clinic_ns_ver` | unique | `CONSTRAINT uq_checkup_package_import_receipts_clinic_ns_ver         UNIQUE (clinic_id, namespace, version)` | [001_init.sql:5305](../../../backend/migrations/001_init.sql#L5305) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_checkup_package_import_receipts_clinic_created` | NO | — | `CREATE INDEX IF NOT EXISTS idx_checkup_package_import_receipts_clinic_created     ON checkup_package_import_receipts (clinic_id, created_at DESC)` | [001_init.sql:5307](../../../backend/migrations/001_init.sql#L5307) |
-| `idx_checkup_package_import_receipts_clinic_digest` | NO | — | `CREATE INDEX IF NOT EXISTS idx_checkup_package_import_receipts_clinic_digest     ON checkup_package_import_receipts (clinic_id, content_digest)` | [001_init.sql:5310](../../../backend/migrations/001_init.sql#L5310) |
+| `idx_checkup_package_import_receipts_clinic_created` | NO | — | `CREATE INDEX IF NOT EXISTS idx_checkup_package_import_receipts_clinic_created     ON checkup_package_import_receipts (clinic_id, created_at DESC)` | [001_init.sql:5309](../../../backend/migrations/001_init.sql#L5309) |
+| `idx_checkup_package_import_receipts_clinic_digest` | NO | — | `CREATE INDEX IF NOT EXISTS idx_checkup_package_import_receipts_clinic_digest     ON checkup_package_import_receipts (clinic_id, content_digest)` | [001_init.sql:5312](../../../backend/migrations/001_init.sql#L5312) |

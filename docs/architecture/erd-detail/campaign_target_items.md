@@ -11,9 +11,9 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2951](../../../backend/migrations/001_init.sql#L2951) |
-| `campaign_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2952](../../../backend/migrations/001_init.sql#L2952) |
-| `merchandise_item_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2953](../../../backend/migrations/001_init.sql#L2953) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2953](../../../backend/migrations/001_init.sql#L2953) |
+| `campaign_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2954](../../../backend/migrations/001_init.sql#L2954) |
+| `merchandise_item_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:2955](../../../backend/migrations/001_init.sql#L2955) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -44,8 +44,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `campaign_target_items_campaign_id_fkey` | `campaign_id` | [campaigns](campaigns.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2952](../../../backend/migrations/001_init.sql#L2952) |
-| `campaign_target_items_merchandise_item_id_fkey` | `merchandise_item_id` | [merchandise_items](merchandise_items.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2953](../../../backend/migrations/001_init.sql#L2953) |
+| `campaign_target_items_campaign_id_fkey` | `campaign_id` | [campaigns](campaigns.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2954](../../../backend/migrations/001_init.sql#L2954) |
+| `campaign_target_items_merchandise_item_id_fkey` | `merchandise_item_id` | [merchandise_items](merchandise_items.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2955](../../../backend/migrations/001_init.sql#L2955) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -56,12 +56,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `campaign_target_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2951](../../../backend/migrations/001_init.sql#L2951) |
-| `uq_campaign_target_items` | unique | `CONSTRAINT uq_campaign_target_items UNIQUE (campaign_id, merchandise_item_id)` | [001_init.sql:2954](../../../backend/migrations/001_init.sql#L2954) |
+| `campaign_target_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2953](../../../backend/migrations/001_init.sql#L2953) |
+| `uq_campaign_target_items` | unique | `CONSTRAINT uq_campaign_target_items UNIQUE (campaign_id, merchandise_item_id)` | [001_init.sql:2956](../../../backend/migrations/001_init.sql#L2956) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_campaign_target_items_campaign` | NO | — | `CREATE INDEX idx_campaign_target_items_campaign      ON campaign_target_items(campaign_id)` | [001_init.sql:2960](../../../backend/migrations/001_init.sql#L2960) |
-| `idx_campaign_target_items_merchandise` | NO | — | `CREATE INDEX idx_campaign_target_items_merchandise   ON campaign_target_items(merchandise_item_id)` | [001_init.sql:2961](../../../backend/migrations/001_init.sql#L2961) |
+| `idx_campaign_target_items_campaign` | NO | — | `CREATE INDEX idx_campaign_target_items_campaign      ON campaign_target_items(campaign_id)` | [001_init.sql:2962](../../../backend/migrations/001_init.sql#L2962) |
+| `idx_campaign_target_items_merchandise` | NO | — | `CREATE INDEX idx_campaign_target_items_merchandise   ON campaign_target_items(merchandise_item_id)` | [001_init.sql:2963](../../../backend/migrations/001_init.sql#L2963) |
