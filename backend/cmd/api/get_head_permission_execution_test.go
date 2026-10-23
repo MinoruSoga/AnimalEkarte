@@ -194,7 +194,7 @@ func TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB(t *testing.T) {
 			require.False(t, selectedGranted, "selected clinic B must remain ungranted")
 		})
 	}
-	require.Equal(t, 21, crossClinic)
+	require.Equal(t, 22, crossClinic)
 }
 
 func TestGETHEADPublicLiffSelfAreNotSelectedClinicGrantSurfaces(t *testing.T) {

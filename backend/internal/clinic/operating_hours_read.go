@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -16,6 +17,10 @@ import (
 
 // ErrOperatingHoursUnavailable は保存行の読取に失敗した（DB 障害・context 取消など）ことを表す。
 var ErrOperatingHoursUnavailable = errors.New("clinic operating hours could not be read")
+
+// ErrOperatingHoursClinicIDOutOfRange は医院 ID が 1..MaxInt64 の外（0 を含む）であることを表す内部の誤用エラー。
+// 未設定（unconfigured）とは区別し、handler は 503 にする。
+var ErrOperatingHoursClinicIDOutOfRange = errors.New("clinic id is outside 1..9223372036854775807")
 
 // OperatingHoursRepository は共通医院時間の data port。行なしは found=false（エラーではない）。
 type OperatingHoursRepository interface {
@@ -47,6 +52,10 @@ func NewOperatingHoursReadService(repo OperatingHoursRepository) *OperatingHours
 // Get は clinicID の共通医院時間を返す。
 // エラーは ErrOperatingHoursUnavailable（読取失敗）か ErrOperatingHoursStoredDataCorrupt（保存データ破損）。
 func (s *OperatingHoursReadService) Get(ctx context.Context, clinicID uint64) (CommonOperatingHours, error) {
+	if clinicID == 0 || clinicID > math.MaxInt64 {
+		// 範囲外の医院 ID を未設定へ畳まない（wire は 1..MaxInt64 の正規十進のみ）。呼出側の誤用で、入力不正ではない。
+		return CommonOperatingHours{}, fmt.Errorf("%w: %d", ErrOperatingHoursClinicIDOutOfRange, clinicID)
+	}
 	if s == nil || s.repo == nil {
 		return CommonOperatingHours{}, fmt.Errorf("%w: repository is not configured", ErrOperatingHoursUnavailable)
 	}

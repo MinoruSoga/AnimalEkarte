@@ -132,7 +132,7 @@ func (h *operatingHoursHarness) get(target string) *httptest.ResponseRecorder {
 func requireNoStore(t *testing.T, w *httptest.ResponseRecorder) {
 	t.Helper()
 	assert.Equal(t, []string{"no-store"}, w.Header().Values("Cache-Control"),
-		"every response of these routes (including errors) declares exactly Cache-Control: no-store")
+		"responses produced by these routes (200/400/403/503, including route-level permission denials) declare exactly Cache-Control: no-store")
 }
 
 func requireErrorBody(t *testing.T, w *httptest.ResponseRecorder, wantMessage string) {

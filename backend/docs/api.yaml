@@ -32392,11 +32392,11 @@ paths:
       summary: 共通医院時間の取得
       tags: [Clinics]
       x-contract-status: selected
-      x-runtime-status: not-implemented
+      x-runtime-status: implemented
       x-required-grants:
       - hospital-settings:view
       description: >-
-        §2.2。no-store。configured/unconfigured を返し、障害は 503。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+        §2.2。no-store。configured/unconfigured を返し、障害は 503。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。読取 runtime は接続済み（x-contract-status: selected。write/preview/結果照会は未接続）。
       parameters:
         - name: clinic_id
           in: path
@@ -32807,11 +32807,11 @@ paths:
       summary: 共通休診（shifts 経路）の月内取得
       tags: [Clinics]
       x-contract-status: selected
-      x-runtime-status: not-implemented
+      x-runtime-status: implemented
       x-required-grants:
       - shifts:view
       description: >-
-        §2.3。月内 holiday と common 版だけ。全営業時間は返さない。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+        §2.3。月内 holiday と common 版だけ。全営業時間は返さない。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。読取 runtime は接続済み（x-contract-status: selected。write/preview/結果照会は未接続）。
       parameters:
         - name: year_month
           in: query
@@ -33071,12 +33071,12 @@ paths:
       summary: 共通休診（closing 経路）の月内取得
       tags: [Clinics]
       x-contract-status: selected
-      x-runtime-status: not-implemented
+      x-runtime-status: implemented
       x-required-grants:
       - closing-settings:view
       - shifts:view
       description: >-
-        §2.3。月内 holiday と common 版だけ。全営業時間は返さない。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。runtime 未接続（x-contract-status: selected）。
+        §2.3。月内 holiday と common 版だけ。全営業時間は返さない。 Runtime owner EMR-448/492（D）。DDL/model は EMR-446/466（B）、共有 C06 registry/lookup は EMR-445 後続。読取 runtime は接続済み（x-contract-status: selected。write/preview/結果照会は未接続）。
       parameters:
         - name: year_month
           in: query

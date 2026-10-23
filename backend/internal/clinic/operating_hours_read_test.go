@@ -3,6 +3,7 @@ package clinic
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,6 +67,19 @@ func TestOperatingHoursReadService_Get(t *testing.T) {
 		row.ClinicID = 8
 		_, err := NewOperatingHoursReadService(&fakeOperatingHoursRepository{found: true, row: row}).Get(context.Background(), 7)
 		requireCorrupt(t, err)
+	})
+
+	t.Run("clinic id outside 1..MaxInt64 is rejected, never read and never unconfigured", func(t *testing.T) {
+		for _, id := range []uint64{0, math.MaxInt64 + 1, math.MaxUint64} {
+			repo := &fakeOperatingHoursRepository{}
+			got, err := NewOperatingHoursReadService(repo).Get(context.Background(), id)
+			require.ErrorIs(t, err, ErrOperatingHoursClinicIDOutOfRange, "id %d", id)
+			assert.NotErrorIs(t, err, apperrors.ErrInvalidInput)
+			assert.False(t, got.Configured)
+			assert.Zero(t, repo.calls)
+		}
+		_, err := NewOperatingHoursReadService(&fakeOperatingHoursRepository{}).Get(context.Background(), math.MaxInt64)
+		require.NoError(t, err, "MaxInt64 is the largest valid id")
 	})
 
 	t.Run("missing repository is unavailable", func(t *testing.T) {

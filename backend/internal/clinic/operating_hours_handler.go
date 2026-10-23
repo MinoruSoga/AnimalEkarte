@@ -1,7 +1,9 @@
 package clinic
 
 // 共通医院時間の読取 HTTP（A03 §2.2/§2.3 の GET 3 本。write/preview/結果照会は別 slice）。
-// 全応答（400/401/403/404/503 を含む）に Cache-Control: no-store を付ける（契約 §1・api.yaml）。
+// これらの route が生成する応答（200/400/403/503。route 認可 middleware の拒否を含む）に Cache-Control: no-store を付ける
+// （契約 §1・api.yaml）。401 は保護 group の JWT middleware が route より前に書くため、グローバルの
+// SecurityHeaders の値（no-store, no-cache, must-revalidate）になる（api.yaml の 401 header との差は別途対応）。
 
 import (
 	"errors"
@@ -43,7 +45,8 @@ func NewOperatingHoursHandler(
 	}
 }
 
-// noStoreMiddleware は後続の middleware／handler（権限拒否を含む）の応答すべてに no-store を付ける。
+// noStoreMiddleware は後続の middleware／handler（権限拒否を含む）の応答に no-store を付ける。
+// 先行する group 単位の middleware（認証の 401 など）の応答には効かない。
 // 先頭に置くこと。グローバルの SecurityHeaders が付ける複合値は api.yaml の enum [no-store] と一致しないため上書きする。
 func noStoreMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {

@@ -433,6 +433,22 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/clinic-holidays/common",
+    "handler": "github.com/animal-ekarte/backend/internal/clinic.(*OperatingHoursHandler).ListCommonHolidays-fm",
+    "class": "clinic-fixed",
+    "resource": "shifts",
+    "action": "view",
+    "source": "internal/clinic/operating_hours_handler.go",
+    "routeExpression": "rg.GET(\"/clinic-holidays/common\", noStoreMiddleware(), h.requirePermission(string(model.ResourceShifts), \"view\"), h.ListCommonHolidays)",
+    "handlerSource": "internal/clinic/operating_hours_handler.go",
+    "marker": "RequireSelectedClinicGrant",
+    "authorization": "selected grant in composition; handler clinic argument",
+    "scope": "selected-clinic",
+    "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; realdb-return-data:internal/clinic/realdb_operating_hours_isolation_test.go#TestRealDB_OperatingHours_SelectedClinicBGrantAIsolation"
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/clinics",
     "handler": "github.com/animal-ekarte/backend/internal/clinic.(*Handler).ListClinics-fm",
     "class": "cross-clinic",
@@ -494,6 +510,22 @@
     "scope": "path clinic checked by per-clinic grant",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
     "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/reservation/line_reservation_setting_handler_selected_clinic_b_grant_a_test.go#TestGetLineReservationSetting_MembershipABGrantASelectedB; path-clinic-grant-checked; realdb-return-data:internal/reservation/realdb_selected_clinic_b_grant_a_isolation_test.go#TestRealDB_CrossClinic_LineReservationSettings_ConditionSeparated"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/clinics/:clinic_id/operating-hours",
+    "handler": "github.com/animal-ekarte/backend/internal/clinic.(*OperatingHoursHandler).GetClinicOperatingHours-fm",
+    "class": "cross-clinic",
+    "resource": "hospital-settings",
+    "action": "view",
+    "source": "internal/clinic/operating_hours_handler.go",
+    "routeExpression": "rg.GET(\"/clinics/:clinic_id/operating-hours\", noStoreMiddleware(), h.requireAssignedClinicPermission(string(model.ResourceHospitalSettings), \"view\"), h.GetClinicOperatingHours)",
+    "handlerSource": "internal/clinic/operating_hours_handler.go",
+    "marker": "AuthorizeClinicIDsForPermission",
+    "authorization": "assigned grant in composition; path clinic membership and grant in handler",
+    "scope": "path clinic checked by per-clinic grant",
+    "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
+    "verification": "executed-allowing-middleware:cmd/api/get_head_permission_execution_test.go#TestGETHEADCrossClinicAllowingDoesNotGrantSelectedClinicB; executed-handler-scope:internal/clinic/operating_hours_handler_test.go#TestGetClinicOperatingHours_MembershipABGrantASelectedB; path-clinic-grant-checked; realdb-return-data:internal/clinic/realdb_operating_hours_isolation_test.go#TestRealDB_OperatingHours_SelectedClinicBGrantAIsolation"
   },
   {
     "method": "GET",
@@ -830,6 +862,22 @@
     "scope": "selected-clinic",
     "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
     "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; remaining-data-scope-not-assessed; realdb-return-data:internal/clinic/realdb_selected_clinic_b_grant_a_isolation_test.go#TestRealDB_SelectedClinicBGrantAIsolation_Clinic"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/closing-settings/holidays/common",
+    "handler": "github.com/animal-ekarte/backend/internal/clinic.(*OperatingHoursHandler).ListCommonHolidays-fm",
+    "class": "clinic-fixed",
+    "resource": "closing-settings",
+    "action": "view",
+    "source": "internal/clinic/operating_hours_handler.go",
+    "routeExpression": "rg.GET(\"/closing-settings/holidays/common\", noStoreMiddleware(), h.requirePermission(string(model.ResourceClosingSettings), \"view\"), h.ListCommonHolidays)",
+    "handlerSource": "internal/clinic/operating_hours_handler.go",
+    "marker": "RequireSelectedClinicGrant",
+    "authorization": "closing-settings:view selected grant in composition; shared handler additionally requires shifts:view on the selected clinic",
+    "scope": "selected-clinic",
+    "regression": "cmd/api/get_head_permission_classification_test.go#TestGETHEADRoutesAreClassifiedForSelectedClinicGrant",
+    "verification": "executed-middleware-deny:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithoutGrantIsForbidden; executed-middleware-allow:cmd/api/get_head_permission_execution_test.go#TestGETHEADClinicFixedSelectedClinicWithGrantAllowsHandler; realdb-return-data:internal/clinic/realdb_operating_hours_isolation_test.go#TestRealDB_OperatingHours_SelectedClinicBGrantAIsolation"
   },
   {
     "method": "GET",
