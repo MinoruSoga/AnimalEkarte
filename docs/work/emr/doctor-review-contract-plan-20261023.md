@@ -40,7 +40,7 @@ readerの評価対象を「既存billingに紐づく、同院・同recordのplan
 |---|---|---|
 | medical_records | clinical_set_generation bigint NULL、正値CHECK、clinical_set_digest bytea NULL/32byte。Goは *int64 / *[]byte | 現在record集合の状態。NULLを1/空集合/確認済みに補完しない |
 | billings | 同じnullable世代/digest、doctor_review_set_id nullable、clinic/id込み複合FK | 会計側集合状態と確認参照。存在だけで有効としない |
-| doctor_review_sets | billing_id必須、billing_clinical_generation正値、32byte digest、record_count、reviewed_by/at、任意note | 既存の確認世代/digest等の保存形。会計側clinical_itemsの不変保存まで供給済みとは扱わない。第二確認表を今回追加しない |
+| doctor_review_sets | billing_id必須、billing_clinical_generation正値、32byte digest、record_count、reviewed_by/at、nullable confirmation_note（後続ALTERで追加） | 既存の確認世代/digest等の保存形。会計側clinical_itemsの不変保存まで供給済みとは扱わない。第二確認表を今回追加しない |
 | doctor_review_records | (clinic,review_set,record) PK、billing込みFK、正値世代/32byte digest、clinical_items JSON配列 | record集合は完全一致で照合。部分一致不可 |
 | 001 L8160–8192 | opt-in metadata。parent-updating treatment triggerを作らず全writerをconsumer TXへ参加、と明記 | 共通DB triggerへの丸投げ/第二counterは禁止 |
 | accounting_complete.go/tx.go | 旧completion_request_id/hash、旧status/totals caller、既存最外TX・unbilled版・takeover保護 | 削除列の復活ではなく462統合adapter。completeInTxにdoctor_review_sets照合がない |
@@ -48,6 +48,7 @@ readerの評価対象を「既存billingに紐づく、同院・同recordのplan
 | operation/contract.go, runner.go | VerifiedCommand Q、ClaimMetadataWriter、RunnerのGate(ctx) errorは実在 | 派生contextを引き継ぐContextGate拡張自体のruntime interface/hookは未実装。consumer接続だけの不足とはしない。Q等を未実装へ戻さず、consumer anchor/統合/実DB受入と分ける |
 
 一次根拠:
+- [confirmation_note追加ALTER](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/migrations/001_init.sql#L10964)と[保存model](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/internal/model/storage_finance.go#L293)。CREATE TABLE直後だけで保存形を判断せず、物理名confirmation_noteをnoteという別列にしない。
 - [最終DDL A1](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/migrations/001_init.sql#L8160-L8192)
 - [doctor_review_sets ERD](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/docs/architecture/erd-detail/doctor_review_sets.md)、[doctor_review_records ERD](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/docs/architecture/erd-detail/doctor_review_records.md)
 - [medical_records ERD](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/docs/architecture/erd-detail/medical_records.md)、[billings ERD](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/docs/architecture/erd-detail/billings.md)
