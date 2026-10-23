@@ -67,11 +67,20 @@ func (c Content) Fields() map[string]string {
 type Preconditions map[string]string
 
 // Request is one execution attempt of an intent.
+//
+// VerifiedCommand is optional. When it is present the runner proves, before the
+// claim/fingerprint and again immediately before Participant.Apply, that its
+// projector maps the command bytes to exactly Content; a mismatch stops the
+// attempt before any owner write. It is request-memory only (never stored in
+// bindings, receipts or logs) and is not fingerprinted separately: Content
+// remains the only fingerprint input. The zero value keeps a Content-only
+// consumer unchanged.
 type Request struct {
-	Scope         Scope
-	Key           uuid.UUID
-	Content       Content
-	Preconditions Preconditions
+	Scope           Scope
+	Key             uuid.UUID
+	Content         Content
+	Preconditions   Preconditions
+	VerifiedCommand VerifiedCommand
 }
 
 // Binding identifies a stored operation_bindings row.
@@ -197,6 +206,12 @@ type Participant interface {
 	// Taking the Request here is what keeps the fingerprinted content and the
 	// written content from diverging: a receipt can never be stored under a
 	// payload other than the one bound to the key.
+	//
+	// A participant that needs a typed command beyond the short Content map
+	// reconstructs its typed input ONLY from req.VerifiedCommand (the runner has
+	// just re-verified it against req.Content). It must not capture a separate
+	// command, DTO or pointer, nor decode a different payload, and then write
+	// that instead. A zero VerifiedCommand means a Content-only participant.
 	Apply(ctx context.Context, b Binding, req Request) (Result, error)
 }
 

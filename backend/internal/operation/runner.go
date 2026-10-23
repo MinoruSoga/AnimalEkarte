@@ -352,6 +352,19 @@ func (r *Runner) participate(ctx context.Context, binding Binding, req Request, 
 	if err := r.store.MarkApplySavepoint(ctx); err != nil {
 		return err
 	}
+	if !req.VerifiedCommand.IsZero() {
+		// Re-verify immediately before Apply. The claim already happened, so a
+		// mismatch here is a server-side invariant break (a non-deterministic
+		// projector or corrupted request memory), not client input: it is an
+		// internal error with a fixed message and no cause, never InvalidInput.
+		// Returning it as a plain error rolls back the transaction before Apply and
+		// is recorded as retryable_failure by resolveFailedAttempt (never as a
+		// rejection that could be disclosed as a business result, never as a
+		// success receipt).
+		if err := req.VerifiedCommand.verifyAgainst(req.Content); err != nil {
+			return apperrors.WrapInternalServerError("operation verified command changed before apply")
+		}
+	}
 	applied, err := p.Apply(ctx, binding, req)
 	var indeterminate *IndeterminateEffect
 	if errors.As(err, &indeterminate) {
@@ -485,6 +498,13 @@ func validateRequest(req Request) error {
 	}
 	if req.Content.fields == nil {
 		return apperrors.WrapInvalidInput("operation content must be built with NewContent")
+	}
+	if !req.VerifiedCommand.IsZero() {
+		// Pre-claim re-verification: a command that does not project to the
+		// request content stops here, before any binding or attempt row exists.
+		if err := req.VerifiedCommand.verifyAgainst(req.Content); err != nil {
+			return err
+		}
 	}
 	return nil
 }

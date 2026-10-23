@@ -135,12 +135,15 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 | deferred trigger `operation_success_required`・RLSとの結合 | 未実施（test DBはAutoMigrate double） | 最初のconsumer接続時 |
 | HMAC鍵のconfig配線 | `OPERATION_FINGERPRINT_CURRENT_KEY_VERSION`＋`OPERATION_FINGERPRINT_KEYS_JSON`（`config.OperationFingerprintKeys`）で502接続時に選定・実装（実行検証 NOT_RUN）。両方必須または両方未設定・重複member拒否・非object/非文字列value/空map・空白またはtrim変化version・不正base64・32バイト未満・current version不在はValidateが拒否（fail-closed）。key値はログ・エラーへ出さない | 502接続で実施 |
 | `ClaimMetadataWriter` hook | `operation.ClaimMetadataWriter`（`contract.go`）を追加（実行検証 NOT_RUN）。Participantが実装する場合、storeのclaim tx内でclaim winnerのみ1回呼ばれ、callback失敗はbindingとmetadataを同時rollback、loserは呼ばれない。manualarticleの`manual_article_operation_targets` anchorで利用 | 502で実装（実行検証 NOT_RUN）。他owner接続時に同契約で各自のanchor設計 |
+| Q必要subset（`Request.VerifiedCommand`・`NewVerifiedCommand`・Runnerのclaim前およびApply直前の再検証） | EMR-448/492のPRで`operation` packageへ実装済み（採択済みQの必要subsetのみ）。consumerは未接続。実行検証は`operation` packageの既存・新規試験（fake store）に限る：`go test -short`とvetは通過し、gofmtは変更ファイルについてclean（既存`fixtures_test.go`の未整形はmain由来で対象外）。実DBでの検証はしていない。build tag `operationrealdb`のstore試験は、main上で#729のmodelに対し`internal/testdb`のAutoMigrateが失敗するため同様に失敗する（上のstore試験行の「未実施・未compile」を維持）。API・UI・実001/RLS・並行実行・consumer結合は NOT_RUN | 489が共通Request/Runnerの必要subsetを消費するconsumer接続時に実施 |
 | 鍵rotation手順（運用） | 未選定。keyringは複数version許容だがrotation運用runbookは未整備 | 運用担当 |
 | 結果照会route・OpenAPI・codegen | 未着手。router／api.yamlは共有ファイルのため各ownerで追加 | EMR-483ほか |
 | cancel済みcontextからの即時結果照合 | 後続の可用性改善。現在はfail-closedで停止し、新しい有効contextの同key Lookup/Executeで再照合する。キャンセル後の即時照合成功は保証しない | helper/consumerのcontext契約検討 |
 | 491／493の参加行 | subset照合のみ・未判定 | 各票 |
 
 本PRの実装差分の実行検証は **NOT_RUN**（`go`・`npm`・`pnpm`・`npx`・`docker`・`make`・test・build・lint・codegen 未実行）。コンパイル・動作は未検証。
+
+2026-10-23追記：上の一文は当初のlibrary PRの記録である。後続のQ必要subset（上表の該当行）は`operation` packageの`go test -short`とvetを通過済みで、実DB・consumer結合・runtime適合は未実施のまま。
 
 <a id="verified-command-selected-20261021"></a>
 ## 採択済みQ：Requestの限定immutable command（2026-10-21）
@@ -150,3 +153,5 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 VerifiedCommandはoperation package所有のoptional immutable値とし、constructorがschemaとcanonical command bytesを保持し、getterはdetached copyだけを返す。payloadをbinding/receipt/logへ保存する共通耐久機構にはしない。各consumerの既定hash/HMAC・schema・鍵版・正規化を変更しない。owner-private耐久commandを持つconsumerは現在元target認可後に保存bytesをdecode・再canonical化・hash検証してQへ載せ、Applyの別payload参照で迂回しない。
 
 これは親採択の技術契約で、本人がAPI/物理方式を直接指定した意味ではない。489が共通Request/Runnerの必要subsetを一箇所で実装するまでruntime適合済みとはしない。既存Content-only/v1 consumerを一律変更せず、実装・試験はNOT_RUN。
+
+2026-10-23追記（採択本文は変更しない）：必要subsetは`operation` packageの一箇所へ実装済み（§5.1の該当行）。consumer接続とruntime適合は未了で、本節の「接続可能と扱わない」条件は各consumerの接続・検証まで維持する。
