@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:11010](../../../backend/migrations/001_init.sql#L11010) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:11010](../../../backend/migrations/001_init.sql#L11010) |
-| `source_kind` | `text` | NOT NULL | — | UK | [001_init.sql:11011](../../../backend/migrations/001_init.sql#L11011) |
-| `source_reference` | `text` | NOT NULL | — | UK | [001_init.sql:11012](../../../backend/migrations/001_init.sql#L11012) |
-| `original_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:11012](../../../backend/migrations/001_init.sql#L11012) |
-| `captured_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:11013](../../../backend/migrations/001_init.sql#L11013) |
-| `captured_by` | `bigint` | NULL | — | FK | [001_init.sql:11013](../../../backend/migrations/001_init.sql#L11013) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:11022](../../../backend/migrations/001_init.sql#L11022) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:11022](../../../backend/migrations/001_init.sql#L11022) |
+| `source_kind` | `text` | NOT NULL | — | UK | [001_init.sql:11023](../../../backend/migrations/001_init.sql#L11023) |
+| `source_reference` | `text` | NOT NULL | — | UK | [001_init.sql:11024](../../../backend/migrations/001_init.sql#L11024) |
+| `original_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:11024](../../../backend/migrations/001_init.sql#L11024) |
+| `captured_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:11025](../../../backend/migrations/001_init.sql#L11025) |
+| `captured_by` | `bigint` | NULL | — | FK | [001_init.sql:11025](../../../backend/migrations/001_init.sql#L11025) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -52,8 +52,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `reservation_eligibility_evidence_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11010](../../../backend/migrations/001_init.sql#L11010) |
-| `reservation_eligibility_evidence_captured_by_fkey` | `captured_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11013](../../../backend/migrations/001_init.sql#L11013) |
+| `reservation_eligibility_evidence_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11022](../../../backend/migrations/001_init.sql#L11022) |
+| `reservation_eligibility_evidence_captured_by_fkey` | `captured_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11025](../../../backend/migrations/001_init.sql#L11025) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -64,10 +64,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `reservation_eligibility_evidence_pkey` | primary | `PRIMARY KEY` | [001_init.sql:11010](../../../backend/migrations/001_init.sql#L11010) |
-| `reservation_eligibility_evidence_source_kind_check` | check | `CHECK(source_kind IN('legacy_negative_capability','legacy_occupation_gate'))` | [001_init.sql:11011](../../../backend/migrations/001_init.sql#L11011) |
-| `reservation_eligibility_evidence_original_values_check` | check | `CHECK(jsonb_typeof(original_values)='object')` | [001_init.sql:11012](../../../backend/migrations/001_init.sql#L11012) |
-| `reservation_eligibility_evide_clinic_id_source_kind_source__key` | unique | `UNIQUE(clinic_id,source_kind,source_reference)` | [001_init.sql:11014](../../../backend/migrations/001_init.sql#L11014) |
+| `reservation_eligibility_evidence_pkey` | primary | `PRIMARY KEY` | [001_init.sql:11022](../../../backend/migrations/001_init.sql#L11022) |
+| `reservation_eligibility_evidence_source_kind_check` | check | `CHECK(source_kind IN('legacy_negative_capability','legacy_occupation_gate'))` | [001_init.sql:11023](../../../backend/migrations/001_init.sql#L11023) |
+| `reservation_eligibility_evidence_original_values_check` | check | `CHECK(jsonb_typeof(original_values)='object')` | [001_init.sql:11024](../../../backend/migrations/001_init.sql#L11024) |
+| `reservation_eligibility_evide_clinic_id_source_kind_source__key` | unique | `UNIQUE(clinic_id,source_kind,source_reference)` | [001_init.sql:11026](../../../backend/migrations/001_init.sql#L11026) |
 
 ## インデックス
 

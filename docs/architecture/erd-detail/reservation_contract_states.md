@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8916](../../../backend/migrations/001_init.sql#L8916) |
-| `contract_kind` | `text` | NOT NULL | — | PK | [001_init.sql:8917](../../../backend/migrations/001_init.sql#L8917) |
-| `revision` | `bigint` | NOT NULL | — | — | [001_init.sql:8918](../../../backend/migrations/001_init.sql#L8918) |
-| `cutover_state` | `text` | NOT NULL | — | — | [001_init.sql:8919](../../../backend/migrations/001_init.sql#L8919) |
-| `applicable_kinds` | `text[]` | NOT NULL | — | — | [001_init.sql:8920](../../../backend/migrations/001_init.sql#L8920) |
-| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8921](../../../backend/migrations/001_init.sql#L8921) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8928](../../../backend/migrations/001_init.sql#L8928) |
+| `contract_kind` | `text` | NOT NULL | — | PK | [001_init.sql:8929](../../../backend/migrations/001_init.sql#L8929) |
+| `revision` | `bigint` | NOT NULL | — | — | [001_init.sql:8930](../../../backend/migrations/001_init.sql#L8930) |
+| `cutover_state` | `text` | NOT NULL | — | — | [001_init.sql:8931](../../../backend/migrations/001_init.sql#L8931) |
+| `applicable_kinds` | `text[]` | NOT NULL | — | — | [001_init.sql:8932](../../../backend/migrations/001_init.sql#L8932) |
+| `updated_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8933](../../../backend/migrations/001_init.sql#L8933) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -46,7 +46,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `reservation_contract_states_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8916](../../../backend/migrations/001_init.sql#L8916) |
+| `reservation_contract_states_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8928](../../../backend/migrations/001_init.sql#L8928) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -56,9 +56,9 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `reservation_contract_states_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:8918](../../../backend/migrations/001_init.sql#L8918) |
-| `reservation_contract_states_cutover_state_check` | check | `CHECK (cutover_state IN ('blocked','enabled'))` | [001_init.sql:8919](../../../backend/migrations/001_init.sql#L8919) |
-| `reservation_contract_states_pkey` | primary | `PRIMARY KEY (clinic_id,contract_kind)` | [001_init.sql:8922](../../../backend/migrations/001_init.sql#L8922) |
+| `reservation_contract_states_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:8930](../../../backend/migrations/001_init.sql#L8930) |
+| `reservation_contract_states_cutover_state_check` | check | `CHECK (cutover_state IN ('blocked','enabled'))` | [001_init.sql:8931](../../../backend/migrations/001_init.sql#L8931) |
+| `reservation_contract_states_pkey` | primary | `PRIMARY KEY (clinic_id,contract_kind)` | [001_init.sql:8934](../../../backend/migrations/001_init.sql#L8934) |
 
 ## インデックス
 

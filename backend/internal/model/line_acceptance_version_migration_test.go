@@ -15,7 +15,7 @@ import (
 func TestLineAcceptanceVersionMigration(t *testing.T) {
 	t.Parallel()
 
-	sql := readMigrationFile(t, "../../migrations/009_line_acceptance_version.sql")
+	sql := readConsolidatedMigrationSection(t, "009_line_acceptance_version.sql")
 
 	requiredSnippets := []string{
 		"ADD COLUMN acceptance_version bigint NOT NULL DEFAULT 1 CHECK (acceptance_version > 0)",
@@ -34,7 +34,7 @@ func TestLineAcceptanceVersionMigration(t *testing.T) {
 func TestLineAcceptanceGuardProtectsOnlyTheTwelveContractColumns(t *testing.T) {
 	t.Parallel()
 
-	sql := readMigrationFile(t, "../../migrations/009_line_acceptance_version.sql")
+	sql := readConsolidatedMigrationSection(t, "009_line_acceptance_version.sql")
 
 	guard := migrationSection(sql,
 		"CREATE FUNCTION app_private.line_acceptance_version_guard()", "END; $$;")

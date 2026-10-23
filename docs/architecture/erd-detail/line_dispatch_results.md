@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10208](../../../backend/migrations/001_init.sql#L10208) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10208](../../../backend/migrations/001_init.sql#L10208) |
-| `attempt_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10208](../../../backend/migrations/001_init.sql#L10208) |
-| `intent_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10208](../../../backend/migrations/001_init.sql#L10208) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10209](../../../backend/migrations/001_init.sql#L10209) |
-| `state` | `text` | NOT NULL | — | — | [001_init.sql:10209](../../../backend/migrations/001_init.sql#L10209) |
-| `external_id` | `text` | NULL | — | — | [001_init.sql:10210](../../../backend/migrations/001_init.sql#L10210) |
-| `evidence` | `jsonb` | NOT NULL | — | — | [001_init.sql:10210](../../../backend/migrations/001_init.sql#L10210) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10210](../../../backend/migrations/001_init.sql#L10210) |
-| `occurred_at` | `timestamptz` | NULL | — | — | [001_init.sql:10953](../../../backend/migrations/001_init.sql#L10953) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10220](../../../backend/migrations/001_init.sql#L10220) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10220](../../../backend/migrations/001_init.sql#L10220) |
+| `attempt_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10220](../../../backend/migrations/001_init.sql#L10220) |
+| `intent_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10220](../../../backend/migrations/001_init.sql#L10220) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10221](../../../backend/migrations/001_init.sql#L10221) |
+| `state` | `text` | NOT NULL | — | — | [001_init.sql:10221](../../../backend/migrations/001_init.sql#L10221) |
+| `external_id` | `text` | NULL | — | — | [001_init.sql:10222](../../../backend/migrations/001_init.sql#L10222) |
+| `evidence` | `jsonb` | NOT NULL | — | — | [001_init.sql:10222](../../../backend/migrations/001_init.sql#L10222) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:10222](../../../backend/migrations/001_init.sql#L10222) |
+| `occurred_at` | `timestamptz` | NULL | — | — | [001_init.sql:10965](../../../backend/migrations/001_init.sql#L10965) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -60,8 +60,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `line_dispatch_results_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10208](../../../backend/migrations/001_init.sql#L10208) |
-| `line_dispatch_results_attempt_id_clinic_id_intent_id_fkey` | `attempt_id, clinic_id, intent_id` | [line_dispatch_attempts](line_dispatch_attempts.md) | `id, clinic_id, intent_id` | `ON DELETE RESTRICT` | [001_init.sql:10213](../../../backend/migrations/001_init.sql#L10213) |
+| `line_dispatch_results_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10220](../../../backend/migrations/001_init.sql#L10220) |
+| `line_dispatch_results_attempt_id_clinic_id_intent_id_fkey` | `attempt_id, clinic_id, intent_id` | [line_dispatch_attempts](line_dispatch_attempts.md) | `id, clinic_id, intent_id` | `ON DELETE RESTRICT` | [001_init.sql:10225](../../../backend/migrations/001_init.sql#L10225) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -72,13 +72,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `line_dispatch_results_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10208](../../../backend/migrations/001_init.sql#L10208) |
-| `line_dispatch_results_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10209](../../../backend/migrations/001_init.sql#L10209) |
-| `line_dispatch_results_state_check` | check | `CHECK(state IN('succeeded','definite_failure','unknown','verified_absent'))` | [001_init.sql:10209](../../../backend/migrations/001_init.sql#L10209) |
-| `line_dispatch_results_evidence_check` | check | `CHECK(jsonb_typeof(evidence)='object')` | [001_init.sql:10210](../../../backend/migrations/001_init.sql#L10210) |
-| `line_dispatch_results_id_clinic_id_attempt_id_intent_id_key` | unique | `UNIQUE(id,clinic_id,attempt_id,intent_id)` | [001_init.sql:10211](../../../backend/migrations/001_init.sql#L10211) |
-| `line_dispatch_results_clinic_id_attempt_id_revision_key` | unique | `UNIQUE(clinic_id,attempt_id,revision)` | [001_init.sql:10211](../../../backend/migrations/001_init.sql#L10211) |
-| `line_dispatch_results_check` | check | `CHECK(state<>'succeeded' OR external_id IS NOT NULL)` | [001_init.sql:10212](../../../backend/migrations/001_init.sql#L10212) |
+| `line_dispatch_results_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10220](../../../backend/migrations/001_init.sql#L10220) |
+| `line_dispatch_results_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10221](../../../backend/migrations/001_init.sql#L10221) |
+| `line_dispatch_results_state_check` | check | `CHECK(state IN('succeeded','definite_failure','unknown','verified_absent'))` | [001_init.sql:10221](../../../backend/migrations/001_init.sql#L10221) |
+| `line_dispatch_results_evidence_check` | check | `CHECK(jsonb_typeof(evidence)='object')` | [001_init.sql:10222](../../../backend/migrations/001_init.sql#L10222) |
+| `line_dispatch_results_id_clinic_id_attempt_id_intent_id_key` | unique | `UNIQUE(id,clinic_id,attempt_id,intent_id)` | [001_init.sql:10223](../../../backend/migrations/001_init.sql#L10223) |
+| `line_dispatch_results_clinic_id_attempt_id_revision_key` | unique | `UNIQUE(clinic_id,attempt_id,revision)` | [001_init.sql:10223](../../../backend/migrations/001_init.sql#L10223) |
+| `line_dispatch_results_check` | check | `CHECK(state<>'succeeded' OR external_id IS NOT NULL)` | [001_init.sql:10224](../../../backend/migrations/001_init.sql#L10224) |
 
 ## インデックス
 

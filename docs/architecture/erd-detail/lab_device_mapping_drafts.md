@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK, UK | [001_init.sql:6977](../../../backend/migrations/001_init.sql#L6977) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:6978](../../../backend/migrations/001_init.sql#L6978) |
-| `source_type` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:6979](../../../backend/migrations/001_init.sql#L6979) |
-| `species` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:6980](../../../backend/migrations/001_init.sql#L6980) |
-| `status` | `varchar(32)` | NOT NULL | — | — | [001_init.sql:6981](../../../backend/migrations/001_init.sql#L6981) |
-| `raw_payload` | `bytea` | NOT NULL | — | — | [001_init.sql:6982](../../../backend/migrations/001_init.sql#L6982) |
-| `raw_fingerprint` | `varchar(64)` | NOT NULL | `''` | — | [001_init.sql:6983](../../../backend/migrations/001_init.sql#L6983) |
-| `error_message` | `text` | NOT NULL | `''` | — | [001_init.sql:6984](../../../backend/migrations/001_init.sql#L6984) |
-| `confirmed_at` | `timestamptz` | NULL | — | — | [001_init.sql:6985](../../../backend/migrations/001_init.sql#L6985) |
-| `confirmed_by_staff_id` | `bigint` | NULL | — | — | [001_init.sql:6986](../../../backend/migrations/001_init.sql#L6986) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6987](../../../backend/migrations/001_init.sql#L6987) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6988](../../../backend/migrations/001_init.sql#L6988) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:6989](../../../backend/migrations/001_init.sql#L6989) |
-| `version` | `bigint` | NOT NULL | `1` | — | [006_operation_anchor_and_lab_mapping_versions.sql:160](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L160) |
+| `id` | `bigserial` | NOT NULL | — | PK, UK | [001_init.sql:6989](../../../backend/migrations/001_init.sql#L6989) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:6990](../../../backend/migrations/001_init.sql#L6990) |
+| `source_type` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:6991](../../../backend/migrations/001_init.sql#L6991) |
+| `species` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:6992](../../../backend/migrations/001_init.sql#L6992) |
+| `status` | `varchar(32)` | NOT NULL | — | — | [001_init.sql:6993](../../../backend/migrations/001_init.sql#L6993) |
+| `raw_payload` | `bytea` | NOT NULL | — | — | [001_init.sql:6994](../../../backend/migrations/001_init.sql#L6994) |
+| `raw_fingerprint` | `varchar(64)` | NOT NULL | `''` | — | [001_init.sql:6995](../../../backend/migrations/001_init.sql#L6995) |
+| `error_message` | `text` | NOT NULL | `''` | — | [001_init.sql:6996](../../../backend/migrations/001_init.sql#L6996) |
+| `confirmed_at` | `timestamptz` | NULL | — | — | [001_init.sql:6997](../../../backend/migrations/001_init.sql#L6997) |
+| `confirmed_by_staff_id` | `bigint` | NULL | — | — | [001_init.sql:6998](../../../backend/migrations/001_init.sql#L6998) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6999](../../../backend/migrations/001_init.sql#L6999) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:7000](../../../backend/migrations/001_init.sql#L7000) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:7001](../../../backend/migrations/001_init.sql#L7001) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:11596](../../../backend/migrations/001_init.sql#L11596) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -62,7 +62,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lab_device_mapping_drafts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6978](../../../backend/migrations/001_init.sql#L6978) |
+| `lab_device_mapping_drafts_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6990](../../../backend/migrations/001_init.sql#L6990) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -72,15 +72,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_device_mapping_drafts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6977](../../../backend/migrations/001_init.sql#L6977) |
-| `chk_lab_device_mapping_drafts_source_type` | check | `CONSTRAINT chk_lab_device_mapping_drafts_source_type         CHECK (source_type IN ('', 'fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab'))` | [001_init.sql:6991](../../../backend/migrations/001_init.sql#L6991) |
-| `chk_lab_device_mapping_drafts_species` | check | `CONSTRAINT chk_lab_device_mapping_drafts_species         CHECK (species IN ('', 'canine', 'feline'))` | [001_init.sql:6993](../../../backend/migrations/001_init.sql#L6993) |
-| `chk_lab_device_mapping_drafts_status` | check | `CONSTRAINT chk_lab_device_mapping_drafts_status         CHECK (status IN ('unconfirmed', 'confirmed', 'failed'))` | [001_init.sql:6995](../../../backend/migrations/001_init.sql#L6995) |
-| `uq_lab_device_mapping_drafts_id_clinic` | unique | `CONSTRAINT uq_lab_device_mapping_drafts_id_clinic     UNIQUE (clinic_id, id)` | [001_init.sql:7133](../../../backend/migrations/001_init.sql#L7133) |
-| `lab_device_mapping_drafts_version_check` | check | `CHECK (version > 0)` | [006_operation_anchor_and_lab_mapping_versions.sql:160](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql#L160) |
+| `lab_device_mapping_drafts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6989](../../../backend/migrations/001_init.sql#L6989) |
+| `chk_lab_device_mapping_drafts_source_type` | check | `CONSTRAINT chk_lab_device_mapping_drafts_source_type         CHECK (source_type IN ('', 'fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab'))` | [001_init.sql:7003](../../../backend/migrations/001_init.sql#L7003) |
+| `chk_lab_device_mapping_drafts_species` | check | `CONSTRAINT chk_lab_device_mapping_drafts_species         CHECK (species IN ('', 'canine', 'feline'))` | [001_init.sql:7005](../../../backend/migrations/001_init.sql#L7005) |
+| `chk_lab_device_mapping_drafts_status` | check | `CONSTRAINT chk_lab_device_mapping_drafts_status         CHECK (status IN ('unconfirmed', 'confirmed', 'failed'))` | [001_init.sql:7007](../../../backend/migrations/001_init.sql#L7007) |
+| `uq_lab_device_mapping_drafts_id_clinic` | unique | `CONSTRAINT uq_lab_device_mapping_drafts_id_clinic     UNIQUE (clinic_id, id)` | [001_init.sql:7145](../../../backend/migrations/001_init.sql#L7145) |
+| `lab_device_mapping_drafts_version_check` | check | `CHECK (version > 0)` | [001_init.sql:11596](../../../backend/migrations/001_init.sql#L11596) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lab_device_mapping_drafts_clinic_source` | NO | — | `CREATE INDEX idx_lab_device_mapping_drafts_clinic_source     ON lab_device_mapping_drafts (clinic_id, source_type, species, created_at)` | [001_init.sql:6999](../../../backend/migrations/001_init.sql#L6999) |
+| `idx_lab_device_mapping_drafts_clinic_source` | NO | — | `CREATE INDEX idx_lab_device_mapping_drafts_clinic_source     ON lab_device_mapping_drafts (clinic_id, source_type, species, created_at)` | [001_init.sql:7011](../../../backend/migrations/001_init.sql#L7011) |

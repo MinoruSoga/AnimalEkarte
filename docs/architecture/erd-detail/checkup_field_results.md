@@ -11,24 +11,24 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:3702](../../../backend/migrations/001_init.sql#L3702) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:3703](../../../backend/migrations/001_init.sql#L3703) |
-| `checkup_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:3704](../../../backend/migrations/001_init.sql#L3704) |
-| `checkup_type_field_id` | `bigint` | NULL | — | FK | [001_init.sql:3705](../../../backend/migrations/001_init.sql#L3705) |
-| `field_name` | `text` | NOT NULL | `''` | — | [001_init.sql:3707](../../../backend/migrations/001_init.sql#L3707) |
-| `field_type` | `checkup_field_type` | NOT NULL | — | — | [001_init.sql:3708](../../../backend/migrations/001_init.sql#L3708) |
-| `unit` | `text` | NOT NULL | `''` | — | [001_init.sql:3709](../../../backend/migrations/001_init.sql#L3709) |
-| `value_number` | `decimal(10,4)` | NULL | — | — | [001_init.sql:3711](../../../backend/migrations/001_init.sql#L3711) |
-| `value_text` | `text` | NOT NULL | `''` | — | [001_init.sql:3712](../../../backend/migrations/001_init.sql#L3712) |
-| `value_bool` | `boolean` | NULL | — | — | [001_init.sql:3713](../../../backend/migrations/001_init.sql#L3713) |
-| `value_list` | `text[]` | NOT NULL | `'{}'` | — | [001_init.sql:3714](../../../backend/migrations/001_init.sql#L3714) |
-| `ref_min` | `decimal(10,4)` | NULL | — | — | [001_init.sql:3716](../../../backend/migrations/001_init.sql#L3716) |
-| `ref_max` | `decimal(10,4)` | NULL | — | — | [001_init.sql:3717](../../../backend/migrations/001_init.sql#L3717) |
-| `is_abnormal` | `boolean` | NOT NULL | `false` | — | [001_init.sql:3718](../../../backend/migrations/001_init.sql#L3718) |
-| `status` | `exam_result_status` | NOT NULL | `'normal'` | — | [001_init.sql:3719](../../../backend/migrations/001_init.sql#L3719) |
-| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:3720](../../../backend/migrations/001_init.sql#L3720) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3721](../../../backend/migrations/001_init.sql#L3721) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3722](../../../backend/migrations/001_init.sql#L3722) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:3714](../../../backend/migrations/001_init.sql#L3714) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:3715](../../../backend/migrations/001_init.sql#L3715) |
+| `checkup_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:3716](../../../backend/migrations/001_init.sql#L3716) |
+| `checkup_type_field_id` | `bigint` | NULL | — | FK | [001_init.sql:3717](../../../backend/migrations/001_init.sql#L3717) |
+| `field_name` | `text` | NOT NULL | `''` | — | [001_init.sql:3719](../../../backend/migrations/001_init.sql#L3719) |
+| `field_type` | `checkup_field_type` | NOT NULL | — | — | [001_init.sql:3720](../../../backend/migrations/001_init.sql#L3720) |
+| `unit` | `text` | NOT NULL | `''` | — | [001_init.sql:3721](../../../backend/migrations/001_init.sql#L3721) |
+| `value_number` | `decimal(10,4)` | NULL | — | — | [001_init.sql:3723](../../../backend/migrations/001_init.sql#L3723) |
+| `value_text` | `text` | NOT NULL | `''` | — | [001_init.sql:3724](../../../backend/migrations/001_init.sql#L3724) |
+| `value_bool` | `boolean` | NULL | — | — | [001_init.sql:3725](../../../backend/migrations/001_init.sql#L3725) |
+| `value_list` | `text[]` | NOT NULL | `'{}'` | — | [001_init.sql:3726](../../../backend/migrations/001_init.sql#L3726) |
+| `ref_min` | `decimal(10,4)` | NULL | — | — | [001_init.sql:3728](../../../backend/migrations/001_init.sql#L3728) |
+| `ref_max` | `decimal(10,4)` | NULL | — | — | [001_init.sql:3729](../../../backend/migrations/001_init.sql#L3729) |
+| `is_abnormal` | `boolean` | NOT NULL | `false` | — | [001_init.sql:3730](../../../backend/migrations/001_init.sql#L3730) |
+| `status` | `exam_result_status` | NOT NULL | `'normal'` | — | [001_init.sql:3731](../../../backend/migrations/001_init.sql#L3731) |
+| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:3732](../../../backend/migrations/001_init.sql#L3732) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3733](../../../backend/migrations/001_init.sql#L3733) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:3734](../../../backend/migrations/001_init.sql#L3734) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -79,9 +79,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `checkup_field_results_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:3703](../../../backend/migrations/001_init.sql#L3703) |
-| `checkup_field_results_checkup_id_fkey` | `checkup_id` | [checkups](checkups.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:3704](../../../backend/migrations/001_init.sql#L3704) |
-| `fk_checkup_field_results_field_clinic` | `checkup_type_field_id, clinic_id` | [checkup_type_fields](checkup_type_fields.md) | `id, clinic_id` | `ON DELETE SET NULL (checkup_type_field_id)` | [001_init.sql:3802](../../../backend/migrations/001_init.sql#L3802) |
+| `checkup_field_results_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:3715](../../../backend/migrations/001_init.sql#L3715) |
+| `checkup_field_results_checkup_id_fkey` | `checkup_id` | [checkups](checkups.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:3716](../../../backend/migrations/001_init.sql#L3716) |
+| `fk_checkup_field_results_field_clinic` | `checkup_type_field_id, clinic_id` | [checkup_type_fields](checkup_type_fields.md) | `id, clinic_id` | `ON DELETE SET NULL (checkup_type_field_id)` | [001_init.sql:3814](../../../backend/migrations/001_init.sql#L3814) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -93,12 +93,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `checkup_field_results_pkey` | primary | `PRIMARY KEY` | [001_init.sql:3702](../../../backend/migrations/001_init.sql#L3702) |
+| `checkup_field_results_pkey` | primary | `PRIMARY KEY` | [001_init.sql:3714](../../../backend/migrations/001_init.sql#L3714) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_checkup_field_results_clinic_checkup` | NO | — | `CREATE INDEX idx_checkup_field_results_clinic_checkup ON checkup_field_results(clinic_id, checkup_id)` | [001_init.sql:3735](../../../backend/migrations/001_init.sql#L3735) |
-| `idx_checkup_field_results_checkup_id` | NO | — | `CREATE INDEX idx_checkup_field_results_checkup_id      ON checkup_field_results(checkup_id)` | [001_init.sql:3737](../../../backend/migrations/001_init.sql#L3737) |
-| `idx_checkup_field_results_field_id` | NO | `checkup_type_field_id IS NOT NULL` | `CREATE INDEX idx_checkup_field_results_field_id        ON checkup_field_results(checkup_type_field_id) WHERE checkup_type_field_id IS NOT NULL` | [001_init.sql:3739](../../../backend/migrations/001_init.sql#L3739) |
+| `idx_checkup_field_results_clinic_checkup` | NO | — | `CREATE INDEX idx_checkup_field_results_clinic_checkup ON checkup_field_results(clinic_id, checkup_id)` | [001_init.sql:3747](../../../backend/migrations/001_init.sql#L3747) |
+| `idx_checkup_field_results_checkup_id` | NO | — | `CREATE INDEX idx_checkup_field_results_checkup_id      ON checkup_field_results(checkup_id)` | [001_init.sql:3749](../../../backend/migrations/001_init.sql#L3749) |
+| `idx_checkup_field_results_field_id` | NO | `checkup_type_field_id IS NOT NULL` | `CREATE INDEX idx_checkup_field_results_field_id        ON checkup_field_results(checkup_type_field_id) WHERE checkup_type_field_id IS NOT NULL` | [001_init.sql:3751](../../../backend/migrations/001_init.sql#L3751) |

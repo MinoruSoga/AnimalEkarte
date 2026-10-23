@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7960](../../../backend/migrations/001_init.sql#L7960) |
-| `course_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7961](../../../backend/migrations/001_init.sql#L7961) |
-| `service_identity_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7962](../../../backend/migrations/001_init.sql#L7962) |
-| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7963](../../../backend/migrations/001_init.sql#L7963) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:7964](../../../backend/migrations/001_init.sql#L7964) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7972](../../../backend/migrations/001_init.sql#L7972) |
+| `course_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7973](../../../backend/migrations/001_init.sql#L7973) |
+| `service_identity_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:7974](../../../backend/migrations/001_init.sql#L7974) |
+| `created_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:7975](../../../backend/migrations/001_init.sql#L7975) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:7976](../../../backend/migrations/001_init.sql#L7976) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -54,9 +54,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_course_included_services_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7960](../../../backend/migrations/001_init.sql#L7960) |
-| `trimming_course_included_services_course_id_clinic_id_fkey` | `course_id, clinic_id` | [trimming_courses](trimming_courses.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7966](../../../backend/migrations/001_init.sql#L7966) |
-| `trimming_course_included_serv_service_identity_id_clinic_i_fkey` | `service_identity_id, clinic_id` | [trimming_service_identities](trimming_service_identities.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7967](../../../backend/migrations/001_init.sql#L7967) |
+| `trimming_course_included_services_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:7972](../../../backend/migrations/001_init.sql#L7972) |
+| `trimming_course_included_services_course_id_clinic_id_fkey` | `course_id, clinic_id` | [trimming_courses](trimming_courses.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7978](../../../backend/migrations/001_init.sql#L7978) |
+| `trimming_course_included_serv_service_identity_id_clinic_i_fkey` | `service_identity_id, clinic_id` | [trimming_service_identities](trimming_service_identities.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:7979](../../../backend/migrations/001_init.sql#L7979) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -68,7 +68,7 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_course_included_services_pkey` | primary | `PRIMARY KEY (clinic_id, course_id, service_identity_id)` | [001_init.sql:7965](../../../backend/migrations/001_init.sql#L7965) |
+| `trimming_course_included_services_pkey` | primary | `PRIMARY KEY (clinic_id, course_id, service_identity_id)` | [001_init.sql:7977](../../../backend/migrations/001_init.sql#L7977) |
 
 ## インデックス
 

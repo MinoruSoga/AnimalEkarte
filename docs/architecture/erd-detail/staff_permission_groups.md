@@ -11,9 +11,9 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `staff_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:1244](../../../backend/migrations/001_init.sql#L1244) |
-| `group_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:1245](../../../backend/migrations/001_init.sql#L1245) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1246](../../../backend/migrations/001_init.sql#L1246) |
+| `staff_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:1256](../../../backend/migrations/001_init.sql#L1256) |
+| `group_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:1257](../../../backend/migrations/001_init.sql#L1257) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1258](../../../backend/migrations/001_init.sql#L1258) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -44,8 +44,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `staff_permission_groups_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1244](../../../backend/migrations/001_init.sql#L1244) |
-| `staff_permission_groups_group_id_fkey` | `group_id` | [permission_groups](permission_groups.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1245](../../../backend/migrations/001_init.sql#L1245) |
+| `staff_permission_groups_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1256](../../../backend/migrations/001_init.sql#L1256) |
+| `staff_permission_groups_group_id_fkey` | `group_id` | [permission_groups](permission_groups.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1257](../../../backend/migrations/001_init.sql#L1257) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -56,11 +56,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `staff_permission_groups_pkey` | primary | `PRIMARY KEY (staff_id, group_id)` | [001_init.sql:1247](../../../backend/migrations/001_init.sql#L1247) |
+| `staff_permission_groups_pkey` | primary | `PRIMARY KEY (staff_id, group_id)` | [001_init.sql:1259](../../../backend/migrations/001_init.sql#L1259) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_staff_permission_groups_staff` | NO | — | `CREATE INDEX idx_staff_permission_groups_staff ON staff_permission_groups(staff_id)` | [001_init.sql:1250](../../../backend/migrations/001_init.sql#L1250) |
-| `idx_staff_permission_groups_group` | NO | — | `CREATE INDEX idx_staff_permission_groups_group ON staff_permission_groups(group_id)` | [001_init.sql:1251](../../../backend/migrations/001_init.sql#L1251) |
+| `idx_staff_permission_groups_staff` | NO | — | `CREATE INDEX idx_staff_permission_groups_staff ON staff_permission_groups(staff_id)` | [001_init.sql:1262](../../../backend/migrations/001_init.sql#L1262) |
+| `idx_staff_permission_groups_group` | NO | — | `CREATE INDEX idx_staff_permission_groups_group ON staff_permission_groups(group_id)` | [001_init.sql:1263](../../../backend/migrations/001_init.sql#L1263) |

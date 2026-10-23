@@ -11,19 +11,19 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9081](../../../backend/migrations/001_init.sql#L9081) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9082](../../../backend/migrations/001_init.sql#L9082) |
-| `medical_record_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9083](../../../backend/migrations/001_init.sql#L9083) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9084](../../../backend/migrations/001_init.sql#L9084) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9085](../../../backend/migrations/001_init.sql#L9085) |
-| `source_kind` | `text` | NOT NULL | — | — | [001_init.sql:9086](../../../backend/migrations/001_init.sql#L9086) |
-| `source_reference` | `text` | NULL | — | — | [001_init.sql:9087](../../../backend/migrations/001_init.sql#L9087) |
-| `heard_at` | `timestamptz` | NULL | — | — | [001_init.sql:9088](../../../backend/migrations/001_init.sql#L9088) |
-| `copied_from_revision_id` | `bigint` | NULL | — | FK | [001_init.sql:9089](../../../backend/migrations/001_init.sql#L9089) |
-| `entry_count` | `integer` | NOT NULL | — | — | [001_init.sql:9090](../../../backend/migrations/001_init.sql#L9090) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9091](../../../backend/migrations/001_init.sql#L9091) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9092](../../../backend/migrations/001_init.sql#L9092) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9093](../../../backend/migrations/001_init.sql#L9093) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9093](../../../backend/migrations/001_init.sql#L9093) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9094](../../../backend/migrations/001_init.sql#L9094) |
+| `medical_record_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9095](../../../backend/migrations/001_init.sql#L9095) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9096](../../../backend/migrations/001_init.sql#L9096) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9097](../../../backend/migrations/001_init.sql#L9097) |
+| `source_kind` | `text` | NOT NULL | — | — | [001_init.sql:9098](../../../backend/migrations/001_init.sql#L9098) |
+| `source_reference` | `text` | NULL | — | — | [001_init.sql:9099](../../../backend/migrations/001_init.sql#L9099) |
+| `heard_at` | `timestamptz` | NULL | — | — | [001_init.sql:9100](../../../backend/migrations/001_init.sql#L9100) |
+| `copied_from_revision_id` | `bigint` | NULL | — | FK | [001_init.sql:9101](../../../backend/migrations/001_init.sql#L9101) |
+| `entry_count` | `integer` | NOT NULL | — | — | [001_init.sql:9102](../../../backend/migrations/001_init.sql#L9102) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9103](../../../backend/migrations/001_init.sql#L9103) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9104](../../../backend/migrations/001_init.sql#L9104) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9105](../../../backend/migrations/001_init.sql#L9105) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -82,13 +82,13 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `initial_intake_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9082](../../../backend/migrations/001_init.sql#L9082) |
-| `initial_intake_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9092](../../../backend/migrations/001_init.sql#L9092) |
-| `initial_intake_revisions_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9096](../../../backend/migrations/001_init.sql#L9096) |
-| `initial_intake_revisions_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:9097](../../../backend/migrations/001_init.sql#L9097) |
-| `initial_intake_revisions_copied_from_revision_id_clinic_id_fkey` | `copied_from_revision_id, clinic_id` | [initial_intake_revisions](initial_intake_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9098](../../../backend/migrations/001_init.sql#L9098) |
-| `initial_intake_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9099](../../../backend/migrations/001_init.sql#L9099) |
-| `fk_intake_record_patient` | `medical_record_id, clinic_id, pet_id` | [medical_records](medical_records.md) | `id, clinic_id, pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10100](../../../backend/migrations/001_init.sql#L10100) |
+| `initial_intake_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9094](../../../backend/migrations/001_init.sql#L9094) |
+| `initial_intake_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9104](../../../backend/migrations/001_init.sql#L9104) |
+| `initial_intake_revisions_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9108](../../../backend/migrations/001_init.sql#L9108) |
+| `initial_intake_revisions_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:9109](../../../backend/migrations/001_init.sql#L9109) |
+| `initial_intake_revisions_copied_from_revision_id_clinic_id_fkey` | `copied_from_revision_id, clinic_id` | [initial_intake_revisions](initial_intake_revisions.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9110](../../../backend/migrations/001_init.sql#L9110) |
+| `initial_intake_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9111](../../../backend/migrations/001_init.sql#L9111) |
+| `fk_intake_record_patient` | `medical_record_id, clinic_id, pet_id` | [medical_records](medical_records.md) | `id, clinic_id, pet_id` | `ON DELETE RESTRICT` | [001_init.sql:10112](../../../backend/migrations/001_init.sql#L10112) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -104,12 +104,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `initial_intake_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9081](../../../backend/migrations/001_init.sql#L9081) |
-| `initial_intake_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9085](../../../backend/migrations/001_init.sql#L9085) |
-| `initial_intake_revisions_source_kind_check` | check | `CHECK (source_kind IN ('owner_report','paper_transcription','record_reference','legacy_unknown'))` | [001_init.sql:9086](../../../backend/migrations/001_init.sql#L9086) |
-| `initial_intake_revisions_entry_count_check` | check | `CHECK (entry_count >= 0)` | [001_init.sql:9090](../../../backend/migrations/001_init.sql#L9090) |
-| `initial_intake_revisions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9094](../../../backend/migrations/001_init.sql#L9094) |
-| `initial_intake_revisions_clinic_id_medical_record_id_revisi_key` | unique | `UNIQUE (clinic_id,medical_record_id,revision)` | [001_init.sql:9095](../../../backend/migrations/001_init.sql#L9095) |
+| `initial_intake_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9093](../../../backend/migrations/001_init.sql#L9093) |
+| `initial_intake_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9097](../../../backend/migrations/001_init.sql#L9097) |
+| `initial_intake_revisions_source_kind_check` | check | `CHECK (source_kind IN ('owner_report','paper_transcription','record_reference','legacy_unknown'))` | [001_init.sql:9098](../../../backend/migrations/001_init.sql#L9098) |
+| `initial_intake_revisions_entry_count_check` | check | `CHECK (entry_count >= 0)` | [001_init.sql:9102](../../../backend/migrations/001_init.sql#L9102) |
+| `initial_intake_revisions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9106](../../../backend/migrations/001_init.sql#L9106) |
+| `initial_intake_revisions_clinic_id_medical_record_id_revisi_key` | unique | `UNIQUE (clinic_id,medical_record_id,revision)` | [001_init.sql:9107](../../../backend/migrations/001_init.sql#L9107) |
 
 ## インデックス
 

@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:5939](../../../backend/migrations/001_init.sql#L5939) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:5940](../../../backend/migrations/001_init.sql#L5940) |
-| `source_type` | `varchar(32)` | NOT NULL | — | UK | [001_init.sql:5941](../../../backend/migrations/001_init.sql#L5941) |
-| `device_item_code` | `varchar(64)` | NOT NULL | — | UK | [001_init.sql:5942](../../../backend/migrations/001_init.sql#L5942) |
-| `unit` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:5943](../../../backend/migrations/001_init.sql#L5943) |
-| `value_shape` | `varchar(32)` | NOT NULL | — | — | [001_init.sql:5944](../../../backend/migrations/001_init.sql#L5944) |
-| `exam_type_field_id` | `bigint` | NULL | — | FK | [001_init.sql:5945](../../../backend/migrations/001_init.sql#L5945) |
-| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:5946](../../../backend/migrations/001_init.sql#L5946) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:5947](../../../backend/migrations/001_init.sql#L5947) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:5948](../../../backend/migrations/001_init.sql#L5948) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:5949](../../../backend/migrations/001_init.sql#L5949) |
+| `id` | `bigserial` | NOT NULL | — | PK | [001_init.sql:5951](../../../backend/migrations/001_init.sql#L5951) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:5952](../../../backend/migrations/001_init.sql#L5952) |
+| `source_type` | `varchar(32)` | NOT NULL | — | UK | [001_init.sql:5953](../../../backend/migrations/001_init.sql#L5953) |
+| `device_item_code` | `varchar(64)` | NOT NULL | — | UK | [001_init.sql:5954](../../../backend/migrations/001_init.sql#L5954) |
+| `unit` | `varchar(32)` | NOT NULL | `''` | — | [001_init.sql:5955](../../../backend/migrations/001_init.sql#L5955) |
+| `value_shape` | `varchar(32)` | NOT NULL | — | — | [001_init.sql:5956](../../../backend/migrations/001_init.sql#L5956) |
+| `exam_type_field_id` | `bigint` | NULL | — | FK | [001_init.sql:5957](../../../backend/migrations/001_init.sql#L5957) |
+| `sort_order` | `integer` | NOT NULL | `0` | — | [001_init.sql:5958](../../../backend/migrations/001_init.sql#L5958) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:5959](../../../backend/migrations/001_init.sql#L5959) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:5960](../../../backend/migrations/001_init.sql#L5960) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:5961](../../../backend/migrations/001_init.sql#L5961) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -61,8 +61,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lab_device_item_masters_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:5940](../../../backend/migrations/001_init.sql#L5940) |
-| `fk_lab_device_item_masters_field_clinic` | `exam_type_field_id, clinic_id` | [exam_type_fields](exam_type_fields.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:5959](../../../backend/migrations/001_init.sql#L5959) |
+| `lab_device_item_masters_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:5952](../../../backend/migrations/001_init.sql#L5952) |
+| `fk_lab_device_item_masters_field_clinic` | `exam_type_field_id, clinic_id` | [exam_type_fields](exam_type_fields.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:5971](../../../backend/migrations/001_init.sql#L5971) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -73,13 +73,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_device_item_masters_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5939](../../../backend/migrations/001_init.sql#L5939) |
-| `chk_lab_device_item_masters_source_type` | check | `CONSTRAINT chk_lab_device_item_masters_source_type         CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab'))` | [001_init.sql:5950](../../../backend/migrations/001_init.sql#L5950) |
-| `chk_lab_device_item_masters_value_shape` | check | `CONSTRAINT chk_lab_device_item_masters_value_shape         CHECK (value_shape IN ('numeric', 'inequality', 'qual_and_num', 'dash', 'text'))` | [001_init.sql:5952](../../../backend/migrations/001_init.sql#L5952) |
-| `uq_lab_device_item_masters_clinic_source_code` | unique | `CONSTRAINT uq_lab_device_item_masters_clinic_source_code         UNIQUE (clinic_id, source_type, device_item_code)` | [001_init.sql:5954](../../../backend/migrations/001_init.sql#L5954) |
+| `lab_device_item_masters_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5951](../../../backend/migrations/001_init.sql#L5951) |
+| `chk_lab_device_item_masters_source_type` | check | `CONSTRAINT chk_lab_device_item_masters_source_type         CHECK (source_type IN ('fuji_nx600', 'fuji_au10v', 'arkray_pu4010', 'idexx_vetlab'))` | [001_init.sql:5962](../../../backend/migrations/001_init.sql#L5962) |
+| `chk_lab_device_item_masters_value_shape` | check | `CONSTRAINT chk_lab_device_item_masters_value_shape         CHECK (value_shape IN ('numeric', 'inequality', 'qual_and_num', 'dash', 'text'))` | [001_init.sql:5964](../../../backend/migrations/001_init.sql#L5964) |
+| `uq_lab_device_item_masters_clinic_source_code` | unique | `CONSTRAINT uq_lab_device_item_masters_clinic_source_code         UNIQUE (clinic_id, source_type, device_item_code)` | [001_init.sql:5966](../../../backend/migrations/001_init.sql#L5966) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lab_device_item_masters_clinic_source` | NO | — | `CREATE INDEX idx_lab_device_item_masters_clinic_source     ON lab_device_item_masters (clinic_id, source_type, sort_order)` | [001_init.sql:5964](../../../backend/migrations/001_init.sql#L5964) |
+| `idx_lab_device_item_masters_clinic_source` | NO | — | `CREATE INDEX idx_lab_device_item_masters_clinic_source     ON lab_device_item_masters (clinic_id, source_type, sort_order)` | [001_init.sql:5976](../../../backend/migrations/001_init.sql#L5976) |

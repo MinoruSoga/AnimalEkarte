@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9518](../../../backend/migrations/001_init.sql#L9518) |
-| `presentation_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9519](../../../backend/migrations/001_init.sql#L9519) |
-| `estimate_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9520](../../../backend/migrations/001_init.sql#L9520) |
-| `estimate_item_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9521](../../../backend/migrations/001_init.sql#L9521) |
-| `ordinal` | `integer` | NOT NULL | — | — | [001_init.sql:9522](../../../backend/migrations/001_init.sql#L9522) |
-| `source_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:9523](../../../backend/migrations/001_init.sql#L9523) |
-| `unit_price` | `numeric` | NOT NULL | — | — | [001_init.sql:9524](../../../backend/migrations/001_init.sql#L9524) |
-| `quantity` | `numeric` | NOT NULL | — | — | [001_init.sql:9525](../../../backend/migrations/001_init.sql#L9525) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9530](../../../backend/migrations/001_init.sql#L9530) |
+| `presentation_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9531](../../../backend/migrations/001_init.sql#L9531) |
+| `estimate_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9532](../../../backend/migrations/001_init.sql#L9532) |
+| `estimate_item_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:9533](../../../backend/migrations/001_init.sql#L9533) |
+| `ordinal` | `integer` | NOT NULL | — | — | [001_init.sql:9534](../../../backend/migrations/001_init.sql#L9534) |
+| `source_values` | `jsonb` | NOT NULL | — | — | [001_init.sql:9535](../../../backend/migrations/001_init.sql#L9535) |
+| `unit_price` | `numeric` | NOT NULL | — | — | [001_init.sql:9536](../../../backend/migrations/001_init.sql#L9536) |
+| `quantity` | `numeric` | NOT NULL | — | — | [001_init.sql:9537](../../../backend/migrations/001_init.sql#L9537) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -61,9 +61,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `estimate_presentation_lines_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9518](../../../backend/migrations/001_init.sql#L9518) |
-| `estimate_presentation_lines_presentation_id_clinic_id_esti_fkey` | `presentation_id, clinic_id, estimate_id` | [estimate_presentations](estimate_presentations.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:9527](../../../backend/migrations/001_init.sql#L9527) |
-| `estimate_presentation_lines_estimate_item_id_estimate_id_fkey` | `estimate_item_id, estimate_id` | [estimate_items](estimate_items.md) | `id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:9528](../../../backend/migrations/001_init.sql#L9528) |
+| `estimate_presentation_lines_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9530](../../../backend/migrations/001_init.sql#L9530) |
+| `estimate_presentation_lines_presentation_id_clinic_id_esti_fkey` | `presentation_id, clinic_id, estimate_id` | [estimate_presentations](estimate_presentations.md) | `id, clinic_id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:9539](../../../backend/migrations/001_init.sql#L9539) |
+| `estimate_presentation_lines_estimate_item_id_estimate_id_fkey` | `estimate_item_id, estimate_id` | [estimate_items](estimate_items.md) | `id, estimate_id` | `ON DELETE RESTRICT` | [001_init.sql:9540](../../../backend/migrations/001_init.sql#L9540) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -75,10 +75,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `estimate_presentation_lines_ordinal_check` | check | `CHECK (ordinal > 0)` | [001_init.sql:9522](../../../backend/migrations/001_init.sql#L9522) |
-| `estimate_presentation_lines_source_values_check` | check | `CHECK (jsonb_typeof(source_values)='object')` | [001_init.sql:9523](../../../backend/migrations/001_init.sql#L9523) |
-| `estimate_presentation_lines_quantity_check` | check | `CHECK (quantity > 0)` | [001_init.sql:9525](../../../backend/migrations/001_init.sql#L9525) |
-| `estimate_presentation_lines_pkey` | primary | `PRIMARY KEY (clinic_id,presentation_id,estimate_item_id)` | [001_init.sql:9526](../../../backend/migrations/001_init.sql#L9526) |
+| `estimate_presentation_lines_ordinal_check` | check | `CHECK (ordinal > 0)` | [001_init.sql:9534](../../../backend/migrations/001_init.sql#L9534) |
+| `estimate_presentation_lines_source_values_check` | check | `CHECK (jsonb_typeof(source_values)='object')` | [001_init.sql:9535](../../../backend/migrations/001_init.sql#L9535) |
+| `estimate_presentation_lines_quantity_check` | check | `CHECK (quantity > 0)` | [001_init.sql:9537](../../../backend/migrations/001_init.sql#L9537) |
+| `estimate_presentation_lines_pkey` | primary | `PRIMARY KEY (clinic_id,presentation_id,estimate_item_id)` | [001_init.sql:9538](../../../backend/migrations/001_init.sql#L9538) |
 
 ## インデックス
 

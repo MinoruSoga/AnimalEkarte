@@ -11,23 +11,23 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1784](../../../backend/migrations/001_init.sql#L1784) |
-| `hospitalization_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1785](../../../backend/migrations/001_init.sql#L1785) |
-| `type` | `care_plan_type` | NOT NULL | — | — | [001_init.sql:1786](../../../backend/migrations/001_init.sql#L1786) |
-| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1787](../../../backend/migrations/001_init.sql#L1787) |
-| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1788](../../../backend/migrations/001_init.sql#L1788) |
-| `timing` | `plan_timing[]` | NULL | `'{}'` | — | [001_init.sql:1789](../../../backend/migrations/001_init.sql#L1789) |
-| `status` | `care_plan_status` | NULL | `'active'` | — | [001_init.sql:1790](../../../backend/migrations/001_init.sql#L1790) |
-| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1791](../../../backend/migrations/001_init.sql#L1791) |
-| `medicine_id` | `bigint` | NULL | — | FK | [001_init.sql:1792](../../../backend/migrations/001_init.sql#L1792) |
-| `procedure_id` | `bigint` | NULL | — | FK | [001_init.sql:1793](../../../backend/migrations/001_init.sql#L1793) |
-| `hospitalization_plan_id` | `bigint` | NULL | — | FK | [001_init.sql:1794](../../../backend/migrations/001_init.sql#L1794) |
-| `unit_price` | `bigint` | NULL | `0` | — | [001_init.sql:1795](../../../backend/migrations/001_init.sql#L1795) |
-| `category` | `text` | NOT NULL | `''` | — | [001_init.sql:1796](../../../backend/migrations/001_init.sql#L1796) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1797](../../../backend/migrations/001_init.sql#L1797) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1798](../../../backend/migrations/001_init.sql#L1798) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1799](../../../backend/migrations/001_init.sql#L1799) |
-| `other_reason` | `text` | NOT NULL | `''` | — | [001_init.sql:6539](../../../backend/migrations/001_init.sql#L6539) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1796](../../../backend/migrations/001_init.sql#L1796) |
+| `hospitalization_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1797](../../../backend/migrations/001_init.sql#L1797) |
+| `type` | `care_plan_type` | NOT NULL | — | — | [001_init.sql:1798](../../../backend/migrations/001_init.sql#L1798) |
+| `name` | `text` | NOT NULL | `''` | — | [001_init.sql:1799](../../../backend/migrations/001_init.sql#L1799) |
+| `description` | `text` | NOT NULL | `''` | — | [001_init.sql:1800](../../../backend/migrations/001_init.sql#L1800) |
+| `timing` | `plan_timing[]` | NULL | `'{}'` | — | [001_init.sql:1801](../../../backend/migrations/001_init.sql#L1801) |
+| `status` | `care_plan_status` | NULL | `'active'` | — | [001_init.sql:1802](../../../backend/migrations/001_init.sql#L1802) |
+| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1803](../../../backend/migrations/001_init.sql#L1803) |
+| `medicine_id` | `bigint` | NULL | — | FK | [001_init.sql:1804](../../../backend/migrations/001_init.sql#L1804) |
+| `procedure_id` | `bigint` | NULL | — | FK | [001_init.sql:1805](../../../backend/migrations/001_init.sql#L1805) |
+| `hospitalization_plan_id` | `bigint` | NULL | — | FK | [001_init.sql:1806](../../../backend/migrations/001_init.sql#L1806) |
+| `unit_price` | `bigint` | NULL | `0` | — | [001_init.sql:1807](../../../backend/migrations/001_init.sql#L1807) |
+| `category` | `text` | NOT NULL | `''` | — | [001_init.sql:1808](../../../backend/migrations/001_init.sql#L1808) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:1809](../../../backend/migrations/001_init.sql#L1809) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1810](../../../backend/migrations/001_init.sql#L1810) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1811](../../../backend/migrations/001_init.sql#L1811) |
+| `other_reason` | `text` | NOT NULL | `''` | — | [001_init.sql:6551](../../../backend/migrations/001_init.sql#L6551) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -80,10 +80,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `care_plan_items_hospitalization_id_fkey` | `hospitalization_id` | [hospitalizations](hospitalizations.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1785](../../../backend/migrations/001_init.sql#L1785) |
-| `care_plan_items_medicine_id_fkey` | `medicine_id` | [medicines](medicines.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1792](../../../backend/migrations/001_init.sql#L1792) |
-| `care_plan_items_procedure_id_fkey` | `procedure_id` | [procedures](procedures.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1793](../../../backend/migrations/001_init.sql#L1793) |
-| `care_plan_items_hospitalization_plan_id_fkey` | `hospitalization_plan_id` | [hospitalization_plans](hospitalization_plans.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1794](../../../backend/migrations/001_init.sql#L1794) |
+| `care_plan_items_hospitalization_id_fkey` | `hospitalization_id` | [hospitalizations](hospitalizations.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1797](../../../backend/migrations/001_init.sql#L1797) |
+| `care_plan_items_medicine_id_fkey` | `medicine_id` | [medicines](medicines.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1804](../../../backend/migrations/001_init.sql#L1804) |
+| `care_plan_items_procedure_id_fkey` | `procedure_id` | [procedures](procedures.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1805](../../../backend/migrations/001_init.sql#L1805) |
+| `care_plan_items_hospitalization_plan_id_fkey` | `hospitalization_plan_id` | [hospitalization_plans](hospitalization_plans.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1806](../../../backend/migrations/001_init.sql#L1806) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -96,15 +96,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `care_plan_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1784](../../../backend/migrations/001_init.sql#L1784) |
-| `chk_care_plan_item_ref` | check | `CONSTRAINT chk_care_plan_item_ref CHECK (         (type = 'medicine'    AND medicine_id IS NOT NULL) OR         (type = 'treatment'   AND procedure_id IS NOT NULL) OR         (type = 'item'        AND hospitalization_plan_id IS NOT NULL) OR         (type = 'item'        AND hospitalization_plan_id IS NULL             AND category = 'other' AND btrim(other_reason) <> '') OR         (type IN ('food', 'instruction'))     )` | [001_init.sql:6545](../../../backend/migrations/001_init.sql#L6545) |
-| `uq_care_plan_items_id_stay` | unique | `CONSTRAINT uq_care_plan_items_id_stay UNIQUE(id,hospitalization_id)` | [001_init.sql:9333](../../../backend/migrations/001_init.sql#L9333) |
+| `care_plan_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1796](../../../backend/migrations/001_init.sql#L1796) |
+| `chk_care_plan_item_ref` | check | `CONSTRAINT chk_care_plan_item_ref CHECK (         (type = 'medicine'    AND medicine_id IS NOT NULL) OR         (type = 'treatment'   AND procedure_id IS NOT NULL) OR         (type = 'item'        AND hospitalization_plan_id IS NOT NULL) OR         (type = 'item'        AND hospitalization_plan_id IS NULL             AND category = 'other' AND btrim(other_reason) <> '') OR         (type IN ('food', 'instruction'))     )` | [001_init.sql:6557](../../../backend/migrations/001_init.sql#L6557) |
+| `uq_care_plan_items_id_stay` | unique | `CONSTRAINT uq_care_plan_items_id_stay UNIQUE(id,hospitalization_id)` | [001_init.sql:9345](../../../backend/migrations/001_init.sql#L9345) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_care_plan_items_hospitalization_id` | NO | — | `CREATE INDEX idx_care_plan_items_hospitalization_id ON care_plan_items(hospitalization_id)` | [001_init.sql:2311](../../../backend/migrations/001_init.sql#L2311) |
-| `idx_care_plan_items_medicine_id` | NO | `medicine_id IS NOT NULL` | `CREATE INDEX idx_care_plan_items_medicine_id ON care_plan_items(medicine_id) WHERE medicine_id IS NOT NULL` | [001_init.sql:2446](../../../backend/migrations/001_init.sql#L2446) |
-| `idx_care_plan_items_procedure_id` | NO | `procedure_id IS NOT NULL` | `CREATE INDEX idx_care_plan_items_procedure_id ON care_plan_items(procedure_id) WHERE procedure_id IS NOT NULL` | [001_init.sql:2447](../../../backend/migrations/001_init.sql#L2447) |
-| `idx_care_plan_items_plan_id` | NO | `hospitalization_plan_id IS NOT NULL` | `CREATE INDEX idx_care_plan_items_plan_id ON care_plan_items(hospitalization_plan_id) WHERE hospitalization_plan_id IS NOT NULL` | [001_init.sql:2448](../../../backend/migrations/001_init.sql#L2448) |
+| `idx_care_plan_items_hospitalization_id` | NO | — | `CREATE INDEX idx_care_plan_items_hospitalization_id ON care_plan_items(hospitalization_id)` | [001_init.sql:2323](../../../backend/migrations/001_init.sql#L2323) |
+| `idx_care_plan_items_medicine_id` | NO | `medicine_id IS NOT NULL` | `CREATE INDEX idx_care_plan_items_medicine_id ON care_plan_items(medicine_id) WHERE medicine_id IS NOT NULL` | [001_init.sql:2458](../../../backend/migrations/001_init.sql#L2458) |
+| `idx_care_plan_items_procedure_id` | NO | `procedure_id IS NOT NULL` | `CREATE INDEX idx_care_plan_items_procedure_id ON care_plan_items(procedure_id) WHERE procedure_id IS NOT NULL` | [001_init.sql:2459](../../../backend/migrations/001_init.sql#L2459) |
+| `idx_care_plan_items_plan_id` | NO | `hospitalization_plan_id IS NOT NULL` | `CREATE INDEX idx_care_plan_items_plan_id ON care_plan_items(hospitalization_plan_id) WHERE hospitalization_plan_id IS NOT NULL` | [001_init.sql:2460](../../../backend/migrations/001_init.sql#L2460) |

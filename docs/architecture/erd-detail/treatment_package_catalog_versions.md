@@ -11,9 +11,9 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11314](../../../backend/migrations/001_init.sql#L11314) |
-| `revision` | `bigint` | NOT NULL | — | — | [001_init.sql:11315](../../../backend/migrations/001_init.sql#L11315) |
-| `updated_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:11316](../../../backend/migrations/001_init.sql#L11316) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:11326](../../../backend/migrations/001_init.sql#L11326) |
+| `revision` | `bigint` | NOT NULL | — | — | [001_init.sql:11327](../../../backend/migrations/001_init.sql#L11327) |
+| `updated_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:11328](../../../backend/migrations/001_init.sql#L11328) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -40,7 +40,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `treatment_package_catalog_versions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11314](../../../backend/migrations/001_init.sql#L11314) |
+| `treatment_package_catalog_versions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11326](../../../backend/migrations/001_init.sql#L11326) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -50,8 +50,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `treatment_package_catalog_versions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:11314](../../../backend/migrations/001_init.sql#L11314) |
-| `treatment_package_catalog_versions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:11315](../../../backend/migrations/001_init.sql#L11315) |
+| `treatment_package_catalog_versions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:11326](../../../backend/migrations/001_init.sql#L11326) |
+| `treatment_package_catalog_versions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:11327](../../../backend/migrations/001_init.sql#L11327) |
 
 ## インデックス
 

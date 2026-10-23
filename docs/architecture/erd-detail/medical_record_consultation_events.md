@@ -11,18 +11,18 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10997](../../../backend/migrations/001_init.sql#L10997) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10997](../../../backend/migrations/001_init.sql#L10997) |
-| `medical_record_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10998](../../../backend/migrations/001_init.sql#L10998) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:10998](../../../backend/migrations/001_init.sql#L10998) |
-| `event_kind` | `text` | NOT NULL | — | — | [001_init.sql:10999](../../../backend/migrations/001_init.sql#L10999) |
-| `previous_event_id` | `bigint` | NULL | — | FK | [001_init.sql:10999](../../../backend/migrations/001_init.sql#L10999) |
-| `source_kind` | `text` | NOT NULL | — | — | [001_init.sql:11000](../../../backend/migrations/001_init.sql#L11000) |
-| `occurred_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:11001](../../../backend/migrations/001_init.sql#L11001) |
-| `reason` | `text` | NULL | — | — | [001_init.sql:11001](../../../backend/migrations/001_init.sql#L11001) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:11001](../../../backend/migrations/001_init.sql#L11001) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:11002](../../../backend/migrations/001_init.sql#L11002) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11002](../../../backend/migrations/001_init.sql#L11002) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:11009](../../../backend/migrations/001_init.sql#L11009) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:11009](../../../backend/migrations/001_init.sql#L11009) |
+| `medical_record_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:11010](../../../backend/migrations/001_init.sql#L11010) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:11010](../../../backend/migrations/001_init.sql#L11010) |
+| `event_kind` | `text` | NOT NULL | — | — | [001_init.sql:11011](../../../backend/migrations/001_init.sql#L11011) |
+| `previous_event_id` | `bigint` | NULL | — | FK | [001_init.sql:11011](../../../backend/migrations/001_init.sql#L11011) |
+| `source_kind` | `text` | NOT NULL | — | — | [001_init.sql:11012](../../../backend/migrations/001_init.sql#L11012) |
+| `occurred_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:11013](../../../backend/migrations/001_init.sql#L11013) |
+| `reason` | `text` | NULL | — | — | [001_init.sql:11013](../../../backend/migrations/001_init.sql#L11013) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:11013](../../../backend/migrations/001_init.sql#L11013) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:11014](../../../backend/migrations/001_init.sql#L11014) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:11014](../../../backend/migrations/001_init.sql#L11014) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -73,11 +73,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `medical_record_consultation_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10997](../../../backend/migrations/001_init.sql#L10997) |
-| `medical_record_consultation_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11002](../../../backend/migrations/001_init.sql#L11002) |
-| `medical_record_consultation_ev_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11004](../../../backend/migrations/001_init.sql#L11004) |
-| `medical_record_consultation_e_previous_event_id_clinic_id__fkey` | `previous_event_id, clinic_id, medical_record_id` | [medical_record_consultation_events](medical_record_consultation_events.md) | `id, clinic_id, medical_record_id` | `ON DELETE RESTRICT` | [001_init.sql:11005](../../../backend/migrations/001_init.sql#L11005) |
-| `medical_record_consultation_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11006](../../../backend/migrations/001_init.sql#L11006) |
+| `medical_record_consultation_events_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11009](../../../backend/migrations/001_init.sql#L11009) |
+| `medical_record_consultation_events_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:11014](../../../backend/migrations/001_init.sql#L11014) |
+| `medical_record_consultation_ev_medical_record_id_clinic_id_fkey` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11016](../../../backend/migrations/001_init.sql#L11016) |
+| `medical_record_consultation_e_previous_event_id_clinic_id__fkey` | `previous_event_id, clinic_id, medical_record_id` | [medical_record_consultation_events](medical_record_consultation_events.md) | `id, clinic_id, medical_record_id` | `ON DELETE RESTRICT` | [001_init.sql:11017](../../../backend/migrations/001_init.sql#L11017) |
+| `medical_record_consultation_events_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11018](../../../backend/migrations/001_init.sql#L11018) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -91,12 +91,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `medical_record_consultation_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10997](../../../backend/migrations/001_init.sql#L10997) |
-| `medical_record_consultation_events_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:10998](../../../backend/migrations/001_init.sql#L10998) |
-| `medical_record_consultation_events_event_kind_check` | check | `CHECK(event_kind IN('ended','end_undone'))` | [001_init.sql:10999](../../../backend/migrations/001_init.sql#L10999) |
-| `medical_record_consultation_events_source_kind_check` | check | `CHECK(source_kind IN('consultation','retrospective'))` | [001_init.sql:11000](../../../backend/migrations/001_init.sql#L11000) |
-| `medical_record_consultation_e_id_clinic_id_medical_record_i_key` | unique | `UNIQUE(id,clinic_id,medical_record_id)` | [001_init.sql:11003](../../../backend/migrations/001_init.sql#L11003) |
-| `medical_record_consultation_e_clinic_id_medical_record_id_r_key` | unique | `UNIQUE(clinic_id,medical_record_id,revision)` | [001_init.sql:11003](../../../backend/migrations/001_init.sql#L11003) |
+| `medical_record_consultation_events_pkey` | primary | `PRIMARY KEY` | [001_init.sql:11009](../../../backend/migrations/001_init.sql#L11009) |
+| `medical_record_consultation_events_revision_check` | check | `CHECK(revision>0)` | [001_init.sql:11010](../../../backend/migrations/001_init.sql#L11010) |
+| `medical_record_consultation_events_event_kind_check` | check | `CHECK(event_kind IN('ended','end_undone'))` | [001_init.sql:11011](../../../backend/migrations/001_init.sql#L11011) |
+| `medical_record_consultation_events_source_kind_check` | check | `CHECK(source_kind IN('consultation','retrospective'))` | [001_init.sql:11012](../../../backend/migrations/001_init.sql#L11012) |
+| `medical_record_consultation_e_id_clinic_id_medical_record_i_key` | unique | `UNIQUE(id,clinic_id,medical_record_id)` | [001_init.sql:11015](../../../backend/migrations/001_init.sql#L11015) |
+| `medical_record_consultation_e_clinic_id_medical_record_id_r_key` | unique | `UNIQUE(clinic_id,medical_record_id,revision)` | [001_init.sql:11015](../../../backend/migrations/001_init.sql#L11015) |
 
 ## インデックス
 

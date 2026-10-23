@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8019](../../../backend/migrations/001_init.sql#L8019) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8020](../../../backend/migrations/001_init.sql#L8020) |
-| `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8021](../../../backend/migrations/001_init.sql#L8021) |
-| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8022](../../../backend/migrations/001_init.sql#L8022) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:8023](../../../backend/migrations/001_init.sql#L8023) |
-| `course_id` | `bigint` | NULL | — | FK | [001_init.sql:8024](../../../backend/migrations/001_init.sql#L8024) |
-| `course_version` | `bigint` | NULL | — | — | [001_init.sql:8025](../../../backend/migrations/001_init.sql#L8025) |
-| `course_duration_minutes` | `integer` | NULL | — | — | [001_init.sql:8026](../../../backend/migrations/001_init.sql#L8026) |
-| `rule_set_id` | `bigint` | NULL | — | FK | [001_init.sql:8027](../../../backend/migrations/001_init.sql#L8027) |
-| `rule_set_version` | `bigint` | NULL | — | — | [001_init.sql:8028](../../../backend/migrations/001_init.sql#L8028) |
-| `total_duration_minutes` | `integer` | NOT NULL | — | — | [001_init.sql:8029](../../../backend/migrations/001_init.sql#L8029) |
-| `option_count` | `integer` | NOT NULL | — | — | [001_init.sql:8030](../../../backend/migrations/001_init.sql#L8030) |
-| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8031](../../../backend/migrations/001_init.sql#L8031) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8032](../../../backend/migrations/001_init.sql#L8032) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8031](../../../backend/migrations/001_init.sql#L8031) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8032](../../../backend/migrations/001_init.sql#L8032) |
+| `appointment_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8033](../../../backend/migrations/001_init.sql#L8033) |
+| `pet_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:8034](../../../backend/migrations/001_init.sql#L8034) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:8035](../../../backend/migrations/001_init.sql#L8035) |
+| `course_id` | `bigint` | NULL | — | FK | [001_init.sql:8036](../../../backend/migrations/001_init.sql#L8036) |
+| `course_version` | `bigint` | NULL | — | — | [001_init.sql:8037](../../../backend/migrations/001_init.sql#L8037) |
+| `course_duration_minutes` | `integer` | NULL | — | — | [001_init.sql:8038](../../../backend/migrations/001_init.sql#L8038) |
+| `rule_set_id` | `bigint` | NULL | — | FK | [001_init.sql:8039](../../../backend/migrations/001_init.sql#L8039) |
+| `rule_set_version` | `bigint` | NULL | — | — | [001_init.sql:8040](../../../backend/migrations/001_init.sql#L8040) |
+| `total_duration_minutes` | `integer` | NOT NULL | — | — | [001_init.sql:8041](../../../backend/migrations/001_init.sql#L8041) |
+| `option_count` | `integer` | NOT NULL | — | — | [001_init.sql:8042](../../../backend/migrations/001_init.sql#L8042) |
+| `recorded_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8043](../../../backend/migrations/001_init.sql#L8043) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8044](../../../backend/migrations/001_init.sql#L8044) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -86,12 +86,12 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_booking_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8020](../../../backend/migrations/001_init.sql#L8020) |
-| `trimming_booking_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8031](../../../backend/migrations/001_init.sql#L8031) |
-| `trimming_booking_revisions_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8040](../../../backend/migrations/001_init.sql#L8040) |
-| `trimming_booking_revisions_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:8041](../../../backend/migrations/001_init.sql#L8041) |
-| `trimming_booking_revisions_course_id_clinic_id_fkey` | `course_id, clinic_id` | [trimming_courses](trimming_courses.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8042](../../../backend/migrations/001_init.sql#L8042) |
-| `trimming_booking_revisions_rule_set_id_clinic_id_fkey` | `rule_set_id, clinic_id` | [trimming_option_rule_sets](trimming_option_rule_sets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8043](../../../backend/migrations/001_init.sql#L8043) |
+| `trimming_booking_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8032](../../../backend/migrations/001_init.sql#L8032) |
+| `trimming_booking_revisions_recorded_by_fkey` | `recorded_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8043](../../../backend/migrations/001_init.sql#L8043) |
+| `trimming_booking_revisions_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8052](../../../backend/migrations/001_init.sql#L8052) |
+| `trimming_booking_revisions_clinic_id_pet_id_fkey` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:8053](../../../backend/migrations/001_init.sql#L8053) |
+| `trimming_booking_revisions_course_id_clinic_id_fkey` | `course_id, clinic_id` | [trimming_courses](trimming_courses.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8054](../../../backend/migrations/001_init.sql#L8054) |
+| `trimming_booking_revisions_rule_set_id_clinic_id_fkey` | `rule_set_id, clinic_id` | [trimming_option_rule_sets](trimming_option_rule_sets.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8055](../../../backend/migrations/001_init.sql#L8055) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -106,14 +106,14 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_booking_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8019](../../../backend/migrations/001_init.sql#L8019) |
-| `trimming_booking_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:8023](../../../backend/migrations/001_init.sql#L8023) |
-| `trimming_booking_revisions_total_duration_minutes_check` | check | `CHECK (total_duration_minutes > 0)` | [001_init.sql:8029](../../../backend/migrations/001_init.sql#L8029) |
-| `trimming_booking_revisions_option_count_check` | check | `CHECK (option_count >= 0)` | [001_init.sql:8030](../../../backend/migrations/001_init.sql#L8030) |
-| `trimming_booking_revisions_id_clinic_id_key` | unique | `UNIQUE (id, clinic_id)` | [001_init.sql:8033](../../../backend/migrations/001_init.sql#L8033) |
-| `trimming_booking_revisions_clinic_id_appointment_id_revisio_key` | unique | `UNIQUE (clinic_id, appointment_id, revision)` | [001_init.sql:8034](../../../backend/migrations/001_init.sql#L8034) |
-| `trimming_booking_revisions_check` | check | `CHECK ((course_id IS NULL AND course_version IS NULL AND course_duration_minutes IS NULL)         OR (course_id IS NOT NULL AND course_version IS NOT NULL AND course_version > 0             AND course_duration_minutes IS NOT NULL AND course_duration_minutes > 0))` | [001_init.sql:8035](../../../backend/migrations/001_init.sql#L8035) |
-| `trimming_booking_revisions_check1` | check | `CHECK ((rule_set_id IS NULL AND rule_set_version IS NULL)         OR (rule_set_id IS NOT NULL AND rule_set_version IS NOT NULL AND rule_set_version > 0))` | [001_init.sql:8038](../../../backend/migrations/001_init.sql#L8038) |
+| `trimming_booking_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8031](../../../backend/migrations/001_init.sql#L8031) |
+| `trimming_booking_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:8035](../../../backend/migrations/001_init.sql#L8035) |
+| `trimming_booking_revisions_total_duration_minutes_check` | check | `CHECK (total_duration_minutes > 0)` | [001_init.sql:8041](../../../backend/migrations/001_init.sql#L8041) |
+| `trimming_booking_revisions_option_count_check` | check | `CHECK (option_count >= 0)` | [001_init.sql:8042](../../../backend/migrations/001_init.sql#L8042) |
+| `trimming_booking_revisions_id_clinic_id_key` | unique | `UNIQUE (id, clinic_id)` | [001_init.sql:8045](../../../backend/migrations/001_init.sql#L8045) |
+| `trimming_booking_revisions_clinic_id_appointment_id_revisio_key` | unique | `UNIQUE (clinic_id, appointment_id, revision)` | [001_init.sql:8046](../../../backend/migrations/001_init.sql#L8046) |
+| `trimming_booking_revisions_check` | check | `CHECK ((course_id IS NULL AND course_version IS NULL AND course_duration_minutes IS NULL)         OR (course_id IS NOT NULL AND course_version IS NOT NULL AND course_version > 0             AND course_duration_minutes IS NOT NULL AND course_duration_minutes > 0))` | [001_init.sql:8047](../../../backend/migrations/001_init.sql#L8047) |
+| `trimming_booking_revisions_check1` | check | `CHECK ((rule_set_id IS NULL AND rule_set_version IS NULL)         OR (rule_set_id IS NOT NULL AND rule_set_version IS NOT NULL AND rule_set_version > 0))` | [001_init.sql:8050](../../../backend/migrations/001_init.sql#L8050) |
 
 ## インデックス
 

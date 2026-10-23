@@ -11,13 +11,13 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10722](../../../backend/migrations/001_init.sql#L10722) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10722](../../../backend/migrations/001_init.sql#L10722) |
-| `common_owner_id` | `uuid` | NOT NULL | — | FK, UK | [001_init.sql:10723](../../../backend/migrations/001_init.sql#L10723) |
-| `local_owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10723](../../../backend/migrations/001_init.sql#L10723) |
-| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10725](../../../backend/migrations/001_init.sql#L10725) |
-| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10725](../../../backend/migrations/001_init.sql#L10725) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10726](../../../backend/migrations/001_init.sql#L10726) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:10734](../../../backend/migrations/001_init.sql#L10734) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10734](../../../backend/migrations/001_init.sql#L10734) |
+| `common_owner_id` | `uuid` | NOT NULL | — | FK, UK | [001_init.sql:10735](../../../backend/migrations/001_init.sql#L10735) |
+| `local_owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:10735](../../../backend/migrations/001_init.sql#L10735) |
+| `confirmed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:10737](../../../backend/migrations/001_init.sql#L10737) |
+| `confirmed_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:10737](../../../backend/migrations/001_init.sql#L10737) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10738](../../../backend/migrations/001_init.sql#L10738) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -66,11 +66,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `common_owner_clinic_bindings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10722](../../../backend/migrations/001_init.sql#L10722) |
-| `common_owner_clinic_bindings_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10725](../../../backend/migrations/001_init.sql#L10725) |
-| `common_owner_clinic_bindings_common_owner_id_fkey` | `common_owner_id` | [common_owner_subjects](common_owner_subjects.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10727](../../../backend/migrations/001_init.sql#L10727) |
-| `common_owner_clinic_bindings_local_owner_id_clinic_id_fkey` | `local_owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10728](../../../backend/migrations/001_init.sql#L10728) |
-| `common_owner_clinic_bindings_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10729](../../../backend/migrations/001_init.sql#L10729) |
+| `common_owner_clinic_bindings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10734](../../../backend/migrations/001_init.sql#L10734) |
+| `common_owner_clinic_bindings_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10737](../../../backend/migrations/001_init.sql#L10737) |
+| `common_owner_clinic_bindings_common_owner_id_fkey` | `common_owner_id` | [common_owner_subjects](common_owner_subjects.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10739](../../../backend/migrations/001_init.sql#L10739) |
+| `common_owner_clinic_bindings_local_owner_id_clinic_id_fkey` | `local_owner_id, clinic_id` | [owners](owners.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10740](../../../backend/migrations/001_init.sql#L10740) |
+| `common_owner_clinic_bindings_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10741](../../../backend/migrations/001_init.sql#L10741) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -84,12 +84,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `common_owner_clinic_bindings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10722](../../../backend/migrations/001_init.sql#L10722) |
-| `common_owner_clinic_bindings_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10726](../../../backend/migrations/001_init.sql#L10726) |
+| `common_owner_clinic_bindings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:10734](../../../backend/migrations/001_init.sql#L10734) |
+| `common_owner_clinic_bindings_id_clinic_id_key` | unique | `UNIQUE(id,clinic_id)` | [001_init.sql:10738](../../../backend/migrations/001_init.sql#L10738) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `uq_common_owner_clinic` | YES | — | `CREATE UNIQUE INDEX uq_common_owner_clinic ON common_owner_clinic_bindings(clinic_id,common_owner_id)` | [001_init.sql:10895](../../../backend/migrations/001_init.sql#L10895) |
-| `uq_common_owner_local` | YES | — | `CREATE UNIQUE INDEX uq_common_owner_local ON common_owner_clinic_bindings(clinic_id,local_owner_id)` | [001_init.sql:10896](../../../backend/migrations/001_init.sql#L10896) |
+| `uq_common_owner_clinic` | YES | — | `CREATE UNIQUE INDEX uq_common_owner_clinic ON common_owner_clinic_bindings(clinic_id,common_owner_id)` | [001_init.sql:10907](../../../backend/migrations/001_init.sql#L10907) |
+| `uq_common_owner_local` | YES | — | `CREATE UNIQUE INDEX uq_common_owner_local ON common_owner_clinic_bindings(clinic_id,local_owner_id)` | [001_init.sql:10908](../../../backend/migrations/001_init.sql#L10908) |

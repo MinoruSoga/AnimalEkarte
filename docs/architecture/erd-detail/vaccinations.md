@@ -11,25 +11,25 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1486](../../../backend/migrations/001_init.sql#L1486) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1487](../../../backend/migrations/001_init.sql#L1487) |
-| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1488](../../../backend/migrations/001_init.sql#L1488) |
-| `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:1489](../../../backend/migrations/001_init.sql#L1489) |
-| `vaccine_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1490](../../../backend/migrations/001_init.sql#L1490) |
-| `date` | `date` | NOT NULL | — | — | [001_init.sql:1491](../../../backend/migrations/001_init.sql#L1491) |
-| `next_date` | `date` | NULL | — | — | [001_init.sql:1492](../../../backend/migrations/001_init.sql#L1492) |
-| `next_schedule_type` | `next_schedule_type` | NULL | — | — | [001_init.sql:1493](../../../backend/migrations/001_init.sql#L1493) |
-| `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:1494](../../../backend/migrations/001_init.sql#L1494) |
-| `supplemental` | `text` | NOT NULL | `''` | — | [001_init.sql:1495](../../../backend/migrations/001_init.sql#L1495) |
-| `lot1` | `text` | NOT NULL | `''` | — | [001_init.sql:1496](../../../backend/migrations/001_init.sql#L1496) |
-| `lot2` | `text` | NOT NULL | `''` | — | [001_init.sql:1497](../../../backend/migrations/001_init.sql#L1497) |
-| `lot3` | `text` | NOT NULL | `''` | — | [001_init.sql:1498](../../../backend/migrations/001_init.sql#L1498) |
-| `lot4` | `text` | NOT NULL | `''` | — | [001_init.sql:1499](../../../backend/migrations/001_init.sql#L1499) |
-| `remarks` | `text` | NOT NULL | `''` | — | [001_init.sql:1500](../../../backend/migrations/001_init.sql#L1500) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1501](../../../backend/migrations/001_init.sql#L1501) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1502](../../../backend/migrations/001_init.sql#L1502) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1503](../../../backend/migrations/001_init.sql#L1503) |
-| `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:6342](../../../backend/migrations/001_init.sql#L6342) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1498](../../../backend/migrations/001_init.sql#L1498) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1499](../../../backend/migrations/001_init.sql#L1499) |
+| `medical_record_id` | `bigint` | NULL | — | FK | [001_init.sql:1500](../../../backend/migrations/001_init.sql#L1500) |
+| `pet_id` | `bigint` | NULL | — | FK | [001_init.sql:1501](../../../backend/migrations/001_init.sql#L1501) |
+| `vaccine_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1502](../../../backend/migrations/001_init.sql#L1502) |
+| `date` | `date` | NOT NULL | — | — | [001_init.sql:1503](../../../backend/migrations/001_init.sql#L1503) |
+| `next_date` | `date` | NULL | — | — | [001_init.sql:1504](../../../backend/migrations/001_init.sql#L1504) |
+| `next_schedule_type` | `next_schedule_type` | NULL | — | — | [001_init.sql:1505](../../../backend/migrations/001_init.sql#L1505) |
+| `doctor_id` | `bigint` | NULL | — | FK | [001_init.sql:1506](../../../backend/migrations/001_init.sql#L1506) |
+| `supplemental` | `text` | NOT NULL | `''` | — | [001_init.sql:1507](../../../backend/migrations/001_init.sql#L1507) |
+| `lot1` | `text` | NOT NULL | `''` | — | [001_init.sql:1508](../../../backend/migrations/001_init.sql#L1508) |
+| `lot2` | `text` | NOT NULL | `''` | — | [001_init.sql:1509](../../../backend/migrations/001_init.sql#L1509) |
+| `lot3` | `text` | NOT NULL | `''` | — | [001_init.sql:1510](../../../backend/migrations/001_init.sql#L1510) |
+| `lot4` | `text` | NOT NULL | `''` | — | [001_init.sql:1511](../../../backend/migrations/001_init.sql#L1511) |
+| `remarks` | `text` | NOT NULL | `''` | — | [001_init.sql:1512](../../../backend/migrations/001_init.sql#L1512) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1513](../../../backend/migrations/001_init.sql#L1513) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1514](../../../backend/migrations/001_init.sql#L1514) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:1515](../../../backend/migrations/001_init.sql#L1515) |
+| `version` | `INTEGER` | NOT NULL | `1` | — | [001_init.sql:6354](../../../backend/migrations/001_init.sql#L6354) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -92,13 +92,13 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `vaccinations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1487](../../../backend/migrations/001_init.sql#L1487) |
-| `vaccinations_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1488](../../../backend/migrations/001_init.sql#L1488) |
-| `vaccinations_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1489](../../../backend/migrations/001_init.sql#L1489) |
-| `vaccinations_vaccine_id_fkey` | `vaccine_id` | [vaccines](vaccines.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1490](../../../backend/migrations/001_init.sql#L1490) |
-| `vaccinations_doctor_id_fkey` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1494](../../../backend/migrations/001_init.sql#L1494) |
-| `fk_vaccinations_clinic_pet` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4378](../../../backend/migrations/001_init.sql#L4378) |
-| `fk_vaccinations_medical_record_clinic` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:4384](../../../backend/migrations/001_init.sql#L4384) |
+| `vaccinations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1499](../../../backend/migrations/001_init.sql#L1499) |
+| `vaccinations_medical_record_id_fkey` | `medical_record_id` | [medical_records](medical_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1500](../../../backend/migrations/001_init.sql#L1500) |
+| `vaccinations_pet_id_fkey` | `pet_id` | [pets](pets.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1501](../../../backend/migrations/001_init.sql#L1501) |
+| `vaccinations_vaccine_id_fkey` | `vaccine_id` | [vaccines](vaccines.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1502](../../../backend/migrations/001_init.sql#L1502) |
+| `vaccinations_doctor_id_fkey` | `doctor_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1506](../../../backend/migrations/001_init.sql#L1506) |
+| `fk_vaccinations_clinic_pet` | `clinic_id, pet_id` | [pets](pets.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:4390](../../../backend/migrations/001_init.sql#L4390) |
+| `fk_vaccinations_medical_record_clinic` | `medical_record_id, clinic_id` | [medical_records](medical_records.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:4396](../../../backend/migrations/001_init.sql#L4396) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -114,16 +114,16 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `vaccinations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1486](../../../backend/migrations/001_init.sql#L1486) |
-| `uq_vaccinations_id_clinic` | unique | `CONSTRAINT uq_vaccinations_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:4051](../../../backend/migrations/001_init.sql#L4051) |
+| `vaccinations_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1498](../../../backend/migrations/001_init.sql#L1498) |
+| `uq_vaccinations_id_clinic` | unique | `CONSTRAINT uq_vaccinations_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:4063](../../../backend/migrations/001_init.sql#L4063) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_vaccinations_clinic_id` | NO | — | `CREATE INDEX idx_vaccinations_clinic_id ON vaccinations(clinic_id)` | [001_init.sql:2293](../../../backend/migrations/001_init.sql#L2293) |
-| `idx_vaccinations_medical_record_id` | NO | — | `CREATE INDEX idx_vaccinations_medical_record_id ON vaccinations(medical_record_id)` | [001_init.sql:2294](../../../backend/migrations/001_init.sql#L2294) |
-| `idx_vaccinations_pet_id` | NO | — | `CREATE INDEX idx_vaccinations_pet_id ON vaccinations(pet_id)` | [001_init.sql:2295](../../../backend/migrations/001_init.sql#L2295) |
-| `idx_vaccinations_vaccine_id` | NO | — | `CREATE INDEX idx_vaccinations_vaccine_id ON vaccinations(vaccine_id)` | [001_init.sql:2296](../../../backend/migrations/001_init.sql#L2296) |
-| `idx_vaccinations_clinic_date` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_vaccinations_clinic_date   ON vaccinations(clinic_id, date)   WHERE deleted_at IS NULL` | [001_init.sql:2390](../../../backend/migrations/001_init.sql#L2390) |
-| `idx_vaccinations_clinic_pet_date_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_vaccinations_clinic_pet_date_active     ON vaccinations(clinic_id, pet_id, date, id)     WHERE deleted_at IS NULL` | [001_init.sql:4065](../../../backend/migrations/001_init.sql#L4065) |
+| `idx_vaccinations_clinic_id` | NO | — | `CREATE INDEX idx_vaccinations_clinic_id ON vaccinations(clinic_id)` | [001_init.sql:2305](../../../backend/migrations/001_init.sql#L2305) |
+| `idx_vaccinations_medical_record_id` | NO | — | `CREATE INDEX idx_vaccinations_medical_record_id ON vaccinations(medical_record_id)` | [001_init.sql:2306](../../../backend/migrations/001_init.sql#L2306) |
+| `idx_vaccinations_pet_id` | NO | — | `CREATE INDEX idx_vaccinations_pet_id ON vaccinations(pet_id)` | [001_init.sql:2307](../../../backend/migrations/001_init.sql#L2307) |
+| `idx_vaccinations_vaccine_id` | NO | — | `CREATE INDEX idx_vaccinations_vaccine_id ON vaccinations(vaccine_id)` | [001_init.sql:2308](../../../backend/migrations/001_init.sql#L2308) |
+| `idx_vaccinations_clinic_date` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_vaccinations_clinic_date   ON vaccinations(clinic_id, date)   WHERE deleted_at IS NULL` | [001_init.sql:2402](../../../backend/migrations/001_init.sql#L2402) |
+| `idx_vaccinations_clinic_pet_date_active` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_vaccinations_clinic_pet_date_active     ON vaccinations(clinic_id, pet_id, date, id)     WHERE deleted_at IS NULL` | [001_init.sql:4077](../../../backend/migrations/001_init.sql#L4077) |

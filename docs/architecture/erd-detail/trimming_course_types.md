@@ -11,14 +11,14 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:978](../../../backend/migrations/001_init.sql#L978) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:979](../../../backend/migrations/001_init.sql#L979) |
-| `name` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:980](../../../backend/migrations/001_init.sql#L980) |
-| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:981](../../../backend/migrations/001_init.sql#L981) |
-| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:982](../../../backend/migrations/001_init.sql#L982) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:983](../../../backend/migrations/001_init.sql#L983) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:984](../../../backend/migrations/001_init.sql#L984) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:985](../../../backend/migrations/001_init.sql#L985) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:990](../../../backend/migrations/001_init.sql#L990) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:991](../../../backend/migrations/001_init.sql#L991) |
+| `name` | `varchar(50)` | NOT NULL | — | — | [001_init.sql:992](../../../backend/migrations/001_init.sql#L992) |
+| `sort_order` | `integer` | NULL | `0` | — | [001_init.sql:993](../../../backend/migrations/001_init.sql#L993) |
+| `is_active` | `boolean` | NOT NULL | `true` | — | [001_init.sql:994](../../../backend/migrations/001_init.sql#L994) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:995](../../../backend/migrations/001_init.sql#L995) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:996](../../../backend/migrations/001_init.sql#L996) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:997](../../../backend/migrations/001_init.sql#L997) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -50,7 +50,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `trimming_course_types_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:979](../../../backend/migrations/001_init.sql#L979) |
+| `trimming_course_types_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:991](../../../backend/migrations/001_init.sql#L991) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -60,11 +60,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `trimming_course_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:978](../../../backend/migrations/001_init.sql#L978) |
+| `trimming_course_types_pkey` | primary | `PRIMARY KEY` | [001_init.sql:990](../../../backend/migrations/001_init.sql#L990) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_trimming_course_types_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_trimming_course_types_clinic_name ON trimming_course_types(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:988](../../../backend/migrations/001_init.sql#L988) |
-| `idx_trimming_course_types_clinic_order` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_course_types_clinic_order ON trimming_course_types(clinic_id, sort_order) WHERE deleted_at IS NULL` | [001_init.sql:989](../../../backend/migrations/001_init.sql#L989) |
+| `idx_trimming_course_types_clinic_name` | YES | `deleted_at IS NULL` | `CREATE UNIQUE INDEX idx_trimming_course_types_clinic_name ON trimming_course_types(clinic_id, name) WHERE deleted_at IS NULL` | [001_init.sql:1000](../../../backend/migrations/001_init.sql#L1000) |
+| `idx_trimming_course_types_clinic_order` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_trimming_course_types_clinic_order ON trimming_course_types(clinic_id, sort_order) WHERE deleted_at IS NULL` | [001_init.sql:1001](../../../backend/migrations/001_init.sql#L1001) |

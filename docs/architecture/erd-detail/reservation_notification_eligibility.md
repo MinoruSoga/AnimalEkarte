@@ -11,15 +11,15 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10160](../../../backend/migrations/001_init.sql#L10160) |
-| `appointment_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10160](../../../backend/migrations/001_init.sql#L10160) |
-| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10160](../../../backend/migrations/001_init.sql#L10160) |
-| `binding_revision` | `bigint` | NOT NULL | — | — | [001_init.sql:10161](../../../backend/migrations/001_init.sql#L10161) |
-| `appointment_version` | `bigint` | NOT NULL | — | — | [001_init.sql:10161](../../../backend/migrations/001_init.sql#L10161) |
-| `state` | `text` | NOT NULL | — | — | [001_init.sql:10162](../../../backend/migrations/001_init.sql#L10162) |
-| `confirmed_by` | `bigint` | NULL | — | FK | [001_init.sql:10163](../../../backend/migrations/001_init.sql#L10163) |
-| `confirmed_at` | `timestamptz` | NULL | — | — | [001_init.sql:10163](../../../backend/migrations/001_init.sql#L10163) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10163](../../../backend/migrations/001_init.sql#L10163) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10172](../../../backend/migrations/001_init.sql#L10172) |
+| `appointment_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:10172](../../../backend/migrations/001_init.sql#L10172) |
+| `owner_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10172](../../../backend/migrations/001_init.sql#L10172) |
+| `binding_revision` | `bigint` | NOT NULL | — | — | [001_init.sql:10173](../../../backend/migrations/001_init.sql#L10173) |
+| `appointment_version` | `bigint` | NOT NULL | — | — | [001_init.sql:10173](../../../backend/migrations/001_init.sql#L10173) |
+| `state` | `text` | NOT NULL | — | — | [001_init.sql:10174](../../../backend/migrations/001_init.sql#L10174) |
+| `confirmed_by` | `bigint` | NULL | — | FK | [001_init.sql:10175](../../../backend/migrations/001_init.sql#L10175) |
+| `confirmed_at` | `timestamptz` | NULL | — | — | [001_init.sql:10175](../../../backend/migrations/001_init.sql#L10175) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:10175](../../../backend/migrations/001_init.sql#L10175) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -71,11 +71,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `reservation_notification_eligibility_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10160](../../../backend/migrations/001_init.sql#L10160) |
-| `reservation_notification_eligibility_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10163](../../../backend/migrations/001_init.sql#L10163) |
-| `reservation_notification_eligibil_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10165](../../../backend/migrations/001_init.sql#L10165) |
-| `reservation_notification_eligibility_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owner_line_binding_states](owner_line_binding_states.md) | `clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:10166](../../../backend/migrations/001_init.sql#L10166) |
-| `reservation_notification_eligibilit_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10167](../../../backend/migrations/001_init.sql#L10167) |
+| `reservation_notification_eligibility_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10172](../../../backend/migrations/001_init.sql#L10172) |
+| `reservation_notification_eligibility_confirmed_by_fkey` | `confirmed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:10175](../../../backend/migrations/001_init.sql#L10175) |
+| `reservation_notification_eligibil_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10177](../../../backend/migrations/001_init.sql#L10177) |
+| `reservation_notification_eligibility_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owner_line_binding_states](owner_line_binding_states.md) | `clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:10178](../../../backend/migrations/001_init.sql#L10178) |
+| `reservation_notification_eligibilit_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:10179](../../../backend/migrations/001_init.sql#L10179) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -89,11 +89,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `reservation_notification_eligibility_binding_revision_check` | check | `CHECK(binding_revision>0)` | [001_init.sql:10161](../../../backend/migrations/001_init.sql#L10161) |
-| `reservation_notification_eligibility_appointment_version_check` | check | `CHECK(appointment_version>0)` | [001_init.sql:10161](../../../backend/migrations/001_init.sql#L10161) |
-| `reservation_notification_eligibility_state_check` | check | `CHECK(state IN('stopped','resume_pending','confirmed'))` | [001_init.sql:10162](../../../backend/migrations/001_init.sql#L10162) |
-| `reservation_notification_eligibility_pkey` | primary | `PRIMARY KEY(clinic_id,appointment_id)` | [001_init.sql:10164](../../../backend/migrations/001_init.sql#L10164) |
-| `reservation_notification_eligibility_check` | check | `CHECK(state<>'confirmed' OR(confirmed_by IS NOT NULL AND confirmed_at IS NOT NULL))` | [001_init.sql:10164](../../../backend/migrations/001_init.sql#L10164) |
+| `reservation_notification_eligibility_binding_revision_check` | check | `CHECK(binding_revision>0)` | [001_init.sql:10173](../../../backend/migrations/001_init.sql#L10173) |
+| `reservation_notification_eligibility_appointment_version_check` | check | `CHECK(appointment_version>0)` | [001_init.sql:10173](../../../backend/migrations/001_init.sql#L10173) |
+| `reservation_notification_eligibility_state_check` | check | `CHECK(state IN('stopped','resume_pending','confirmed'))` | [001_init.sql:10174](../../../backend/migrations/001_init.sql#L10174) |
+| `reservation_notification_eligibility_pkey` | primary | `PRIMARY KEY(clinic_id,appointment_id)` | [001_init.sql:10176](../../../backend/migrations/001_init.sql#L10176) |
+| `reservation_notification_eligibility_check` | check | `CHECK(state<>'confirmed' OR(confirmed_by IS NOT NULL AND confirmed_at IS NOT NULL))` | [001_init.sql:10176](../../../backend/migrations/001_init.sql#L10176) |
 
 ## インデックス
 

@@ -11,11 +11,11 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:6060](../../../backend/migrations/001_init.sql#L6060) |
-| `wait_ttl_seconds` | `integer` | NOT NULL | `1800` | — | [001_init.sql:6061](../../../backend/migrations/001_init.sql#L6061) |
-| `slots_json` | `jsonb` | NOT NULL | `'[]'::jsonb` | — | [001_init.sql:6062](../../../backend/migrations/001_init.sql#L6062) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6063](../../../backend/migrations/001_init.sql#L6063) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6064](../../../backend/migrations/001_init.sql#L6064) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:6072](../../../backend/migrations/001_init.sql#L6072) |
+| `wait_ttl_seconds` | `integer` | NOT NULL | `1800` | — | [001_init.sql:6073](../../../backend/migrations/001_init.sql#L6073) |
+| `slots_json` | `jsonb` | NOT NULL | `'[]'::jsonb` | — | [001_init.sql:6074](../../../backend/migrations/001_init.sql#L6074) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6075](../../../backend/migrations/001_init.sql#L6075) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:6076](../../../backend/migrations/001_init.sql#L6076) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -44,7 +44,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `lab_device_station_settings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6060](../../../backend/migrations/001_init.sql#L6060) |
+| `lab_device_station_settings_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:6072](../../../backend/migrations/001_init.sql#L6072) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -54,8 +54,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_device_station_settings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6060](../../../backend/migrations/001_init.sql#L6060) |
-| `chk_lab_device_station_settings_ttl` | check | `CONSTRAINT chk_lab_device_station_settings_ttl         CHECK (wait_ttl_seconds >= 60 AND wait_ttl_seconds <= 86400)` | [001_init.sql:6065](../../../backend/migrations/001_init.sql#L6065) |
+| `lab_device_station_settings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:6072](../../../backend/migrations/001_init.sql#L6072) |
+| `chk_lab_device_station_settings_ttl` | check | `CONSTRAINT chk_lab_device_station_settings_ttl         CHECK (wait_ttl_seconds >= 60 AND wait_ttl_seconds <= 86400)` | [001_init.sql:6077](../../../backend/migrations/001_init.sql#L6077) |
 
 ## インデックス
 

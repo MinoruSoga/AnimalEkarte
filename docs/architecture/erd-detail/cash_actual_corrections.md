@@ -11,20 +11,20 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9908](../../../backend/migrations/001_init.sql#L9908) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9909](../../../backend/migrations/001_init.sql#L9909) |
-| `close_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9910](../../../backend/migrations/001_init.sql#L9910) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9911](../../../backend/migrations/001_init.sql#L9911) |
-| `previous_correction_id` | `bigint` | NULL | — | FK | [001_init.sql:9912](../../../backend/migrations/001_init.sql#L9912) |
-| `before_actual_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9913](../../../backend/migrations/001_init.sql#L9913) |
-| `corrected_actual_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9914](../../../backend/migrations/001_init.sql#L9914) |
-| `theoretical_basis_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9915](../../../backend/migrations/001_init.sql#L9915) |
-| `source_generation` | `bigint` | NOT NULL | — | — | [001_init.sql:9916](../../../backend/migrations/001_init.sql#L9916) |
-| `original_counted_at` | `timestamptz` | NULL | — | — | [001_init.sql:9917](../../../backend/migrations/001_init.sql#L9917) |
-| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9918](../../../backend/migrations/001_init.sql#L9918) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9919](../../../backend/migrations/001_init.sql#L9919) |
-| `corrected_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9920](../../../backend/migrations/001_init.sql#L9920) |
-| `corrected_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9921](../../../backend/migrations/001_init.sql#L9921) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9920](../../../backend/migrations/001_init.sql#L9920) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9921](../../../backend/migrations/001_init.sql#L9921) |
+| `close_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9922](../../../backend/migrations/001_init.sql#L9922) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9923](../../../backend/migrations/001_init.sql#L9923) |
+| `previous_correction_id` | `bigint` | NULL | — | FK | [001_init.sql:9924](../../../backend/migrations/001_init.sql#L9924) |
+| `before_actual_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9925](../../../backend/migrations/001_init.sql#L9925) |
+| `corrected_actual_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9926](../../../backend/migrations/001_init.sql#L9926) |
+| `theoretical_basis_amount` | `bigint` | NOT NULL | — | — | [001_init.sql:9927](../../../backend/migrations/001_init.sql#L9927) |
+| `source_generation` | `bigint` | NOT NULL | — | — | [001_init.sql:9928](../../../backend/migrations/001_init.sql#L9928) |
+| `original_counted_at` | `timestamptz` | NULL | — | — | [001_init.sql:9929](../../../backend/migrations/001_init.sql#L9929) |
+| `reason` | `text` | NOT NULL | — | — | [001_init.sql:9930](../../../backend/migrations/001_init.sql#L9930) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9931](../../../backend/migrations/001_init.sql#L9931) |
+| `corrected_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:9932](../../../backend/migrations/001_init.sql#L9932) |
+| `corrected_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9933](../../../backend/migrations/001_init.sql#L9933) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -77,11 +77,11 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `cash_actual_corrections_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9909](../../../backend/migrations/001_init.sql#L9909) |
-| `cash_actual_corrections_corrected_by_fkey` | `corrected_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9920](../../../backend/migrations/001_init.sql#L9920) |
-| `cash_actual_corrections_close_id_clinic_id_fkey` | `close_id, clinic_id` | [cash_register_closes](cash_register_closes.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9924](../../../backend/migrations/001_init.sql#L9924) |
-| `cash_actual_corrections_previous_correction_id_clinic_id_c_fkey` | `previous_correction_id, clinic_id, close_id` | [cash_actual_corrections](cash_actual_corrections.md) | `id, clinic_id, close_id` | `ON DELETE RESTRICT` | [001_init.sql:9925](../../../backend/migrations/001_init.sql#L9925) |
-| `cash_actual_corrections_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9926](../../../backend/migrations/001_init.sql#L9926) |
+| `cash_actual_corrections_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9921](../../../backend/migrations/001_init.sql#L9921) |
+| `cash_actual_corrections_corrected_by_fkey` | `corrected_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9932](../../../backend/migrations/001_init.sql#L9932) |
+| `cash_actual_corrections_close_id_clinic_id_fkey` | `close_id, clinic_id` | [cash_register_closes](cash_register_closes.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9936](../../../backend/migrations/001_init.sql#L9936) |
+| `cash_actual_corrections_previous_correction_id_clinic_id_c_fkey` | `previous_correction_id, clinic_id, close_id` | [cash_actual_corrections](cash_actual_corrections.md) | `id, clinic_id, close_id` | `ON DELETE RESTRICT` | [001_init.sql:9937](../../../backend/migrations/001_init.sql#L9937) |
+| `cash_actual_corrections_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9938](../../../backend/migrations/001_init.sql#L9938) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -95,13 +95,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `cash_actual_corrections_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9908](../../../backend/migrations/001_init.sql#L9908) |
-| `cash_actual_corrections_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9911](../../../backend/migrations/001_init.sql#L9911) |
-| `cash_actual_corrections_corrected_actual_amount_check` | check | `CHECK (corrected_actual_amount >= 0)` | [001_init.sql:9914](../../../backend/migrations/001_init.sql#L9914) |
-| `cash_actual_corrections_source_generation_check` | check | `CHECK (source_generation > 0)` | [001_init.sql:9916](../../../backend/migrations/001_init.sql#L9916) |
-| `cash_actual_corrections_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9918](../../../backend/migrations/001_init.sql#L9918) |
-| `cash_actual_corrections_id_clinic_id_close_id_key` | unique | `UNIQUE (id,clinic_id,close_id)` | [001_init.sql:9922](../../../backend/migrations/001_init.sql#L9922) |
-| `cash_actual_corrections_clinic_id_close_id_revision_key` | unique | `UNIQUE (clinic_id,close_id,revision)` | [001_init.sql:9923](../../../backend/migrations/001_init.sql#L9923) |
+| `cash_actual_corrections_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9920](../../../backend/migrations/001_init.sql#L9920) |
+| `cash_actual_corrections_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9923](../../../backend/migrations/001_init.sql#L9923) |
+| `cash_actual_corrections_corrected_actual_amount_check` | check | `CHECK (corrected_actual_amount >= 0)` | [001_init.sql:9926](../../../backend/migrations/001_init.sql#L9926) |
+| `cash_actual_corrections_source_generation_check` | check | `CHECK (source_generation > 0)` | [001_init.sql:9928](../../../backend/migrations/001_init.sql#L9928) |
+| `cash_actual_corrections_reason_check` | check | `CHECK (btrim(reason)<>'')` | [001_init.sql:9930](../../../backend/migrations/001_init.sql#L9930) |
+| `cash_actual_corrections_id_clinic_id_close_id_key` | unique | `UNIQUE (id,clinic_id,close_id)` | [001_init.sql:9934](../../../backend/migrations/001_init.sql#L9934) |
+| `cash_actual_corrections_clinic_id_close_id_revision_key` | unique | `UNIQUE (clinic_id,close_id,revision)` | [001_init.sql:9935](../../../backend/migrations/001_init.sql#L9935) |
 
 ## インデックス
 

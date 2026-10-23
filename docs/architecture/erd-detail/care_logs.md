@@ -11,17 +11,17 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1860](../../../backend/migrations/001_init.sql#L1860) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1861](../../../backend/migrations/001_init.sql#L1861) |
-| `daily_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1862](../../../backend/migrations/001_init.sql#L1862) |
-| `time` | `time` | NOT NULL | — | — | [001_init.sql:1863](../../../backend/migrations/001_init.sql#L1863) |
-| `type` | `care_log_type` | NOT NULL | — | — | [001_init.sql:1864](../../../backend/migrations/001_init.sql#L1864) |
-| `status` | `care_log_status` | NOT NULL | `'completed'` | — | [001_init.sql:1865](../../../backend/migrations/001_init.sql#L1865) |
-| `value` | `text` | NOT NULL | `''` | — | [001_init.sql:1866](../../../backend/migrations/001_init.sql#L1866) |
-| `staff_id` | `bigint` | NULL | — | FK | [001_init.sql:1867](../../../backend/migrations/001_init.sql#L1867) |
-| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1868](../../../backend/migrations/001_init.sql#L1868) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1869](../../../backend/migrations/001_init.sql#L1869) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1870](../../../backend/migrations/001_init.sql#L1870) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1872](../../../backend/migrations/001_init.sql#L1872) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1873](../../../backend/migrations/001_init.sql#L1873) |
+| `daily_record_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:1874](../../../backend/migrations/001_init.sql#L1874) |
+| `time` | `time` | NOT NULL | — | — | [001_init.sql:1875](../../../backend/migrations/001_init.sql#L1875) |
+| `type` | `care_log_type` | NOT NULL | — | — | [001_init.sql:1876](../../../backend/migrations/001_init.sql#L1876) |
+| `status` | `care_log_status` | NOT NULL | `'completed'` | — | [001_init.sql:1877](../../../backend/migrations/001_init.sql#L1877) |
+| `value` | `text` | NOT NULL | `''` | — | [001_init.sql:1878](../../../backend/migrations/001_init.sql#L1878) |
+| `staff_id` | `bigint` | NULL | — | FK | [001_init.sql:1879](../../../backend/migrations/001_init.sql#L1879) |
+| `notes` | `text` | NOT NULL | `''` | — | [001_init.sql:1880](../../../backend/migrations/001_init.sql#L1880) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1881](../../../backend/migrations/001_init.sql#L1881) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:1882](../../../backend/migrations/001_init.sql#L1882) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -64,9 +64,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `care_logs_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1861](../../../backend/migrations/001_init.sql#L1861) |
-| `care_logs_daily_record_id_fkey` | `daily_record_id` | [daily_records](daily_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1862](../../../backend/migrations/001_init.sql#L1862) |
-| `care_logs_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1867](../../../backend/migrations/001_init.sql#L1867) |
+| `care_logs_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:1873](../../../backend/migrations/001_init.sql#L1873) |
+| `care_logs_daily_record_id_fkey` | `daily_record_id` | [daily_records](daily_records.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:1874](../../../backend/migrations/001_init.sql#L1874) |
+| `care_logs_staff_id_fkey` | `staff_id` | [staffs](staffs.md) | `id` | `ON DELETE SET NULL` | [001_init.sql:1879](../../../backend/migrations/001_init.sql#L1879) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -78,10 +78,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `care_logs_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1860](../../../backend/migrations/001_init.sql#L1860) |
+| `care_logs_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1872](../../../backend/migrations/001_init.sql#L1872) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_care_logs_clinic_id` | NO | — | `CREATE INDEX idx_care_logs_clinic_id ON care_logs(clinic_id)` | [001_init.sql:2312](../../../backend/migrations/001_init.sql#L2312) |
+| `idx_care_logs_clinic_id` | NO | — | `CREATE INDEX idx_care_logs_clinic_id ON care_logs(clinic_id)` | [001_init.sql:2324](../../../backend/migrations/001_init.sql#L2324) |

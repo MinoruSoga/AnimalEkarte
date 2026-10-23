@@ -11,21 +11,21 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9135](../../../backend/migrations/001_init.sql#L9135) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9136](../../../backend/migrations/001_init.sql#L9136) |
-| `pattern_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9137](../../../backend/migrations/001_init.sql#L9137) |
-| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9138](../../../backend/migrations/001_init.sql#L9138) |
-| `pattern_name` | `text` | NULL | — | — | [001_init.sql:9139](../../../backend/migrations/001_init.sql#L9139) |
-| `purpose` | `text` | NULL | — | — | [001_init.sql:9140](../../../backend/migrations/001_init.sql#L9140) |
-| `administration_route` | `text` | NULL | — | — | [001_init.sql:9141](../../../backend/migrations/001_init.sql#L9141) |
-| `parameter_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9142](../../../backend/migrations/001_init.sql#L9142) |
-| `source_reference` | `text` | NULL | — | — | [001_init.sql:9143](../../../backend/migrations/001_init.sql#L9143) |
-| `approval_reference` | `text` | NULL | — | — | [001_init.sql:9144](../../../backend/migrations/001_init.sql#L9144) |
-| `approved_by` | `bigint` | NULL | — | FK | [001_init.sql:9145](../../../backend/migrations/001_init.sql#L9145) |
-| `approved_at` | `timestamptz` | NULL | — | — | [001_init.sql:9146](../../../backend/migrations/001_init.sql#L9146) |
-| `is_active` | `boolean` | NOT NULL | — | — | [001_init.sql:9147](../../../backend/migrations/001_init.sql#L9147) |
-| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9148](../../../backend/migrations/001_init.sql#L9148) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9149](../../../backend/migrations/001_init.sql#L9149) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:9147](../../../backend/migrations/001_init.sql#L9147) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9148](../../../backend/migrations/001_init.sql#L9148) |
+| `pattern_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:9149](../../../backend/migrations/001_init.sql#L9149) |
+| `revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:9150](../../../backend/migrations/001_init.sql#L9150) |
+| `pattern_name` | `text` | NULL | — | — | [001_init.sql:9151](../../../backend/migrations/001_init.sql#L9151) |
+| `purpose` | `text` | NULL | — | — | [001_init.sql:9152](../../../backend/migrations/001_init.sql#L9152) |
+| `administration_route` | `text` | NULL | — | — | [001_init.sql:9153](../../../backend/migrations/001_init.sql#L9153) |
+| `parameter_snapshot` | `jsonb` | NOT NULL | — | — | [001_init.sql:9154](../../../backend/migrations/001_init.sql#L9154) |
+| `source_reference` | `text` | NULL | — | — | [001_init.sql:9155](../../../backend/migrations/001_init.sql#L9155) |
+| `approval_reference` | `text` | NULL | — | — | [001_init.sql:9156](../../../backend/migrations/001_init.sql#L9156) |
+| `approved_by` | `bigint` | NULL | — | FK | [001_init.sql:9157](../../../backend/migrations/001_init.sql#L9157) |
+| `approved_at` | `timestamptz` | NULL | — | — | [001_init.sql:9158](../../../backend/migrations/001_init.sql#L9158) |
+| `is_active` | `boolean` | NOT NULL | — | — | [001_init.sql:9159](../../../backend/migrations/001_init.sql#L9159) |
+| `operation_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:9160](../../../backend/migrations/001_init.sql#L9160) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:9161](../../../backend/migrations/001_init.sql#L9161) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -78,10 +78,10 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `medicine_dose_pattern_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9136](../../../backend/migrations/001_init.sql#L9136) |
-| `medicine_dose_pattern_revisions_approved_by_fkey` | `approved_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9145](../../../backend/migrations/001_init.sql#L9145) |
-| `medicine_dose_pattern_revisions_pattern_id_clinic_id_fkey` | `pattern_id, clinic_id` | [medicine_dose_params](medicine_dose_params.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9153](../../../backend/migrations/001_init.sql#L9153) |
-| `medicine_dose_pattern_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9154](../../../backend/migrations/001_init.sql#L9154) |
+| `medicine_dose_pattern_revisions_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9148](../../../backend/migrations/001_init.sql#L9148) |
+| `medicine_dose_pattern_revisions_approved_by_fkey` | `approved_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:9157](../../../backend/migrations/001_init.sql#L9157) |
+| `medicine_dose_pattern_revisions_pattern_id_clinic_id_fkey` | `pattern_id, clinic_id` | [medicine_dose_params](medicine_dose_params.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9165](../../../backend/migrations/001_init.sql#L9165) |
+| `medicine_dose_pattern_revisions_operation_id_clinic_id_fkey` | `operation_id, clinic_id` | [operation_bindings](operation_bindings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:9166](../../../backend/migrations/001_init.sql#L9166) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -94,12 +94,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `medicine_dose_pattern_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9135](../../../backend/migrations/001_init.sql#L9135) |
-| `medicine_dose_pattern_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9138](../../../backend/migrations/001_init.sql#L9138) |
-| `medicine_dose_pattern_revisions_parameter_snapshot_check` | check | `CHECK (jsonb_typeof(parameter_snapshot)='object')` | [001_init.sql:9142](../../../backend/migrations/001_init.sql#L9142) |
-| `medicine_dose_pattern_revisions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9150](../../../backend/migrations/001_init.sql#L9150) |
-| `medicine_dose_pattern_revisio_clinic_id_pattern_id_revision_key` | unique | `UNIQUE (clinic_id,pattern_id,revision)` | [001_init.sql:9151](../../../backend/migrations/001_init.sql#L9151) |
-| `medicine_dose_pattern_revisions_check` | check | `CHECK ((approved_by IS NULL AND approved_at IS NULL) OR (approved_by IS NOT NULL AND approved_at IS NOT NULL AND approval_reference IS NOT NULL))` | [001_init.sql:9152](../../../backend/migrations/001_init.sql#L9152) |
+| `medicine_dose_pattern_revisions_pkey` | primary | `PRIMARY KEY` | [001_init.sql:9147](../../../backend/migrations/001_init.sql#L9147) |
+| `medicine_dose_pattern_revisions_revision_check` | check | `CHECK (revision > 0)` | [001_init.sql:9150](../../../backend/migrations/001_init.sql#L9150) |
+| `medicine_dose_pattern_revisions_parameter_snapshot_check` | check | `CHECK (jsonb_typeof(parameter_snapshot)='object')` | [001_init.sql:9154](../../../backend/migrations/001_init.sql#L9154) |
+| `medicine_dose_pattern_revisions_id_clinic_id_key` | unique | `UNIQUE (id,clinic_id)` | [001_init.sql:9162](../../../backend/migrations/001_init.sql#L9162) |
+| `medicine_dose_pattern_revisio_clinic_id_pattern_id_revision_key` | unique | `UNIQUE (clinic_id,pattern_id,revision)` | [001_init.sql:9163](../../../backend/migrations/001_init.sql#L9163) |
+| `medicine_dose_pattern_revisions_check` | check | `CHECK ((approved_by IS NULL AND approved_at IS NULL) OR (approved_by IS NOT NULL AND approved_at IS NOT NULL AND approval_reference IS NOT NULL))` | [001_init.sql:9164](../../../backend/migrations/001_init.sql#L9164) |
 
 ## インデックス
 

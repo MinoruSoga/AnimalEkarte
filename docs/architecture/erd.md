@@ -1,6 +1,6 @@
 # データベース設計書 (Entity Relationship Diagram)
 
-> **目的**: 全テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする（現行の全DDL適用後の表数は `ERD:TABLE_COUNT` と下記統計表、`001_init.sql` 単体は241表）。DDL は列・制約の正本。
+> **目的**: 全テーブルの inventory と主要リレーションを記録し、テーブル数等の統計値の正本とする（現行の全DDL適用後の表数は `ERD:TABLE_COUNT` と下記統計表、`001_init.sql` 単体は253表＝2026-10-23 に旧 003〜010 を追記統合した後の数）。DDL は列・制約の正本。
 > **読者**: 全開発者。
 > **タイミング**: スキーマ変更・DB設計判断時。
 
@@ -27,18 +27,18 @@ EMR-446単独の追加時点ではテーブル数138（S1との統合後は141�
 
 ---
 
-## 1. データモデルの全体像 (全 244 テーブル)
+## 1. データモデルの全体像 (全 253 テーブル)
 
-現行001の最終定義は244表。下表は全表を用途別に分類したもので、制約の実行成功やconsumer適合を示すものではありません。
+現行001の最終定義は253表（2026-10-23 に旧 003〜010 を追記統合。統合直前は001単体244表＋増分9表）。下表は全表を用途別に分類したもので、制約の実行成功やconsumer適合を示すものではありません。
 
 ### 1.1 主要ドメイン別構成
 
 | 区分 | 管理対象（物理テーブル名・全件） |
 |---|---|
 | 認証・認可・医院基盤 (13) | `accounts`, `password_reset_tokens`, `token_blacklist`, `clinics`, `companies`, `staffs`, `occupations`, `staff_clinic_assignments`, `staff_permission_groups`, `permission_groups`, `permission_group_rules`, `audit_logs`, `animal_species` |
-| 医院設定 (4) | `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `clinic_integrations` |
+| 医院設定 (5) | `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `clinic_integrations`, `clinic_operating_hours` |
 | 患者・医院内identity (15) | `owners`, `pets`, `pet_owners`, `pet_chronic_conditions`, `owner_identity_groups`, `owner_identity_group_members`, `pet_identity_groups`, `pet_identity_group_members`, `owner_identity_confirmations`, `common_owner_subjects`, `common_owner_clinic_bindings`, `common_owner_basic_revisions`, `common_pet_subjects`, `common_pet_clinic_bindings`, `common_pet_basic_revisions` |
-| 予約・枠・予約マスタ (11) | `appointments`, `appointment_change_events`, `reservation_types`, `reservation_type_groups`, `reservation_type_name_revisions`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `reservation_capacity_gates`, `reservation_contract_states`, `reservation_eligibility_evidence`, `patient_operation_gates` |
+| 予約・枠・予約マスタ (12) | `appointments`, `appointment_change_events`, `reservation_types`, `reservation_type_groups`, `reservation_type_name_revisions`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `reservation_capacity_gates`, `reservation_contract_states`, `reservation_eligibility_evidence`, `patient_operation_gates`, `line_staff_start_policies` |
 | スタッフ勤務 (8) | `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks`, `shift_bulk_operations`, `staff_leave_periods`, `staff_leave_changes`, `staff_reservation_capabilities` |
 | カルテ・診療 (21) | `medical_records`, `medical_record_addenda`, `medical_record_consultation_events`, `clinical_plans`, `clinical_plan_diagnoses`, `treatment_plans`, `treatments`, `vital_records`, `inquiries`, `inquiry_templates`, `chief_complaint_types`, `consultations`, `procedures`, `diagnosis_names`, `diagnosis_types`, `medical_record_correction_links`, `medical_record_dependency_versions`, `record_edit_rights`, `record_edit_right_events`, `staff_record_drafts`, `staff_record_draft_operations` |
 | 添付・保存保護 (5) | `shared_files`, `medical_record_images`, `medical_record_image_upload_quota`, `medical_record_image_deletions`, `trimming_image_deletions` |
@@ -46,12 +46,12 @@ EMR-446単独の追加時点ではテーブル数138（S1との統合後は141�
 | 初診構造化問診 (2) | `initial_intake_revisions`, `initial_intake_entries` |
 | 薬剤・予防投薬 (7) | `medicines`, `medicine_dose_params`, `medicine_dose_pattern_revisions`, `preventive_prescriptions`, `preventive_prescription_revisions`, `preventive_medication_observations`, `preventive_medication_revisions` |
 | 検査 (8) | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `exam_reference_ranges`, `examination_revisions`, `examination_revision_items`, `examination_field_semantic_mappings` |
-| 検査機器運用 (15) | `lab_devices`, `lab_device_item_masters`, `lab_device_mapping_draft_items`, `lab_device_mapping_drafts`, `lab_device_mapping_generation`, `lab_device_mapping_specs`, `lab_device_station_settings`, `lab_device_waits`, `lab_import_events`, `lab_import_exam_retraction_items`, `lab_import_exam_retractions`, `lab_import_job_items`, `lab_import_jobs`, `lab_import_revert_receipts`, `lab_import_usage_receipts` |
+| 検査機器運用 (17) | `lab_devices`, `lab_device_item_masters`, `lab_device_mapping_draft_items`, `lab_device_mapping_drafts`, `lab_device_mapping_generation`, `lab_device_mapping_specs`, `lab_device_station_settings`, `lab_device_waits`, `lab_import_events`, `lab_import_exam_retraction_items`, `lab_import_exam_retractions`, `lab_import_job_items`, `lab_import_jobs`, `lab_import_revert_receipts`, `lab_import_usage_receipts`, `lab_device_mapping_heads`, `lab_device_mapping_revisions` |
 | 健診 (8) | `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `checkup_package_import_receipts`, `checkup_result_revisions`, `checkup_save_attempts`, `checkup_save_stage_results` |
 | 予防接種・証明書 (6) | `vaccines`, `vaccinations`, `vaccination_certificate_series`, `vaccination_certificate_editions`, `vaccination_certificate_artifacts`, `vaccination_certificate_operations` |
 | 治療パッケージ (3) | `treatment_packages`, `treatment_package_items`, `treatment_package_catalog_versions` |
 | 入院・ホテル (14) | `stay_cases`, `hotel_capacity_settings`, `stay_extension_proposals`, `stay_movement_events`, `admission_records`, `stay_plan_change_events`, `stay_price_agreements`, `hospitalizations`, `hospitalization_plans`, `cages`, `daily_records`, `care_logs`, `care_plan_items`, `staff_notes` |
-| トリミング (13) | `appointment_trimming_details`, `trimming_course_types`, `trimming_courses`, `trimming_options`, `trimming_service_identities`, `trimming_course_included_services`, `trimming_option_rule_sets`, `trimming_option_rules`, `trimming_booking_revisions`, `trimming_booking_revision_options`, `trimming_service_lines`, `trimming_detail_revisions`, `trimming_detail_revision_lines` |
+| トリミング (14) | `appointment_trimming_details`, `trimming_course_types`, `trimming_courses`, `trimming_options`, `trimming_service_identities`, `trimming_course_included_services`, `trimming_option_rule_sets`, `trimming_option_rules`, `trimming_booking_revisions`, `trimming_booking_revision_options`, `trimming_service_lines`, `trimming_detail_revisions`, `trimming_detail_revision_lines`, `trimming_course_image_uploads` |
 | 会計・受領・預り (29) | `billings`, `billing_items`, `billing_source_bindings`, `billing_source_differences`, `billing_source_difference_resolutions`, `billing_price_acknowledgements`, `billing_fulfillment_events`, `doctor_review_sets`, `doctor_review_records`, `billing_calculation_lines`, `billing_calculation_snapshots`, `billing_change_events`, `billing_reissue_links`, `payment_methods`, `payment_funds`, `fund_consumption_events`, `fund_record_corrections`, `refund_requests`, `owner_deposit_accounts`, `owner_deposit_entries`, `owner_deposit_operations`, `financial_document_identities`, `financial_document_editions`, `financial_document_artifacts`, `insurances`, `merchandise_items`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
 | 見積 (8) | `estimates`, `estimate_items`, `estimate_calculation_revisions`, `estimate_presentations`, `estimate_presentation_lines`, `estimate_replies`, `estimate_successor_links`, `estimate_billing_handoffs` |
 | 締め・金銭source (10) | `finance_source_events`, `finance_event_ingestions`, `cash_register_closes`, `cash_opening_balances`, `cash_adjustment_events`, `closing_boundary_revisions`, `cash_close_contexts`, `cash_close_source_events`, `cash_actual_corrections`, `cash_close_late_events` |
@@ -60,7 +60,7 @@ EMR-446単独の追加時点ではテーブル数138（S1との統合後は141�
 | 来院根拠 (1) | `actual_visit_facts` |
 | 共有マニュアル (3) | `manual_articles`, `manual_article_versions`, `manual_article_operations` |
 | サポート (8) | `support_bug_reports`, `support_chat_messages`, `support_delivery_intents`, `support_delivery_destinations`, `support_delivery_attempts`, `support_delivery_results`, `support_manual_embeddings`, `support_llm_budgets` |
-| 共通操作契約 (3) | `operation_bindings`, `operation_results`, `operation_attempt_outcomes` |
+| 共通操作契約 (7) | `operation_bindings`, `operation_results`, `operation_attempt_outcomes`, `manual_article_operation_targets`, `staff_leave_operation_targets`, `lab_mapping_operation_targets`, `reservation_master_operation_anchors` |
 
 > 追記（2026-10-07 監査）: 「臨床・診察」ラベルを (25) → (24) へ訂正（`prescriptions` は `014_drop_prescriptions.sql` / EMR-236 で除去済みだがラベルが減算されていなかった）。当時の 10 区分の合計は 134 で `ERD:TABLE_COUNT` ゲート pin（`backend/internal/lintscan/erd_table_count_drift_test.go`）と一致した。2026-10-10 の `032` 追加後は、トリミング区分を (4) とし合計 135 へ更新した。2026-10-19 の統合時点では 138（support 系 2 テーブルを含む）。
 
@@ -167,15 +167,15 @@ erDiagram
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
-| 統合baselineの履歴表数 | 138（現在数ではない） | 現行は末尾の追加/DROPまで適用した241表。CREATE行数だけで数えない。 |
+| 統合baselineの履歴表数 | 138（現在数ではない） | 現行（2026-10-23 統合後）は末尾の追加/DROPまで適用した253表。CREATE行数だけで数えない。 |
 | 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
 | 全マイグレーションのCREATE/DROP適用後の現行物理テーブル総数 | 253 | 2026-10-19 の統合時点は `001_init.sql` の241表。その後の直下増分（`003`〜`010`）を含めた現行数を `ls backend/migrations/*.sql` の全DDLから数える。統合前の履歴は §4.3 / §4.4 を参照する。 |
 | 統合前の履歴 `002`〜`038`（`008`・`026`・`027` 欠番） | 新規テーブル11（`support_bug_reports`・`support_chat_messages`・`medical_record_image_deletions`・対応下書き 4・`trimming_image_deletions`・`lstep_next_visit_sync_retries`・`support_manual_embeddings`・`support_llm_budgets`）。`014` は `prescriptions` DROP（純減1）、`015` は検索 index のみ、`016`/`018`/`022` はカラム追加、`017` は担当医・actor・staff参照の複合FK置換、`019` は権限行削除、`020` は checksum reconcile、`023` は `lab_import_jobs.species` 追加と対応下書き 4 テーブル。`024` は drafts 複合キーの列順張り直し、`025` は `cages.merged_into_cage_id`（旧025〜027の承認済み統合版）、`028`〜`030` は EMR-308 tentative 予約基盤（enum値・列2件・部分unique index）と `medical_records.next_visit_recommended_date` の DROP（新規テーブル0）。`031` は予約の元カルテ参照を医院複合FKへ置換、`032` はトリミング画像削除予約台帳を新設、`033` は次回来院タグ同期の再試行記録を新設、`034` は同表への `cleanup_line_user_id` 列追加のみ、`035` は `trimming_image_deletions` への `storage_deleted_at` / `last_attempt_at` 列と pending 部分index 追加のみ（いずれも新規テーブル0）。`036` は入院の `next_visit` 列追加のみ、`037` は `item_category` への `house_call` 値の追加のみ（新規テーブル0）、`038` は共有マニュアルembeddingキャッシュとquota状態の2表を新設 | 記録者FK2件の置換、治療明細のlifetime unique、子レコード楽観ロック `version`、accounts RLS ops bypass、billings 複合index、seed checksum reconcile 2件、`care_plan_items.other_reason`、pets 由来列2件（§4.4。2026-09-29 訂正: 「002 / 003 / 004・新規テーブル0」→ `002`〜`013`・新規テーブル2。2026-10-05 訂正: 当時の `023` backfill DML は運用判断で削除。2026-10-06: 現行 `023_lab_device_mapping_drafts.sql` を追加。2026-10-10: `024`〜`030` を追加・`026`/`027` 欠番・新規テーブル0。2026-10-10: `031` の複合FK置換と `032` の新規テーブル1を追加） |
-| ERD ドメイン表の物理テーブル数 | 253 | migrations と一致（2026-10-22: 直下増分 `003`〜`010` を含む全DDLの現行数。006で4表を追加、007は列追加のみで表数不変、008で1表を追加（009は列追加のみ）、010で2表を追加。2026-09-29 訂正: 128 → 130。§1.1 に `support_bug_reports` / `support_chat_messages` を含む。EMR-236 で `prescriptions` 除去し 129。2026-10-05 訂正: §1.1 に `medical_record_image_deletions` を含み 130。2026-10-06 訂正: §1.1 に対応下書き 4 テーブルを含み 134。2026-10-10: §1.1 に `trimming_image_deletions` を含み 135） |
+| ERD ドメイン表の物理テーブル数 | 253 | migrations と一致（2026-10-23: 直下増分 `003`〜`010` を `001_init.sql` 末尾へ原文追記統合。表数・列数・制約は不変で9表の定義元が001内へ移管。2026-10-22: 直下増分 `003`〜`010` を含む全DDLの現行数。006で4表を追加、007は列追加のみで表数不変、008で1表を追加（009は列追加のみ）、010で2表を追加。2026-09-29 訂正: 128 → 130。§1.1 に `support_bug_reports` / `support_chat_messages` を含む。EMR-236 で `prescriptions` 除去し 129。2026-10-05 訂正: §1.1 に `medical_record_image_deletions` を含み 130。2026-10-06 訂正: §1.1 に対応下書き 4 テーブルを含み 134。2026-10-10: §1.1 に `trimming_image_deletions` を含み 135） |
 | ERD へ追加した不足テーブル | 12: 従来6（`token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items`）+ identity 4 + `medical_record_image_upload_quota` + `medical_record_image_deletions` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
 | ERD にあり migrations にないテーブル | 0 | 整合済み |
-| 今回統合・除去した旧表 | 9 | [削除・統合対照](../work/db-contracts/schema-cleanup-audit.md)。4表を必要用途に追加し現行241表。 |
+| 今回統合・除去した旧表 | 9 | [削除・統合対照](../work/db-contracts/schema-cleanup-audit.md)。4表を必要用途に追加し当時241表（現行は2026-10-23統合後の253表）。 |
 | 存続表から除去した列 | 117 | [全列用途/統合先JSON](../work/db-contracts/schema-cleanup-audit.json)。稼働DBや旧データへの実適用はしていない。 |
 
 ### 4.1 継続理由を明示する対象
@@ -216,15 +216,19 @@ erDiagram
 >
 > **2026-07-27 追記**: 旧incremental 002〜009を`001_init.sql`末尾セクション8へ原文のまま番号順に統合し、独立ファイルを削除した。当時の直下DDLは001のみ。旧005の`exam_reference_ranges`追加により総数は109となった。
 
+2026-10-23 consolidated inventory:
+
+- [`001_init.sql`](../../backend/migrations/001_init.sql)（fresh 用の唯一の DDL。253テーブル。2026-10-20〜23 の直下増分 `003`〜`010` の原文を `consolidated from` マーカー付きで001末尾へ追記統合し、独立ファイルは削除。表数253・列・制約は統合前と同一（スクラッチDBの schema diff で等価性を確認）。統合前 001 の checksum を持つ既存DBは reset が必要）
+
 2026-10-19 consolidated inventory:
 
-- [`001_init.sql`](../../backend/migrations/001_init.sql)（fresh 用の唯一の DDL。現行241テーブル（統合baselineは138）。001〜038 の原文を `consolidated from` マーカー付きで統合）
+- [`001_init.sql`](../../backend/migrations/001_init.sql)（当時 fresh 用の唯一の DDL。当時241テーブル（統合baselineは138）。001〜038 の原文を `consolidated from` マーカー付きで統合。→ 2026-10-23 追記統合で現行は上記の253テーブル）
 - seed: `backend/migrations/seeds/002_master/`（12 tables、manifest.json が正本）
 - 旧 incremental の内容は 001 内の `consolidated from <filename>` マーカーと git 履歴を参照する。
 
 ### 4.4 Historical incremental migrations（001〜038、2026-10-19 統合済み）
 
-下表は統合前の履歴。現在の図・制約説明の基準は `001_init.sql`（現行241表。001〜038の統合baselineは138表）。下表の内容は 001 内の `consolidated from` マーカーと git 履歴で確認できる。稼働DBへの適用状態は未確認。
+下表は統合前の履歴。現在の図・制約説明の基準は `001_init.sql`（現行253表・2026-10-23統合後。001〜038の統合baselineは138表）。下表の内容は 001 内の `consolidated from` マーカーと git 履歴で確認できる。稼働DBへの適用状態は未確認。
 
 | migration | 各migrationの変更（後続で置換あり） | 関係・境界 |
 |:---|:---|:---|
@@ -267,7 +271,7 @@ erDiagram
 - **記録者の権限**: 単列FKへの変更は医院境界の撤廃ではない。[カルテ記録者ガード](../../backend/internal/medicalrecord/medical_record_entered_by_actor.go) と [予約登録者ガード](../../backend/internal/reservation/reservation_created_by.go) が、作成transaction内で有効なスタッフと医院所属、または確認済みのシステム管理者権限を検証する。FKは記録者の実在・物理削除制限を保持し、現在の操作権限はアプリが別に検証する。
 - **治療明細の一意性**: 001の `idx_billing_items_treatment_id` はactive行検索用の非一意index。二重参照を防ぐのは004のlifetime uniqueであり、単なる検索indexや画面上のロックではない。既存の `treatment_id → treatments(id) ON DELETE SET NULL` は変更していない。
 - **provenance排他の範囲**: `chk_billing_items_provenance_exclusive` は `vaccination_id` と `exam_id` の同時設定だけを禁止する。`treatment_id` を含む3列全体の排他CHECKがあるとは扱わない。
-- **migration 番号**: 2026-10-19 の統合後、直下 DDL の顔ぶれは `ls backend/migrations/*.sql` で導出する。初回本番切替で001を凍結した後、次の新規 migration は `002` から採番する。日付による自動凍結はしない。`011` の重複と `037`/`038` のリネームは統合前の履歴であり、現行ファイルには存在しない。`008`・`026`・`027` の欠番も履歴。
+- **migration 番号**: 2026-10-19 の統合後、直下 DDL の顔ぶれは `ls backend/migrations/*.sql` で導出する。2026-10-23 統合（旧 003〜010 の 001 末尾追記）後の次の新規 migration は `011` から採番する（`002` は `seeds/002_master` バンドルの番号と紛らわしいため欠番のまま。初回本番切替で001を凍結した後も同様に `011` 未満の番号は使わない）。日付による自動凍結はしない。`011` の重複と `037`/`038` のリネームは統合前の履歴であり、現行ファイルには存在しない。`008`・`026`・`027` の欠番も履歴。
 - **適用・検証**: 本書更新ではDB操作をしていない。migrationを追加する更新を取り込んだ開発者は対象DBの適用状態を確認し、必要な `make migrate` をユーザー操作で実行する。既存データの制約違反を自動削除で解消したり、適用済みSQLを書き換えたりしない。STG/本番は [運用TODOの適用確認](../work/plane/plane-md-migration-20260923-receipt.md) と環境別承認に従う。
 
 ## 5. 未確定事項（分類に関する注記）
@@ -278,9 +282,12 @@ erDiagram
 ## EMR-446/466 統合追加（未試験）
 
 保険4列と再診S1を保持し、S2、トリミングT1–T4、医師確認集合・source binding・差異解決・金額了承・実施準備履歴、預り金、証明書版、非表示要約と薬剤3値の保存欄を001へ追加した。整理前候補は246表。上記S1節の「S2未実装」はS1単独時点の境界で、統合候補では保存FKを追加済み、capture/readerは別担当で未接続。[保存契約とcoverage](../work/db-contracts/unified-db-20261019.md)を現段階の正本とする。
-現行DDLの有効表数は241表であり、246表は整理前の履歴を示す。
+現行DDLの有効表数は253表（2026-10-23統合後）であり、246表は整理前の履歴を示す。
 
 本人の最新指示により拡張候補の新しいDB適用・制約/競合試験・任意テストは実施しない。詳細ERDはファイル生成として更新した。以前の保険/S1限定試験は旧core hashに対する履歴で、新しい246表DDLの合格証拠ではない。API/UI・既存writerの参加、確認・精算制御、実環境適合は未完。clinic RLSとFKは認可を代替せず、証明書current viewはprivate artifactの公開許可ではない。共有DB適用・mergeは行わない。
+
+> [!NOTE]
+> この節の `006`〜`010` の各DDLは 2026-10-23 に `001_init.sql` 末尾へ原文追記統合済み。ファイル名は当時の増分ファイルの識別子として残し、現行の定義元は001内の `consolidated from <filename>` マーカー配下と生成済み erd-detail を参照する。
 
 ## 006: 操作原対象anchorとlab mapping版（EMR-446/466、未試験）
 

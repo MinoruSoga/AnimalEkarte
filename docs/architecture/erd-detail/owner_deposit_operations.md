@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8410](../../../backend/migrations/001_init.sql#L8410) |
-| `owner_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8411](../../../backend/migrations/001_init.sql#L8411) |
-| `operation_key` | `uuid` | NOT NULL | — | PK | [001_init.sql:8412](../../../backend/migrations/001_init.sql#L8412) |
-| `request_hash` | `bytea` | NOT NULL | — | — | [001_init.sql:8413](../../../backend/migrations/001_init.sql#L8413) |
-| `expected_account_revision` | `bigint` | NOT NULL | — | — | [001_init.sql:8414](../../../backend/migrations/001_init.sql#L8414) |
-| `resulting_account_revision` | `bigint` | NOT NULL | — | — | [001_init.sql:8415](../../../backend/migrations/001_init.sql#L8415) |
-| `expected_entry_count` | `integer` | NOT NULL | — | — | [001_init.sql:8416](../../../backend/migrations/001_init.sql#L8416) |
-| `balance_after` | `bigint` | NOT NULL | — | — | [001_init.sql:8417](../../../backend/migrations/001_init.sql#L8417) |
-| `performed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8418](../../../backend/migrations/001_init.sql#L8418) |
-| `committed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8419](../../../backend/migrations/001_init.sql#L8419) |
+| `clinic_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8422](../../../backend/migrations/001_init.sql#L8422) |
+| `owner_id` | `bigint` | NOT NULL | — | PK, FK | [001_init.sql:8423](../../../backend/migrations/001_init.sql#L8423) |
+| `operation_key` | `uuid` | NOT NULL | — | PK | [001_init.sql:8424](../../../backend/migrations/001_init.sql#L8424) |
+| `request_hash` | `bytea` | NOT NULL | — | — | [001_init.sql:8425](../../../backend/migrations/001_init.sql#L8425) |
+| `expected_account_revision` | `bigint` | NOT NULL | — | — | [001_init.sql:8426](../../../backend/migrations/001_init.sql#L8426) |
+| `resulting_account_revision` | `bigint` | NOT NULL | — | — | [001_init.sql:8427](../../../backend/migrations/001_init.sql#L8427) |
+| `expected_entry_count` | `integer` | NOT NULL | — | — | [001_init.sql:8428](../../../backend/migrations/001_init.sql#L8428) |
+| `balance_after` | `bigint` | NOT NULL | — | — | [001_init.sql:8429](../../../backend/migrations/001_init.sql#L8429) |
+| `performed_by` | `bigint` | NOT NULL | — | FK | [001_init.sql:8430](../../../backend/migrations/001_init.sql#L8430) |
+| `committed_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8431](../../../backend/migrations/001_init.sql#L8431) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -63,9 +63,9 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `owner_deposit_operations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8410](../../../backend/migrations/001_init.sql#L8410) |
-| `owner_deposit_operations_performed_by_fkey` | `performed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8418](../../../backend/migrations/001_init.sql#L8418) |
-| `owner_deposit_operations_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owner_deposit_accounts](owner_deposit_accounts.md) | `clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:8422](../../../backend/migrations/001_init.sql#L8422) |
+| `owner_deposit_operations_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8422](../../../backend/migrations/001_init.sql#L8422) |
+| `owner_deposit_operations_performed_by_fkey` | `performed_by` | [staffs](staffs.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8430](../../../backend/migrations/001_init.sql#L8430) |
+| `owner_deposit_operations_clinic_id_owner_id_fkey` | `clinic_id, owner_id` | [owner_deposit_accounts](owner_deposit_accounts.md) | `clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:8434](../../../backend/migrations/001_init.sql#L8434) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -77,13 +77,13 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `owner_deposit_operations_request_hash_check` | check | `CHECK (octet_length(request_hash)=32)` | [001_init.sql:8413](../../../backend/migrations/001_init.sql#L8413) |
-| `owner_deposit_operations_expected_account_revision_check` | check | `CHECK (expected_account_revision > 0)` | [001_init.sql:8414](../../../backend/migrations/001_init.sql#L8414) |
-| `owner_deposit_operations_check` | check | `CHECK (resulting_account_revision > expected_account_revision)` | [001_init.sql:8415](../../../backend/migrations/001_init.sql#L8415) |
-| `owner_deposit_operations_expected_entry_count_check` | check | `CHECK (expected_entry_count > 0)` | [001_init.sql:8416](../../../backend/migrations/001_init.sql#L8416) |
-| `owner_deposit_operations_balance_after_check` | check | `CHECK (balance_after >= 0)` | [001_init.sql:8417](../../../backend/migrations/001_init.sql#L8417) |
-| `owner_deposit_operations_pkey` | primary | `PRIMARY KEY (clinic_id,owner_id,operation_key)` | [001_init.sql:8420](../../../backend/migrations/001_init.sql#L8420) |
-| `owner_deposit_operations_check1` | check | `CHECK (resulting_account_revision=expected_account_revision+expected_entry_count)` | [001_init.sql:8421](../../../backend/migrations/001_init.sql#L8421) |
+| `owner_deposit_operations_request_hash_check` | check | `CHECK (octet_length(request_hash)=32)` | [001_init.sql:8425](../../../backend/migrations/001_init.sql#L8425) |
+| `owner_deposit_operations_expected_account_revision_check` | check | `CHECK (expected_account_revision > 0)` | [001_init.sql:8426](../../../backend/migrations/001_init.sql#L8426) |
+| `owner_deposit_operations_check` | check | `CHECK (resulting_account_revision > expected_account_revision)` | [001_init.sql:8427](../../../backend/migrations/001_init.sql#L8427) |
+| `owner_deposit_operations_expected_entry_count_check` | check | `CHECK (expected_entry_count > 0)` | [001_init.sql:8428](../../../backend/migrations/001_init.sql#L8428) |
+| `owner_deposit_operations_balance_after_check` | check | `CHECK (balance_after >= 0)` | [001_init.sql:8429](../../../backend/migrations/001_init.sql#L8429) |
+| `owner_deposit_operations_pkey` | primary | `PRIMARY KEY (clinic_id,owner_id,operation_key)` | [001_init.sql:8432](../../../backend/migrations/001_init.sql#L8432) |
+| `owner_deposit_operations_check1` | check | `CHECK (resulting_account_revision=expected_account_revision+expected_entry_count)` | [001_init.sql:8433](../../../backend/migrations/001_init.sql#L8433) |
 
 ## インデックス
 

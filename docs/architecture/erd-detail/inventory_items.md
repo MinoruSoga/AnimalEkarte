@@ -11,21 +11,21 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, FK, UK | [001_init.sql:672](../../../backend/migrations/001_init.sql#L672) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:673](../../../backend/migrations/001_init.sql#L673) |
-| `name` | `text` | NOT NULL | — | — | [001_init.sql:674](../../../backend/migrations/001_init.sql#L674) |
-| `category` | `inventory_category` | NOT NULL | — | — | [001_init.sql:675](../../../backend/migrations/001_init.sql#L675) |
-| `quantity` | `bigint` | NULL | `0` | — | [001_init.sql:10221](../../../backend/migrations/001_init.sql#L10221) |
-| `unit` | `text` | NOT NULL | `''` | — | [001_init.sql:677](../../../backend/migrations/001_init.sql#L677) |
-| `min_stock_level` | `integer` | NULL | `0` | — | [001_init.sql:678](../../../backend/migrations/001_init.sql#L678) |
-| `location` | `text` | NOT NULL | `''` | — | [001_init.sql:679](../../../backend/migrations/001_init.sql#L679) |
-| `expiry_date` | `date` | NULL | — | — | [001_init.sql:680](../../../backend/migrations/001_init.sql#L680) |
-| `supplier` | `text` | NOT NULL | `''` | — | [001_init.sql:681](../../../backend/migrations/001_init.sql#L681) |
-| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:684](../../../backend/migrations/001_init.sql#L684) |
-| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:685](../../../backend/migrations/001_init.sql#L685) |
-| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:686](../../../backend/migrations/001_init.sql#L686) |
-| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9732](../../../backend/migrations/001_init.sql#L9732) |
-| `quantity_base_id` | `bigint` | NULL | — | FK | [001_init.sql:9749](../../../backend/migrations/001_init.sql#L9749) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, FK, UK | [001_init.sql:684](../../../backend/migrations/001_init.sql#L684) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:685](../../../backend/migrations/001_init.sql#L685) |
+| `name` | `text` | NOT NULL | — | — | [001_init.sql:686](../../../backend/migrations/001_init.sql#L686) |
+| `category` | `inventory_category` | NOT NULL | — | — | [001_init.sql:687](../../../backend/migrations/001_init.sql#L687) |
+| `quantity` | `bigint` | NULL | `0` | — | [001_init.sql:10233](../../../backend/migrations/001_init.sql#L10233) |
+| `unit` | `text` | NOT NULL | `''` | — | [001_init.sql:689](../../../backend/migrations/001_init.sql#L689) |
+| `min_stock_level` | `integer` | NULL | `0` | — | [001_init.sql:690](../../../backend/migrations/001_init.sql#L690) |
+| `location` | `text` | NOT NULL | `''` | — | [001_init.sql:691](../../../backend/migrations/001_init.sql#L691) |
+| `expiry_date` | `date` | NULL | — | — | [001_init.sql:692](../../../backend/migrations/001_init.sql#L692) |
+| `supplier` | `text` | NOT NULL | `''` | — | [001_init.sql:693](../../../backend/migrations/001_init.sql#L693) |
+| `created_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:696](../../../backend/migrations/001_init.sql#L696) |
+| `updated_at` | `timestamptz` | NOT NULL | `now()` | — | [001_init.sql:697](../../../backend/migrations/001_init.sql#L697) |
+| `deleted_at` | `timestamptz` | NULL | — | — | [001_init.sql:698](../../../backend/migrations/001_init.sql#L698) |
+| `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9744](../../../backend/migrations/001_init.sql#L9744) |
+| `quantity_base_id` | `bigint` | NULL | — | FK | [001_init.sql:9761](../../../backend/migrations/001_init.sql#L9761) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -70,8 +70,8 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `inventory_items_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:673](../../../backend/migrations/001_init.sql#L673) |
-| `fk_inventory_quantity_base` | `quantity_base_id, clinic_id, id` | [inventory_quantity_bases](inventory_quantity_bases.md) | `id, clinic_id, inventory_item_id` | `ON DELETE RESTRICT` | [001_init.sql:9750](../../../backend/migrations/001_init.sql#L9750) |
+| `inventory_items_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:685](../../../backend/migrations/001_init.sql#L685) |
+| `fk_inventory_quantity_base` | `quantity_base_id, clinic_id, id` | [inventory_quantity_bases](inventory_quantity_bases.md) | `id, clinic_id, inventory_item_id` | `ON DELETE RESTRICT` | [001_init.sql:9762](../../../backend/migrations/001_init.sql#L9762) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -82,15 +82,15 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `inventory_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:672](../../../backend/migrations/001_init.sql#L672) |
-| `uq_inventory_items_id_clinic` | unique | `CONSTRAINT uq_inventory_items_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:690](../../../backend/migrations/001_init.sql#L690) |
-| `chk_inventory_items_quantity_non_negative` | check | `CONSTRAINT chk_inventory_items_quantity_non_negative CHECK (quantity >= 0)` | [001_init.sql:4167](../../../backend/migrations/001_init.sql#L4167) |
-| `inventory_items_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9732](../../../backend/migrations/001_init.sql#L9732) |
+| `inventory_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:684](../../../backend/migrations/001_init.sql#L684) |
+| `uq_inventory_items_id_clinic` | unique | `CONSTRAINT uq_inventory_items_id_clinic UNIQUE (id, clinic_id)` | [001_init.sql:702](../../../backend/migrations/001_init.sql#L702) |
+| `chk_inventory_items_quantity_non_negative` | check | `CONSTRAINT chk_inventory_items_quantity_non_negative CHECK (quantity >= 0)` | [001_init.sql:4179](../../../backend/migrations/001_init.sql#L4179) |
+| `inventory_items_version_check` | check | `CHECK (version > 0)` | [001_init.sql:9744](../../../backend/migrations/001_init.sql#L9744) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_inventory_items_clinic_id` | NO | — | `CREATE INDEX idx_inventory_items_clinic_id ON inventory_items(clinic_id)` | [001_init.sql:2219](../../../backend/migrations/001_init.sql#L2219) |
-| `idx_inventory_items_category` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_inventory_items_category ON inventory_items(category) WHERE deleted_at IS NULL` | [001_init.sql:2433](../../../backend/migrations/001_init.sql#L2433) |
-| `idx_inventory_items_name_fold_trgm` | NO | — | `CREATE INDEX idx_inventory_items_name_fold_trgm   ON inventory_items USING gin ((translate(name, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops)` | [001_init.sql:6726](../../../backend/migrations/001_init.sql#L6726) |
+| `idx_inventory_items_clinic_id` | NO | — | `CREATE INDEX idx_inventory_items_clinic_id ON inventory_items(clinic_id)` | [001_init.sql:2231](../../../backend/migrations/001_init.sql#L2231) |
+| `idx_inventory_items_category` | NO | `deleted_at IS NULL` | `CREATE INDEX idx_inventory_items_category ON inventory_items(category) WHERE deleted_at IS NULL` | [001_init.sql:2445](../../../backend/migrations/001_init.sql#L2445) |
+| `idx_inventory_items_name_fold_trgm` | NO | — | `CREATE INDEX idx_inventory_items_name_fold_trgm   ON inventory_items USING gin ((translate(name, 'ァアィイゥウェエォオカガキギクグケゲコゴサザシジスズセゼソゾタダチヂッツヅテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモャヤュユョヨラリルレロヮワヰヱヲンヴヵヶ　', 'ぁあぃいぅうぇえぉおかがきぎくぐけげこごさざしじすずせぜそぞただちぢっつづてでとどなにぬねのはばぱひびぴふぶぷへべぺほぼぽまみむめもゃやゅゆょよらりるれろゎわゐゑをんゔゕゖ ')) gin_trgm_ops)` | [001_init.sql:6738](../../../backend/migrations/001_init.sql#L6738) |

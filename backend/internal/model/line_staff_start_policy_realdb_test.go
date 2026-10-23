@@ -1,11 +1,12 @@
 package model_test
 
-// line_staff_start_policy_realdb_test.go — real-DB fixture for
-// backend/migrations/010_line_staff_start_policy_and_reservation_anchor.sql
-// (EMR-446/466 A02 + EMR-492 anchor, contract §4.1/§4.3). Applies 001 via
-// testdb.SetupIsolated001TestDB and Execs the 010 body in-test (no dependency
-// on 008/009). NOT_RUN yet. Shared helpers live in
-// clinic_operating_hours_realdb_test.go (stack base).
+// line_staff_start_policy_realdb_test.go — real-DB fixture for the per-staff
+// start policy and reservation anchor storage (the former
+// backend/migrations/010_line_staff_start_policy_and_reservation_anchor.sql,
+// EMR-446/466 A02 + EMR-492 anchor, contract §4.1/§4.3). The DDL lives in
+// 001_init.sql since the 2026-10-23 consolidation;
+// testdb.SetupIsolated001TestDB applies it. NOT_RUN yet. Shared helpers live
+// in clinic_operating_hours_realdb_test.go (stack base).
 
 import (
 	"testing"
@@ -23,9 +24,8 @@ import (
 const lineTimePolicyWeeklyTimesJSON = `[{"weekday":0,"times":[]},{"weekday":1,"times":["09:00","09:30"]},{"weekday":2,"times":[]},{"weekday":3,"times":[]},{"weekday":4,"times":[]},{"weekday":5,"times":[]},{"weekday":6,"times":[]}]`
 
 func TestLineStaffStartPolicyAndAnchorRealDB(t *testing.T) {
+	// 001_init.sql carries the former 010 DDL (2026-10-23 consolidation).
 	db := testdb.SetupIsolated001TestDB(t)
-	require.NoError(t, db.Exec(lineTimeReadMigration(t, "010_line_staff_start_policy_and_reservation_anchor.sql")).Error,
-		"010 must apply cleanly on top of 001")
 
 	t.Run("staff start policy", func(t *testing.T) {
 		clinicA := lineTimeSeedClinic(t, db, "010-policy-a")

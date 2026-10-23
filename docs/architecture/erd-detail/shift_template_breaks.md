@@ -11,10 +11,10 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2730](../../../backend/migrations/001_init.sql#L2730) |
-| `shift_template_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2731](../../../backend/migrations/001_init.sql#L2731) |
-| `break_start` | `time` | NOT NULL | — | — | [001_init.sql:2732](../../../backend/migrations/001_init.sql#L2732) |
-| `break_end` | `time` | NOT NULL | — | — | [001_init.sql:2733](../../../backend/migrations/001_init.sql#L2733) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:2742](../../../backend/migrations/001_init.sql#L2742) |
+| `shift_template_id` | `bigint` | NOT NULL | — | FK | [001_init.sql:2743](../../../backend/migrations/001_init.sql#L2743) |
+| `break_start` | `time` | NOT NULL | — | — | [001_init.sql:2744](../../../backend/migrations/001_init.sql#L2744) |
+| `break_end` | `time` | NOT NULL | — | — | [001_init.sql:2745](../../../backend/migrations/001_init.sql#L2745) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -42,7 +42,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `shift_template_breaks_shift_template_id_fkey` | `shift_template_id` | [shift_templates](shift_templates.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2731](../../../backend/migrations/001_init.sql#L2731) |
+| `shift_template_breaks_shift_template_id_fkey` | `shift_template_id` | [shift_templates](shift_templates.md) | `id` | `ON DELETE CASCADE` | [001_init.sql:2743](../../../backend/migrations/001_init.sql#L2743) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -52,10 +52,10 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `shift_template_breaks_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2730](../../../backend/migrations/001_init.sql#L2730) |
+| `shift_template_breaks_pkey` | primary | `PRIMARY KEY` | [001_init.sql:2742](../../../backend/migrations/001_init.sql#L2742) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_shift_template_breaks_template` | NO | — | `CREATE INDEX idx_shift_template_breaks_template ON shift_template_breaks(shift_template_id)` | [001_init.sql:2736](../../../backend/migrations/001_init.sql#L2736) |
+| `idx_shift_template_breaks_template` | NO | — | `CREATE INDEX idx_shift_template_breaks_template ON shift_template_breaks(shift_template_id)` | [001_init.sql:2748](../../../backend/migrations/001_init.sql#L2748) |

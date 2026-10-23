@@ -11,26 +11,26 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:5028](../../../backend/migrations/001_init.sql#L5028) |
-| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:5029](../../../backend/migrations/001_init.sql#L5029) |
-| `examination_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:5030](../../../backend/migrations/001_init.sql#L5030) |
-| `version` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:5031](../../../backend/migrations/001_init.sql#L5031) |
-| `exam_type_field_id` | `BIGINT` | NULL | — | — | [001_init.sql:5032](../../../backend/migrations/001_init.sql#L5032) |
-| `name` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5033](../../../backend/migrations/001_init.sql#L5033) |
-| `inspection_value` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5034](../../../backend/migrations/001_init.sql#L5034) |
-| `normal_value` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5035](../../../backend/migrations/001_init.sql#L5035) |
-| `result` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5036](../../../backend/migrations/001_init.sql#L5036) |
-| `unit` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5037](../../../backend/migrations/001_init.sql#L5037) |
-| `reference_value` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5038](../../../backend/migrations/001_init.sql#L5038) |
-| `ref_min` | `DECIMAL(10,4)` | NULL | — | — | [001_init.sql:5039](../../../backend/migrations/001_init.sql#L5039) |
-| `ref_max` | `DECIMAL(10,4)` | NULL | — | — | [001_init.sql:5040](../../../backend/migrations/001_init.sql#L5040) |
-| `qualitative_min` | `TEXT` | NULL | — | — | [001_init.sql:5041](../../../backend/migrations/001_init.sql#L5041) |
-| `qualitative_max` | `TEXT` | NULL | — | — | [001_init.sql:5042](../../../backend/migrations/001_init.sql#L5042) |
-| `is_assessed` | `BOOLEAN` | NOT NULL | — | — | [001_init.sql:5043](../../../backend/migrations/001_init.sql#L5043) |
-| `is_abnormal` | `BOOLEAN` | NOT NULL | — | — | [001_init.sql:5044](../../../backend/migrations/001_init.sql#L5044) |
-| `status` | `exam_result_status` | NOT NULL | — | — | [001_init.sql:5045](../../../backend/migrations/001_init.sql#L5045) |
-| `sort_order` | `INTEGER` | NOT NULL | `0` | — | [001_init.sql:5046](../../../backend/migrations/001_init.sql#L5046) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `CURRENT_TIMESTAMP` | — | [001_init.sql:5047](../../../backend/migrations/001_init.sql#L5047) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:5040](../../../backend/migrations/001_init.sql#L5040) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:5041](../../../backend/migrations/001_init.sql#L5041) |
+| `examination_id` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:5042](../../../backend/migrations/001_init.sql#L5042) |
+| `version` | `BIGINT` | NOT NULL | — | FK | [001_init.sql:5043](../../../backend/migrations/001_init.sql#L5043) |
+| `exam_type_field_id` | `BIGINT` | NULL | — | — | [001_init.sql:5044](../../../backend/migrations/001_init.sql#L5044) |
+| `name` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5045](../../../backend/migrations/001_init.sql#L5045) |
+| `inspection_value` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5046](../../../backend/migrations/001_init.sql#L5046) |
+| `normal_value` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5047](../../../backend/migrations/001_init.sql#L5047) |
+| `result` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5048](../../../backend/migrations/001_init.sql#L5048) |
+| `unit` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5049](../../../backend/migrations/001_init.sql#L5049) |
+| `reference_value` | `TEXT` | NOT NULL | `''` | — | [001_init.sql:5050](../../../backend/migrations/001_init.sql#L5050) |
+| `ref_min` | `DECIMAL(10,4)` | NULL | — | — | [001_init.sql:5051](../../../backend/migrations/001_init.sql#L5051) |
+| `ref_max` | `DECIMAL(10,4)` | NULL | — | — | [001_init.sql:5052](../../../backend/migrations/001_init.sql#L5052) |
+| `qualitative_min` | `TEXT` | NULL | — | — | [001_init.sql:5053](../../../backend/migrations/001_init.sql#L5053) |
+| `qualitative_max` | `TEXT` | NULL | — | — | [001_init.sql:5054](../../../backend/migrations/001_init.sql#L5054) |
+| `is_assessed` | `BOOLEAN` | NOT NULL | — | — | [001_init.sql:5055](../../../backend/migrations/001_init.sql#L5055) |
+| `is_abnormal` | `BOOLEAN` | NOT NULL | — | — | [001_init.sql:5056](../../../backend/migrations/001_init.sql#L5056) |
+| `status` | `exam_result_status` | NOT NULL | — | — | [001_init.sql:5057](../../../backend/migrations/001_init.sql#L5057) |
+| `sort_order` | `INTEGER` | NOT NULL | `0` | — | [001_init.sql:5058](../../../backend/migrations/001_init.sql#L5058) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `CURRENT_TIMESTAMP` | — | [001_init.sql:5059](../../../backend/migrations/001_init.sql#L5059) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -76,7 +76,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `fk_examination_revision_items_revision` | `clinic_id, examination_id, version` | [examination_revisions](examination_revisions.md) | `clinic_id, examination_id, version` | `ON DELETE RESTRICT` | [001_init.sql:5059](../../../backend/migrations/001_init.sql#L5059) |
+| `fk_examination_revision_items_revision` | `clinic_id, examination_id, version` | [examination_revisions](examination_revisions.md) | `clinic_id, examination_id, version` | `ON DELETE RESTRICT` | [001_init.sql:5071](../../../backend/migrations/001_init.sql#L5071) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -86,12 +86,12 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `examination_revision_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5028](../../../backend/migrations/001_init.sql#L5028) |
-| `examination_revision_items_version_check` | check | `CHECK (version >= 1)` | [001_init.sql:5031](../../../backend/migrations/001_init.sql#L5031) |
-| `ck_examination_revision_items_reference_range` | check | `CONSTRAINT ck_examination_revision_items_reference_range         CHECK (ref_min IS NULL OR ref_max IS NULL OR ref_min <= ref_max)` | [001_init.sql:5048](../../../backend/migrations/001_init.sql#L5048) |
+| `examination_revision_items_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5040](../../../backend/migrations/001_init.sql#L5040) |
+| `examination_revision_items_version_check` | check | `CHECK (version >= 1)` | [001_init.sql:5043](../../../backend/migrations/001_init.sql#L5043) |
+| `ck_examination_revision_items_reference_range` | check | `CONSTRAINT ck_examination_revision_items_reference_range         CHECK (ref_min IS NULL OR ref_max IS NULL OR ref_min <= ref_max)` | [001_init.sql:5060](../../../backend/migrations/001_init.sql#L5060) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_examination_revision_items_revision_sort` | NO | — | `CREATE INDEX idx_examination_revision_items_revision_sort     ON examination_revision_items (clinic_id, examination_id, version, sort_order, id)` | [001_init.sql:5073](../../../backend/migrations/001_init.sql#L5073) |
+| `idx_examination_revision_items_revision_sort` | NO | — | `CREATE INDEX idx_examination_revision_items_revision_sort     ON examination_revision_items (clinic_id, examination_id, version, sort_order, id)` | [001_init.sql:5085](../../../backend/migrations/001_init.sql#L5085) |

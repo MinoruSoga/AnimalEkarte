@@ -11,21 +11,21 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8425](../../../backend/migrations/001_init.sql#L8425) |
-| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8426](../../../backend/migrations/001_init.sql#L8426) |
-| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8427](../../../backend/migrations/001_init.sql#L8427) |
-| `operation_key` | `uuid` | NOT NULL | — | FK, UK | [001_init.sql:8428](../../../backend/migrations/001_init.sql#L8428) |
-| `ordinal` | `integer` | NOT NULL | — | UK | [001_init.sql:8429](../../../backend/migrations/001_init.sql#L8429) |
-| `account_revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:8430](../../../backend/migrations/001_init.sql#L8430) |
-| `entry_kind` | `text` | NOT NULL | — | — | [001_init.sql:8431](../../../backend/migrations/001_init.sql#L8431) |
-| `amount` | `bigint` | NOT NULL | — | — | [001_init.sql:8432](../../../backend/migrations/001_init.sql#L8432) |
-| `source_entry_id` | `bigint` | NULL | — | FK | [001_init.sql:8433](../../../backend/migrations/001_init.sql#L8433) |
-| `billing_id` | `bigint` | NULL | — | FK | [001_init.sql:8434](../../../backend/migrations/001_init.sql#L8434) |
-| `appointment_id` | `bigint` | NULL | — | FK | [001_init.sql:8436](../../../backend/migrations/001_init.sql#L8436) |
-| `occurred_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:8437](../../../backend/migrations/001_init.sql#L8437) |
-| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8438](../../../backend/migrations/001_init.sql#L8438) |
-| `fund_record_correction_id` | `bigint` | NULL | — | FK | [001_init.sql:11153](../../../backend/migrations/001_init.sql#L11153) |
-| `correction_reason` | `text` | NULL | — | — | [001_init.sql:11154](../../../backend/migrations/001_init.sql#L11154) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:8437](../../../backend/migrations/001_init.sql#L8437) |
+| `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8438](../../../backend/migrations/001_init.sql#L8438) |
+| `owner_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:8439](../../../backend/migrations/001_init.sql#L8439) |
+| `operation_key` | `uuid` | NOT NULL | — | FK, UK | [001_init.sql:8440](../../../backend/migrations/001_init.sql#L8440) |
+| `ordinal` | `integer` | NOT NULL | — | UK | [001_init.sql:8441](../../../backend/migrations/001_init.sql#L8441) |
+| `account_revision` | `bigint` | NOT NULL | — | UK | [001_init.sql:8442](../../../backend/migrations/001_init.sql#L8442) |
+| `entry_kind` | `text` | NOT NULL | — | — | [001_init.sql:8443](../../../backend/migrations/001_init.sql#L8443) |
+| `amount` | `bigint` | NOT NULL | — | — | [001_init.sql:8444](../../../backend/migrations/001_init.sql#L8444) |
+| `source_entry_id` | `bigint` | NULL | — | FK | [001_init.sql:8445](../../../backend/migrations/001_init.sql#L8445) |
+| `billing_id` | `bigint` | NULL | — | FK | [001_init.sql:8446](../../../backend/migrations/001_init.sql#L8446) |
+| `appointment_id` | `bigint` | NULL | — | FK | [001_init.sql:8448](../../../backend/migrations/001_init.sql#L8448) |
+| `occurred_at` | `timestamptz` | NOT NULL | — | — | [001_init.sql:8449](../../../backend/migrations/001_init.sql#L8449) |
+| `recorded_at` | `timestamptz` | NOT NULL | `clock_timestamp()` | — | [001_init.sql:8450](../../../backend/migrations/001_init.sql#L8450) |
+| `fund_record_correction_id` | `bigint` | NULL | — | FK | [001_init.sql:11165](../../../backend/migrations/001_init.sql#L11165) |
+| `correction_reason` | `text` | NULL | — | — | [001_init.sql:11166](../../../backend/migrations/001_init.sql#L11166) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -86,12 +86,12 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `owner_deposit_entries_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8426](../../../backend/migrations/001_init.sql#L8426) |
-| `owner_deposit_entries_clinic_id_owner_id_operation_key_fkey` | `clinic_id, owner_id, operation_key` | [owner_deposit_operations](owner_deposit_operations.md) | `clinic_id, owner_id, operation_key` | `ON DELETE RESTRICT` | [001_init.sql:8446](../../../backend/migrations/001_init.sql#L8446) |
-| `owner_deposit_entries_source_entry_id_clinic_id_owner_id_fkey` | `source_entry_id, clinic_id, owner_id` | [owner_deposit_entries](owner_deposit_entries.md) | `id, clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:8447](../../../backend/migrations/001_init.sql#L8447) |
-| `owner_deposit_entries_billing_id_clinic_id_fkey` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8448](../../../backend/migrations/001_init.sql#L8448) |
-| `owner_deposit_entries_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8450](../../../backend/migrations/001_init.sql#L8450) |
-| `fk_deposit_record_correction` | `fund_record_correction_id, clinic_id` | [fund_record_corrections](fund_record_corrections.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11155](../../../backend/migrations/001_init.sql#L11155) |
+| `owner_deposit_entries_clinic_id_fkey` | `clinic_id` | [clinics](clinics.md) | `id` | `ON DELETE RESTRICT` | [001_init.sql:8438](../../../backend/migrations/001_init.sql#L8438) |
+| `owner_deposit_entries_clinic_id_owner_id_operation_key_fkey` | `clinic_id, owner_id, operation_key` | [owner_deposit_operations](owner_deposit_operations.md) | `clinic_id, owner_id, operation_key` | `ON DELETE RESTRICT` | [001_init.sql:8458](../../../backend/migrations/001_init.sql#L8458) |
+| `owner_deposit_entries_source_entry_id_clinic_id_owner_id_fkey` | `source_entry_id, clinic_id, owner_id` | [owner_deposit_entries](owner_deposit_entries.md) | `id, clinic_id, owner_id` | `ON DELETE RESTRICT` | [001_init.sql:8459](../../../backend/migrations/001_init.sql#L8459) |
+| `owner_deposit_entries_billing_id_clinic_id_fkey` | `billing_id, clinic_id` | [billings](billings.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8460](../../../backend/migrations/001_init.sql#L8460) |
+| `owner_deposit_entries_appointment_id_clinic_id_fkey` | `appointment_id, clinic_id` | [appointments](appointments.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:8462](../../../backend/migrations/001_init.sql#L8462) |
+| `fk_deposit_record_correction` | `fund_record_correction_id, clinic_id` | [fund_record_corrections](fund_record_corrections.md) | `id, clinic_id` | `ON DELETE RESTRICT` | [001_init.sql:11167](../../../backend/migrations/001_init.sql#L11167) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -106,21 +106,21 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `owner_deposit_entries_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8425](../../../backend/migrations/001_init.sql#L8425) |
-| `owner_deposit_entries_ordinal_check` | check | `CHECK (ordinal > 0)` | [001_init.sql:8429](../../../backend/migrations/001_init.sql#L8429) |
-| `owner_deposit_entries_account_revision_check` | check | `CHECK (account_revision > 1)` | [001_init.sql:8430](../../../backend/migrations/001_init.sql#L8430) |
-| `owner_deposit_entries_entry_kind_check` | check | `CHECK (entry_kind IN ('receive','apply','release','refund','correction_credit','correction_debit'))` | [001_init.sql:8431](../../../backend/migrations/001_init.sql#L8431) |
-| `owner_deposit_entries_amount_check` | check | `CHECK (amount > 0)` | [001_init.sql:8432](../../../backend/migrations/001_init.sql#L8432) |
-| `owner_deposit_entries_id_clinic_id_owner_id_key` | unique | `UNIQUE (id,clinic_id,owner_id)` | [001_init.sql:8439](../../../backend/migrations/001_init.sql#L8439) |
-| `owner_deposit_entries_clinic_id_owner_id_operation_key_ordi_key` | unique | `UNIQUE (clinic_id,owner_id,operation_key,ordinal)` | [001_init.sql:8440](../../../backend/migrations/001_init.sql#L8440) |
-| `owner_deposit_entries_clinic_id_owner_id_account_revision_key` | unique | `UNIQUE (clinic_id,owner_id,account_revision)` | [001_init.sql:8441](../../../backend/migrations/001_init.sql#L8441) |
-| `uq_deposit_entry_id_clinic` | unique | `CONSTRAINT uq_deposit_entry_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10108](../../../backend/migrations/001_init.sql#L10108) |
-| `ck_deposit_target` | check | `CONSTRAINT ck_deposit_target CHECK(  (entry_kind='receive' AND source_entry_id IS NULL AND billing_id IS NULL)  OR(entry_kind IN('apply','release') AND source_entry_id IS NOT NULL AND billing_id IS NOT NULL AND appointment_id IS NULL)  OR(entry_kind='refund' AND source_entry_id IS NOT NULL AND billing_id IS NULL AND appointment_id IS NULL)  OR(entry_kind IN('correction_credit','correction_debit') AND source_entry_id IS NOT NULL AND billing_id IS NULL AND appointment_id IS NULL))` | [001_init.sql:10944](../../../backend/migrations/001_init.sql#L10944) |
-| `ck_deposit_correction_source` | check | `CONSTRAINT ck_deposit_correction_source CHECK(  (entry_kind IN('correction_credit','correction_debit') AND fund_record_correction_id IS NOT NULL AND correction_reason IS NOT NULL AND btrim(correction_reason)<>'')  OR(entry_kind NOT IN('correction_credit','correction_debit') AND fund_record_correction_id IS NULL AND correction_reason IS NULL))` | [001_init.sql:11156](../../../backend/migrations/001_init.sql#L11156) |
+| `owner_deposit_entries_pkey` | primary | `PRIMARY KEY` | [001_init.sql:8437](../../../backend/migrations/001_init.sql#L8437) |
+| `owner_deposit_entries_ordinal_check` | check | `CHECK (ordinal > 0)` | [001_init.sql:8441](../../../backend/migrations/001_init.sql#L8441) |
+| `owner_deposit_entries_account_revision_check` | check | `CHECK (account_revision > 1)` | [001_init.sql:8442](../../../backend/migrations/001_init.sql#L8442) |
+| `owner_deposit_entries_entry_kind_check` | check | `CHECK (entry_kind IN ('receive','apply','release','refund','correction_credit','correction_debit'))` | [001_init.sql:8443](../../../backend/migrations/001_init.sql#L8443) |
+| `owner_deposit_entries_amount_check` | check | `CHECK (amount > 0)` | [001_init.sql:8444](../../../backend/migrations/001_init.sql#L8444) |
+| `owner_deposit_entries_id_clinic_id_owner_id_key` | unique | `UNIQUE (id,clinic_id,owner_id)` | [001_init.sql:8451](../../../backend/migrations/001_init.sql#L8451) |
+| `owner_deposit_entries_clinic_id_owner_id_operation_key_ordi_key` | unique | `UNIQUE (clinic_id,owner_id,operation_key,ordinal)` | [001_init.sql:8452](../../../backend/migrations/001_init.sql#L8452) |
+| `owner_deposit_entries_clinic_id_owner_id_account_revision_key` | unique | `UNIQUE (clinic_id,owner_id,account_revision)` | [001_init.sql:8453](../../../backend/migrations/001_init.sql#L8453) |
+| `uq_deposit_entry_id_clinic` | unique | `CONSTRAINT uq_deposit_entry_id_clinic UNIQUE(id,clinic_id)` | [001_init.sql:10120](../../../backend/migrations/001_init.sql#L10120) |
+| `ck_deposit_target` | check | `CONSTRAINT ck_deposit_target CHECK(  (entry_kind='receive' AND source_entry_id IS NULL AND billing_id IS NULL)  OR(entry_kind IN('apply','release') AND source_entry_id IS NOT NULL AND billing_id IS NOT NULL AND appointment_id IS NULL)  OR(entry_kind='refund' AND source_entry_id IS NOT NULL AND billing_id IS NULL AND appointment_id IS NULL)  OR(entry_kind IN('correction_credit','correction_debit') AND source_entry_id IS NOT NULL AND billing_id IS NULL AND appointment_id IS NULL))` | [001_init.sql:10956](../../../backend/migrations/001_init.sql#L10956) |
+| `ck_deposit_correction_source` | check | `CONSTRAINT ck_deposit_correction_source CHECK(  (entry_kind IN('correction_credit','correction_debit') AND fund_record_correction_id IS NOT NULL AND correction_reason IS NOT NULL AND btrim(correction_reason)<>'')  OR(entry_kind NOT IN('correction_credit','correction_debit') AND fund_record_correction_id IS NULL AND correction_reason IS NULL))` | [001_init.sql:11168](../../../backend/migrations/001_init.sql#L11168) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_deposit_entries_source` | NO | — | `CREATE INDEX idx_deposit_entries_source ON owner_deposit_entries(clinic_id,owner_id,source_entry_id)` | [001_init.sql:8452](../../../backend/migrations/001_init.sql#L8452) |
-| `idx_deposit_entries_billing` | NO | `billing_id IS NOT NULL` | `CREATE INDEX idx_deposit_entries_billing ON owner_deposit_entries(clinic_id,billing_id,id) WHERE billing_id IS NOT NULL` | [001_init.sql:8453](../../../backend/migrations/001_init.sql#L8453) |
+| `idx_deposit_entries_source` | NO | — | `CREATE INDEX idx_deposit_entries_source ON owner_deposit_entries(clinic_id,owner_id,source_entry_id)` | [001_init.sql:8464](../../../backend/migrations/001_init.sql#L8464) |
+| `idx_deposit_entries_billing` | NO | `billing_id IS NOT NULL` | `CREATE INDEX idx_deposit_entries_billing ON owner_deposit_entries(clinic_id,billing_id,id) WHERE billing_id IS NOT NULL` | [001_init.sql:8465](../../../backend/migrations/001_init.sql#L8465) |

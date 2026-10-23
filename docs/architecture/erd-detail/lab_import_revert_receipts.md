@@ -11,16 +11,16 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:5553](../../../backend/migrations/001_init.sql#L5553) |
-| `clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:5554](../../../backend/migrations/001_init.sql#L5554) |
-| `job_id` | `UUID` | NOT NULL | — | FK | [001_init.sql:5555](../../../backend/migrations/001_init.sql#L5555) |
-| `idempotency_key` | `UUID` | NOT NULL | — | UK | [001_init.sql:5556](../../../backend/migrations/001_init.sql#L5556) |
-| `request_hash` | `TEXT` | NOT NULL | — | — | [001_init.sql:5557](../../../backend/migrations/001_init.sql#L5557) |
-| `reason` | `TEXT` | NOT NULL | — | — | [001_init.sql:5558](../../../backend/migrations/001_init.sql#L5558) |
-| `actor_id` | `BIGINT` | NULL | — | — | [001_init.sql:5559](../../../backend/migrations/001_init.sql#L5559) |
-| `result_status` | `TEXT` | NOT NULL | — | — | [001_init.sql:5560](../../../backend/migrations/001_init.sql#L5560) |
-| `retracted_exam_ids` | `JSONB` | NOT NULL | `'[]'::jsonb` | — | [001_init.sql:5561](../../../backend/migrations/001_init.sql#L5561) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:5562](../../../backend/migrations/001_init.sql#L5562) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:5565](../../../backend/migrations/001_init.sql#L5565) |
+| `clinic_id` | `BIGINT` | NOT NULL | — | FK, UK | [001_init.sql:5566](../../../backend/migrations/001_init.sql#L5566) |
+| `job_id` | `UUID` | NOT NULL | — | FK | [001_init.sql:5567](../../../backend/migrations/001_init.sql#L5567) |
+| `idempotency_key` | `UUID` | NOT NULL | — | UK | [001_init.sql:5568](../../../backend/migrations/001_init.sql#L5568) |
+| `request_hash` | `TEXT` | NOT NULL | — | — | [001_init.sql:5569](../../../backend/migrations/001_init.sql#L5569) |
+| `reason` | `TEXT` | NOT NULL | — | — | [001_init.sql:5570](../../../backend/migrations/001_init.sql#L5570) |
+| `actor_id` | `BIGINT` | NULL | — | — | [001_init.sql:5571](../../../backend/migrations/001_init.sql#L5571) |
+| `result_status` | `TEXT` | NOT NULL | — | — | [001_init.sql:5572](../../../backend/migrations/001_init.sql#L5572) |
+| `retracted_exam_ids` | `JSONB` | NOT NULL | `'[]'::jsonb` | — | [001_init.sql:5573](../../../backend/migrations/001_init.sql#L5573) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `now()` | — | [001_init.sql:5574](../../../backend/migrations/001_init.sql#L5574) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -55,7 +55,7 @@ erDiagram
 
 | 制約 | 子の列（順序あり） | 参照先 | 親の列（順序あり） | 削除時の動作 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `fk_lab_import_revert_receipts_clinic_job` | `clinic_id, job_id` | [lab_import_jobs](lab_import_jobs.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5572](../../../backend/migrations/001_init.sql#L5572) |
+| `fk_lab_import_revert_receipts_clinic_job` | `clinic_id, job_id` | [lab_import_jobs](lab_import_jobs.md) | `clinic_id, id` | `ON DELETE RESTRICT` | [001_init.sql:5584](../../../backend/migrations/001_init.sql#L5584) |
 
 正確なON UPDATE・MATCH・DEFERRABLE等を含む制約DDL:
 
@@ -65,11 +65,11 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lab_import_revert_receipts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5553](../../../backend/migrations/001_init.sql#L5553) |
-| `uq_lab_import_revert_receipts_clinic_idempotency` | unique | `CONSTRAINT uq_lab_import_revert_receipts_clinic_idempotency         UNIQUE (clinic_id, idempotency_key)` | [001_init.sql:5563](../../../backend/migrations/001_init.sql#L5563) |
+| `lab_import_revert_receipts_pkey` | primary | `PRIMARY KEY` | [001_init.sql:5565](../../../backend/migrations/001_init.sql#L5565) |
+| `uq_lab_import_revert_receipts_clinic_idempotency` | unique | `CONSTRAINT uq_lab_import_revert_receipts_clinic_idempotency         UNIQUE (clinic_id, idempotency_key)` | [001_init.sql:5575](../../../backend/migrations/001_init.sql#L5575) |
 
 ## インデックス
 
 | 名前 | UNIQUE | 述語 | DDL | 定義元 |
 |:---|:---|:---|:---|:---|
-| `idx_lab_import_revert_receipts_clinic_job` | NO | — | `CREATE INDEX idx_lab_import_revert_receipts_clinic_job     ON lab_import_revert_receipts (clinic_id, job_id, created_at, id)` | [001_init.sql:5568](../../../backend/migrations/001_init.sql#L5568) |
+| `idx_lab_import_revert_receipts_clinic_job` | NO | — | `CREATE INDEX idx_lab_import_revert_receipts_clinic_job     ON lab_import_revert_receipts (clinic_id, job_id, created_at, id)` | [001_init.sql:5580](../../../backend/migrations/001_init.sql#L5580) |

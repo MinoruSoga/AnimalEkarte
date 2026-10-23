@@ -11,12 +11,12 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:644](../../../backend/migrations/001_init.sql#L644) |
-| `condition_code` | `VARCHAR(50)` | NOT NULL | — | UK | [001_init.sql:645](../../../backend/migrations/001_init.sql#L645) |
-| `tag_name` | `VARCHAR(100)` | NOT NULL | — | — | [001_init.sql:646](../../../backend/migrations/001_init.sql#L646) |
-| `description` | `TEXT` | NULL | — | — | [001_init.sql:647](../../../backend/migrations/001_init.sql#L647) |
-| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:648](../../../backend/migrations/001_init.sql#L648) |
-| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:649](../../../backend/migrations/001_init.sql#L649) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:656](../../../backend/migrations/001_init.sql#L656) |
+| `condition_code` | `VARCHAR(50)` | NOT NULL | — | UK | [001_init.sql:657](../../../backend/migrations/001_init.sql#L657) |
+| `tag_name` | `VARCHAR(100)` | NOT NULL | — | — | [001_init.sql:658](../../../backend/migrations/001_init.sql#L658) |
+| `description` | `TEXT` | NULL | — | — | [001_init.sql:659](../../../backend/migrations/001_init.sql#L659) |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:660](../../../backend/migrations/001_init.sql#L660) |
+| `updated_at` | `TIMESTAMPTZ` | NOT NULL | `NOW()` | — | [001_init.sql:661](../../../backend/migrations/001_init.sql#L661) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -46,8 +46,8 @@ erDiagram
 
 | 制約 | 種別 | DDL | 定義元 |
 |:---|:---|:---|:---|
-| `lstep_condition_tag_mappings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:644](../../../backend/migrations/001_init.sql#L644) |
-| `lstep_condition_tag_mappings_condition_code_key` | unique | `UNIQUE` | [001_init.sql:645](../../../backend/migrations/001_init.sql#L645) |
+| `lstep_condition_tag_mappings_pkey` | primary | `PRIMARY KEY` | [001_init.sql:656](../../../backend/migrations/001_init.sql#L656) |
+| `lstep_condition_tag_mappings_condition_code_key` | unique | `UNIQUE` | [001_init.sql:657](../../../backend/migrations/001_init.sql#L657) |
 
 ## インデックス
 
