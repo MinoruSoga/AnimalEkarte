@@ -129,12 +129,14 @@ func TestClinicOperatingHoursRealDB(t *testing.T) {
 		{"NULL national_holiday_closed", "23502", `'clinic-operating-hours/v1', DEFAULT, ` + validWeekly + `, '[]', NULL`},
 	}
 	for _, tc := range rejectedInserts {
-		lineTimeRequirePgCode(t,
-			db.Exec(`
-				INSERT INTO clinic_operating_hours
-					(clinic_id, schema_version, version, weekly_hours, closed_dates, national_holiday_closed)
-				VALUES (?, `+tc.values+`)`, clinicC).Error,
-			tc.code)
+		t.Run(tc.name, func(t *testing.T) {
+			lineTimeRequirePgCode(t,
+				db.Exec(`
+					INSERT INTO clinic_operating_hours
+						(clinic_id, schema_version, version, weekly_hours, closed_dates, national_holiday_closed)
+					VALUES (?, `+tc.values+`)`, clinicC).Error,
+				tc.code)
+		})
 	}
 
 	// national_holiday_closed has no DEFAULT: omitting it is NOT NULL (23502).
