@@ -2,8 +2,10 @@ package clinic
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -87,6 +89,11 @@ type operatingHoursHarness struct {
 
 func newOperatingHoursHarness(t *testing.T, repo *fakeOperatingHoursRepository, id requestIdentity) *operatingHoursHarness {
 	t.Helper()
+	return newOperatingHoursHarnessWithReader(t, repo, NewOperatingHoursReadService(repo), id)
+}
+
+func newOperatingHoursHarnessWithReader(t *testing.T, repo *fakeOperatingHoursRepository, reader OperatingHoursReader, id requestIdentity) *operatingHoursHarness {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 	h := &operatingHoursHarness{repo: repo}
 	middlewareOf := func(kind string) PermissionMiddleware {
@@ -104,7 +111,7 @@ func newOperatingHoursHarness(t *testing.T, repo *fakeOperatingHoursRepository, 
 			}
 		}
 	}
-	handler := NewOperatingHoursHandler(NewOperatingHoursReadService(repo), middlewareOf("strict"), middlewareOf("assigned"))
+	handler := NewOperatingHoursHandler(reader, middlewareOf("strict"), middlewareOf("assigned"))
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
 		// Mimic the global SecurityHeaders value that the route-level middleware must override.
@@ -344,6 +351,34 @@ func TestGetClinicOperatingHours_ServerSideFailuresAre503(t *testing.T) {
 		requireErrorBody(t, w, operatingHoursUnavailableMessage)
 		assert.NotContains(t, w.Body.String(), "secret")
 	})
+}
+
+// outOfRangeReader reports the internal caller-misuse error that the read service raises for an
+// out-of-range clinic ID. The handler validates IDs first, so this simulates an invariant break.
+type outOfRangeReader struct{}
+
+func (outOfRangeReader) Get(context.Context, uint64) (CommonOperatingHours, error) {
+	return CommonOperatingHours{}, fmt.Errorf("%w: 0", ErrOperatingHoursClinicIDOutOfRange)
+}
+
+func TestOperatingHours_ClinicIDOutOfRangeIs500NotUnavailable503(t *testing.T) {
+	paths := []string{
+		"/api/v1/clinics/7/operating-hours",
+		"/api/v1/clinic-holidays/common?year_month=2026-11",
+		"/api/v1/closing-settings/holidays/common?year_month=2026-11",
+	}
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			h := newOperatingHoursHarnessWithReader(t, &fakeOperatingHoursRepository{}, outOfRangeReader{}, memberOfClinic7())
+			w := h.get(path)
+			require.Equal(t, http.StatusInternalServerError, w.Code)
+			requireNoStore(t, w)
+			requireErrorBody(t, w, "")
+			assert.NotContains(t, w.Body.String(), operatingHoursUnavailableMessage)
+			assert.NotContains(t, w.Body.String(), "9223372036854775807")
+			assert.NotContains(t, w.Body.String(), "outside")
+		})
+	}
 }
 
 func TestListCommonHolidays_Fixtures(t *testing.T) {

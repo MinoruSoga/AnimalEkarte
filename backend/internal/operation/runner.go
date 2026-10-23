@@ -354,13 +354,15 @@ func (r *Runner) participate(ctx context.Context, binding Binding, req Request, 
 	}
 	if !req.VerifiedCommand.IsZero() {
 		// Re-verify immediately before Apply. The claim already happened, so a
-		// mismatch here is a non-deterministic projector or corrupted request
-		// memory: a programming error, not a business rejection. Returning it as
-		// a plain error rolls back the transaction before Apply and is recorded
-		// as retryable_failure by resolveFailedAttempt (never as a rejection that
-		// could be disclosed as a business result, never as a success receipt).
+		// mismatch here is a server-side invariant break (a non-deterministic
+		// projector or corrupted request memory), not client input: it is an
+		// internal error with a fixed message and no cause, never InvalidInput.
+		// Returning it as a plain error rolls back the transaction before Apply and
+		// is recorded as retryable_failure by resolveFailedAttempt (never as a
+		// rejection that could be disclosed as a business result, never as a
+		// success receipt).
 		if err := req.VerifiedCommand.verifyAgainst(req.Content); err != nil {
-			return apperrors.Wrap(err, "operation verified command changed before apply")
+			return apperrors.WrapInternalServerError("operation verified command changed before apply")
 		}
 	}
 	applied, err := p.Apply(ctx, binding, req)

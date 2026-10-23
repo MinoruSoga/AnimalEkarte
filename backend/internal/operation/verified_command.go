@@ -15,6 +15,16 @@ import (
 //
 // It receives a private copy of the command bytes on every call, so it can
 // neither observe nor alter the value's own copy.
+//
+// Requirements on the consumer:
+//   - The projector must be pure, deterministic and goroutine-safe: one
+//     VerifiedCommand may be verified concurrently by several requests.
+//   - It runs inside the outermost business transaction (just before Apply)
+//     while the binding row lock is held, so it must stay cheap: no I/O, no
+//     database access, no blocking.
+//   - The fingerprint covers Content only. The projection must therefore be
+//     injective over everything Apply consumes from the command: see
+//     NewVerifiedCommand.
 type CommandProjector func(schema string, command []byte) (map[string]string, error)
 
 // VerifiedCommand is the operation-package-owned optional immutable value that
@@ -42,6 +52,13 @@ type VerifiedCommand struct {
 // exactly (no extra or missing key). A blank schema, a nil projector, a
 // projector error, or any difference is rejected. The projector is retained
 // for the runner's later re-verification.
+//
+// Content must carry every command field that Apply consumes. The fingerprint
+// covers Content only, so the projector has to be injective over what Apply
+// uses: two commands that differ in a field Apply reads but Content omits would
+// share one fingerprint and one key. The projector must be pure, deterministic
+// and goroutine-safe, and it runs inside the outer transaction while the binding
+// lock is held, so keep it cheap and free of I/O (see CommandProjector).
 func NewVerifiedCommand(schema string, command []byte, content Content, project CommandProjector) (VerifiedCommand, error) {
 	if strings.TrimSpace(schema) == "" {
 		return VerifiedCommand{}, apperrors.WrapInvalidInput("operation verified command schema is required")

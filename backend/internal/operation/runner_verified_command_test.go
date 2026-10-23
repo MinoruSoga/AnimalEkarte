@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // verifiedRequest builds a request whose VerifiedCommand projects to the fixture's
@@ -99,6 +101,7 @@ func TestExecute_VerifiedCommandContentMismatchStopsBeforeClaim(t *testing.T) {
 	out, err := f.runner.Execute(t.Context(), req, f.owner)
 
 	require.Error(t, err)
+	require.True(t, apperrors.IsInvalidInput(err))
 	require.Equal(t, Outcome{}, out)
 	require.Equal(t, 0, f.store.bindingCount(), "no binding row may exist")
 	require.Equal(t, 0, f.owner.applyCount())
@@ -130,6 +133,12 @@ func TestExecute_CommandTamperedBetweenClaimAndApplyStopsBeforeApply(t *testing.
 	out, err := f.runner.Execute(t.Context(), req, f.owner)
 
 	require.Error(t, err)
+	// A server-side invariant break, not client input: internal kind, fixed message.
+	require.False(t, apperrors.IsInvalidInput(err))
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	require.Equal(t, "INTERNAL", appErr.Code)
+	require.NotContains(t, err.Error(), "tampered")
 	require.Equal(t, Outcome{}, out)
 	require.Equal(t, int32(3), calls.Load())
 	require.Equal(t, 0, f.owner.applyCount(), "Apply must never run")

@@ -9,14 +9,16 @@ import (
 )
 
 // D3 coverage gate: clinic-fixed ∪ (cross-clinic except GET /api/v1/clinics).
-// Full set is 182 after the three common clinic operating-hours reads joined (EMR-448/492; clinic-fixed x2, cross-clinic x1).
+// Full set is 183: +3 for the three common clinic operating-hours reads that joined (EMR-448/492; clinic-fixed x2,
+// cross-clinic x1) and +1 for the GET /api/v1/hospitalizations/cage-occupancy row that EMR-461 added but never
+// counted (origin/main already held 180 rows against a constant of 179).
 // 179 was the count after GET /api/v1/masters/cages/occupancy joined clinic-fixed (EMR-306).
 // 178 was the count after GET /api/v1/lab-device/mapping-drafts/:id joined clinic-fixed (EMR-297).
 // 177 was the count after GET /support/bug-reports moved to class "global"
 // (shared all-clinics board — intentional product decision, no clinic grant surface).
 // Remaining without realdb-return-data must stay 0.
 const (
-	d3CompletedRealDBRouteCount = 182
+	d3CompletedRealDBRouteCount = 183
 	d3MaxRemainingWithoutRealDB = 0
 )
 

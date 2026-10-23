@@ -1,7 +1,7 @@
 package clinic
 
 // 共通医院時間の読取 HTTP（A03 §2.2/§2.3 の GET 3 本。write/preview/結果照会は別 slice）。
-// これらの route が生成する応答（200/400/403/503。route 認可 middleware の拒否を含む）に Cache-Control: no-store を付ける
+// これらの route が生成する応答（200/400/403/500/503。route 認可 middleware の拒否を含む）に Cache-Control: no-store を付ける
 // （契約 §1・api.yaml）。401 は保護 group の JWT middleware が route より前に書くため、グローバルの
 // SecurityHeaders の値（no-store, no-cache, must-revalidate）になる（api.yaml の 401 header との差は別途対応）。
 
@@ -160,7 +160,14 @@ func yearMonthQuery(c *gin.Context) (YearMonth, bool) {
 
 // respondOperatingHoursUnavailable は読取失敗・保存データ破損・応答構築不能をすべて 503 にする。
 // 未設定や空成功へ変換しない。原因は Gin error として記録し、応答本文へは出さない。
+// 医院 ID の範囲外（ErrOperatingHoursClinicIDOutOfRange）は呼出側の不変条件違反で一時障害ではないため、
+// 503 ではなく 500（汎用本文）にする。handler は入力検証済みの ID だけを渡すので通常到達しない。
 func respondOperatingHoursUnavailable(c *gin.Context, cause error) {
+	if errors.Is(cause, ErrOperatingHoursClinicIDOutOfRange) {
+		_ = c.Error(cause)
+		httpapi.RespondError(c, apperrors.WrapInternalServerError("internal server error"))
+		return
+	}
 	if cause != nil && !errors.Is(cause, ErrOperatingHoursUnavailable) && !errors.Is(cause, ErrOperatingHoursStoredDataCorrupt) {
 		cause = errors.Join(ErrOperatingHoursUnavailable, cause)
 	}
