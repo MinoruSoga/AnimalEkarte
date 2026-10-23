@@ -188,8 +188,9 @@ make codegen
 **全体 lint / build / test（`pnpm lint` `pnpm build` `pnpm test:run` `golangci-lint run ./...` `go test ./...`）は CLAUDE.md の自動実行禁止コマンド。** 通常はAGENTS.mdの完了契約に従って変更に適用されるscoped検証を実行し、追加の本人許可待ちを一律に設けない。本人の明示延期/禁止がある場合はその指示を優先する。[検証status正本](../../../docs/ops/plane-ticket-conventions.md#verification-and-readiness-status)に従い、fixture作成と実行を分け、延期時はNOT_RUN・理由・後続担当を記録してPR作成できる。未実装/未接続/必要生成成果未受領をNOT_RUNへ置き換えない。以下は通常時のscoped検証例。docs/instruction-onlyはruntime検証不要と報告し、実行不能は理由と総合UNKNOWN/BLOCKEDを記録する。全体実行の依頼も本人の延期指示と必要範囲を守る。
 
 ```bash
-# FE の場合 — 変更した feature に限定（`--` 付き pnpm test は全件実行になる罠。pnpm exec vitest run <path> で導入済みの固定版だけを使い、未導入なら停止する。出典: memory feedback_frontend_verify_harness_gotchas）
-docker compose exec frontend pnpm exec vitest run src/features/<対象feature>
+# FE の場合 — .claude/CLAUDE.mdの正本コマンドを変更featureに限定する（`--` 付き pnpm test は全件実行になる罠）
+# 事前に対象コンテナ内のnode_modules/.bin/vitestとプロジェクト固定版の導入を確認。欠落/不一致は停止し、自動download/installやnpxの取得確認へ進まない
+docker compose exec frontend npx vitest run src/features/<対象feature>
 
 # BE の場合 — 変更したパッケージに限定
 docker compose exec backend go build ./internal/<対象パッケージ>/...
