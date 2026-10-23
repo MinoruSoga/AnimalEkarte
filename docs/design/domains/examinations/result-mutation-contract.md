@@ -277,6 +277,8 @@ RecordedAtは成功保存時刻。新revisionの有無はaction/statusだけで�
 5. 参照master/species等の現在scope/入力依存を既存規約の順で検証・必要lock
 6. business write、必要dependent source更新、counter CAS、履歴/usage/audit/receipt、commit
 
+coordinatorが返す参加contextは、[預り金初回受領契約](../accounting/owner-deposit-initial-receipt.md)§7.2と同じEMR-489単一owner供給のoptional `GateContext(ctx) (context.Context,error)` でRunnerへ伝播する。Runnerは戻りcontextのambient TXが元と同一であることを検査し、binding lock・現在認可・Apply・result保存へ渡す。旧Gateと二重呼出しせず、返却contextを破棄したりparticipantの可変fieldへ退避したりしない。既存C06のgate no-wait/Busy写像を満たすが、短claimのUNIQUE待ちまでnonblockingとは約束しない。新reservation gateを全domainへ強制せず、別C06実装や464全体Done待ちを追加しない。
+
 - **D07独立writerも、既存linkやrecordに影響する場合は同coordinatorの必要lockに参加するが、人のD03 edit-right保有を一律要求しない。** view scope、D07 edit/delete/unconfirm grant、D07保護は必須。
 - D03本文/planそのものを変更する複合操作だけ494/495の現在holder/epoch/fenceを要求する。link-only grantでresult PUTを代行できない。
 - 旧exam→record、job→exam→record、exam取得後の後付けcoordinator進入を残さない。既存サービスのWithTxを呼ぶだけでは参加にならない。
@@ -356,8 +358,8 @@ lock後に、trusted clinic/current actor/grant、active/deleted、元identity�
 |---|---|---|
 | 501 C（単一取りまとめ） | D4 counter/guard/全writer inventory/receipt/監査 | 技術契約・fixture期待値の先行PRは可。501 Aの他院wire、B感染症summary全完成待ちにしない |
 | 446/466 | §10の2DDL単位とmodel/ERD単一編集 | schema成果を501 Cへ返す。既存727等と重複しない |
-| 489 | 現C06/Q/claim hooks/lookup/unknown必要subset | helper再実装ではなくD07 adapter適合レビュー。C06全consumer Done不要 |
-| 516 S1/S1a | coordinator・reverse dependency・owner ambient参加 | E-linkが依存するresult writer閉包だけを受領。接種/健診全完了を待たない |
+| 489 | 現C06/Q/claim hooks/lookup/unknown必要subsetと、§7.1の共通optional context-returning `GateContext` hookの一意供給 | 489単一ownerが預り金初回受領契約§7.2と同じhookを供給。helper/別C06再実装ではなくD07 adapter適合レビュー。C06全consumer又は464全体Done不要 |
+| 516 S1/S1a | coordinator・reverse dependency・owner ambient参加 | §7.1の489共通hookへ渡す必要coordinator adapterだけを同PR又は先行供給とする。E-linkが依存するresult writer閉包だけを受領。接種/健診全完了を待たない |
 | 516 E-link | 既存link guard/read/usage/owner closure | link-only contractは再選定しない。D4 result counterはplan版と別 |
 | 495 D4/D1 | 旧draft helper置換caller、必要目的別guard | 本契約の必要部分だけ受領。D1/D3既決作業を止めない |
 | 現D07/機器owner（297/113/268等の既存境界） | create baseline、detach/revert、usageとlock参加 | 機器仕様/臨床承認/実機受入を再実装しない |
