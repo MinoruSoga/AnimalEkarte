@@ -13,6 +13,8 @@
 <a id="review-actions-scope"></a>
 ## 1. 有限範囲と正本
 
+確定仕様に従う作り直しを目的とし、現コードのAPI/DTO/routeとの後方互換は要件にしない。「既存billing」は対象データ条件でありコード保存条件ではない。本書が再利用するC06・認可・安全契約と今回選定するwireは、その仕様に基づく選定であって、現コードの形を保つための制約ではない。必要なAPI・caller・DI・reader/writerの置換と旧入口閉鎖を同じ完結単位に含める。履歴データ保全は後方互換とは別の要件として維持する。
+
 一つの既存billingに対する現在集合読取、認証actorによる明示Confirm、現在参照されたsetへの理由付きReturn、不変履歴/C06結果読取、旧確認writer迂回排除を閉じる。複数record可、plan-backed treatmentの完全cohortで部分knownなし。
 
 [採択済み内部契約](doctor-review-internal-projection.md#review-internal-scope)をそのまま使用。失効対象は安定行/source・薬剤/処置identity・数量・record集合のみ。metadata/正当な技術link-onlyは世代/digest不変。481 last-imported snapshotは現在採用identityと一致を証明できる行のみ再利用、current数量はbilling_items。現在treatmentで過去値を補修しない。新current projection列は追加しない。
@@ -90,7 +92,7 @@ Return成功refs {billing_id,doctor_review_set_id,doctor_review_return_id},versi
 すべてmap値string、nullなし。成功recorded_at必須、既存time.Time RFC3339Nano serialization。
 succeeded/replayed=200; lookup not-succeeded=200; operation-in-progress=202; 記録済unknown/result-unavailable=503; key/version/dependency/edit-right conflict=409;validation=400;scope-not-found=404;not-authorized=403。非成功C06 bodyはstatus/operation_keyのみ。
 
-C06前の不正要求400 {error:"invalid-request"}、未認証401、認可拒否403。現在認可後のstore/provider/serializer障害500 {error:"internal-error"}。既存ErrorResponse {error:string} と httpapi.RespondError の経路を維持し、新error_code envelopeを追加しない。provider未配線を記録済unknownと偽らず、500/接続断から成功不存在を推定しない。
+C06前の不正要求400 {error:"invalid-request"}、未認証401、認可拒否403。現在認可後のstore/provider/serializer障害500 {error:"internal-error"}。この有限契約のエラーDTOは {error:string} を選定する。現ErrorResponse/httpapi.RespondErrorは実装参照であり、それらのコード・DTOとの後方互換や将来の改修禁止は要件にしない。provider未配線を記録済unknownと偽らず、500/接続断から成功不存在を推定しない。
 
 新Confirm/Return effectはaccounting:edit、read/lookup/保存成功replayはaccounting:view。無条件edit middlewareでview-onlyになった本人の成功replayを妨げない。
 1. 認証/selected clinic/view、同scope/key非変更lookup。
@@ -152,17 +154,17 @@ Confirmmetadata {schema_version:"1",operation_id,operation_key,doctor_review_set
 Returnmetadata {schema_version:"1",operation_id,operation_key,doctor_review_set_id,doctor_review_return_id}。
 理由/memoはdomain不変履歴へ、無条件二重複製なし。必須JSON失敗をbest-effortで落とさずSQL失敗も全rollback。
 
-旧 GET /medical-records/{id}/billing-confirmation、POST同/confirm・/returnにはbilling/集合/C06keyがないため、安全な新writeへ推定変換しない。利用開始cohortでは旧GET GetOrCreate INSERTを除去し、旧GET/POSTは現在認可後409 {error:"billing-review-contract-required"}を選定する。対応UIはbilling-scoped GETへ同切替。唯一らしいbilling、架空confirmed/pending ID時刻を生成しない。未切替cohortのDROP済旧table callerを互換正常としない。旧status PATCH/Complete/直接repoが確認を作る迂回もcohort台帳で閉じる。全sourceを無断新gateへ移さない。
+旧 GET /medical-records/{id}/billing-confirmation、POST同/confirm・/returnにはbilling/集合/C06keyがないため、安全な新writeへ推定変換しない。利用開始cohortでは旧GET GetOrCreate INSERTと旧確認writerを削除・停止又は新仕様へ置換し、対応UI/内部callerも同じ完結単位で切り替えて迂回を閉じる。旧readerや旧routeを恒久維持する義務はない。409 {error:"billing-review-contract-required"}は必要な場合の任意の切替手段で、互換endpointの存続を受入条件にしない。唯一らしいbilling、架空confirmed/pending ID時刻を生成しない。未切替cohortのDROP済旧table callerを互換正常としない。旧status PATCH/Complete/直接repoが確認を作る迂回もcohort台帳で閉じる。全sourceを無断新gateへ移さない。
 
 <a id="review-actions-complete-dependency"></a>
 ## 7. 別の準備billing/新規Complete packet
 
-既存billing前提は内部subsetで、製品のbillingなしComplete禁止ではない。462統合ownerが /accountings作成と/complete について、準備billing+全binding作成再読、操作key/重複防止/未請求版/同TX初期baseline、準備identityと現BillingID/takeover互換、初回201/再送200/既存Billing整数wire/原請求日を維持するadapterを閉じる。他billing確認流用・自動/架空確認なし。ここが未供給の間Complete新gateを有効化せず、billing_id必須を無断追加しない。
+既存billingは本Confirm/Returnの対象データ条件で、新規請求の業務能力を禁止するものではない。462統合ownerは新規請求準備→対象集合の明示確認→請求確定の有限成功単位を別packetで閉じる。準備billing/必要bindingの作成・再読、operation keyによる二重請求防止と同key結果照会、必要な未請求版/同TX baseline、元請求日・不変履歴保全を含める。必要な新仕様のAPI/呼出側/DI/保存と旧入口閉鎖を同じ単位で置換し、旧route/DTO・整数wire・初回201/再送200・現BillingID/takeoverとの互換adapterは必須にしない。他billing確認流用・自動/架空確認は不可。Completeが今回範囲外なのは狭いConfirm/Returnとの成果境界と必要な安全接続によるもので、互換adapter不足を延期理由にしない。必要供給が未完の間は新gateを利用開始しない。
 
 <a id="review-actions-acceptance"></a>
 ## 8. 有限受入とowner
 
-fixture期待: canonical/unknown/duplicate/null/上限/正規化;複数record完全性;481currentidentity証明可否;signature違い拒否とmetadata/link-only不変;別key既確認拒否/同keyreplay;CASのみretry対Content変更;source変更対Confirm両順序;Return対newConfirm両順序;unknown/stale/legacy Returnと二重拒否;actor≠担当医/未設定/失権/reader欠落/Returndoctor制限なし;成功後view-onlyreplay/view失効非開示;anchor/URL/lookup障害;claim winnerloserrollback;gate/binding/domain競合/異TXContextGate拒否;billingversion一回/clinical不変/overflowzero-write;全必須保存失敗rollback;commit後応答喪失同key照会;確認当時billingsignature再読;legacy setのReturn前は必須return_event=null、Return後は保存済み5fieldだけを同型返却しstate/reason不変・欠落signature/確認内容の補完なし・現在閲覧認可維持、履歴read失敗/破損はnullや成功にしない;旧GETzero-write/旧POST拒否/迂回閉鎖;新規Complete未接続で旧wire無断変更なし。全NOT_RUN。
+fixture期待: canonical/unknown/duplicate/null/上限/正規化;複数record完全性;481currentidentity証明可否;signature違い拒否とmetadata/link-only不変;別key既確認拒否/同keyreplay;CASのみretry対Content変更;source変更対Confirm両順序;Return対newConfirm両順序;unknown/stale/legacy Returnと二重拒否;actor≠担当医/未設定/失権/reader欠落/Returndoctor制限なし;成功後view-onlyreplay/view失効非開示;anchor/URL/lookup障害;claim winnerloserrollback;gate/binding/domain競合/異TXContextGate拒否;billingversion一回/clinical不変/overflowzero-write;全必須保存失敗rollback;commit後応答喪失同key照会;確認当時billingsignature再読;legacy setのReturn前は必須return_event=null、Return後は保存済み5fieldだけを同型返却しstate/reason不変・欠落signature/確認内容の補完なし・現在閲覧認可維持、履歴read失敗/破損はnullや成功にしない;旧GET初期書込なし/旧writer削除・停止・置換による迂回閉鎖;後続新規請求フローは新仕様API/callerの完結置換、旧wire互換をgateにしない。全NOT_RUN。
 
 owner:462統合、481currentidentity/sourceclosure、518/484plan/gateclosure、sharedstaff/reservationdesignation/predicate、489/467hook/trygate、446/466+model保存、445/API exactwire/旧入口切替、audit同TX。個人claim/実行ID/供給SHA/共有hunk合意は未受領で、担当済としない。技術契約選定とruntime供給を分離する。Readyは計画/契約状態と実行前提の明示で、実装完了ではない。
 

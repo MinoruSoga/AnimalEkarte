@@ -13,6 +13,8 @@
 <a id="posthumous-vital-scope"></a>
 ## 1. 有限範囲
 
+「既存vital」は対象データ条件であり、既存コード/API/DTOを保存する要件ではない。確定仕様を優先して必要な実装とcallerを置換する。以下の既存GET/通常writer不変更は今回の専用訂正という成果境界を指し、旧wire維持や将来の改修禁止ではない。C06・現在認可・履歴/不明値保全等の選定済み安全契約は別要件として維持する。
+
 現在医院の既存・未削除medical recordに所属する既存・未削除vitalだけを対象とする。`medical_record_id`はpathと一致し、`daily_record_id=NULL`。患者・recordの付替えはしない。最初の供給は**同一の認証済み適格医師が入力actorと確認者を兼ねる明示confirm-and-correct操作**である。他職員の準備と後の医師確認は別の有限packetに残し、通常編集を医師限定にするものではない。
 
 元の保存`recorded_at`と訂正後`recorded_at`の両方が、現在解決した`deceased_at`より厳密に前の既知の実測時点でなければならない。NOT NULL/default now()だけで正確な実測時点とはしない。認証済み医師の明示操作はsource版/digestへ束縛し、元・訂正後時点が当該既存事実の実測時点であることを確認する。確認できなければ送信せず、serverも確認欠落・順序不成立を拒否する。由来/時刻が不確かな旧事実やchildなし後日入力を永久禁止したのではなく、後続の根拠packetへ保留する。
@@ -28,7 +30,7 @@
 
 ID/版は正のcanonical十進文字列、schema_versionは文字列`"1"`。UUIDはlowercase hyphenatedの非zero、digestはlowercase64hex SHA-256。時刻は明示offsetを持つRFC3339 instantをUTC・PostgreSQL microsecond精度へ正規化する。より細かな非zero桁は黙って切捨てず拒否し、同じ対応instantの異なるoffset表記は同一化する。duplicate/unknown JSON key、不正Unicode、埋込NULを拒否する。
 
-この新endpointの臨床数値は末端までcanonical **文字列**。temperature/weightはplain decimalで、負号は非zeroだけ、先頭0・指数・plus・末尾小数0・不要小数点を禁止する。zeroは`"0"`だけでnegative zeroを拒否する。heart/respirationは同じ符号/先頭0規則の整数文字列で小数不可。JSON数値tokenや非canonical文字列は黙って正規化せず拒否する。float64を介さずexactにtargetへ変換し、非有限/表現不能値を拒否する。temperature/weightは専用adapterからmodel.ExactNumeric、heart/respirationは既存target整数型の範囲。既存weight正値検証と`Kg|g`を維持し、新閾値なし。既存GET/通常writerの数値wireは変更しない。textはUTF-8検証後そのまま保持し、reasonは非空白文字を要求するが書換えない。
+この新endpointの臨床数値は末端までcanonical **文字列**。temperature/weightはplain decimalで、負号は非zeroだけ、先頭0・指数・plus・末尾小数0・不要小数点を禁止する。zeroは`"0"`だけでnegative zeroを拒否する。heart/respirationは同じ符号/先頭0規則の整数文字列で小数不可。JSON数値tokenや非canonical文字列は黙って正規化せず拒否する。float64を介さずexactにtargetへ変換し、非有限/表現不能値を拒否する。temperature/weightは専用adapterからmodel.ExactNumeric、heart/respirationは既存target整数型の範囲。既存weight正値検証と`Kg|g`を維持し、新閾値なし。既存GET/通常writer全体の数値wire変更は今回の限定成果には含めない。後方互換のために変更を禁止するものではなく、必要な新仕様への置換はcallerを含む完結単位で行う。textはUTF-8検証後そのまま保持し、reasonは非空白文字を要求するが書換えない。
 
 <a id="posthumous-vital-context"></a>
 ### 2.1 context read
@@ -52,11 +54,11 @@ SNAPSHOTは全key必須の次のshape。
  created_at,updated_at,deleted_at}
 ```
 
-ID/版は十進文字列。daily_record_id/deleted_atはこのsubsetではnull。staff_id/temperature/heart_rate/respiration_rate/weight/weight_unitは実際のNULLを保持し、数値は上記canonical文字列又はnull。notesはstring、時刻はcanonical UTC instant。現在staff/pet/masterのnested projectionは入れない。新context/history専用の表現で、既存vital GETを変更しない。
+ID/版は十進文字列。daily_record_id/deleted_atはこのsubsetではnull。staff_id/temperature/heart_rate/respiration_rate/weight/weight_unitは実際のNULLを保持し、数値は上記canonical文字列又はnull。notesはstring、時刻はcanonical UTC instant。現在staff/pet/masterのnested projectionは入れない。このcontext/historyの選定表現であり、通常vital GET全体は今回範囲外とする。旧GET維持や将来の改修禁止を要求しない。
 
 source_snapshot_sha256はSNAPSHOTのUTF-8 JCS bytesのSHA256でidentity/版も含む。現在record/vital view認可を使い、短いread TXでlocal-pet/common/record/vitalの順に整合readし、record/vitalはSHARE lockとする。edit権取得、版変更、proposal/receipt保存はしない。hashは比較値であり認可・独立署名ではない。contextは記録時刻の史実性を保証せず、eligibilityはconfirmation-requiredのまま。
 
-既存ErrorResponse `{error:string}`を使い、不存在/他院/target不一致/削除は404、現在view拒否403、既存record subset外又は既知死亡instantなし409、必要life未解決/read失敗503。不明を生存/適格/空snapshotへ落とさない。
+本有限契約はエラーDTO `{error:string}`を選定し（既存コード互換を理由とする固定ではない）、不存在/他院/target不一致/削除は404、現在view拒否403、既存record subset外又は既知死亡instantなし409、必要life未解決/read失敗503。不明を生存/適格/空snapshotへ落とさない。
 
 <a id="posthumous-vital-correct"></a>
 ### 2.2 confirm and correct
@@ -80,7 +82,7 @@ staff_idは歴史上の記録/測定staffでactor/確認者ではない。変更
 <a id="posthumous-vital-results"></a>
 ### 2.3 成功・失敗
 
-既存operation.ResultResponseを直接返す。
+採択済みC06のoperation.ResultResponseを直接返す。これは共通operation契約の再利用であり、旧vital DTOとの互換維持ではない。
 `{status,operation_key,result_refs?,committed_versions?,recorded_at?}`。
 成功/replayのrefs exactは`{medical_record_id,vital_id,correction_history_id}`、versions exactは`{vital}`、map値は全てstring。recorded_atはserver成功履歴時刻。臨床本文・資格情報・fingerprint・EffectSummary・commandはreceiptへ返さない。
 
@@ -94,7 +96,7 @@ staff_idは歴史上の記録/測定staffでactor/確認者ではない。変更
 | result-unavailable | 503 |
 | not-succeeded | 200（成功ではない） |
 
-C06前の不正JSON/認証/route target欠落は既存ErrorResponseと400/401/403/404。元版/digest不一致はversion-conflict、確認life/binding変更はdependency-changed、holder/session/epoch喪失はedit-right-lost、現在医師適格性/edit拒否はnot-authorized、不明lifeはresult-unavailableで成功なし。同keyでreason/source/変更値が変わればkey conflict。serialization/保存失敗は業務TX rollbackと既存C06 retryable/unknown規則を使い、新statusを追加しない。
+C06前の不正JSON/認証/route target欠落は上記選定エラーDTOと400/401/403/404。元版/digest不一致はversion-conflict、確認life/binding変更はdependency-changed、holder/session/epoch喪失はedit-right-lost、現在医師適格性/edit拒否はnot-authorized、不明lifeはresult-unavailableで成功なし。同keyでreason/source/変更値が変わればkey conflict。serialization/保存失敗は業務TX rollbackと既存C06 retryable/unknown規則を使い、新statusを追加しない。
 
 <a id="posthumous-vital-command"></a>
 ## 3. command・claimと元target照会
