@@ -104,7 +104,12 @@ not_capturedからの補足candidateは、同entity/snapshot、snapshotと取得
 
 解決版は全fieldの参照を持つ完全版とし、前版のfield参照を勝手に変更・除外しない。前版のnot_captured参照を補足candidateの取得済みfieldへ置換する場合だけ、そのfieldの出典を新参照へ進める。初期版や旧版は変更しない。同じ参照集合の再送は既存解決版へ解決する。
 
-解決版の作成は期待する前版を同transactionで比較し、同observationの分岐を拒否する。保存済みだが未公開の解決版をGETが自動採用してはならない。publication bindingは解決版IDを固定し、consumerが検証・公開した最新bindingの版のみを現在表示へ採用する。公開切替とcatalog_revision更新は同transactionとする。
+解決版の作成は期待する前版を同transactionで比較し、同observationの分岐を拒否する。保存済みだが未公開の解決版をGETが自動採用してはならない。publication bindingは解決版IDを固定し、(clinic_id,domain_kind,observation_id)ごとに単調に公開した最大resolution revisionを現在表示へ採用する。同解決版内だけ公開順をtie-breakに使い、未公開解決版をreadが採用しない。公開切替とcatalog_revision更新は同transactionとする。
+
+<a id="legacy-evidence-monotonic-resolution-publication"></a>
+publication writerは既存mutable catalog rowを既存権限でlockし現在公開版を再読する。同版なら現在bindingを維持し、previous chainで立証した厳密な後継だけ現在表示を進める。祖先版を新規公開しようとするpublication TXは保留/全rollbackし、receipt/catalogを更新しない。既成功delivery再送は旧receiptだけを返し、旧版を再有効化しない。
+
+同clinicの複数domain lock順はaccounting→estimateに固定する。immutable tableのUPDATE権限は追加しない。readerは最大の公開resolution revisionを選び、同解決版内だけ公開順でtie-breakする。この制限はsource observationの現在表示だけで、過去projectionが古版解決版へpinするのは正常な履歴である。
 
 projection revisionも入力observationだけでなく、使用した解決版とcandidate/field参照を固定する。原値補足で過去projectionの計算根拠を自動更新しない。新しい根拠を使うprojectionは別revisionへ追記する。既存原値と競合するcandidateを新しい解決版や契約版に逃がして採用しない。
 
@@ -235,6 +240,10 @@ consumerはdelivery namespace内のwire参照をStoredRawFieldRef（candidate_id
 - rule_refとreason_codesは登録済みのものだけ。業務値未確定でも、除外された事実とそのtransform ruleが検証できることを必要とする。
 - rawを取得できない行についてSourceOutcomeだけを捏造しない。
 
+WireSourceOutcome.outcome_refはdeliveryの全chunkを通じ一意。同一配送母集団内の重複は同内容でもvalidation errorであり、黙って集約しない。source outcome保存行にdelivery_id/outcome_refを両方NOT NULLで保持し、source行だけの部分UNIQUE(clinic_id,delivery_id,outcome_ref)をDB強制する。digest/candidateを一意キーへ足して異内容を逃がさない。
+
+既存delivery/chunkの再送は保存済みclosed内容全体を照合し、同内容なら既存outcome UUID、異内容ならconflict/公開なし。固定manifestとchunk receiptで「配送内の二重宣言」と「同じ配送/chunkの再送」を区別する。
+
 outcome_refとsource_candidate_refは当該delivery内のlocal参照であり、consumer保存・readのglobal IDではない。consumerは `(clinic_id, delivery_id, outcome_ref)` を永続outcome UUIDへ、`(clinic_id, delivery_id, source_candidate_ref)` を永続candidate UUIDへ解決する。同じlocal refが別deliveryに存在しても同一と扱わない。元delivery/local refはprovenanceとして保持し、読取DTOのstable UUIDに置き換えた後も出典が辿れるようにする。
 
 配送envelopeへsource_outcomesを追加する（空配列を明示可）。ProjectionRevision.outcomesは従来の派生段階の結果として残す。SourceOutcomeを二重にprojection outcomeへ複写して件数を増やさない。
@@ -289,7 +298,7 @@ outcome_refとsource_candidate_refは当該delivery内のlocal参照であり、
 | `legacy_evidence_artifacts` | id、clinic_id、delivery_id、role、digest、byte_length、保護storage参照 | acquisition/output/manifestをroleで分離。local pathは公開APIへ返さない |
 | `legacy_evidence_projection_revisions` | id、clinic_id、domain_kind、projection_namespace_ref、projection_logical_ref、revision_ref、mapping/transform profile、payload fingerprint、closed payload | 自然キー全列NOT NULL。UNIQUE(clinic_id,domain_kind,projection_namespace_ref,projection_logical_ref,revision_ref)。同自然キー同内容は既存UUID、異内容projection_conflict。rawは不変 |
 | `legacy_evidence_projection_inputs` | clinic_id、projection_revision_id、observation_id、resolution_id、stable入力列参照 | 多対多。全入力行/解決版を固定。同clinic・observationへのresolution所属を複合FK検証 |
-| `legacy_evidence_outcomes` | id、clinic_id、outcome_kind、projection_revision/candidate/observation/resolution参照、stage、disposition、rule、artifact/output参照、reason | source/projection kind別NOT NULL/CHECK/FK。sourceはprojection参照NULLを許可、実candidate/observation/resolution必須。emitted/excluded/heldを分離 |
+| `legacy_evidence_outcomes` | id、clinic_id、outcome_kind、projection_revision/candidate/observation/resolution参照、stage、disposition、rule、artifact/output参照、reason | source/projection kind別NOT NULL/CHECK/FK。sourceはprojection参照NULLを許可、実candidate/observation/resolutionとdelivery_id/outcome_ref必須。source行に部分UNIQUE(clinic_id,delivery_id,outcome_ref)。emitted/excluded/heldを分離 |
 | `legacy_evidence_link_events` | id、clinic_id、evidence_kind、evidence_id、event_revision、expected_revision、previous_event_id、action、closed target refs、検証根拠、actor、reason、recorded_at | append-only。履歴粒度(clinic_id,evidence_kind,evidence_id)。同履歴event_revision UNIQUE、非NULL previousのsingle-successor UNIQUE、NULL previousの初版partial UNIQUE、前eventへの同clinic/同履歴複合FK。前版+1/最新headをvalidator検証 |
 | `legacy_evidence_chunk_receipts` | id、clinic_id、delivery_id、chunk_ref、chunk digest、件数、保存ID集合のdigest（全てNOT NULL） | UNIQUE(clinic_id,delivery_id,chunk_ref)。同キー同内容は既存receipt、異内容conflict。同時実行でも一件だけcommit、digestを一意キーへ足さない |
 | `legacy_evidence_publication_receipts` | id、clinic_id、delivery_id、固定manifest digest、全chunk/lineage検証結果参照、公開revision、recorded_at（manifest digest/公開revision NOT NULL） | UNIQUE(clinic_id,delivery_id)。全必要chunk/lineage検証後に一成功receipt。並行公開は同内容照合、異内容conflict。事前checkだけに依存しない |
@@ -540,6 +549,9 @@ DerivedFieldのsemantic_statusは従前の2値を維持し、record-levelだけ�
 
 26. 同projection自然キーの並行配送はDB UNIQUEで一UUID、固定入力解決版/規則版/closed内容一致なら再送解決、異内容はprojection_conflict。run/delivery/契約版/digest変更でidentityを逃がさず、global対応未受領のlocal refは採用保留。
 27. 各sectionの境界、revision9→10、UTF-8 field順、同itemのJOIN重複、異resolutionの分離、同catalogでの反復pageを確認。変更は409でbaseからrestartし、順序だけでitem欠落/重複を作らない。
+
+28. r2公開後のr1遅着はpublication TX全rollback、receipt/catalog不変。並行公開はcatalog lock/previous chainで単調化し、既成功旧delivery再送は元receiptだけ。過去projectionのr1 pinは正常なまま。
+29. 全chunkを跨ぐ同outcome_refの二重宣言は同内容でもvalidation error。同delivery/chunk再送は固定manifest/receiptとclosed内容一致なら既存UUID、異内容conflict/公開なし。digest/candidate変更でUNIQUEを迂回しない。
 
 これらはfixtureの作成条件です。今回テスト実行や実DB受入を依頼していません。現時点はNOT_RUNです。
 

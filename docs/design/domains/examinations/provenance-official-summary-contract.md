@@ -47,6 +47,13 @@ PATCH v2 top-level allowlist = D4 v1の9field + provenance + change_reason。pro
 
 前official参照はclient入力ではない。previous_official_revision_id、revision id/version、actor、recorded_at、measured_at、job_idはこのprovenance requestに許可しない。doctor解除は今回Aの出所/date範囲には含めず、D4 v1 doctor:nullの意味を変更しない。
 
+<a id="exam-date-timestamp-correction-invariant"></a>
+### 日付訂正とmeasured_atの同TX整合
+
+date/precisionを実際に変更する場合（unknownへの解除も含む）、同じ最外TXで現在aggregateのmeasured_atをNULLにする。日付/入力時刻/旧時刻から日時を生成しない。同じdate/precisionでdetailsだけの変更ならmeasured_atを維持する。原job/sourceと過去immutable revisionは不変、新revisionは訂正後aggregateのdate/precision/measured_atをコピーする。失敗はcounter/監査/receiptを含め全rollback。
+
+v1も実際の非NULL date変更は同規則へ参加し、既定omitted/null=unchangedは維持する。projectorは当該固定revisionの非NULL measured_atに対応する証拠だけを使い、訂正でNULLとなった日時を原jobから復活させない。旧measured_atを残す他writerがある間は新storageの供給完了としない。
+
 ### 1.2 read DTO
 
 D4 detailのatomic snapshotへrequired `provenance` と `revision_context` を追加する。items-only応答に不必要な出所情報を重複追加しない。detailのschema別cacheはv2に切り替える。
@@ -112,7 +119,9 @@ HTTP/C06失敗はD4継承。invalid date/presence/source=400 validation、無認
 entry exact keys: meaning, mapping_state, selection, selected_source_ref, candidates, unknown_date_candidates, ancillary_candidates。
 - meaning=FIV|FeLV|mf|HW。selection=unique_latest|ambiguous|unknown_date_only|no_official_value|mapping_unknown|not_applicable。
 - selected_source_refはunique_latest時だけSourceRef、他はnull。
-- candidatesは保存実施日/信頼できる実施日時と精度による最大候補集合（同順位・比較不能を含む）すべて。unknown_date_candidatesは日付/精度未確認候補。ancillary_candidatesはvalue_stateがpending/not_performed/unknownの非置換候補。unknownは下記定義の原値空かつ明示availability証拠なし等に限り、非空原文が臨床的に未解釈という理由でvalue_presentから除外しない。
+- 同一entryの3配列所属は排他的。最初にvalue_stateで分類し、pending/not_performed/unknownは日付に関係なくancillary_candidatesだけへ置く。unknownは下記の原値空/明示availability証拠なし等の定義のみで、非空で臨床的未解釈の原文はvalue_presentから除外しない。
+- value_presentで時間順位を立証できないものはunknown_date_candidatesだけへ置く。立証できるものの最大候補集合（同順位/比較不能を含む）だけがcandidates。非最大の既知日値は返却配列へ入れず、全走査/採否区分/digest入力には保持する。
+- verified entryのselectionはcandidates一件=unique_latest、複数=ambiguous、空かつunknown_date_candidates非空=unknown_date_only、それ以外=no_official_value。ancillary単独でも表示し、未検査/記録なしとは断定しない。mapping_unknown/not_applicableの前段規則は維持する。
 
 Candidate exact keys: source_ref, raw_value, unit, value_state, date, performed_date_precision, measured_at, source_kind, source_details, correction_state, previous_official_revision_id, mapping_ref。
 - raw_value/unitは保存文字列。value_state=value_present|pending|not_performed|unknown。value_stateは保存原値の有無/明示availabilityであり、陽性/陰性/正常/実施確認/意味理解の判定ではない。以下のclosed adapterを使う。
@@ -138,16 +147,16 @@ Candidate exact keys: source_ref, raw_value, unit, value_state, date, performed_
 5. head、previous、item、保存種/患者、mappingの系列/医院整合を検査。修復や最新masterによる履歴再構成なし。
 
 <a id="exam-summary-legacy-null-precision"></a>
-保存date非NULLでもperformed_date_precision=NULLなら、そのdateだけではday精度を証明しない。保存値を変えずunknown_date_candidatesの日付/精度未確認bucketへ併記する。既知day候補を上書きせず、削除/空結果/endpoint全失敗にしない。全候補がこの形ならunknown_date_only、混在時はunknown_date_present noticeと既知候補を別表示する。
+ここでのunknown_date bucketはvalue_presentへの時間分類であり、pending/not_performed/unknownは前段のancillary-onlyを優先する。保存date非NULLでもperformed_date_precision=NULLなら、そのdateだけではday精度を証明しない。保存値を変えずunknown_date_candidatesの日付/精度未確認bucketへ併記する。既知day候補を上書きせず、削除/空結果/endpoint全失敗にしない。candidatesが空かつunknown_date_candidatesが非空ならunknown_date_only、既知候補と混在する場合はunknown_date_present noticeと別表示する。
 
 独立の信頼できるmeasured_at＋精度/zone/由来の明示証拠が揃う場合だけ、その証拠で時刻比較可能。null精度のdateを推測dayへ補完した扱いにはせず、証拠なしは同じunknown bucketに保つ。null/nullも不明、day＋有効dateは既知日として扱う。readのdate/precision NULLを変更しない。
 
 rankingは保存された実施日/実施日時と、立証できる精度だけを使う。ここで「既知日」は保存day精度又は独立に立証した日時根拠がある場合だけを指す。異なる既知日は日付で比較する。同日候補の双方に信頼できる保存measured_atがあり、当該sourceの実施日時として精度・timezone/offset・由来が明示され、同じ時間軸で順序を立証できる場合に限り、その実施日時で比較する。DBのtimestamptz型や値の非nullだけでは信頼性/精度の証明としない。reader adapterは元job/sourceの保存証拠を同snapshotで検証し、表示用入力時刻から生成された値を採用しない。一方でも日単位のみ/時刻精度不足/zone由来不明ならその同日候補間の順序は不明。同じ実施日時も同順位。信頼できる日時が一部だけの集合では、証明できない比較を日時あり優先へ変換しない。
-一意な直近候補は、他の全既知日候補より後であることを立証できた候補だけ。候補間の時間区間が重なる/比較不能なら最大候補集合を返しambiguousとする。日だけの候補はその保存実施日の全日区間であり、架空00:00へ点化しない。入力/受信/更新/確認時刻、exam ID、院内外優先は順位根拠にしない。日付不明は別集合で既知日を上書きしない。日付/精度未確認しかなければunknown_date_onlyで全該当候補の原値と未確認状態を返す。
+一意な直近候補は、他の全既知日候補より後であることを立証できた候補だけ。候補間の時間区間が重なる/比較不能なら最大候補集合を返しambiguousとする。日だけの候補はその保存実施日の全日区間であり、架空00:00へ点化しない。入力/受信/更新/確認時刻、exam ID、院内外優先は順位根拠にしない。日付不明は別集合で既知日を上書きしない。value_presentの時間未確認候補が非空でcandidatesが空ならunknown_date_onlyで返す。ancillaryだけならno_official_valueのまま原値/状態を表示する。
 
 mappingは既存verified_by/verified_at/evidence/operation_idだけを形上満たす架空行では不可。47から対象bundleとmapping行の採用revisionを受領する。現tableにeffective/revoked statusが無いのでmax(revision)を無条件activeとする選択はしない。承認bundleが指定する行revision集合をread構成に固定し、別bundleへ切替時は全再投影。mapping writer UI/承認workflow/臨床値seedは本slice外。旧field IDが明示mappingへ解決できなければmapping_unknown/noticeとし、no_recordへ偽装しない。
 
-completeは同医院・患者・要求view scopeの全関連sourceを走査し、かつ全検査に対する当該viewの完全性を認可resolverが保証できるときだけ。部分行認可しか証明できなければ全患者最新を名乗らず403。正常0候補は200 no_official_valueであり未検査ではない。DB timeout/中断/上限到達/完全性に必須なreader不足・取得失敗/系列破損は503にしてpartialを返さない。既知の未供給availability証拠adapterだけならpending/not_performedの詳細区分を供給せず、非空official原文はvalue_present、空原文はunknownの既定fallbackで先行可能。提供済readerの実通信/整合失敗を未供給fallbackで隠さない。本案の有限技術予算は未実測の初期値であり、1応答全体でCandidate合計1000件、JSON UTF-8 body 1 MiB、source走査100000 revision-item行、実行10秒（現在認可の再解決も含む）と選定する。これは既存の業務件数制限ではない。サーバ内部stream/集計で全候補を評価し、同日ties・unknown_date_candidates・ancillary_candidatesを含む返却集合を構成するが、予算を一つでも超える場合は503 summary_incompleteを返し、本文候補/件数/途中digestなし。先頭1000件成功や同日候補の一部だけ返却は禁止。本sliceは候補ページング/持続snapshot tokenを追加しない。正常completeのdigestは走査完了後にだけ確定する。予算を増減する後続変更も明示契約改版とし、UIの全患者最新という意味を変更しない。
+completeは同医院・患者・要求view scopeの全関連sourceを走査し、かつ全検査に対する当該viewの完全性を認可resolverが保証できるときだけ。部分行認可しか証明できなければ全患者最新を名乗らず403。正常0候補は200 no_official_valueであり未検査ではない。DB timeout/中断/上限到達/完全性に必須なreader不足・取得失敗/系列破損は503にしてpartialを返さない。既知の未供給availability証拠adapterだけならpending/not_performedの詳細区分を供給せず、非空official原文はvalue_present、空原文はunknownの既定fallbackで先行可能。提供済readerの実通信/整合失敗を未供給fallbackで隠さない。本案の有限技術予算は未実測の初期値であり、全4 entryの3配列要素数総和1000以下（selected_source_refは非加算、1001以上は503 summary_incomplete）、JSON UTF-8 body 1 MiB、source走査100000 revision-item行、実行10秒（現在認可の再解決も含む）と選定する。これは既存の業務件数制限ではない。非最大の非返却候補も別の走査予算とdigestへ残す。サーバ内部stream/集計で全候補を評価し、同日ties・unknown_date_candidates・ancillary_candidatesを含む返却集合を構成するが、予算を一つでも超える場合は503 summary_incompleteを返し、本文候補/件数/途中digestなし。先頭1000件成功や同日候補の一部だけ返却は禁止。本sliceは候補ページング/持続snapshot tokenを追加しない。正常completeのdigestは走査完了後にだけ確定する。予算を増減する後続変更も明示契約改版とし、UIの全患者最新という意味を変更しない。
 
 HTTP errorは既存API error envelopeを使いcodeは400 invalid_summary_request、401 unauthenticated、403 summary_not_authorized、404 scope_not_found、503 summary_unavailable|summary_incomplete|source_integrity_error。error bodyに患者原値/source refs/候補数を含めない。詳細診断は権限ある内部ログへ。readは結果保存/確認/機器受信を起動しない。必要clinical-use receiptは既存D07 reader participantを受領し、failure時は503、独自no-opで迂回しない。
 
@@ -158,7 +167,7 @@ HTTP errorは既存API error envelopeを使いcodeは400 invalid_summary_request
 
 サーバは毎GETを正本snapshotから計算し、初回sliceに永続summary表・eventual materialized view・共有結果cacheを導入しない。HTTP Cache-Control: private, no-store。304でcurrent access再検査を省略しない。
 
-projection_digest="sha256:"+lowerhex。canonical objectはschema/clinic_id/pet_id/animal_species_id/surface/medical_record_id、適用mapping bundleの固定ID/revision集合、全走査対象のexam/result_state_version/head/revision/item identityと本文/出典/date、採用/除外区分、各候補value_stateと適用availability証拠のstable identity/版（証拠なしは明示null）、noticeを含む。availability adapterのexact証拠ref/profileが未供給の間はその枝を利用開始せず、任意JSON/現在時刻をhash代替にしない。非空raw valueの既定value_present fallbackは維持する。evaluated_atはhashから除外。単なるupdated_at最大値や表示候補だけのhashは不可。digestはCAS権限tokenではない。
+projection_digest="sha256:"+lowerhex。canonical objectはschema/clinic_id/pet_id/animal_species_id/surface/medical_record_id、適用mapping bundleの固定ID/revision集合、全走査対象のexam/result_state_version/head/revision/item identityと本文/出典/date、採用/除外区分、completeness、正規化entries全体（各entryのmeaning/mapping_state/selection/selected_source_ref、3配列の所属と順序、各Candidateの宣言済み全12 keyと値）、適用availability証拠のstable identity/版（証拠なしは明示null）、noticesを含む。Candidateの全12 keyはsource_ref/raw_value/unit/value_state/date/performed_date_precision/measured_at/source_kind/source_details/correction_state/previous_official_revision_id/mapping_refであり、省略して「本文等」だけを束縛しない。availability adapterのexact証拠ref/profileが未供給の間はその枝を利用開始せず、任意JSON/現在時刻をhash代替にしない。非空raw valueの既定value_present fallbackは維持する。evaluated_atはhashから除外。単なるupdated_at最大値や表示候補だけのhashは不可。digestはCAS権限tokenではない。
 
 FEはメモリcacheだけ、key=[schema,clinic_id,actor_kind,actor_id,session_generation,pet_id,animal_species_id,surface,medical_record_id,auth_generation]。actor identity/session_generation/auth_generationは認証・session管理コンポーネントが管理する内部contextからのみ受領し、ユーザー入力・URL・保存された古い世代・検査APIの任意値を採用しない。login/logout、actor/医院切替、認識したrole/scope変更・失権では、世代更新と旧本文cacheの非表示・破棄を新contextの取得/表示より先に行う。別loginで同じ初期世代を使って旧cacheを再利用せず、session境界でも分離する。
 
@@ -194,17 +203,17 @@ A01 external createで日付不明/null、出典不明/nullを保存し再読。
 A02 omitted/null/day/unknown、未知精度、invalid日、日時string、duplicate/unknown key、top date併用を区別。拒否はzero-write。details 2000 code point/8000 bytes境界と超過、legacy_unknown保持訂正対新規採用、旧監査未収録read対新A監査保存失敗を別caseとして確認する。
 A03 unversioned→初official→unconfirm→working変更→再confirmでprovenance snapshotと前official系列が整合。旧official不変。
 A04 別院/別exam/未来/workingをpreviousへ偽指定は入力拒否。保存内参照不整合はfail closed。
-A05 v1 date:null不変更を保持、v2 unknownだけ明示clear。旧v1成功keyとv2を混ぜない。
+A05 実date/precision変更（unknown解除を含む）は同TX measured_at=NULL、同date/precisionのdetailsのみは維持。原job/過去revision不変、新revisionは訂正後値、失敗全rollback、原job日時復活なし。v1実非NULL date変更も参加し、v1 date:null不変更を保持、v2 unknownだけ明示clear。旧v1成功keyとv2を混ぜない。
 A06 同時provenance/items更新はD4 CAS一方のみ成功。required audit/revision失敗は全rollback。応答断lookupで二重保存なし。
 B01 全候補が20件超、古い日が後日入力。全体の実施日で選定、入力時刻を使わない。
 B02 nonNULL date＋NULL precision、NULL/NULL、day＋有効date、独立timestamp証拠あり/なしを照合し、原値保持/unknown bucketと既知候補の分離を確認する。同日でも双方の保存実施日時/精度/zone/由来が立証できる場合は実施時刻で比較する。一方日単位・時刻精度不足・zone不明なら候補を併記し、同時刻も曖昧。同値/不一致/院内外を固定優先にしない。信頼できる時刻が一部だけの混合集合で日時あり優先にしない。日付不明は既知直近と別、unknownのみも原値保持。
 B03 working訂正中は元officialだけ訂正中表示、working原値をofficialへ混入させない。再confirm後は新official、無効化後は旧値をcurrentとして残さない。
 B04 未承認/未設定/旧field対応不明/species不明をno_recordと区別。FIV verified/FeLV unverified等のmixedは各entry状態とtop-level mixedで返しverified候補を保持。明示not_applicableもmapping_unknownと区別。合成mapping検査を47臨床承認の証拠にしない。
-B05 非空inspection_valueの0/陰性/「-」/意味不明原文はvalue_presentとして保持し順位候補へ。value_presentを陰性/正常/実施確認へ読み替えない。空stringは明示availability証拠なしならunknown。result/status/assessmentで原値又はavailabilityを補完しない。固定item証拠があるpending/not_performedのみ区分し、これらの新しい行は既存値を消さない。
+B05 3配列排他所属と分類優先、ancillary単独の表示/no_official_value、非最大既知日値の非返却/走査digest保持、全4 entry総要素1000/1001とselected_source_ref非加算を照合。非空inspection_valueの0/陰性/「-」/意味不明原文はvalue_presentとして保持し順位候補へ。value_presentを陰性/正常/実施確認へ読み替えない。空stringは明示availability証拠なしならunknown。result/status/assessmentで原値又はavailabilityを補完しない。固定item証拠があるpending/not_performedのみ区分し、これらの新しい行は既存値を消さない。
 B06 権限不足、部分scope、跨院、別pet/record、認可失効で元値/存在noticeを漏らさない。D20/LIFF経路なし。
 B07 snapshot途中のconfirm/mapping切替/患者変更でも世代混合なし。broken series、timeout、truncationは503で空成功にしない。Candidate合計1000/1001、body 1 MiB境界、走査100000/100001、10秒予算で超過は503かつpartial原値なし。同日tiesだけで予算を超えても一部成功へ落とさない。
 B08 保存成功後refresh失敗でも保存成功保持、同scope旧値は更新未確認。401/403、login/logout、actor/医院切替、認識したrole/scope変更・失権では旧本文cacheを先に破棄し、別session/同じ初期世代で再利用しない。遅い成功応答を新しいactor/session/auth/request世代へ適用しない。未通知遠隔失権の即時反映を保証しない。
-B09 polling/focus/reconnect/書込invalidateで再評価。証拠だけの変更でもvalue_state/availability identity版を束縛したdigestが変化。DB集合順が変わっても正規順のresponse/digestは一致し、重複SourceRefは失敗。projection digest変更を臨床状態変更の診断としない。
+B09 polling/focus/reconnect/書込invalidateで再評価。各Candidateの12 field・配列所属/順序・selection・証拠の変更でdigestが変化。value_state/availability identity版と全entriesを束縛し、evaluated_atだけでは変化しない。DB集合順が変わっても正規順のresponse/digestは一致し、重複SourceRefは失敗。projection digest変更を臨床状態変更の診断としない。
 
 既存AC対応: external-source/write-safetyはA、date-order/ambiguous/mapping-unknown/no-record-failure/access-boundaryはB、revision-refreshはA+B。infection-auto-savedとinfection-result-statesのnonofficial原値表示はBのDone対象外で、D03/D04の既存detail/履歴接続consumerへ明示残す。selected-print、機器mapping297、尿86、死亡後331、Detach、臨床47、全D07実機ACは閉じない。
 
