@@ -326,7 +326,7 @@ fingerprintは目的・対象・業務変更・理由・順序に意味がある
 
 [2026-10-22の追加承認](../../../spec/workflows/reservation-to-record-flow.md#next-intent-after-accounting-consumption-20261022)により、今回の会計完了後も明示的な消化履歴の紐づけを許可する。取消済み・未来院の予約は対象外とし、現在認可・同一患者/医院・両対象の期待版・同一transactionの履歴/監査/receiptを照合する。診療内容・請求・入金を変更せず、今回予約/記録のIDと状態を保持し、通常作成等の暗黙消化は許可しない。`source_medical_record_id`の出典用途を消化先へ流用しない。この業務許可だけで具体wire/route/DDLの採択や実装完了とはしない。
 
-明示消化のwire名／routeは実装前にAPI正本で選定・検証するが、必要な対象と版・意味は上表に固定する。選択と対象refは操作fingerprintに含め、同keyで消化対象や選択を変えない。no-consumeの一般操作で予定を変更しないこともserver側で保証する。関連状態・消化関係・必要監査・成功receiptを同一commitに対応付ける。409では入力・選択を保持して現在版と内容を比較し再確認、timeout／abortでは同じkeyの結果照会を行い、失敗確定前に消化解除・新規予約・新予定を自動作成しない。再受付・受付時通常カルテ・取消履歴の既存契約を迂回しない。
+明示消化のwire名／routeと同ID確定の閉じた契約は[308/468採択技術契約](../../../work/emr/emr-308-468-next-intent-selected-contract-20261022.md)で選定済み。上表の業務意味を維持し、Aは既存今回予約への履歴紐づけ、Bは元予定の同ID昇格として接続する。API正本への機械収録・DDL/model・全writerの実装適合は未完。選択と対象refは操作fingerprintに含め、同keyで消化対象や選択を変えない。no-consumeの一般操作で予定を変更しないこともserver側で保証する。関連状態・消化関係・必要監査・成功receiptを同一commitに対応付ける。409では入力・選択を保持して現在版と内容を比較し再確認、timeout／abortでは同じkeyの結果照会を行い、失敗確定前に消化解除・新規予約・新予定を自動作成しない。再受付・受付時通常カルテ・取消履歴の既存契約を迂回しない。
 
 EMR-274のmode固定と、EMR-308のcreateOrPromoteTentativeによる全同pet作成時自動吸収は実装差分。内部Create・CreateBatch・admin/walk-in・LIFF・confirm-tentative・カルテの次回予定入口・受付の全consumerを切替対象とし、未参加旧writerが意図を自動消化する抜け道を残さない。具体的API/DTO・保存形式・全writer適合は未実施の検証であり、確定済み対象種別の業務判断と混同しない。
 

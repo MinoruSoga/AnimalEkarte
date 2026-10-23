@@ -294,6 +294,8 @@ LINE 予約の owner/pet 事前解決は best-effort だが、予約書込み tr
 <a id="next-intent-after-accounting-consumption-20261022"></a>
 2026-10-22追加承認（本人回答 Sentinel_26014730cf3481919ba1bcaeec4b07ad「両方はい」）：前回カルテの次回予定は、今回の会計完了後でも、スタッフの明示操作で今回来院への消化済み履歴を紐づけてよい。今回予約・記録とその状態を保持し、診療内容・請求・入金を変更しない。取消済み・未来院の予約は消化先の対象外。通常作成等からの暗黙消化は認めず、既存の認可・同一患者/医院・両対象の版確認・原子的な履歴保存を維持する。`source_medical_record_id`は次回予定の出典用途のままで、消化先として流用しない。これは会計完了後の履歴紐づけに限る承認で、新規wire/DDL案全体や通常の予約変更・取消制限の解除ではない。実装・実機受入は未確認。
 
+308/468の[明示消化A・同ID確定Bの採択技術契約](../../work/emr/emr-308-468-next-intent-selected-contract-20261022.md)でroute/入力/Content/元anchor/event/復旧・caller閉包を選定した。業務本文は本節を正本とし、API YAML/DDL/model/製品実装・受入は未完。今回予約への履歴紐づけAと、元予定を本予約へ同ID昇格するBを混同しない。
+
 <a id="requirement-fr-reservations-next-intent-cancel-no-revival"></a>
 #### 次回予定から作った予約の取消で元予定を自動復活させない
 
