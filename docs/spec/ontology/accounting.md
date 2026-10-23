@@ -144,13 +144,16 @@
 <a id="legacy-finance-evidence"></a>
 ## 移行原本証拠と通常会計の分離
 
-移行原本証拠（immutable legacy finance evidence）は旧請求/旧見積の原値と由来を、通常請求・見積/計算revisionから分離して保持するもの。意味不明な旧状態からclaim確定・入金・終了eventを生成しない。[会計正本](../domains/accounting/lifecycle.md#accounting-legacy-finance-evidence-design)と[EMR-547設計方針](../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md)を参照する。
+移行原本証拠（immutable legacy finance evidence）は旧請求/旧見積の原値と由来を、通常請求・見積/計算revisionから分離して保持するもの。意味不明な旧状態からclaim確定・入金・終了eventを生成しない。[会計正本](../domains/accounting/lifecycle.md#accounting-legacy-finance-evidence-design)と[EMR-547設計方針](../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md#legacy-evidence-storage-roles)を参照する。
 
-| 概念・関係 | 定義/制約 |
-|---|---|
-| 原本証拠identity → 原本snapshot | 医院/source system/source snapshot/table/key（不明時は検証済みartifact locator）で原本を識別。contract/mapping版はidentityから分離し、同identityの異なる原本bytesはconflict |
-| 原本snapshot → 派生projection revision | 原本を変更せずmapping/transform/encoding別の派生値・意味検証をimmutableに追記。通常の請求/見積計算revisionを代用しない |
-| batch/耐久receipt → 原本・派生版 | 受領実行の結果を記録し、原本identityや業務上の正式import適格性とは区別する |
-| 原本証拠 → 検証済みtarget link履歴 | 同医院に加え、owner/pet/record/billing/estimateの保存帰属・関連を検証する。譲渡前の履歴帰属と現在閲覧認可を分離。追加/訂正/撤回は期待link revisionで競合を防ぎ追記する |
+| 概念・関係 | 多重度 | 定義/制約 |
+|---|---|---|
+| 元entity → snapshot occurrence（原行証拠） | 元entity 1に対しoccurrence 0..many。各occurrenceの元entityは0..1（未解決なら0）、検証済snapshotは1 | 医院/source system・系譜/table/構造化原キーで元entityを区別する。snapshotを含む証拠identityを弱めない。元entity未解決のlocator候補と、元entityを確認済みであることは別 |
+| 証拠identity → occurrence | 受入済identity 1に対し原本occurrence 1 | 同identityの原本bytes不一致はconflict。再送や契約版変更で原本を複製しない。別の検証済snapshotの変更は別証拠版として旧証拠を保持 |
+| source snapshot → occurrence | snapshot 1に対し0..many、各受入occurrenceは1 snapshot | snapshot全体と、その中の個々の原行を混同しない。原キー/取得成果物の厳密な結合方式は未選定 |
+| occurrence ↔ 派生projection revision | 各occurrenceから0..many派生版、各原行由来派生版は1..many入力occurrence | 複数原行の集約と複数派生版を許容するmany-to-many。原本を変えずmapping/transform/encoding別にimmutable追記し、入力集合digestだけで個別lineageを省略しない。派生版の採番/前版の分岐多重度は未選定。通常計算revisionを代用しない |
+| batch ↔ 原本・派生版 | batch 1から0..many参照、同じ原本/派生版へ0..many batchが参照可能 | 再処理batchは原本を参照し複製しない。同batch再送は同結果。batchの受入完了前/失敗を全体成功にしない |
+| batch → 完了receipt / chunk receipt | batch 1に対し論理的な完了結果は0..1（未完なら0）、成功後の再送は同じ結果。chunk数/耐久receiptの物理件数は未選定 | chunk receiptとbatch完了receiptは別役割の候補。再送で別の成功結果を作らず、formal適格性とも区別。chunk上限/再開wireは未選定 |
+| 原本証拠 → 検証済target link履歴 | 単一証拠1から履歴event 0..many。有効関係内の各nullable owner/pet/record/billing/estimateは0..1。集約projection対象linkの帰属単位は未選定 | 同院に加えて全指定targetの保存帰属・関連を検証。履歴はmanyを保持し、譲渡前帰属と現在認可を分離。追加/訂正/撤回は期待link revisionで競合防止。eventのsource/parent exactはclosed schema受領時に固定 |
 
 証拠保存/閲覧はformal importの保留解除ではない。論理役割と保全方針の定義であり、物理schema・closed payload/route・派生版採番・具体link検証readerは未採択/未受領。保存/read/UI実装・実試験は未完（NOT_RUN）。

@@ -14,7 +14,7 @@ D11は費用の説明、見積の保存・提示・承認／却下・後継訂�
 
 ## 旧見積の原値保全・履歴参照の設計入口
 
-[EMR-547の保存/閲覧設計方針](../../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md)を参照。旧見積の割引raw/丸め値/変換規則と保険生成定数の由来を別immutable evidenceで保全し、通常estimates/計算revisionの未定義JSONへ混入させない。製品read-only履歴の設計は未完、closed schema/DDL/APIは未採択。通常編集/提示/再計算/帳票/会計化やformal importの保留解除を本参照で許可しない。
+[EMR-547の保存/閲覧設計方針](../../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md#legacy-evidence-read-api-ui-candidates)を参照。旧見積の割引raw/丸め値/変換規則と保険生成定数の由来を別immutable evidenceで保全し、通常estimates/計算revisionの未定義JSONへ混入させない。製品read-only履歴の設計は未完、closed schema/DDL/APIは未採択。通常編集/提示/再計算/帳票/会計化やformal importの保留解除を本参照で許可しない。
 
 ## 担当者・権限・前提
 

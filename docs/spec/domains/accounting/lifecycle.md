@@ -22,7 +22,7 @@
 <a id="accounting-legacy-finance-evidence-design"></a>
 ## 旧会計の根拠保全・履歴参照の設計入口
 
-[EMR-547の保存/閲覧設計方針](../../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md)で、旧状態/flag/日付/額の原値と意味不明を通常billingsへ補完せず、別immutable evidenceとread-only履歴へ保持する責務・7AC・未受領契約を整理する。設計未完で、closed schema/物理DDL/APIは未採択。証拠保全/閲覧の受入とformal import適格性は別で、通常請求確定/終了event/入金配賦や通常会計移行を許可するものではない。
+[EMR-547の保存/閲覧設計方針](../../../work/emr/emr-547-legacy-finance-evidence-contract-20261023.md#legacy-evidence-storage-roles)で、旧状態/flag/日付/額の原値と意味不明を通常billingsへ補完せず、別immutable evidenceとread-only履歴へ保持する責務・7AC・未受領契約を整理する。設計未完で、closed schema/物理DDL/APIは未採択。証拠保全/閲覧の受入とformal import適格性は別で、通常請求確定/終了event/入金配賦や通常会計移行を許可するものではない。
 
 ## 担当者・権限・前提
 
