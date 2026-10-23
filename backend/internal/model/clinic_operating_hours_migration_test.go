@@ -109,11 +109,11 @@ func TestClinicOperatingHoursContractConstants(t *testing.T) {
 	t.Parallel()
 
 	expected := map[string]string{
-		"clinic": LineTimeOwnerKindClinic,
-		"clinic.operating-hours.initialize":              IntentClinicOperatingHoursInitialize,
-		"clinic.operating-hours.update":                  IntentClinicOperatingHoursUpdate,
-		"clinic.operating-hours.holiday-set-from-shifts":   IntentClinicOperatingHoursHolidaySetFromShifts,
-		"clinic.operating-hours.holiday-unset-from-shifts": IntentClinicOperatingHoursHolidayUnsetFromShifts,
+		"clinic":                                            LineTimeOwnerKindClinic,
+		"clinic.operating-hours.initialize":                 IntentClinicOperatingHoursInitialize,
+		"clinic.operating-hours.update":                     IntentClinicOperatingHoursUpdate,
+		"clinic.operating-hours.holiday-set-from-shifts":    IntentClinicOperatingHoursHolidaySetFromShifts,
+		"clinic.operating-hours.holiday-unset-from-shifts":  IntentClinicOperatingHoursHolidayUnsetFromShifts,
 		"clinic.operating-hours.holiday-set-from-closing":   IntentClinicOperatingHoursHolidaySetFromClosing,
 		"clinic.operating-hours.holiday-unset-from-closing": IntentClinicOperatingHoursHolidayUnsetFromClosing,
 	}
