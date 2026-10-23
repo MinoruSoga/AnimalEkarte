@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import {
+  useCreateTreatmentPackage,
   useDeleteTreatmentPackage,
   useReorderTreatmentPackages,
   useTreatmentPackageEditor,
@@ -199,6 +200,63 @@ describe("S07/S08: HTTP status helpers", () => {
     const send = () => result.current.mutateAsync({ id: "201", req: { version: "3" } });
     vi.mocked(axios.patch).mockRejectedValue(withStatus(500));
     await expect(send()).rejects.toThrow();
+    expect(handleApiError).toHaveBeenCalledTimes(1);
+  });
+
+  it("R4: create 403 は handleApiError を呼ばない（失権表示は画面側）", async () => {
+    const { result } = renderHook(() => useCreateTreatmentPackage(), { wrapper: wrapper() });
+    vi.mocked(axios.post).mockRejectedValue(withStatus(403));
+    await expect(result.current.mutateAsync({ name: "n", components: [] })).rejects.toThrow();
+    expect(handleApiError).not.toHaveBeenCalled();
+  });
+
+  it("R4: create 409 は画面側で扱わないため汎用 toast を維持する", async () => {
+    const { result } = renderHook(() => useCreateTreatmentPackage(), { wrapper: wrapper() });
+    vi.mocked(axios.post).mockRejectedValue(withStatus(409));
+    await expect(result.current.mutateAsync({ name: "n", components: [] })).rejects.toThrow();
+    expect(handleApiError).toHaveBeenCalledTimes(1);
+  });
+
+  it("R4: create 500 は handleApiError を呼ぶ", async () => {
+    const { result } = renderHook(() => useCreateTreatmentPackage(), { wrapper: wrapper() });
+    vi.mocked(axios.post).mockRejectedValue(withStatus(500));
+    await expect(result.current.mutateAsync({ name: "n", components: [] })).rejects.toThrow();
+    expect(handleApiError).toHaveBeenCalledTimes(1);
+  });
+
+  it("R4: delete 409/403 は handleApiError を呼ばない", async () => {
+    const { result } = renderHook(() => useDeleteTreatmentPackage(), { wrapper: wrapper() });
+    const send = () => result.current.mutateAsync({ id: "201", version: "3" });
+    vi.mocked(axios.delete).mockRejectedValue(withStatus(409));
+    await expect(send()).rejects.toThrow();
+    vi.mocked(axios.delete).mockRejectedValue(withStatus(403));
+    await expect(send()).rejects.toThrow();
+    expect(handleApiError).not.toHaveBeenCalled();
+  });
+
+  it("R4: delete 500 は handleApiError を呼ぶ", async () => {
+    const { result } = renderHook(() => useDeleteTreatmentPackage(), { wrapper: wrapper() });
+    vi.mocked(axios.delete).mockRejectedValue(withStatus(500));
+    await expect(result.current.mutateAsync({ id: "201", version: "3" })).rejects.toThrow();
+    expect(handleApiError).toHaveBeenCalledTimes(1);
+  });
+
+  it("R4: reorder 409/403 は handleApiError を呼ばない", async () => {
+    const { result } = renderHook(() => useReorderTreatmentPackages(), { wrapper: wrapper() });
+    const send = () => result.current.mutateAsync({ order_version: "17", ids: ["201"] });
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(409));
+    await expect(send()).rejects.toThrow();
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(403));
+    await expect(send()).rejects.toThrow();
+    expect(handleApiError).not.toHaveBeenCalled();
+  });
+
+  it("R4: reorder 500 は handleApiError を呼ぶ", async () => {
+    const { result } = renderHook(() => useReorderTreatmentPackages(), { wrapper: wrapper() });
+    vi.mocked(axios.patch).mockRejectedValue(withStatus(500));
+    await expect(
+      result.current.mutateAsync({ order_version: "17", ids: ["201"] }),
+    ).rejects.toThrow();
     expect(handleApiError).toHaveBeenCalledTimes(1);
   });
 });

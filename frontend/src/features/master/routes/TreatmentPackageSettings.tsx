@@ -416,7 +416,13 @@ export function TreatmentPackageSettings() {
   // EMR-532: target なし（一覧のみ）の失権でも同じ説明と再確認ボタンを出す（復帰経路の確保）。
   const authorizationLostPanel = (
     <div className="p-4">
-      <ErrorFallback message="この構成を表示する権限がありません。権限を確認してから再読込してください。" />
+      <ErrorFallback
+        message={
+          target === null
+            ? "パッケージマスタを操作する権限を確認できません。権限を確認してから再読込してください。"
+            : "この構成を表示する権限がありません。権限を確認してから再読込してください。"
+        }
+      />
       <div className="mt-3">
         <button
           type="button"
@@ -438,7 +444,9 @@ export function TreatmentPackageSettings() {
           </p>
         ) : recheck.kind === "denied-view" ? (
           <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
-            構成に含まれる型の閲覧権限がありません。
+            {target === null
+              ? "パッケージマスタの閲覧権限がありません。"
+              : "構成に含まれる型の閲覧権限がありません。"}
           </p>
         ) : recheck.kind === "failed" ? (
           <p role="alert" className={`mt-2 text-sm ${C.danger}`}>

@@ -72,7 +72,12 @@ export const useCreateTreatmentPackage = () => {
   return useMutation({
     mutationFn: (req: TreatmentPackageCreate) => createTreatmentPackage(req),
     onSuccess: () => invalidateAll(qc),
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => {
+      // R4: 403 は画面側（失権表示）で処理するため汎用 toast を出さない。
+      // create 409 は画面側で扱わない（比較対象がない）ので汎用 toast を維持する。
+      if (isForbiddenError(error)) return;
+      handleApiError(error, "操作");
+    },
   });
 };
 
@@ -105,7 +110,11 @@ export const useDeleteTreatmentPackage = () => {
     mutationFn: ({ id, version }: { id: string; version: string }) =>
       deleteTreatmentPackage(id, requireEditingVersion(version)),
     onSuccess: () => invalidateAll(qc),
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => {
+      // R4: 403（失権表示）と 409（画面側の版競合メッセージ）は画面側で処理する。
+      if (isConflictError(error) || isForbiddenError(error)) return;
+      handleApiError(error, "操作");
+    },
   });
 };
 
@@ -117,7 +126,11 @@ export const useReorderTreatmentPackages = () => {
       return reorderTreatmentPackages(req);
     },
     onSuccess: () => invalidateAll(qc),
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => {
+      // R4: 403（失権表示）と 409（画面側の版競合メッセージ）は画面側で処理する。
+      if (isConflictError(error) || isForbiddenError(error)) return;
+      handleApiError(error, "操作");
+    },
   });
 };
 

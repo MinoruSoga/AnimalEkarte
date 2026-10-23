@@ -973,6 +973,28 @@ describe("EMR-532 R1/R2: 再確認の順序・conflict terminal・refreshPermiss
     expect(screen.queryByText("保存")).toBeNull();
     expect(vi.mocked(axios.patch)).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["500", () => apiError(500)],
+    ["通信断（response なし）", () => new AxiosError("Network Error")],
+  ])(
+    "B7-02: 再確認で対象 GET が %s → 失敗表示・editor 非表示維持・PATCH なし",
+    async (_label, makeError) => {
+      const { user } = await openAndLoseAuthorization();
+      vi.mocked(axios.get).mockImplementation((url: string) =>
+        url === DETAIL_URL ? Promise.reject(makeError()) : Promise.resolve(listBody),
+      );
+      await user.click(screen.getByText("権限を再確認"));
+
+      expect(
+        await screen.findByText("再確認中に取得エラーが発生しました。権限状態は不明です。"),
+      ).toBeTruthy();
+      expect(screen.queryByLabelText("名称")).toBeNull();
+      expect(screen.queryByText("保存")).toBeNull();
+      expect(refreshPermissionsMock).not.toHaveBeenCalled(); // 対象 GET 失敗時は先へ進まない。
+      expect(vi.mocked(axios.patch)).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("EMR-532 F3: 409 比較後の明示選択は一覧を再取得し、背景データで baseline/draft を置換しない", () => {
@@ -1052,6 +1074,9 @@ describe("EMR-532 Codex 4354539658: editor なし（list-only）の失権にも�
     data: { items: [pkg("201", "セットA"), pkg("202", "セットB")], order_version: "17" },
   };
 
+  // A7-02: target なしの失権は「構成」ではなくマスタ操作の権限確認として案内する。
+  const LIST_ONLY_COPY = /パッケージマスタを操作する権限を確認できません/;
+
   /** editor を開かず並替を試み、PATCH reorder が 403 を返して失権 latch が掛かった状態にする。 */
   const loseAuthorizationByReorder = async () => {
     const user = userEvent.setup();
@@ -1060,7 +1085,7 @@ describe("EMR-532 Codex 4354539658: editor なし（list-only）の失権にも�
     render_();
     await screen.findByText("セットA");
     await user.click(screen.getByLabelText("セットAを下へ"));
-    expect(await screen.findByText(/この構成を表示する権限がありません/)).toBeTruthy();
+    expect(await screen.findByText(LIST_ONLY_COPY)).toBeTruthy();
     return { user };
   };
 
@@ -1070,6 +1095,7 @@ describe("EMR-532 Codex 4354539658: editor なし（list-only）の失権にも�
   it("target なしの reorder 403 → 説明と「権限を再確認」を表示し、並替は無効", async () => {
     await loseAuthorizationByReorder();
     expect(screen.getByText("権限を再確認")).toBeTruthy();
+    expect(screen.queryByText(/この構成を表示する権限がありません/)).toBeNull();
     expect(reorderDisabled()).toBe(true);
     expect(screen.queryByLabelText("名称")).toBeNull();
   });
@@ -1079,9 +1105,7 @@ describe("EMR-532 Codex 4354539658: editor なし（list-only）の失権にも�
     vi.mocked(axios.get).mockClear();
     await user.click(screen.getByText("権限を再確認"));
 
-    await vi.waitFor(() =>
-      expect(screen.queryByText(/この構成を表示する権限がありません/)).toBeNull(),
-    );
+    await vi.waitFor(() => expect(screen.queryByText(LIST_ONLY_COPY)).toBeNull());
     expect(refreshPermissionsMock).toHaveBeenCalledTimes(1);
     expect(reorderDisabled()).toBe(false);
     // 対象がないので detail GET は送らず、一覧のみ再取得する。
@@ -1099,7 +1123,7 @@ describe("EMR-532 Codex 4354539658: editor なし（list-only）の失権にも�
     expect(
       await screen.findByText("再確認中に取得エラーが発生しました。権限状態は不明です。"),
     ).toBeTruthy();
-    expect(screen.getByText(/この構成を表示する権限がありません/)).toBeTruthy();
+    expect(screen.getByText(LIST_ONLY_COPY)).toBeTruthy();
     expect(reorderDisabled()).toBe(true);
     expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1);
   });
@@ -1109,7 +1133,24 @@ describe("EMR-532 Codex 4354539658: editor なし（list-only）の失権にも�
     kindPermission = { "master-medical": { canView: false } };
     await user.click(screen.getByText("権限を再確認"));
 
-    expect(await screen.findByText(/構成に含まれる型の閲覧権限がありません/)).toBeTruthy();
+    expect(await screen.findByText(/パッケージマスタの閲覧権限がありません/)).toBeTruthy();
     expect(screen.getByText("権限を再確認")).toBeTruthy();
+  });
+
+  it("B7-02: 初回ロードの一覧 403（editor なし）→ 再確認ボタン表示 → 一覧成功+権限 OK で解除", async () => {
+    const user = userEvent.setup();
+    vi.mocked(axios.get).mockRejectedValue(apiError(403));
+    render_();
+    expect(await screen.findByText(LIST_ONLY_COPY)).toBeTruthy();
+    expect(screen.queryByText(/この構成を表示する権限がありません/)).toBeNull();
+    expect(screen.getByText("権限を再確認")).toBeTruthy();
+
+    vi.mocked(axios.get).mockResolvedValue(twoItems);
+    await user.click(screen.getByText("権限を再確認"));
+
+    await vi.waitFor(() => expect(screen.queryByText(LIST_ONLY_COPY)).toBeNull());
+    expect(refreshPermissionsMock).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(reorderDisabled()).toBe(false));
+    expect(vi.mocked(axios.patch)).not.toHaveBeenCalled();
   });
 });
