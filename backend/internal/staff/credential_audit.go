@@ -117,7 +117,7 @@ func writeAccountDeactivationAuditTx(
 	clinicID, staffID, accountID, actorStaffID uint64,
 ) error {
 	entry := &model.AuditLog{
-		ClinicID:   &clinicID,
+		ClinicID:   clinicID,
 		ActorType:  model.AuditActorTypeSystem,
 		Action:     auditActionStaffAccountDeactivate,
 		Resource:   model.AuditResourceAccount,

@@ -100,7 +100,7 @@ func TestHospitalizationService_Create_RejectsCrossClinicOwnerPet(t *testing.T) 
 				assertOwnerInClinicFn:  tt.assertOwnerFn,
 				findPetOwnerInClinicFn: tt.findPetFn,
 			}
-			svc := NewHospitalizationService(hospRepo, resRepo, nil, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
+			svc := NewHospitalizationService(hospRepo, resRepo, nil, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 			got, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
 				CageID:              func() *uint64 { v := uint64(10); return &v }(),
@@ -136,7 +136,7 @@ func TestHospitalizationService_Create_AcceptsSameClinicOwnerPet(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 			return &model.Pet{ID: id}, nil
 		},
-	}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
+	}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	got, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
 		CageID:              func() *uint64 { v := uint64(10); return &v }(),
@@ -226,7 +226,7 @@ func TestHospitalizationService_Update_RejectsCrossClinicOwnerPetAndMismatch(t *
 				assertOwnerInClinicFn:  tt.assertOwnerFn,
 				findPetOwnerInClinicFn: tt.findPetFn,
 			}
-			svc := NewHospitalizationService(hospRepo, resRepo, nil, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
+			svc := NewHospitalizationService(hospRepo, resRepo, nil, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 			got, err := svc.Update(context.Background(), clinicID, 1, tt.input)
 
@@ -262,7 +262,7 @@ func TestHospitalizationService_Update_AcceptsSameClinicFinalOwnerPet(t *testing
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 			return &model.Pet{ID: id}, nil
 		},
-	}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
+	}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	got, err := svc.Update(context.Background(), clinicID, 1, &UpdateHospitalizationInput{PetID: &newPetID})
 

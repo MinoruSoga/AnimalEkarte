@@ -573,12 +573,19 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Soft delete joins the caller's transaction so later failures restore the active pet.
 	// Runtime: TestPetRepository_DeleteParticipatesInAmbientTransaction / TestPetRepository_Delete_ClinicIsolation.
 	"pet/repository.go|repository.Delete": {},
-	// PR606 cage swap: pet status/deceased_at is checked under a clinic-scoped FOR UPDATE
-	// lock retained by the swap's ambient transaction; no-tx reads fail closed. Regressions:
+	// PR606 cage swap: the local pet row is locked under a clinic-scoped FOR UPDATE lock retained
+	// by the swap's ambient transaction; no-tx reads fail closed. (EMR-491 D6: the death check itself
+	// moved to LifeStateReader below; the swap reads it right after this local lock.) Regressions:
 	// TestPetRepository_LockByIDForUpdate (internal/pet/repository_row_lock_test.go) /
-	// TestHospitalizationSwapCages_PetDeathCheckSerializesConcurrentDeath
+	// TestHospitalizationSwapCages_LifeStateReadAfterLocalLockInsideTx
 	// (internal/medicalrecord/hospitalization_cage_swap_test.go).
 	"pet/repository.go|repository.LockByIDForUpdate": {},
+	// EMR-491 D6 death reader: ambient tx required (the common subject FOR SHARE lock would be released
+	// at statement end otherwise, so no tx fails closed). Regressions (internal/pet/life_state_reader_test.go):
+	// TestLifeStateReader_RequiresAmbientTransaction /
+	// TestLifeStateReader_HoldsSubjectShareLockUntilTransactionEnds /
+	// TestLifeStateReader_ReResolvesCurrentRevisionAfterLockWait
+	"pet/life_state_reader.go|LifeStateReader.ReadPetLifeState": {},
 	// 死亡登録/復活の条件付き UPDATE（CAS）。期待 status を述語に含め RowsAffected==0 を 409 へ写像する
 	// ため、呼び出し元の ambient transaction に参加して同一 snapshot 上で判定する必要がある。Runtime:
 	// TestPetRepository_RecordDeath_ConcurrentRequestsPreserveWinner /
@@ -1024,8 +1031,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_staff_repository.go|reservationStaffRepository.SupportsReservationType":                  {}, // assignment/capability SHARE-lock concurrency proof
 	// Durable scheduler reads use an explicit slot timestamp and participate in the caller's tx.
 	"reservation/reservation_repository_queries.go|reservationRepository.FindNoShowCandidatesAt": {},
-	// SD-10 deceased write guard: ambient SHARE-lock read. Runtime:
-	// TestReservationRepository_FindPetByIDInClinic_SeesUncommittedDeceasedUpdate
+	// Pet owner/clinic link read (EMR-491 D6: death state moved to ReadPetLifeState): ambient SHARE-lock read. Runtime:
+	// TestReservationRepository_FindPetByIDInClinic_SeesUncommittedOwnerUpdate
 	// + TestReservationRepository_FindPetByIDInClinic_ShareLockBlocksConcurrentWriter
 	"reservation/reservation_repository_queries.go|reservationRepository.FindPetByIDInClinic": {},
 
@@ -1092,6 +1099,10 @@ type ambientTxParticipationExpectation struct {
 // must keep a literal persistence.TxFromContext call, so it cannot silently weaken back to
 // fallback-on-base-DB behavior.
 var ambientTxParticipationExpectations = map[string]ambientTxParticipationExpectation{
+	// EMR-491 D6: death reader locks the common subject FOR SHARE and must never fall back to the base DB.
+	"pet/life_state_reader.go|LifeStateReader.ReadPetLifeState": {
+		shape: ambientTxRequired,
+	},
 	// TASK-027 Slice A append is fail-closed: it must receive an ambient transaction and
 	// never fall back to the repository base DB. Runtime proof is named in the allowlist above.
 	// EMR-502: FOR UPDATE lock は ambient tx 必須（tx なしでは文終了で解放されるため

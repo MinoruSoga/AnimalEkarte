@@ -44,7 +44,7 @@ func (r *failingReservationStaffReadbackRepository) FindByID(
 func (r *failingReservationStaffReadbackRepository) FindAllExcludedReservationTypes(
 	ctx context.Context,
 	clinicID, staffID uint64,
-) ([]model.StaffReservationExclusion, error) {
+) ([]staffpkg.ReservationTypeExclusion, error) {
 	if r.failExcluded {
 		return nil, errReservationStaffReadback
 	}

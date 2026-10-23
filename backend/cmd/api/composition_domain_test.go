@@ -12,6 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/audit"
 	"github.com/animal-ekarte/backend/internal/billing"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/pet"
 )
 
 type capturingBillingAuditTxLogger struct {
@@ -41,6 +42,7 @@ func TestNewMedicalRecordCompositionBuildsDomainGraph(t *testing.T) {
 		medicalRecordCompositionDependencies{
 			Transactor:       persistence.NewTransactor(db),
 			Reservations:     reservationRepositories.Reservations,
+			PetLife:          pet.NewLifeStateReader(),
 			Staff:            staffRepositories.Staff,
 			StaffAssignments: staffRepositories.Assignments,
 		},
@@ -58,6 +60,11 @@ func TestNewMedicalRecordCompositionBuildsDomainGraph(t *testing.T) {
 	requireServiceDependency(t, composition.services.preventive.checkups, "transactor")
 	requireServiceDependency(t, composition.services.core.examinations, "relations")
 	requireServiceDependency(t, composition.services.core.examinations, "transactor")
+	// EMR-491 D6: every death write guard must hold a wired reader (nil would fail closed at runtime).
+	requireServiceDependency(t, composition.services.core.examinations, "petStatuses")
+	requireServiceDependency(t, composition.services.hospital.hospitalizations, "petLife")
+	requireServiceDependency(t, composition.services.clinical.images, "pets")
+	requireServiceDependency(t, reservationRepositories.Reservations, "petLife")
 	requireServiceDependency(t, composition.services.clinical.vitals, "relations")
 	requireServiceDependency(t, composition.services.clinical.vitals, "staffs")
 	requireServiceDependency(t, composition.services.clinical.vitals, "staffAssignments")

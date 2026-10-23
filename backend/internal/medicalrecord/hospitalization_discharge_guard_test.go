@@ -69,6 +69,7 @@ func TestHospitalizationService_DischargeWithBilling_ReusesExistingNonCancelledB
 	deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo)
 	svc := NewHospitalizationServiceWithAudit(
 		hospRepo, deps.reservation, nil, nil, carePlanRepo, accountingRepo, billingItemRepo, &mockTransactor{}, audit,
+		WithPetLifeStateReader(stubPetLifeReader{}),
 	)
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
@@ -131,6 +132,7 @@ func TestHospitalizationService_DischargeWithBilling_ReleasesCancelledBillingThe
 	deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo)
 	svc := NewHospitalizationServiceWithAudit(
 		hospRepo, deps.reservation, nil, nil, carePlanRepo, accountingRepo, billingItemRepo, &mockTransactor{}, audit,
+		WithPetLifeStateReader(stubPetLifeReader{}),
 	)
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
@@ -179,6 +181,7 @@ func TestHospitalizationService_DischargeWithBilling_ReusesCompletedBilling(t *t
 	deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo)
 	svc := NewHospitalizationServiceWithAudit(
 		hospRepo, deps.reservation, nil, nil, carePlanRepo, accountingRepo, billingItemRepo, &mockTransactor{}, &hospitalizationAuditRecorder{},
+		WithPetLifeStateReader(stubPetLifeReader{}),
 	)
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{

@@ -188,7 +188,7 @@ func TestHospitalizationService_Update_NextVisit(t *testing.T) {
 				return nil, nil
 			},
 		}
-		svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 		hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{
 			ClearNextVisit: true,
@@ -217,7 +217,7 @@ func TestHospitalizationService_Update_NextVisit(t *testing.T) {
 				return &model.Hospitalization{ID: 1, ClinicID: 1, NextVisit: &nextVisit}, nil
 			},
 		}
-		svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 		hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{
 			NextVisit: &nextVisit,
@@ -247,7 +247,7 @@ func TestHospitalizationService_Update_NextVisit(t *testing.T) {
 				return &model.Hospitalization{ID: 1, ClinicID: 1}, nil
 			},
 		}
-		svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+		svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 		hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{
 			ClearNextVisit: true,
@@ -279,7 +279,7 @@ func TestHospitalizationService_Create_PropagatesNextVisit(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 			return &model.Pet{ID: id}, nil
 		},
-	}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
+	}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	hosp, err := svc.Create(context.Background(), 1, &CreateHospitalizationInput{
 		OwnerID:             2,

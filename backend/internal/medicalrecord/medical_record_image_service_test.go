@@ -10,15 +10,12 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
-// livingPetFinder は Create 成功系 fixture 用の生存ペット stub。
-func livingPetFinder() petFinder {
-	return &mockPetRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id}, nil
-		},
-	}
+// livingPetFinder は Create 成功系 fixture 用の生存ペット reader stub（EMR-491 D6・明示した test double）。
+func livingPetFinder() sharedkernel.PetLifeStateReader {
+	return stubPetLifeReader{}
 }
 
 // draftMedicalRecordWithPet は画像 Create の親 draft カルテ（PetID 付き）を返す。
@@ -540,51 +537,62 @@ func TestMedicalRecordImageService_CreateFailsClosedWithoutRelationDependencies(
 	assert.Zero(t, createCalls)
 }
 
-// TestMedicalRecordImageService_CreateRejectsDeceasedPet は SEC-CS-F14:
-// 親カルテのペットが死亡している場合、画像 Create を拒否し repo.Create を呼ばない。
-func TestMedicalRecordImageService_CreateRejectsDeceasedPet(t *testing.T) {
+// TestMedicalRecordImageService_CreateRejectsDeceasedOrUnresolvedPet は SEC-CS-F14 / EMR-491 D6:
+// 親カルテのペットが死亡している場合は業務拒否（InvalidInput）、生死を確定できない（unresolved）/
+// reader 失敗の場合は生存扱いにせずエラーで拒否し、いずれも repo.Create を呼ばない。
+func TestMedicalRecordImageService_CreateRejectsDeceasedOrUnresolvedPet(t *testing.T) {
 	const (
 		clinicID      = uint64(1)
 		medicalRecord = uint64(10)
 		petID         = uint64(40)
 	)
-	deceasedAt := time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)
-	createCalls := 0
-	repo := &mockMedicalRecordImageRepository{
-		createFn: func(_ context.Context, _ *model.MedicalRecordImage) error {
-			createCalls++
-			t.Fatal("repo.Create must not be called for a deceased pet")
-			return nil
-		},
-	}
-	medRecRepo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, gotClinicID, gotRecordID uint64) (*model.MedicalRecord, error) {
-			return draftMedicalRecordWithPet(gotClinicID, gotRecordID, petID), nil
-		},
-	}
-	pets := &mockPetRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
-		},
-	}
-	svc := NewMedicalRecordImageServiceWithRelationValidation(
-		repo,
-		medRecRepo,
-		pets,
-		&medicalRecordImageExaminationFinderStub{},
-		&clinicalStaffLockerStub{},
-		&clinicalStaffAssignmentLockerStub{},
-		&mockCheckupTransactor{},
-	)
+	for _, tc := range []struct {
+		name        string
+		state       sharedkernel.PetLifeState
+		readErr     error
+		wantInvalid bool
+	}{
+		{name: "deceased", state: sharedkernel.PetLifeStateDeceased, wantInvalid: true},
+		{name: "unresolved", readErr: apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recorded")},
+		{name: "reader failure", readErr: errors.New("db down")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			createCalls := 0
+			repo := &mockMedicalRecordImageRepository{
+				createFn: func(_ context.Context, _ *model.MedicalRecordImage) error {
+					createCalls++
+					t.Fatal("repo.Create must not be called unless the pet is confirmed alive")
+					return nil
+				},
+			}
+			medRecRepo := &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, gotClinicID, gotRecordID uint64) (*model.MedicalRecord, error) {
+					return draftMedicalRecordWithPet(gotClinicID, gotRecordID, petID), nil
+				},
+			}
+			svc := NewMedicalRecordImageServiceWithRelationValidation(
+				repo,
+				medRecRepo,
+				stubPetLifeState(tc.state, tc.readErr),
+				&medicalRecordImageExaminationFinderStub{},
+				&clinicalStaffLockerStub{},
+				&clinicalStaffAssignmentLockerStub{},
+				&mockCheckupTransactor{},
+			)
 
-	got, err := svc.Create(context.Background(), clinicID, medicalRecord, &CreateMedicalRecordImageInput{
-		ImageURL:  "https://example.com/image.jpg",
-		FileName:  "image.jpg",
-		ImageType: model.MedicalImageTypeXray,
-	})
+			got, err := svc.Create(context.Background(), clinicID, medicalRecord, &CreateMedicalRecordImageInput{
+				ImageURL:  "https://example.com/image.jpg",
+				FileName:  "image.jpg",
+				ImageType: model.MedicalImageTypeXray,
+			})
 
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsInvalidInput(err))
-	assert.Nil(t, got)
-	assert.Zero(t, createCalls)
+			assert.Error(t, err)
+			assert.Equal(t, tc.wantInvalid, apperrors.IsInvalidInput(err), "unexpected error class: %v", err)
+			if tc.readErr != nil {
+				assert.ErrorIs(t, err, tc.readErr)
+			}
+			assert.Nil(t, got)
+			assert.Zero(t, createCalls)
+		})
+	}
 }

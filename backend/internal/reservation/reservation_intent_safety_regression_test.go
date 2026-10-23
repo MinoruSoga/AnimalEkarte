@@ -190,7 +190,7 @@ func TestReservationUpdate_PetRebindInvalidatesIntentProvenance(t *testing.T) {
 				lockAndFindByIDFn:      func(context.Context, uint64, uint64) (*model.Reservation, error) { return original, nil },
 				findPetOwnerInClinicFn: func(context.Context, uint64, uint64) (uint64, error) { return 20, nil },
 				findPetByIDInClinicFn: func(context.Context, uint64, uint64) (*model.Pet, error) {
-					return &model.Pet{ID: 23, ClinicID: 3, OwnerID: 20, Status: model.PetStatusAlive}, nil
+					return &model.Pet{ID: 23, ClinicID: 3, OwnerID: 20}, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
 					saved = fields
@@ -238,7 +238,7 @@ func TestReservationUpdate_SamePetPreservesIntentProvenance(t *testing.T) {
 		lockAndFindByIDFn:      func(context.Context, uint64, uint64) (*model.Reservation, error) { return row, nil },
 		findPetOwnerInClinicFn: func(context.Context, uint64, uint64) (uint64, error) { return 20, nil },
 		findPetByIDInClinicFn: func(context.Context, uint64, uint64) (*model.Pet, error) {
-			return &model.Pet{ID: 22, ClinicID: 3, OwnerID: 20, Status: model.PetStatusAlive}, nil
+			return &model.Pet{ID: 22, ClinicID: 3, OwnerID: 20}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
 			saved = fields

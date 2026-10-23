@@ -26,6 +26,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ── in-memory fakes (all state scripted; call order recorded in seq) ─────────
@@ -79,7 +80,7 @@ func (f *mrRepoFake) Create(_ context.Context, record *model.MedicalRecord) erro
 }
 
 // resRepoFake implements the consumer-side reservation view (AssertOwnerInClinic,
-// FindPetOwnerInClinic, FindByID, FindPetByIDInClinic,
+// FindPetOwnerInClinic, FindByID, ReadPetLifeState,
 // AssertMedicalRecordDoctorInClinic, BackfillForMedicalRecord,
 // PrepareForMedicalRecordFinalization).
 type resRepoFake struct {
@@ -89,8 +90,8 @@ type resRepoFake struct {
 	petErr      error
 	appt        *model.Reservation
 	apptErr     error
-	pet         *model.Pet
-	petFindErr  error
+	lifeState   sharedkernel.PetLifeState
+	lifeErr     error
 	doctorErr   error
 	backfillErr error
 }
@@ -110,9 +111,9 @@ func (f *resRepoFake) FindByID(_ context.Context, _, _ uint64) (*model.Reservati
 	return f.appt, f.apptErr
 }
 
-func (f *resRepoFake) FindPetByIDInClinic(_ context.Context, _, _ uint64) (*model.Pet, error) {
-	*f.seq = append(*f.seq, "res.FindPetByIDInClinic")
-	return f.pet, f.petFindErr
+func (f *resRepoFake) ReadPetLifeState(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+	*f.seq = append(*f.seq, "res.ReadPetLifeState")
+	return f.lifeState, f.lifeErr
 }
 
 func (f *resRepoFake) AssertMedicalRecordDoctorInClinic(_ context.Context, _, _ uint64) error {
@@ -282,9 +283,8 @@ func matchingAppointment(r *model.Reservation) *model.Reservation {
 	}
 }
 
-func alivePet(id uint64) *model.Pet {
-	return &model.Pet{ID: id, Status: model.PetStatusAlive}
-}
+// aliveLifeState is the explicit test-double life state for a confirmed-alive pet (EMR-491 D6).
+const aliveLifeState = sharedkernel.PetLifeStateAlive
 
 func newService(repo *mrRepoFake, res *resRepoFake, plan *planRepoFake, audit *auditFake, lc *lcFake, tx *txFake) medicalrecord.MedicalRecordService {
 	return medicalrecord.NewMedicalRecordServiceWithTxAudit(
@@ -367,7 +367,7 @@ func TestC15_AutoCreateLockBusySkipsCreate(t *testing.T) {
 	seq := newSeq()
 	reservation := validReservation()
 	repo := &mrRepoFake{seq: seq, acquired: false} // pg_try_advisory_xact_lock => false
-	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), pet: alivePet(700)}
+	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), lifeState: aliveLifeState}
 	plan := &planRepoFake{seq: seq}
 	audit := &auditFake{seq: seq}
 	tx := &txFake{seq: seq, runFn: true}
@@ -388,7 +388,7 @@ func TestC15_AutoCreateLockErrorSkipsCreate(t *testing.T) {
 	seq := newSeq()
 	reservation := validReservation()
 	repo := &mrRepoFake{seq: seq, acquired: false, acquireErr: errors.New("lock unavailable")}
-	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), pet: alivePet(700)}
+	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), lifeState: aliveLifeState}
 	plan := &planRepoFake{seq: seq}
 	audit := &auditFake{seq: seq}
 	tx := &txFake{seq: seq, runFn: true}
@@ -411,7 +411,7 @@ func TestC15_AutoCreateWithoutTransactionDependencyIsFailClosed(t *testing.T) {
 	seq := newSeq()
 	reservation := validReservation()
 	repo := &mrRepoFake{seq: seq, acquired: true}
-	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), pet: alivePet(700)}
+	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), lifeState: aliveLifeState}
 	plan := &planRepoFake{seq: seq}
 	audit := &auditFake{seq: seq}
 
@@ -431,7 +431,7 @@ func TestC15_AutoCreateSameDayExistingSkipsCreate(t *testing.T) {
 	seq := newSeq()
 	reservation := validReservation()
 	repo := &mrRepoFake{seq: seq, acquired: true, count: 1}
-	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), pet: alivePet(700)}
+	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), lifeState: aliveLifeState}
 	plan := &planRepoFake{seq: seq}
 	audit := &auditFake{seq: seq}
 	tx := &txFake{seq: seq, runFn: true}
@@ -459,7 +459,7 @@ func TestC15_AutoCreateExistingAppointmentRecordRepairsWithoutCreate(t *testing.
 		AppointmentID: u64(reservation.ID),
 	}
 	repo := &mrRepoFake{seq: seq, acquired: true, count: 0, existing: existing}
-	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), pet: alivePet(700)}
+	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), lifeState: aliveLifeState}
 	plan := &planRepoFake{seq: seq, plan: &model.ClinicalPlan{ID: 42, MedicalRecordID: 555}}
 	audit := &auditFake{seq: seq}
 	tx := &txFake{seq: seq, runFn: true}
@@ -479,7 +479,7 @@ func TestC15_AutoCreateExistingAppointmentRecordRepairsWithoutCreate(t *testing.
 		"res.FindByID",
 		"res.AssertOwnerInClinic",
 		"res.FindPetOwnerInClinic",
-		"res.FindPetByIDInClinic",
+		"res.ReadPetLifeState",
 		"repo.FindByAppointmentID",
 		"tx.WithTx.commit",
 		"plan.FindByMedicalRecordID",
@@ -497,7 +497,7 @@ func TestC15_AutoCreateCreatesOnceThenReplaySuppresses(t *testing.T) {
 	seq := newSeq()
 	reservation := validReservation()
 	repo := &mrRepoFake{seq: seq, acquired: true, count: 0, createID: 6001}
-	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), pet: alivePet(700)}
+	res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), lifeState: aliveLifeState}
 	plan := &planRepoFake{seq: seq, findErr: apperrors.WrapNotFound("clinical_plan", "")}
 	audit := &auditFake{seq: seq}
 	tx := &txFake{seq: seq, runFn: true}
@@ -515,7 +515,7 @@ func TestC15_AutoCreateCreatesOnceThenReplaySuppresses(t *testing.T) {
 		"res.FindByID",
 		"res.AssertOwnerInClinic",
 		"res.FindPetOwnerInClinic",
-		"res.FindPetByIDInClinic",
+		"res.ReadPetLifeState",
 		"repo.FindByAppointmentID",
 		"repo.Create",
 		"tx.WithTx.commit",
@@ -596,14 +596,42 @@ func TestC15_AutoCreateOrderViolationsRejectBeforeCreate(t *testing.T) {
 		{
 			name: "deceased pet write is rejected after context resolution",
 			mutate: func(res *resRepoFake) {
-				res.pet = &model.Pet{ID: 700, Status: model.PetStatusDeceased}
+				res.lifeState = sharedkernel.PetLifeStateDeceased
 			},
 			wantSeq: []string{
 				"tx.WithTx.begin", "repo.AcquireAutoCreateLock", "repo.CountByPetAndDate",
 				"res.AssertOwnerInClinic", "res.FindPetOwnerInClinic",
 				"res.BackfillForMedicalRecord", "res.FindByID",
 				"res.AssertOwnerInClinic", "res.FindPetOwnerInClinic",
-				"res.FindPetByIDInClinic", "tx.WithTx.rollback",
+				"res.ReadPetLifeState", "tx.WithTx.rollback",
+			},
+		},
+		{
+			name: "unresolved pet life state is rejected, never treated as alive",
+			mutate: func(res *resRepoFake) {
+				res.lifeState = ""
+				res.lifeErr = apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recorded")
+			},
+			wantSeq: []string{
+				"tx.WithTx.begin", "repo.AcquireAutoCreateLock", "repo.CountByPetAndDate",
+				"res.AssertOwnerInClinic", "res.FindPetOwnerInClinic",
+				"res.BackfillForMedicalRecord", "res.FindByID",
+				"res.AssertOwnerInClinic", "res.FindPetOwnerInClinic",
+				"res.ReadPetLifeState", "tx.WithTx.rollback",
+			},
+		},
+		{
+			name: "pet life state reader failure is rejected, never treated as alive",
+			mutate: func(res *resRepoFake) {
+				res.lifeState = ""
+				res.lifeErr = errors.New("SECCHK20261009READERDOWN")
+			},
+			wantSeq: []string{
+				"tx.WithTx.begin", "repo.AcquireAutoCreateLock", "repo.CountByPetAndDate",
+				"res.AssertOwnerInClinic", "res.FindPetOwnerInClinic",
+				"res.BackfillForMedicalRecord", "res.FindByID",
+				"res.AssertOwnerInClinic", "res.FindPetOwnerInClinic",
+				"res.ReadPetLifeState", "tx.WithTx.rollback",
 			},
 		},
 	}
@@ -611,7 +639,7 @@ func TestC15_AutoCreateOrderViolationsRejectBeforeCreate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			seq := newSeq()
 			repo := &mrRepoFake{seq: seq, acquired: true, count: 0, createID: 6001}
-			res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), pet: alivePet(700)}
+			res := &resRepoFake{seq: seq, petOwnerID: 70, appt: matchingAppointment(reservation), lifeState: aliveLifeState}
 			tc.mutate(res)
 			plan := &planRepoFake{seq: seq}
 			audit := &auditFake{seq: seq}

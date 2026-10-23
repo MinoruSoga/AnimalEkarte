@@ -125,8 +125,8 @@ func TestShiftEntryService_Update(t *testing.T) {
 				ID:        1,
 				ClinicID:  1,
 				ShiftType: model.ShiftTypeFull,
-				StartTime: &existingStart,
-				EndTime:   &existingEnd,
+				StartsAt:  shiftTS(t, testShiftDate, existingStart),
+				EndsAt:    shiftTS(t, testShiftDate, existingEnd),
 			}
 			callCount := 0
 			repo := &mockShiftEntryRepository{
@@ -506,7 +506,7 @@ func TestShiftEntryService_Create_AdditionalBranches(t *testing.T) {
 		require.NotNil(t, entry)
 		assert.Equal(t, uint64(42), savedEntryID)
 		require.Len(t, savedBreaks, 1)
-		assert.Equal(t, "12:00:00", savedBreaks[0].BreakStart)
+		assert.Equal(t, "12:00:00", shiftClock(savedBreaks[0].StartsAt))
 	})
 
 	t.Run("returns error when saving breaks fails", func(t *testing.T) {
@@ -593,7 +593,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ShiftEntry, error) {
 				return &model.ShiftEntry{
 					ID: 1, ShiftType: model.ShiftTypeFull,
-					StartTime: &existingStart, EndTime: &existingEnd,
+					StartsAt: shiftTS(t, testShiftDate, existingStart), EndsAt: shiftTS(t, testShiftDate, existingEnd),
 				}, nil
 			},
 		}
@@ -611,7 +611,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.ShiftEntry, error) {
 				return &model.ShiftEntry{
 					ID: 1, ShiftType: model.ShiftTypeFull,
-					StartTime: &existingStart, EndTime: &existingEnd,
+					StartsAt: shiftTS(t, testShiftDate, existingStart), EndsAt: shiftTS(t, testShiftDate, existingEnd),
 				}, nil
 			},
 		}
@@ -635,7 +635,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 				callCount++
 				return &model.ShiftEntry{
 					ID: id, ShiftType: model.ShiftTypeFull,
-					StartTime: &existingStart, EndTime: &existingEnd,
+					StartsAt: shiftTS(t, testShiftDate, existingStart), EndsAt: shiftTS(t, testShiftDate, existingEnd),
 				}, nil
 			},
 			updateFn: func(_ context.Context, _, _ uint64, _ UpdateShiftEntryInput) error {
@@ -731,7 +731,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftEntry, error) {
 				return &model.ShiftEntry{
 					ID: id, ShiftType: model.ShiftTypeFull,
-					StartTime: &existingStart, EndTime: &existingEnd,
+					StartsAt: shiftTS(t, testShiftDate, existingStart), EndsAt: shiftTS(t, testShiftDate, existingEnd),
 				}, nil
 			},
 			updateFn: func(_ context.Context, _, _ uint64, _ UpdateShiftEntryInput) error {
@@ -761,7 +761,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 				if callCount == 1 {
 					return &model.ShiftEntry{
 						ID: id, ShiftType: model.ShiftTypeFull,
-						StartTime: &existingStart, EndTime: &existingEnd,
+						StartsAt: shiftTS(t, testShiftDate, existingStart), EndsAt: shiftTS(t, testShiftDate, existingEnd),
 					}, nil
 				}
 				return nil, errors.New("not found")

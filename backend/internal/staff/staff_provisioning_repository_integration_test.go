@@ -256,9 +256,10 @@ func TestStaffProvisioning_Integration_ApplyAtomicAndReceipts(t *testing.T) {
 		model.AuditResourceStaff,
 	).Find(&createAudits).Error)
 	require.Len(t, createAudits, 1)
-	assert.NotContains(t, string(createAudits[0].NewValue), "合成発行スタッフ")
-	assert.NotContains(t, string(createAudits[0].NewValue), "synthetic-provision")
-	assert.NotContains(t, string(createAudits[0].NewValue), "Password")
+	require.NotNil(t, createAudits[0].NewValue)
+	assert.NotContains(t, string(*createAudits[0].NewValue), "合成発行スタッフ")
+	assert.NotContains(t, string(*createAudits[0].NewValue), "synthetic-provision")
+	assert.NotContains(t, string(*createAudits[0].NewValue), "Password")
 
 	// Receipt per affected clinic only
 	var receipts []model.AuditLog
@@ -269,13 +270,13 @@ func TestStaffProvisioning_Integration_ApplyAtomicAndReceipts(t *testing.T) {
 	).Order("clinic_id ASC").Find(&receipts).Error)
 	require.Len(t, receipts, 2)
 	for _, receipt := range receipts {
-		require.NotNil(t, receipt.ClinicID)
-		assert.Contains(t, []uint64{f.clinicA, f.clinicB}, *receipt.ClinicID)
-		assert.NotContains(t, string(receipt.NewValue), "合成")
-		assert.NotContains(t, string(receipt.NewValue), "@")
-		assert.Contains(t, string(receipt.NewValue), "batch_id")
-		assert.Contains(t, string(receipt.NewValue), "digest")
-		assert.Contains(t, string(receipt.NewValue), "count")
+		assert.Contains(t, []uint64{f.clinicA, f.clinicB}, receipt.ClinicID)
+		require.NotNil(t, receipt.NewValue)
+		assert.NotContains(t, string(*receipt.NewValue), "合成")
+		assert.NotContains(t, string(*receipt.NewValue), "@")
+		assert.Contains(t, string(*receipt.NewValue), "batch_id")
+		assert.Contains(t, string(*receipt.NewValue), "digest")
+		assert.Contains(t, string(*receipt.NewValue), "count")
 	}
 
 	// Idempotent re-apply
@@ -297,7 +298,7 @@ func TestStaffProvisioning_Integration_PartialReceiptConflict(t *testing.T) {
 	// Seed only one clinic receipt to simulate partial prior apply.
 	clinicID := f.clinicA
 	require.NoError(t, f.db.Create(&model.AuditLog{
-		ClinicID:  &clinicID,
+		ClinicID:  clinicID,
 		ActorType: model.AuditActorTypeSystem,
 		Action:    model.AuditActionStaffProvisionReceipt,
 		Resource:  model.AuditResourceStaffProvisionBatch,
@@ -325,7 +326,7 @@ func TestStaffProvisioning_Integration_DigestMismatchConflict(t *testing.T) {
 	for _, clinicID := range []uint64{f.clinicA, f.clinicB} {
 		clinicID := clinicID
 		require.NoError(t, f.db.Create(&model.AuditLog{
-			ClinicID:  &clinicID,
+			ClinicID:  clinicID,
 			ActorType: model.AuditActorTypeSystem,
 			Action:    model.AuditActionStaffProvisionReceipt,
 			Resource:  model.AuditResourceStaffProvisionBatch,
@@ -352,7 +353,7 @@ func TestStaffProvisioning_Integration_UnauthorizedDoesNotLeakReceiptExistence(t
 	require.NoError(t, err)
 	clinicID := f.clinicA
 	require.NoError(t, f.db.Create(&model.AuditLog{
-		ClinicID:  &clinicID,
+		ClinicID:  clinicID,
 		ActorType: model.AuditActorTypeSystem,
 		Action:    model.AuditActionStaffProvisionReceipt,
 		Resource:  model.AuditResourceStaffProvisionBatch,
@@ -532,10 +533,11 @@ func TestStaffProvisioning_Integration_RollbackOnAuditFailure(t *testing.T) {
 	assert.Equal(t, int64(1), accountCount)
 }
 
-func mustRawJSON(v any) []byte {
+func mustRawJSON(v any) *json.RawMessage {
 	b, err := json.Marshal(v)
 	if err != nil {
 		panic(fmt.Sprintf("json: %v", err))
 	}
-	return b
+	raw := json.RawMessage(b)
+	return &raw
 }

@@ -103,7 +103,7 @@ func wireHospHandlers(t *testing.T, db *gorm.DB, forbidden uint64) (
 	t.Helper()
 	tx := persistenceTx(db)
 	hospRepo := NewHospitalizationRepository(db)
-	hospSvc := HospitalizationService(NewHospitalizationService(hospRepo, nil, nil, nil, nil, nil, nil, tx))
+	hospSvc := HospitalizationService(NewHospitalizationService(hospRepo, nil, nil, nil, nil, nil, nil, tx, WithPetLifeStateReader(stubPetLifeReader{})))
 	careSvc := CarePlanItemService(NewCarePlanItemService(NewCarePlanItemRepository(db), hospRepo, nil, nil, nil, tx, nil))
 	dailySvc := DailyRecordService(NewDailyRecordService(NewDailyRecordRepository(db), hospRepo, reservationOwnerPet(db), tx))
 	planSvc := TreatmentPlanService(NewTreatmentPlanService(NewTreatmentPlanRepository(db), tx))

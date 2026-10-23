@@ -8,6 +8,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // buildStaffSlotInputsForDate はスタッフ一覧と指定日から StaffSlotInputs を構築する（単日パス
@@ -153,6 +154,7 @@ func buildStaffSlotInputsFromWindow(
 	staffEntries := entriesByDateStaff[dateStr]
 
 	inputs := make([]StaffSlotInput, 0, len(staffs))
+staffLoop:
 	for i := range staffs {
 		si := StaffSlotInput{StaffID: staffs[i].ID}
 
@@ -160,13 +162,20 @@ func buildStaffSlotInputsFromWindow(
 			breaks := breaksByEntry[entry.ID]
 			override := &StaffScheduleOverride{
 				ShiftType: string(entry.ShiftType),
-				WorkStart: ptrTimeToHHMM(entry.StartTime), // PostgreSQL "HH:MM:SS" → "HHMM"
-				WorkEnd:   ptrTimeToHHMM(entry.EndTime),   // PostgreSQL "HH:MM:SS" → "HHMM"
+				WorkStart: ptrTimeToHHMM(sharedkernel.ShiftTimestampToClock(entry.StartsAt)), // starts_at (time.Local) → "HHMM"
+				WorkEnd:   ptrTimeToHHMM(sharedkernel.ShiftTimestampToClock(entry.EndsAt)),   // ends_at (time.Local) → "HHMM"
 			}
 			for _, b := range breaks {
+				start := sharedkernel.ShiftTimestampToClock(b.StartsAt)
+				end := sharedkernel.ShiftTimestampToClock(b.EndsAt)
+				if start == nil || end == nil {
+					// 区間不明の休憩を「休憩なし」とみなさない（unknown を確認済みへ変換しない）。
+					// 空き枠を過大に提示しないよう、その日の候補から当該スタッフを外す。
+					continue staffLoop
+				}
 				override.Breaks = append(override.Breaks, BreakPeriod{
-					Start: timeToHHMM(b.BreakStart), // PostgreSQL "HH:MM:SS" → "HHMM"
-					End:   timeToHHMM(b.BreakEnd),   // PostgreSQL "HH:MM:SS" → "HHMM"
+					Start: timeToHHMM(*start), // "HH:MM:SS" → "HHMM"
+					End:   timeToHHMM(*end),   // "HH:MM:SS" → "HHMM"
 				})
 			}
 			si.ScheduleOverride = override

@@ -70,7 +70,7 @@ func ensureHardcodedClinicsForReservationWriteTests(t *testing.T, db *gorm.DB) {
 
 func makeAssignedDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string, sortOrder int) *model.Staff {
 	t.Helper()
-	s := &model.Staff{ClinicID: clinicID, Name: name, StaffType: model.StaffTypeDoctor, SortOrder: sortOrder}
+	s := &model.Staff{ClinicID: clinicID, Name: name, StaffType: model.StaffTypeDoctor, SortOrder: &sortOrder}
 	require.NoError(t, db.WithContext(context.Background()).Create(s).Error)
 	require.NoError(t, db.WithContext(context.Background()).Create(&model.StaffClinicAssignment{
 		StaffID: s.ID, ClinicID: clinicID, IsMain: true,
@@ -191,8 +191,8 @@ func TestStaffRepository_SwapSortOrderForReservation_ClinicIsolation(t *testing.
 	var r1, r2 model.Staff
 	require.NoError(t, db.First(&r1, staffB1.ID).Error)
 	require.NoError(t, db.First(&r2, staffB2.ID).Error)
-	assert.Equal(t, 1, r1.SortOrder)
-	assert.Equal(t, 2, r2.SortOrder)
+	assert.Equal(t, 1, StaffSortOrderValue(r1.SortOrder))
+	assert.Equal(t, 2, StaffSortOrderValue(r2.SortOrder))
 }
 
 // TestStaffRepository_SwapSortOrderForReservation_SwapsWithinClinic は同一医院内で
@@ -210,8 +210,8 @@ func TestStaffRepository_SwapSortOrderForReservation_SwapsWithinClinic(t *testin
 	var r1, r2 model.Staff
 	require.NoError(t, db.First(&r1, staff1.ID).Error)
 	require.NoError(t, db.First(&r2, staff2.ID).Error)
-	assert.Equal(t, 2, r1.SortOrder)
-	assert.Equal(t, 1, r2.SortOrder)
+	assert.Equal(t, 2, StaffSortOrderValue(r1.SortOrder))
+	assert.Equal(t, 1, StaffSortOrderValue(r2.SortOrder))
 }
 
 // A shared staff row keeps one global sort_order owned by staffs.clinic_id. A
@@ -242,6 +242,6 @@ func TestStaffRepository_SwapSortOrderForReservation_RejectsSecondaryClinicAssig
 	var reloaded1, reloaded2 model.Staff
 	require.NoError(t, db.First(&reloaded1, staff1.ID).Error)
 	require.NoError(t, db.First(&reloaded2, staff2.ID).Error)
-	assert.Equal(t, 1, reloaded1.SortOrder)
-	assert.Equal(t, 2, reloaded2.SortOrder)
+	assert.Equal(t, 1, StaffSortOrderValue(reloaded1.SortOrder))
+	assert.Equal(t, 2, StaffSortOrderValue(reloaded2.SortOrder))
 }

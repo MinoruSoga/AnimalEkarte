@@ -59,6 +59,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 			nil, nil,
 			tx,
 			WithTreatmentPlanRepository(planRepo),
+			WithPetLifeStateReader(stubPetLifeReader{}),
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
@@ -123,6 +124,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 			acceptAnyCageRepo(), careRepo, nil, nil,
 			&mockTransactor{},
 			WithTreatmentPlanRepository(planRepo),
+			WithPetLifeStateReader(stubPetLifeReader{}),
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
@@ -188,6 +190,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 			},
 			nil, nil,
 			&mockTransactor{},
+			WithPetLifeStateReader(stubPetLifeReader{}),
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
@@ -247,6 +250,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 			acceptAnyCageRepo(), careRepo, nil, nil,
 			&mockTransactor{},
 			WithTreatmentPlanRepository(planRepo),
+			WithPetLifeStateReader(stubPetLifeReader{}),
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
@@ -296,6 +300,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 			WithTreatmentPlanRepository(&mockTreatmentPlanRepository{
 				createFn: func(_ context.Context, _ *model.TreatmentPlan) error { return nil },
 			}),
+			WithPetLifeStateReader(stubPetLifeReader{}),
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
@@ -347,6 +352,7 @@ func TestHospitalizationService_Create_NestedPlansAtomicity(t *testing.T) {
 					return nil
 				},
 			}),
+			WithPetLifeStateReader(stubPetLifeReader{}),
 		)
 
 		hosp, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{

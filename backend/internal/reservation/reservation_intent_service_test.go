@@ -12,6 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
@@ -576,14 +577,13 @@ func TestReservationService_ConfirmTentative_PlaceholderTypeRequiresExplicitOver
 func TestReservationService_ConfirmTentative_RejectsDeceasedPetPostLock(t *testing.T) {
 	petID, ownerID, typeID := uint64(22), uint64(10), uint64(7)
 	tentative := confirmTentativeFixture(petID, ownerID, typeID)
-	deceasedAt := time.Now().Add(-time.Hour)
 
 	repo := &mockReservationRepository{
 		findPetIDForIntentLockFn: func(_ context.Context, _, _ uint64) (*uint64, error) { return &petID, nil },
 		lockAndFindByIDFn:        func(_ context.Context, _, _ uint64) (*model.Reservation, error) { return tentative, nil },
 		// Codex #3: 死亡は行ロック保持中（intent lock 後）の検証で拒否される。
-		findPetByIDInClinicFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-			return &model.Pet{ID: petID, OwnerID: ownerID, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt}, nil
+		readPetLifeStateFn: func(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
+			return sharedkernel.PetLifeStateDeceased, nil
 		},
 		confirmTentativeFn: func(_ context.Context, _, _ uint64, _ ConfirmTentativeUpdate) (*model.Reservation, error) {
 			t.Fatal("死亡ペットの confirm は repo 書込へ到達してはならない")
