@@ -165,7 +165,7 @@ reader欠落・設定対応未検証はunavailable/unconfiguredとして当該�
 | 481＋billing item owner | import/apply_source/keep_billing/auto-sync/release/restore、直接Create/Update/Delete/DeleteAllByBillingID、Complete一括生成/置換の参加 | keepで会計値不変でもrecord依存差は反映。同record別billing伝播、membershipのみの対照 |
 | 495/494 | cohortへ届くC転記/複写/訂正と目的別保護 | B終了eventだけは不変。P1通常編集をT06未供給で全面停止しない |
 | 共有staff/reservation owner | 同predicate port、designation対応根拠、現在適格性/保護順/認証済み確認行為の証跡 | actor≠担当医、失権・不明設定・reader欠落、client ID/boolean偽装拒否。新医師制度なし |
-| 462/API/audit/489/506等の各owner | confirm/Return/Complete wire、元target anchor、必要共通hook、総lock graph・phantom防止、receipt/監査 | 今回選定外。旧GET初期書込/旧confirm等の迂回移行、新規billing Complete互換、C/Dは未完 |
+| 462/API/audit/489/506等の各owner | confirm/Return/Complete wire、元target anchor、必要共通hook、総lock graph・phantom防止、receipt/監査 | 先行の内部投影選定では対象外。既存billingのconfirm/Return wire・元target anchor・専用順・旧入口封鎖は[追加契約](doctor-review-confirm-return-contract.md#review-actions-scope)で選定済み、実供給/迂回移行は未完。新規billing Complete互換、C/Dは別packet |
 
 合成仕様（コード未作成・実行NOT_RUN）は、exact keys/null/missing/型、ID最大/範囲、decimal同値/文字列非正規化、重複・列挙順独立、schema差、失敗の部分payloadなし、before/final双方の所属、同TX一増分、別TX ABA、CAS/overflow zero-write、metadata-only/technical-link-only不変対identity/quantity/add/remove変化、対象signature評価不能の停止、Return参照解除対照を含む。golden bytes/hashは未生成。これを実DB provider・全writer閉包・実行PASSの代わりにしない。
 

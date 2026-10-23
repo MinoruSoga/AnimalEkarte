@@ -75,7 +75,7 @@ readerは一つの既存billingの完全な現在record集合（複数record可�
 
 [before/final世代参加](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-generation)と[owner/AC台帳](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-owner-packets)へ。before/final双方の所属を含め、削除・移管前や同record別行を請求するbillingも落とさない。pure calculatorはIO/lock/write/commitをせず、実影響先列挙・phantom保護・期待CAS・監査・receiptの最外TX参加は未供給。NULL baselineをread/replayから初期化しない。
 
-review_sets.billing_idは必須で、新準備workflow・新集合confirm wire・新規billing Complete互換は別の未閉鎖packet。既存Completeのbillingなし新規作成を禁止したり、他billing確認を流用したりしない。本内部契約から製品Completeへ新禁止条件を追加しない。
+review_sets.billing_idは必須で、新準備workflow・新規billing Complete互換は別の未閉鎖packet。既存billingのConfirm wireは[追加契約](../../design/domains/accounting/doctor-review-confirm-return-contract.md#review-actions-confirm)で選定済みであり、runtime供給は未完。既存Completeのbillingなし新規作成を禁止したり、他billing確認を流用したりしない。本内部契約から製品Completeへ新禁止条件を追加しない。
 
 <a id="doctor-review-plan-c06-candidate"></a>
 ## 4. 既存billingの選定契約と別packet
