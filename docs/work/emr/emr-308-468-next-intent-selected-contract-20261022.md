@@ -19,7 +19,7 @@
 | A 既存今回予約への履歴紐づけ | `POST /api/v1/reservations/{appointment_id}/consume-next-visit-intent`、`reservation.consume_next_visit_intent` | 両対象に現在`reservations:edit`。read/lookupは`reservations:view`、両対象の同clinic/同pet・現在scopeを検査 |
 | B 元予定の同ID確定 | 既存`POST /api/v1/reservations/{intent_id}/confirm-tentative`、`reservation.confirm_tentative` | 現在`reservations:edit`と既存予約適格性/警告/患者保護。read/lookupは`reservations:view` |
 
-owner_kind=`reservation`、actor_kind=`staff`。Aは記録/billing本文を変更/公開しないため、そのgrantや本文versionを一律追加しない。会計完了後の許可はAの専用履歴操作だけで、通常編集/取消制限を解除しない。Bの受付participantは既存受付正本の必要権限を維持する。
+owner_kind=`reservation`、actor_kind=`staff`。Aは記録/billing本文を変更/公開しないため、そのgrantや本文versionを一律追加しない。会計完了後の許可はAの専用履歴操作だけで、通常編集/取消制限を解除しない。B後の別操作であるcheck-inのparticipant・必要権限を維持する。A/B自体へ受付record writerを追加しない。
 
 ### 2.1 A request・状態検証
 
@@ -65,10 +65,10 @@ Q constructorがcanonical bytesをdeep-copyしpure projectorでContent全key一�
 | branch | result_refs exact | committed_versions exact |
 |---|---|---|
 | A | `appointment_id,appointment_change_event_id,next_visit_intent_id,next_visit_intent_change_event_id` | `appointment,next_visit_intent` |
-| B 非trimming | `appointment_id,appointment_change_event_id` | `appointment` |
-| B 480 trimming採用participantあり | `appointment_id,appointment_change_event_id,booking_revision_id` | `appointment,booking`（480同義版） |
+| B 今回新T3を生成しない（非trimmingを含む） | `appointment_id,appointment_change_event_id` | `appointment` |
+| B 今回のoperationで新T3を生成した場合のみ | `appointment_id,appointment_change_event_id,booking_revision_id` | `appointment,booking`（480同義版） |
 
-既存trimming選択非変更で新T3を書かない場合も、480 readerが検証できる採用branchを用い、架空booking ref/版を補完しない。成功refsを返せないまま成功扱いにしない。非成功exactは`{status,operation_key}`のみ。内部EffectSummaryをwireへ追加しない。現在本文は別の現在view付きGETで取得する。
+既存trimming選択非変更で新T3を書かないBは予約refs/versionだけを返す。旧T3を今回operation/eventの成果として返さず、旧T3のoperation/eventを書き換えない。既存採用状態は別の現在view付きreadから取得する。時刻変更だけで新T3を必須とせず、480の既存採用条件に従い、無条件に新規採用しない。非成功exactは`{status,operation_key}`のみ。内部EffectSummaryをwireへ追加しない。現在本文は別の現在view付きGETで取得する。
 
 [458§6](emr-458-option-assignment-selected-contract-20261021.md)の既存12statusを固定再利用：
 
