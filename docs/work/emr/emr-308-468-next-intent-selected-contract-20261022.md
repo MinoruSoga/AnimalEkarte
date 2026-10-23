@@ -57,7 +57,7 @@ immutable A projectionには`unknown_date_confirmation`を追加し、省略時n
 
 元予定の同IDを本予約へ確定する操作であり、Aの別ID関係を作らない。譲渡済tentativeではpet intent/予約row lock下で現在pet ownerを同医院のpet SHARE lock付きreaderから解決し、その導出owner_idを確定予約へ保存する。旧予定ownerへ固定せず、解決失敗は停止する。`source_medical_record_id`と元診療出典は保持し、このserver導出ownerをclientの任意入力やhash前の補完値にしない。休診/時間/能力/容量/重複/現在患者等は480と既存予約契約どおり、clientのstatusやopaque hashを許可の根拠にしない。
 
-現confirm後のbest-effort通常カルテ作成は、[受付時の既存記録再利用/失敗復帰](../../spec/workflows/reservation-to-record-flow.md#requirement-fr-reservations-checkin-record-reuse)へ追従させる必要subset。B成功receiptをカルテ作成/受付成功へ読み替えない。Bの成功を確認してから、既存check-inを別の明示操作として行う。B unknown中は後続に進まず、receipt成功replayでbest-effort作成を再発火しない。
+Bはstatus=confirmedでも通常カルテ作成hookを呼ばない。現confirm後のbest-effort通常カルテ作成hookは切替時に除去する対象で、Bの初回成功/replay/失敗/unknownのいずれもrecord作成0とする。カルテ新規作成・既存再利用・作成失敗時の原子性は、[受付時の既存記録再利用/失敗復帰](../../spec/workflows/reservation-to-record-flow.md#requirement-fr-reservations-checkin-record-reuse)に従う別check-in操作だけの責務。B成功receiptをカルテ作成/受付成功へ読み替えず、B成功を確認してから既存check-inを別の明示操作として行う。B unknown中は後続に進まない。
 
 ## 3. immutable command・Content・Preconditions
 
@@ -149,7 +149,7 @@ fixture作成と実行を分け、以下は全てNOT_RUN：
 
 - A：許可6statusと拒否status/null/削除、pending/confirmed非来院表示、同ID/別pet/別院拒否、未選択無変更、会計後も今回状態/診療/請求/入金不変。
 - A：元診療より前/同日/後、source又はtarget日付不明（未確認拒否/明示確認可）、created_at/intended_date代用禁止、reader障害/未結線停止、日付根拠変更再確認、同来院への複数source独立履歴/target逐次CAS・同source replay非増分、両対象古版、患者付替え/取消/消化競合、同source別key二重消化、event片側/actor/refs/版不一致rollback、消化source復元拒否と通常誤取消復元保持、別setの新ID/active競合、通知候補と配送直前除外。
-- B：省略保持/doctor null解除/notes空とnull、status省略confirmed/明示pending/confirmed保持・他status/null拒否とContent一致、譲渡後pet owner解決/旧診療出典保持、visit_type保存値保持、trimming4key/digest/preview end/manual override、旧無key/無版拒否、後続check-in明示/unknown停止、通常カルテ作成失敗・再利用とreceiptの分離。
+- B：省略保持/doctor null解除/notes空とnull、status省略confirmed/明示pending/confirmed保持・他status/null拒否とContent一致、譲渡後pet owner解決/旧診療出典保持、visit_type保存値保持、trimming4key/digest/preview end/manual override、旧無key/無版拒否、後続check-in明示/unknown停止、Bの正常/再送/失敗/unknownすべてでrecord作成0。カルテ作成失敗/再利用のfixtureは別check-in操作へ属し、Bに保持しない。
 - 共通：strict decode/非正規ID/UUID、同key同内容replay・異内容conflict・CASだけ再確認、sticky unknown/busy/失権/他actor lookup、失敗binding anchor・claim loser・metadata失敗rollback、監査/receipt失敗、後日更新後の元receipt読取、staff-global/clinic-booking/pet-intent順、初回commit後だけ旧/現owner tag再計算・replay非再実行。
 
 本稿は技術選定の公開で、API YAML/DDL/model/生成物/製品コード/実DBは未変更。実装・全writer受入・実機試験の完了を意味しない。
@@ -158,7 +158,7 @@ fixture作成と実行を分け、以下は全てNOT_RUN：
 
 | 現在path | 観測と受領差分 |
 |---|---|
-| [reservation_intent_handler.go L33](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/internal/reservation/reservation_intent_handler.go#L33)・同L172、[service L142](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/internal/reservation/reservation_intent_service.go#L142) | 現requestはstatusを受け、operation_key/CASなし。confirmed既定とpost-commit通常カルテ作成があり、Bのstrict入力・receipt/受付正本への切替が必要 |
+| [reservation_intent_handler.go L33](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/internal/reservation/reservation_intent_handler.go#L33)・同L172、[service L142](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/internal/reservation/reservation_intent_service.go#L142) | 現requestはstatusを受け、operation_key/CASなし。confirmed既定とpost-commit通常カルテ作成がある。Bではこの作成hookを除去し、strict入力・receiptへ切替。record作成/再利用は別check-inの同TX責務 |
 | [reservation_intent_repository.go L1079](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/internal/reservation/reservation_intent_repository.go#L1079) | pet intent lock→予約row、tentative状態述語と由来保持は既存成果。旧createOrPromote/自動吸収の全caller閉包を代替しない |
 | [storage_reservations.go L24](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/internal/model/storage_reservations.go#L24)・[001 L8924](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/migrations/001_init.sql#L8924) | eventに版/intent/operation/actorは存在、consumed_by列/対応guardは未収録。anchor表/A routeもこのmainに存在せず、設計だけで実装済みにしない |
 | [api.yaml L13781](https://github.com/MinoruSoga/AnimalEkarte/blob/a5b4a9553b3f003e90ea47660a109c5d526be59c/backend/docs/api.yaml#L13781)・同L17777 | 旧Bはstart/end必須・任意statusとReservationAppointment成功応答。新A/B exact/C06 wireの機械収録とcaller切替は後続 |
