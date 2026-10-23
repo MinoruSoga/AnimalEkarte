@@ -38,7 +38,7 @@ grep -n '<キーワード>' docs/work/decisions/phase2-deferred.md
 git branch --list 'claim/<Plane ID>'
 ```
 
-取得前に1.2/1.3の読取調査を行い、着手契約・必要subset・実行IDの範囲を確定する。Backlog/Researchの場合は、対象scopeの[着手契約](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)を満たす根拠を記録し、Readyへの昇格とその記録を確認してからclaim/Runningへ進む。昇格未記録や契約未成立ならclaimしない。元票の一部だけを進める場合は、適切な既存子票を使うか、範囲/残AC/後続ownerと別実行IDの対応を明示してから、そのIDをclaimしPRに用いる。未完ACを残した親IDを限定成果PRの完了対象にしない。
+取得前に1.2/1.3の読取調査を行い、着手契約・必要subset・実行IDの範囲を確定する。Backlog/Researchの場合は、対象scopeの[着手契約](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)を満たす根拠を記録し、Readyへの昇格とその記録を確認してからclaim/Runningへ進む。本番切替対応もclaim前に同じ着手契約の成立・根拠を確認するが、Readyへの変更は不要で期限/priority/target_dateを保持する。昇格が必要なのに未記録、又は契約未成立ならclaimしない。元票の一部だけを進める場合は、適切な既存子票を使うか、範囲/残AC/後続ownerと別実行IDの対応を明示してから、そのIDをclaimしPRに用いる。未完ACを残した親IDを限定成果PRの完了対象にしない。
 
 非空なら**ハードストップ**: claim ブランチ名を挙げて BLOCKED を報告し、編集しない。空なら `git branch claim/<Plane ID>` で取得してから着手する（取得失敗も BLOCKED）。claim 取得と同時に Plane の state を `Running` に更新する（[docs/ops/plane-ticket-conventions.md](../../../docs/ops/plane-ticket-conventions.md) §claim — claim branch と Plane state は1組で同期させる）。`Phase2` / `Needs Human` / `Blocked` の票は claim せず滞留理由を先に確認する。claim ブランチの解放は AGENTS.md packet claim protocol の作成者別規則に従う（AI 作成 claim は統合・放棄・引き継ぎ確認後に解放可。USER 作成 claim は削除しない）。マージ済み PR の片付けで AGENTS.md の対応確認を満たした claim は、作成者が USER でもその片付けの中で消す。実装完了の時点で PR が未マージなら消さない。
 
