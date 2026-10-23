@@ -150,7 +150,7 @@ C06 outcomeの場合は常に `status, operation_key` を返す。成功以外�
 |POST succeeded / replayed|201 / 200|固定receiptを保持し、別GETで現在口座を読む|
 |GET lookup succeeded|200|保存receipt。再実行しない|
 |not-succeeded|200（lookup）|現helperがlock下で未成功と判断。自動再実行不可。人が前提確認後、同内容・同keyで再送可|
-|operation-in-progress|202|同actor/医院/keyでlookup。新key不可|
+|operation-in-progress|202|§2.2どおり現在viewがある同actorだけ、同医院/key/元targetでlookup。create-onlyは同actorの現在view権限回復まで結果未確定のままkey/元targetを保持して保留。pending専用の閲覧例外なし。別actor/新key/再受領で救済しない|
 |result-unavailable|503|sticky unknown又はC06保守的停止。自動補償/再受領/新key不可|
 |operation-key-conflict|409|元target現在認可後、receipt非開示。成功済み内容の変更に使わない|
 |version-conflict / dependency-changed|409|変更なし。現在口座/依存再読後、人が再確認|
