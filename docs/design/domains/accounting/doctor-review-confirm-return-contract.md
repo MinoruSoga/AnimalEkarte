@@ -69,7 +69,7 @@ GET /accountings/{billing_id}/doctor-review/sets/{review_set_id}
 現在accounting:viewと元set clinic/billing一致。modern exact200:
 {state:"stored",billing_id,review_set_id,billing_generation,billing_digest,billing_signature,records,reviewed_by,reviewed_at,confirmation_note,return_event}。
 recordsは保存doctor_review_recordsから {medical_record_id,clinical_generation,clinical_digest,clinical_items} の4keyだけを投影し、採択内部型とID数値昇順を使用する。保存側のclinic/review_set/billing列や現在sourceを混ぜない。reviewed_byはpositive-ID string、confirmation_noteは保存値string|null。reviewed_at/returned_atは保存instantをUTC RFC3339で表現し、PostgreSQLの実精度を維持する（最大microsecond、架空小数桁や補完日時なし）。return_event=null又は{ return_id,returned_by,returned_at,return_reason,memo }でIDはpositive-ID string、reason/memoは保存済string。
-legacy不足exact: {state:"legacy-unavailable",billing_id,review_set_id,reason:"missing-billing-signature",return_event}。return_eventはmodernと同一型の必須nullable fieldで、保存されたReturnがなければnull、あれば保存済み {return_id,returned_by,returned_at,return_reason,memo} だけを返す。state/reasonと既存の現在閲覧認可は変えない。不足signature・確認内容を補完/再構築せず、modernの部分推定payloadを返さない。
+legacy不足exact: {state:"legacy-unavailable",billing_id,review_set_id,reason:"missing-billing-signature",return_event}。return_eventはmodernと同一型の必須nullable fieldで、保存されたReturnがなければnull、あれば保存済み {return_id,returned_by,returned_at,return_reason,memo} だけを返す。nullは履歴不存在を確認した場合だけとし、履歴read失敗/破損をnullへ偽装しない。read失敗は既存の現在認可後internal-error経路へ返す。state/reasonと既存の現在閲覧認可は変えない。不足signature・確認内容を補完/再構築せず、modernの部分推定payloadを返さない。
 
 <a id="review-actions-c06"></a>
 ## 3. C06・認可・response
@@ -162,7 +162,7 @@ Returnmetadata {schema_version:"1",operation_id,operation_key,doctor_review_set_
 <a id="review-actions-acceptance"></a>
 ## 8. 有限受入とowner
 
-fixture期待: canonical/unknown/duplicate/null/上限/正規化;複数record完全性;481currentidentity証明可否;signature違い拒否とmetadata/link-only不変;別key既確認拒否/同keyreplay;CASのみretry対Content変更;source変更対Confirm両順序;Return対newConfirm両順序;unknown/stale/legacy Returnと二重拒否;actor≠担当医/未設定/失権/reader欠落/Returndoctor制限なし;成功後view-onlyreplay/view失効非開示;anchor/URL/lookup障害;claim winnerloserrollback;gate/binding/domain競合/異TXContextGate拒否;billingversion一回/clinical不変/overflowzero-write;全必須保存失敗rollback;commit後応答喪失同key照会;確認当時billingsignature再読;legacy setのReturn前は必須return_event=null、Return後は保存済み5fieldだけを同型返却しstate/reason不変・欠落signature/確認内容の補完なし・現在閲覧認可維持;旧GETzero-write/旧POST拒否/迂回閉鎖;新規Complete未接続で旧wire無断変更なし。全NOT_RUN。
+fixture期待: canonical/unknown/duplicate/null/上限/正規化;複数record完全性;481currentidentity証明可否;signature違い拒否とmetadata/link-only不変;別key既確認拒否/同keyreplay;CASのみretry対Content変更;source変更対Confirm両順序;Return対newConfirm両順序;unknown/stale/legacy Returnと二重拒否;actor≠担当医/未設定/失権/reader欠落/Returndoctor制限なし;成功後view-onlyreplay/view失効非開示;anchor/URL/lookup障害;claim winnerloserrollback;gate/binding/domain競合/異TXContextGate拒否;billingversion一回/clinical不変/overflowzero-write;全必須保存失敗rollback;commit後応答喪失同key照会;確認当時billingsignature再読;legacy setのReturn前は必須return_event=null、Return後は保存済み5fieldだけを同型返却しstate/reason不変・欠落signature/確認内容の補完なし・現在閲覧認可維持、履歴read失敗/破損はnullや成功にしない;旧GETzero-write/旧POST拒否/迂回閉鎖;新規Complete未接続で旧wire無断変更なし。全NOT_RUN。
 
 owner:462統合、481currentidentity/sourceclosure、518/484plan/gateclosure、sharedstaff/reservationdesignation/predicate、489/467hook/trygate、446/466+model保存、445/API exactwire/旧入口切替、audit同TX。個人claim/実行ID/供給SHA/共有hunk合意は未受領で、担当済としない。技術契約選定とruntime供給を分離する。Readyは計画/契約状態と実行前提の明示で、実装完了ではない。
 
