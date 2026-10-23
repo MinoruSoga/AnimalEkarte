@@ -28,6 +28,8 @@ export const transformBackendMedicineToFrontend = (data: LegacyMedicineResponse)
   sortOrder: data.sort_order ?? 0,
   taxType: (data.tax_type ?? "excluded") as TaxType,
   taxRate: exactDecimalToNumber(data.tax_rate, "tax_rate"),
+  // EMR-536: number へ丸める前の wire 文字列。PATCH で「明示再選択」と「未編集/取消」を区別する比較元。
+  taxRateExact: data.tax_rate,
   isNonInsurance: data.is_non_insurance ?? false,
   createdAt: data.created_at ?? "",
   updatedAt: data.updated_at ?? "",
@@ -41,6 +43,13 @@ export const transformBackendMedicineToFrontend = (data: LegacyMedicineResponse)
 
 /**
  * Medicine フロントエンド型 — transformBackendMedicineToFrontend の戻り値から自動導出
- * 応答の列は LegacyMedicineResponse（@/types/medicine）が handler の response struct を写す
+ * 応答の列は LegacyMedicineResponse（@/types/medicine）が handler の response struct を写す。
+ * taxRateExact は変換元が無い Medicine（画面内で組み立てた値など）が既存 caller にあるため省略可にする
+ * （省略時は保存 exact 値を証明できないので PATCH は税率を送る側へ倒す）。
  */
-export type Medicine = ReturnType<typeof transformBackendMedicineToFrontend>;
+export type Medicine = Omit<
+  ReturnType<typeof transformBackendMedicineToFrontend>,
+  "taxRateExact"
+> & {
+  taxRateExact?: string;
+};

@@ -26,6 +26,11 @@ export interface MedicineFormData {
   isActive: boolean;
   taxType: TaxType;
   taxRate: number;
+  /**
+   * EMR-536: 税率セレクタをユーザーが操作したか（編集 intent）。保存済み exact 値との比較元は
+   * Medicine.taxRateExact で、ここには持たない。未設定は未操作。
+   */
+  taxRateTouched?: boolean;
   isNonInsurance: boolean;
   /** #201 投与量自動計算（製品軸）。none=手動（既定） */
   calculationType: MedicineCalculationType;
@@ -111,7 +116,8 @@ export function medicineToFormData(
     description: medicine.description,
     isActive: medicine.isActive,
     taxType: medicine.taxType ?? "excluded",
-    taxRate: medicine.taxRate ?? 0.1,
+    // EMR-536: transform が欠落・形式違反を例外にするため欠落を 0.1 で補修しない（0 は潰れない）。
+    taxRate: medicine.taxRate,
     isNonInsurance: medicine.isNonInsurance ?? false,
     calculationType: medicine.calculationType ?? MedicineCalculationTypeNone,
     strength: medicine.strength !== undefined ? String(medicine.strength) : "",

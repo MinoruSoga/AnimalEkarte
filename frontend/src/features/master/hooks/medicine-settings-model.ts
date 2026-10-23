@@ -181,6 +181,33 @@ function isExplicitStrengthClear(data: MedicineFormData, selectedMedicine: Medic
   );
 }
 
+/**
+ * exact decimal 文字列（`^(0|[1-9][0-9]*)(\.[0-9]+)?$`）を値として同じなら同じ文字列へ揃える純粋関数。
+ * 小数部の末尾 0 と、残った小数点を除く（"0.1000" → "0.1"、"1.0" → "1"）。number を経由しない。
+ */
+export function normalizeExactDecimal(text: string): string {
+  if (!text.includes(".")) return text;
+  return text.replace(/0+$/, "").replace(/\.$/, "");
+}
+
+/**
+ * EMR-536: PATCH の tax_rate 省略は BE の「保持」を意味する。判定は編集 intent と保存 exact 値で行い、
+ * 丸めた number の比較には頼らない。
+ * - 新規（selectedMedicine なし）: 比較元が無いので省略しない。
+ * - 税率セレクタ未操作: 省略（"0.1234567890123456789" / "0.0000001" / 既存 0 を保持）。
+ * - 操作済み: 選択値の decimal 文字列が保存 exact 値と同値のときだけ省略（元値へ戻した取消）。
+ *   保存 exact 値が高精度（"0.1000000000000000001"）なら 0.1 を再選択しても同値でないので送る。
+ *   保存 exact 値を持たない Medicine は同値を証明できないので送る。
+ */
+function shouldOmitTaxRate(data: MedicineFormData, selectedMedicine: Medicine | null) {
+  if (selectedMedicine === null) return false;
+  if (data.taxRateTouched !== true) return true;
+  const saved = selectedMedicine.taxRateExact;
+  if (saved === undefined) return false;
+  const selected = numberToExactDecimal(data.taxRate, "tax_rate");
+  return normalizeExactDecimal(selected) === normalizeExactDecimal(saved);
+}
+
 export function buildMedicineCreateRequest(
   data: MedicineFormData,
   isCategory: boolean,
@@ -225,7 +252,11 @@ export function buildMedicineUpdateRequest({
     description: data.description,
     is_active: data.isActive,
     tax_type: data.taxType,
-    tax_rate: numberToExactDecimal(data.taxRate, "tax_rate"),
+    // EMR-536: 未操作/取消なら tax_rate を省略して BE 保持に任せる。保存済みの高桁値を
+    // number 化して丸めて再送したり、1e-7 で numberToExactDecimal が例外にしたりしない。
+    ...(shouldOmitTaxRate(data, selectedMedicine)
+      ? {}
+      : { tax_rate: numberToExactDecimal(data.taxRate, "tax_rate") }),
     is_non_insurance: data.isNonInsurance,
     ...buildCalculationFields(data),
     ...(isExplicitStrengthClear(data, selectedMedicine) ? { clear_strength: true } : {}),
