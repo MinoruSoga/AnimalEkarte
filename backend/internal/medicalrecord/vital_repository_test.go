@@ -56,7 +56,7 @@ func makeVitalPet(t *testing.T, db *gorm.DB, clinicID, ownerID, speciesID uint64
 
 func makeVitalMedicalRecord(t *testing.T, db *gorm.DB, clinicID uint64, recordNo string, date time.Time) *model.MedicalRecord {
 	t.Helper()
-	mr := &model.MedicalRecord{ClinicID: clinicID, RecordNo: recordNo, Date: date, Status: model.MedicalRecordStatusDraft}
+	mr := &model.MedicalRecord{ClinicID: clinicID, RecordNo: recordNo, Date: date}
 	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
 	return mr
 }

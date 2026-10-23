@@ -121,15 +121,16 @@ func (r *diagnosisNameRepository) Delete(ctx context.Context, clinicID, id uint6
 	result := persistence.DBOrTx(ctx, r.db).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
+		// EMR-495 A: 診断は clinical_plan_diagnoses の行で保持する（clinical_plans の診断列は 001 で廃止）。
 		Where(`NOT EXISTS (
-			SELECT 1 FROM clinical_plans
-			JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id
-			  AND medical_records.clinic_id = ?
-			  AND medical_records.deleted_at IS NULL
-			WHERE (clinical_plans.diagnosis_name_id = diagnosis_names.id
-			    OR clinical_plans.diagnosis_2_name_id = diagnosis_names.id)
+			SELECT 1 FROM clinical_plan_diagnoses
+			JOIN clinical_plans ON clinical_plans.id = clinical_plan_diagnoses.clinical_plan_id
+			  AND clinical_plans.clinic_id = ?
 			  AND clinical_plans.deleted_at IS NULL
-		)`, clinicID).
+			WHERE clinical_plan_diagnoses.diagnosis_name_id = diagnosis_names.id
+			  AND clinical_plan_diagnoses.clinic_id = ?
+			  AND clinical_plan_diagnoses.deleted_at IS NULL
+		)`, clinicID, clinicID).
 		Delete(&model.DiagnosisName{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))
@@ -147,17 +148,17 @@ func (r *diagnosisNameRepository) normalizeDiagnosisNameDeleteMiss(ctx context.C
 	return apperrors.WrapConflict("この診断名はカルテで使用中のため削除できません")
 }
 
-// CountUsageByDiagnosisNameID は診断名を参照している clinical_plans の件数を返す（BUG-113）
-// diagnosis_name_id および diagnosis_2_name_id 両方をカウントする
-// clinical_plans は直接 clinic_id を持たないため medical_records を JOIN してテナント分離する
+// CountUsageByDiagnosisNameID は診断名を参照している生存中の診断行（clinical_plan_diagnoses）の件数を返す（BUG-113）。
+// EMR-495 A: clinical_plans の診断列は 001 で廃止された。診断行と親 plan は clinic_id で絞り、
+// 論理削除済みの診断行・plan は数えない。
 func (r *diagnosisNameRepository) CountUsageByDiagnosisNameID(ctx context.Context, clinicID, diagnosisNameID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
-		Model(&model.ClinicalPlan{}).
-		Scopes(persistence.MedicalRecordTenantScope("clinical_plans", clinicID)).
-		Where("(clinical_plans.diagnosis_name_id = ? OR clinical_plans.diagnosis_2_name_id = ?) AND clinical_plans.deleted_at IS NULL", diagnosisNameID, diagnosisNameID).
+		Model(&model.ClinicalPlanDiagnosis{}).
+		Joins("JOIN clinical_plans ON clinical_plans.id = clinical_plan_diagnoses.clinical_plan_id AND clinical_plans.clinic_id = clinical_plan_diagnoses.clinic_id AND clinical_plans.deleted_at IS NULL").
+		Where("clinical_plan_diagnoses.clinic_id = ? AND clinical_plan_diagnoses.diagnosis_name_id = ? AND clinical_plan_diagnoses.deleted_at IS NULL", clinicID, diagnosisNameID).
 		Count(&count).Error; err != nil {
-		return 0, apperrors.FromGORM(err, "clinical_plan", "")
+		return 0, apperrors.FromGORM(err, "clinical_plan_diagnosis", "")
 	}
 	return count, nil
 }

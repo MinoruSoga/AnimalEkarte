@@ -56,7 +56,6 @@ func makeCheckupMedicalRecord(t *testing.T, db *gorm.DB, clinicID uint64, petID 
 		RecordNo: recordNo,
 		Date:     time.Now(),
 		PetID:    petID,
-		Status:   model.MedicalRecordStatusFinalized,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
 	return mr

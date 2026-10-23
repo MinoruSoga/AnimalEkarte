@@ -1260,7 +1260,6 @@ func TestVaccinationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 			recordID: {
 				ID: recordID, ClinicID: clinicID,
 				PetID: ptrUint64(petID), OwnerID: ptrUint64(previousOwnerID),
-				Status: model.MedicalRecordStatusDraft,
 			},
 		}}
 		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{}, &mockAuditTxLogger{})
@@ -1281,7 +1280,6 @@ func TestVaccinationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 			recordID: {
 				ID: recordID, ClinicID: clinicID,
 				PetID: ptrUint64(petID), OwnerID: ptrUint64(previousOwnerID),
-				Status: model.MedicalRecordStatusDraft,
 			},
 		}}
 		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{}, &mockAuditTxLogger{})
@@ -1301,7 +1299,6 @@ func TestVaccinationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 			recordID: {
 				ID: recordID, ClinicID: clinicID,
 				PetID: ptrUint64(petID), OwnerID: ptrUint64(previousOwnerID),
-				Status: model.MedicalRecordStatusDraft,
 			},
 		}}
 		svc := NewVaccinationService(repo, okVaccineRepo(), nil, verifier, locker, vaccinationTestTransactor{}, &mockAuditTxLogger{})

@@ -26,23 +26,23 @@ func TestClinicalPlanHandlerCompiles(t *testing.T) {
 // clinical_plan テストが再利用していた ClinicalPlanService のテストダブル。medicalrecord パッケージ
 // はその _test.go 定義を import できないため、ここへ最小コピーを再宣言する。
 type mockClinicalPlanService struct {
-	getOrCreateFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
-	updateFn      func(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error)
+	getOrCreateFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*ClinicalPlanView, error)
+	updateFn      func(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*ClinicalPlanView, error)
 	deleteFn      func(ctx context.Context, clinicID, medicalRecordID uint64, actorID *uint64) error
 }
 
-func (m *mockClinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
+func (m *mockClinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*ClinicalPlanView, error) {
 	if m.getOrCreateFn != nil {
 		return m.getOrCreateFn(ctx, clinicID, medicalRecordID)
 	}
-	return &model.ClinicalPlan{}, nil
+	return &ClinicalPlanView{Plan: &model.ClinicalPlan{}}, nil
 }
 
-func (m *mockClinicalPlanService) Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+func (m *mockClinicalPlanService) Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*ClinicalPlanView, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, medicalRecordID, input)
 	}
-	return &model.ClinicalPlan{}, nil
+	return &ClinicalPlanView{Plan: &model.ClinicalPlan{}}, nil
 }
 
 func (m *mockClinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecordID uint64, actorID *uint64) error {
@@ -76,10 +76,10 @@ func TestGetClinicalPlan(t *testing.T) {
 			paramID:  "8",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockClinicalPlanService{
-				getOrCreateFn: func(_ context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
+				getOrCreateFn: func(_ context.Context, clinicID, medicalRecordID uint64) (*ClinicalPlanView, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(8), medicalRecordID)
-					return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: "異常なし"}, nil
+					return &ClinicalPlanView{Plan: &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: "異常なし"}}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -104,7 +104,7 @@ func TestGetClinicalPlan(t *testing.T) {
 			paramID:  "8",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockClinicalPlanService{
-				getOrCreateFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+				getOrCreateFn: func(_ context.Context, _, _ uint64) (*ClinicalPlanView, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -156,14 +156,14 @@ func TestUpdateClinicalPlan(t *testing.T) {
 			body:     validBody,
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "42") },
 			svc: &mockClinicalPlanService{
-				updateFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+				updateFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*ClinicalPlanView, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(8), medicalRecordID)
 					require.NotNil(t, input.PhysicalExam)
 					assert.Equal(t, physicalExam, *input.PhysicalExam)
 					require.NotNil(t, input.ActorID)
 					assert.Equal(t, uint64(42), *input.ActorID)
-					return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: physicalExam}, nil
+					return &ClinicalPlanView{Plan: &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: physicalExam}}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -199,7 +199,7 @@ func TestUpdateClinicalPlan(t *testing.T) {
 			body:     validBody,
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "42") },
 			svc: &mockClinicalPlanService{
-				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateClinicalPlanInput) (*ClinicalPlanView, error) {
 					return nil, apperrors.WrapConflict("diagnosis type not found")
 				},
 			},
@@ -314,22 +314,36 @@ func TestDeleteClinicalPlan(t *testing.T) {
 	}
 }
 
-func TestUpdateClinicalPlan_BindsDiagnosis2TypeID(t *testing.T) {
+func TestUpdateClinicalPlan_BindsDiagnosisRows(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	typeID := uint64(31)
 	nameID := uint64(32)
-	body := map[string]any{"diagnosis_2_type_id": typeID, "diagnosis_2_name_id": nameID}
+	body := map[string]any{"diagnoses": []map[string]any{
+		{"diagnosis_slot": 2, "diagnosis_type_id": typeID, "diagnosis_name_id": nameID, "diagnosis_name_snapshot": "保存名", "category_name_snapshot": "保存分類", "sort_order": 1},
+	}}
 	called := false
 	svc := &mockClinicalPlanService{
-		updateFn: func(_ context.Context, _, _ uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+		updateFn: func(_ context.Context, _, _ uint64, input *UpdateClinicalPlanInput) (*ClinicalPlanView, error) {
 			called = true
-			require.NotNil(t, input.Diagnosis2TypeID)
-			require.NotNil(t, *input.Diagnosis2TypeID)
-			assert.Equal(t, typeID, **input.Diagnosis2TypeID)
-			require.NotNil(t, input.Diagnosis2NameID)
-			require.NotNil(t, *input.Diagnosis2NameID)
-			assert.Equal(t, nameID, **input.Diagnosis2NameID)
-			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, Diagnosis2TypeID: &typeID, Diagnosis2NameID: &nameID}, nil
+			require.NotNil(t, input.Diagnoses)
+			rows := *input.Diagnoses
+			require.Len(t, rows, 1)
+			assert.Equal(t, int16(2), rows[0].Slot)
+			require.NotNil(t, rows[0].DiagnosisTypeID)
+			assert.Equal(t, typeID, *rows[0].DiagnosisTypeID)
+			require.NotNil(t, rows[0].DiagnosisNameID)
+			assert.Equal(t, nameID, *rows[0].DiagnosisNameID)
+			require.NotNil(t, rows[0].DiagnosisNameSnapshot)
+			assert.Equal(t, "保存名", *rows[0].DiagnosisNameSnapshot)
+			assert.Equal(t, 1, rows[0].SortOrder)
+			snap, cat := "保存名", "保存分類"
+			return &ClinicalPlanView{
+				Plan: &model.ClinicalPlan{ID: 1, MedicalRecordID: 8},
+				Diagnoses: []model.ClinicalPlanDiagnosis{{
+					ID: 5, Version: 1, DiagnosisSlot: 2, DiagnosisTypeID: &typeID, DiagnosisNameID: &nameID,
+					DiagnosisNameSnapshot: &snap, CategoryNameSnapshot: &cat, SortOrder: 1,
+				}},
+			}, nil
 		},
 	}
 	h := newHandlerWithClinicalPlanSvc(svc)
@@ -345,13 +359,12 @@ func TestUpdateClinicalPlan_BindsDiagnosis2TypeID(t *testing.T) {
 	h.UpdateClinicalPlan(c)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.True(t, called)
-	assert.Contains(t, w.Body.String(), `"diagnosis_2_type_id":"31"`)
-	assert.Contains(t, w.Body.String(), `"diagnosis_2_name_id":"32"`)
+	assert.Contains(t, w.Body.String(), `"diagnosis_type_id":"31"`)
+	assert.Contains(t, w.Body.String(), `"diagnosis_name_id":"32"`)
+	assert.Contains(t, w.Body.String(), `"diagnosis_name_snapshot":"保存名"`)
+	assert.NotContains(t, w.Body.String(), "diagnosis_2_type_id", "the retired flat diagnosis fields are not returned")
 }
 
-// TestUpdateClinicalPlan_BindsVersion は BUG-416③ の楽観的ロックについて、PATCH body の
-// "version" フィールドが updateClinicalPlanRequest.Version にバインドされ、
-// medicalrecord.UpdateClinicalPlanInput.Version までそのまま届くことを検証する。
 func TestUpdateClinicalPlan_BindsVersion(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	physicalExam := "経過観察"
@@ -359,11 +372,11 @@ func TestUpdateClinicalPlan_BindsVersion(t *testing.T) {
 	body := map[string]any{"physical_exam": physicalExam, "version": claimedVersion}
 	called := false
 	svc := &mockClinicalPlanService{
-		updateFn: func(_ context.Context, _, _ uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+		updateFn: func(_ context.Context, _, _ uint64, input *UpdateClinicalPlanInput) (*ClinicalPlanView, error) {
 			called = true
 			require.NotNil(t, input.Version)
 			assert.Equal(t, claimedVersion, *input.Version)
-			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: physicalExam, Version: claimedVersion + 1}, nil
+			return &ClinicalPlanView{Plan: &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: physicalExam, Version: claimedVersion + 1}}, nil
 		},
 	}
 	h := newHandlerWithClinicalPlanSvc(svc)
@@ -389,9 +402,9 @@ func TestUpdateClinicalPlan_OmittedVersionBindsNil(t *testing.T) {
 	physicalExam := "経過観察"
 	body := map[string]any{"physical_exam": physicalExam}
 	svc := &mockClinicalPlanService{
-		updateFn: func(_ context.Context, _, _ uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+		updateFn: func(_ context.Context, _, _ uint64, input *UpdateClinicalPlanInput) (*ClinicalPlanView, error) {
 			assert.Nil(t, input.Version, "version未送信時はnilのままであるべき")
-			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: physicalExam}, nil
+			return &ClinicalPlanView{Plan: &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: physicalExam}}, nil
 		},
 	}
 	h := newHandlerWithClinicalPlanSvc(svc)
@@ -408,20 +421,16 @@ func TestUpdateClinicalPlan_OmittedVersionBindsNil(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestUpdateClinicalPlan_NullClearsDiagnosis2(t *testing.T) {
+func TestUpdateClinicalPlan_RejectsDiagnosisRowWithoutSlot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	body := map[string]any{"diagnosis_2_type_id": nil, "diagnosis_2_name_id": nil}
 	svc := &mockClinicalPlanService{
-		updateFn: func(_ context.Context, _, _ uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
-			require.NotNil(t, input.Diagnosis2TypeID)
-			assert.Nil(t, *input.Diagnosis2TypeID)
-			require.NotNil(t, input.Diagnosis2NameID)
-			assert.Nil(t, *input.Diagnosis2NameID)
-			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8}, nil
+		updateFn: func(_ context.Context, _, _ uint64, _ *UpdateClinicalPlanInput) (*ClinicalPlanView, error) {
+			t.Fatal("service must not be called for a diagnosis row without diagnosis_slot")
+			return nil, nil
 		},
 	}
 	h := newHandlerWithClinicalPlanSvc(svc)
-	b, err := json.Marshal(body)
+	b, err := json.Marshal(map[string]any{"diagnoses": []map[string]any{{"diagnosis_name_snapshot": "x"}}})
 	require.NoError(t, err)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -431,7 +440,7 @@ func TestUpdateClinicalPlan_NullClearsDiagnosis2(t *testing.T) {
 	setClinicID(c)
 	c.Set("user_id", "42")
 	h.UpdateClinicalPlan(c)
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 // SEC-CODEX-UHQPM2 selected-clinic grant
@@ -449,7 +458,7 @@ func TestGetClinicalPlanSelectedClinicGrant(t *testing.T) {
 				h.GetClinicalPlan(c)
 			},
 			svc: &mockClinicalPlanService{
-				getOrCreateFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+				getOrCreateFn: func(_ context.Context, _, _ uint64) (*ClinicalPlanView, error) {
 					t.Fatal("service must not be reached")
 					return nil, nil
 				},

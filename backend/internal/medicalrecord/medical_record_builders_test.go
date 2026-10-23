@@ -52,7 +52,6 @@ func TestBuildMedicalRecordUpdate(t *testing.T) {
 	petID := uint64(2)
 	doctorID := uint64(3)
 	apptID := uint64(4)
-	status := model.MedicalRecordStatusFinalized
 	visitType := model.VisitType("revisit")
 
 	tests := []struct {
@@ -91,11 +90,6 @@ func TestBuildMedicalRecordUpdate(t *testing.T) {
 			want:  map[string]any{},
 		},
 		{
-			name:  "Status のみ",
-			input: UpdateMedicalRecordInput{Status: &status},
-			want:  map[string]any{"status": status},
-		},
-		{
 			name:  "VisitType のみ",
 			input: UpdateMedicalRecordInput{VisitType: &visitType},
 			want:  map[string]any{"visit_type": visitType},
@@ -108,7 +102,6 @@ func TestBuildMedicalRecordUpdate(t *testing.T) {
 				PetID:         &petID,
 				DoctorID:      &doctorID,
 				AppointmentID: &apptID,
-				Status:        &status,
 				VisitType:     &visitType,
 			},
 			want: map[string]any{
@@ -116,7 +109,6 @@ func TestBuildMedicalRecordUpdate(t *testing.T) {
 				"owner_id":   ownerID,
 				"pet_id":     petID,
 				"doctor_id":  doctorID,
-				"status":     status,
 				"visit_type": visitType,
 			},
 		},
@@ -141,8 +133,7 @@ func TestBuildMedicalRecordForCreate(t *testing.T) {
 	reason := "revisit"
 	enteredBy := uint64(9)
 
-	t.Run("Status 指定時はその値を使う", func(t *testing.T) {
-		status := model.MedicalRecordStatusFinalized
+	t.Run("指定した値で model を組み立てる（EMR-495: status は存在しない）", func(t *testing.T) {
 		input := &CreateMedicalRecordInput{
 			RecordNo:             "MR-20260401-1-ABC123",
 			Date:                 date,
@@ -150,7 +141,6 @@ func TestBuildMedicalRecordForCreate(t *testing.T) {
 			PetID:                &petID,
 			DoctorID:             &doctorID,
 			AppointmentID:        &apptID,
-			Status:               &status,
 			VisitType:            model.VisitType("revisit"),
 			RecommendationReason: &reason,
 			EnteredBy:            &enteredBy,
@@ -163,24 +153,10 @@ func TestBuildMedicalRecordForCreate(t *testing.T) {
 		assert.Equal(t, &petID, got.PetID)
 		assert.Equal(t, &doctorID, got.DoctorID)
 		assert.Equal(t, &apptID, got.AppointmentID)
-		assert.Equal(t, status, got.Status)
 		if assert.NotNil(t, got.VisitType) {
 			assert.Equal(t, model.VisitType("revisit"), *got.VisitType)
 		}
 		assert.Equal(t, &reason, got.RecommendationReason)
 		assert.Equal(t, &enteredBy, got.EnteredBy)
-	})
-
-	t.Run("Status nil の場合は model のゼロ値のまま", func(t *testing.T) {
-		input := &CreateMedicalRecordInput{
-			RecordNo:  "MR-20260401-1-XYZ789",
-			Date:      date,
-			VisitType: model.VisitType("first_visit"),
-		}
-		got := buildMedicalRecordForCreate(1, input)
-		assert.Equal(t, model.MedicalRecordStatus(""), got.Status)
-		if assert.NotNil(t, got.VisitType) {
-			assert.Equal(t, model.VisitType("first_visit"), *got.VisitType)
-		}
 	})
 }

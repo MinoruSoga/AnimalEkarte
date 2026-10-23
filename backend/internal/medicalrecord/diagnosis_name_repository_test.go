@@ -13,8 +13,8 @@ package medicalrecord
 // 保護する不変条件:
 //   - FindAll/FindAllByCategoryID/FindByID/Update/Delete/Reorder は clinic_id で正しく分離される。
 //   - FindAllByFilter は is_active=true のみ返す（CODE-QUALITY-232）。
-//   - CountUsageByDiagnosisNameID は medical_records を JOIN して医院分離しつつ
-//     diagnosis_name_id/diagnosis_2_name_id 両方をカウントし、ソフトデリート済み clinical_plan を除外する（P2）。
+//   - CountUsageByDiagnosisNameID は clinical_plan_diagnoses の生存行（EMR-495 A）を clinic_id で分離して
+//     カウントし、論理削除済みの診断行と論理削除済みの親 clinical_plan を除外する（P2）。
 
 import (
 	"context"
@@ -38,7 +38,9 @@ func setupDiagnosisNameTestDB(t *testing.T) *gorm.DB {
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.DiagnosisType{}, &model.DiagnosisName{}, &model.ClinicalPlan{},
+		&model.ClinicalPlanDiagnosis{},
 	))
+	db.Exec("TRUNCATE TABLE clinical_plan_diagnoses CASCADE")
 	db.Exec("TRUNCATE TABLE clinical_plans CASCADE")
 	db.Exec("TRUNCATE TABLE diagnosis_names CASCADE")
 	db.Exec("TRUNCATE TABLE diagnosis_types CASCADE")
@@ -71,7 +73,6 @@ func makeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64,
 		RecordNo: recordNo,
 		Date:     date,
 		PetID:    &pet,
-		Status:   model.MedicalRecordStatusFinalized,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
 	return mr
@@ -308,28 +309,46 @@ func TestDiagnosisNameRepository_CountUsageByDiagnosisNameID(t *testing.T) {
 	})
 
 	mr1 := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-DIAG-1", time.Now())
-	plan1 := &model.ClinicalPlan{MedicalRecordID: mr1.ID, DiagnosisNameID: &nameA.ID}
+	plan1 := &model.ClinicalPlan{ClinicID: clinicA, MedicalRecordID: mr1.ID}
 	require.NoError(t, db.WithContext(ctx).Create(plan1).Error)
+	row1 := &model.ClinicalPlanDiagnosis{ClinicID: clinicA, ClinicalPlanID: plan1.ID, DiagnosisSlot: 1, DiagnosisNameID: &nameA.ID}
+	require.NoError(t, db.WithContext(ctx).Create(row1).Error)
 
 	mr2 := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-DIAG-2", time.Now())
-	plan2 := &model.ClinicalPlan{MedicalRecordID: mr2.ID, Diagnosis2NameID: &nameA.ID}
+	plan2 := &model.ClinicalPlan{ClinicID: clinicA, MedicalRecordID: mr2.ID}
 	require.NoError(t, db.WithContext(ctx).Create(plan2).Error)
+	row2 := &model.ClinicalPlanDiagnosis{ClinicID: clinicA, ClinicalPlanID: plan2.ID, DiagnosisSlot: 2, DiagnosisNameID: &nameA.ID}
+	require.NoError(t, db.WithContext(ctx).Create(row2).Error)
 
-	t.Run("diagnosis_name_idとdiagnosis_2_name_id両方をカウントする", func(t *testing.T) {
+	t.Run("slot 1 と slot 2 の診断行を両方カウントする", func(t *testing.T) {
 		count, err := repo.CountUsageByDiagnosisNameID(ctx, clinicA, nameA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(2), count)
 	})
 
-	t.Run("ソフトデリートされたclinical_planは除外される", func(t *testing.T) {
-		require.NoError(t, db.WithContext(ctx).Delete(&model.ClinicalPlan{}, plan1.ID).Error)
+	t.Run("別医院からのカウントは0件（診断行の clinic_id で隔離）", func(t *testing.T) {
+		count, err := repo.CountUsageByDiagnosisNameID(ctx, clinicB, nameA.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+
+	t.Run("使用中の診断名は削除できない（Conflict）", func(t *testing.T) {
+		err := repo.Delete(ctx, clinicA, nameA.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "診断行で使用中の診断名は Conflict であるべき: %v", err)
+	})
+
+	t.Run("論理削除された診断行は除外される", func(t *testing.T) {
+		require.NoError(t, db.WithContext(ctx).Model(&model.ClinicalPlanDiagnosis{}).
+			Where("id = ?", row1.ID).Update("deleted_at", time.Now()).Error)
 		count, err := repo.CountUsageByDiagnosisNameID(ctx, clinicA, nameA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("別医院からのカウントは0件（medical_recordsのclinic_idで隔離）", func(t *testing.T) {
-		count, err := repo.CountUsageByDiagnosisNameID(ctx, clinicB, nameA.ID)
+	t.Run("ソフトデリートされた親 clinical_plan の診断行は除外される", func(t *testing.T) {
+		require.NoError(t, db.WithContext(ctx).Delete(&model.ClinicalPlan{}, plan2.ID).Error)
+		count, err := repo.CountUsageByDiagnosisNameID(ctx, clinicA, nameA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
 	})

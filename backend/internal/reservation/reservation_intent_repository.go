@@ -275,6 +275,8 @@ func (r *reservationRepository) acquireAppointmentLifecycleLock(ctx context.Cont
 // PrepareForMedicalRecordFinalization obtains the shared lifecycle lock and then locks the
 // appointment row. A no-show or cancelled appointment must be corrected through the reservation
 // workflow before its medical record can be finalized.
+// EMR-495: medicalrecord no longer calls this (the finalize transition was removed). It is kept for the
+// end-consultation route (EMR-495 B), which will take the same lifecycle lock when it records "ended".
 func (r *reservationRepository) PrepareForMedicalRecordFinalization(ctx context.Context, clinicID, id uint64) error {
 	if err := r.acquireAppointmentLifecycleLock(ctx, clinicID, id); err != nil {
 		return err
@@ -298,7 +300,7 @@ func (r *reservationRepository) PrepareForMedicalRecordFinalization(ctx context.
 
 // MarkNoShow performs an atomic, idempotent no-show transition and returns the exact prior
 // status for audit. A stale candidate cannot overwrite a concurrent lifecycle transition, and
-// an appointment with a finalized medical record can never be classified as a no-show.
+// an appointment whose medical record is in the ended consultation state can never be classified as a no-show.
 func (r *reservationRepository) MarkNoShow(ctx context.Context, clinicID, id uint64) (NoShowTransition, error) {
 	return r.MarkNoShowAt(ctx, clinicID, id, time.Now().UTC())
 }
@@ -327,8 +329,8 @@ func (r *reservationRepository) MarkNoShowAt(
 				SELECT 1 FROM medical_records mr
 				WHERE mr.clinic_id = a.clinic_id
 				  AND mr.appointment_id = a.id
-				  AND mr.status = ?
 				  AND mr.deleted_at IS NULL
+				  AND ` + endedMedicalRecordPredicate + `
 			  )
 			FOR UPDATE
 		)
@@ -353,7 +355,6 @@ func (r *reservationRepository) MarkNoShowAt(
 			model.ReservationStatusPending,
 			model.ReservationStatusConfirmed,
 			evaluatedAt,
-			model.MedicalRecordStatusFinalized,
 			model.ReservationStatusNoShow,
 		).
 		Row().

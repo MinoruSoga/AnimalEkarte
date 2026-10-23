@@ -288,7 +288,7 @@ func TestReservationRepository_MarkNoShow(t *testing.T) {
 		assert.Equal(t, model.ReservationStatusCompleted, reloadReservationIntentStatus(t, db, appt.ID))
 	})
 
-	t.Run("does not overwrite an appointment with a finalized medical record", func(t *testing.T) {
+	t.Run("does not overwrite an appointment whose medical record has an ended consultation", func(t *testing.T) {
 		rt := makeReservationType(t, db, clinicA)
 		appt := makeReservationForReservationRepoTest(
 			t,
@@ -306,14 +306,33 @@ func TestReservationRepository_MarkNoShow(t *testing.T) {
 			RecordNo:      "MR-NO-SHOW-FINALIZED",
 			Date:          time.Now().UTC(),
 			AppointmentID: &appt.ID,
-			Status:        model.MedicalRecordStatusFinalized,
 		}
 		require.NoError(t, db.Create(record).Error)
+		recordConsultationEventForReservationRepoTest(t, db, clinicA, record.ID, 1, "ended")
 
 		transition, err := markNoShowInReservationRepoTest(ctx, db, repo, clinicA, appt.ID)
 		require.NoError(t, err)
 		assert.False(t, transition.Changed)
 		assert.Equal(t, model.ReservationStatusConfirmed, reloadReservationIntentStatus(t, db, appt.ID))
+	})
+
+	t.Run("overwrites when the latest consultation event is end_undone", func(t *testing.T) {
+		rt := makeReservationType(t, db, clinicA)
+		appt := makeReservationForReservationRepoTest(
+			t, db, clinicA, rt.ID, time.Now().UTC().Add(-6*time.Hour),
+			model.ReservationStatusConfirmed, model.ReservationSourceManual, nil, nil,
+		)
+		record := &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "MR-NO-SHOW-END-UNDONE", Date: time.Now().UTC(), AppointmentID: &appt.ID,
+		}
+		require.NoError(t, db.Create(record).Error)
+		recordConsultationEventForReservationRepoTest(t, db, clinicA, record.ID, 1, "ended")
+		recordConsultationEventForReservationRepoTest(t, db, clinicA, record.ID, 2, "end_undone")
+
+		transition, err := markNoShowInReservationRepoTest(ctx, db, repo, clinicA, appt.ID)
+		require.NoError(t, err)
+		assert.True(t, transition.Changed)
+		assert.Equal(t, model.ReservationStatusNoShow, reloadReservationIntentStatus(t, db, appt.ID))
 	})
 
 	t.Run("caller rollback restores the transition", func(t *testing.T) {
@@ -456,7 +475,11 @@ func TestReservationRepository_MarkNoShowAt_UsesSuppliedTimeInCAS(t *testing.T) 
 	assert.Equal(t, model.ReservationStatusNoShow, reloadReservationIntentStatus(t, db, appointment.ID))
 }
 
-func TestReservationRepository_NoShowAndMedicalRecordFinalizationSerialize(t *testing.T) {
+// EMR-495: medical_records.status は 001 で廃止され、「終了済みカルテ」は
+// medical_record_consultation_events の最新イベントが ended であることで表す（predicate は
+// endedMedicalRecordPredicate）。終了ルート（B）は lifecycle lock を取ってから ended イベントを書く想定で、
+// ここでは旧 finalize の代わりにその書込を直列化の相手に使う（AutoMigrate double のため receipt 制約は無い）。
+func TestReservationRepository_NoShowAndConsultationEndSerialize(t *testing.T) {
 	const clinicID = uint64(1)
 	ctx := context.Background()
 
@@ -481,13 +504,12 @@ func TestReservationRepository_NoShowAndMedicalRecordFinalizationSerialize(t *te
 			RecordNo:      fmt.Sprintf("MR-LIFECYCLE-%d", appointment.ID),
 			Date:          time.Now().UTC(),
 			AppointmentID: &appointment.ID,
-			Status:        model.MedicalRecordStatusDraft,
 		}
 		require.NoError(t, db.Create(record).Error)
 		return db, repo, appointment, record
 	}
 
-	t.Run("finalization wins and no-show becomes a no-op", func(t *testing.T) {
+	t.Run("consultation end wins and no-show becomes a no-op", func(t *testing.T) {
 		db, repo, appointment, record := newFixture(t)
 		finalizationLocked := make(chan struct{})
 		releaseFinalization := make(chan struct{})
@@ -497,13 +519,7 @@ func TestReservationRepository_NoShowAndMedicalRecordFinalizationSerialize(t *te
 				if err := repo.PrepareForMedicalRecordFinalization(txCtx, clinicID, appointment.ID); err != nil {
 					return err
 				}
-				if err := persistence.DBOrTx(txCtx, db).
-					Model(&model.MedicalRecord{}).
-					Where("clinic_id = ? AND id = ?", clinicID, record.ID).
-					Update("status", model.MedicalRecordStatusFinalized).
-					Error; err != nil {
-					return err
-				}
+				recordConsultationEventForReservationRepoTest(t, persistence.DBOrTx(txCtx, db), clinicID, record.ID, 1, "ended")
 				close(finalizationLocked)
 				<-releaseFinalization
 				return nil
@@ -527,7 +543,7 @@ func TestReservationRepository_NoShowAndMedicalRecordFinalizationSerialize(t *te
 		case result = <-noShowDone:
 			completedEarly = true
 			close(releaseFinalization)
-			t.Errorf("no-show did not wait for finalization: transition=%+v err=%v", result.transition, result.err)
+			t.Errorf("no-show did not wait for the consultation end: transition=%+v err=%v", result.transition, result.err)
 		case <-time.After(100 * time.Millisecond):
 			close(releaseFinalization)
 		}
@@ -538,13 +554,10 @@ func TestReservationRepository_NoShowAndMedicalRecordFinalizationSerialize(t *te
 		require.NoError(t, result.err)
 		assert.False(t, result.transition.Changed)
 		assert.Equal(t, model.ReservationStatusConfirmed, reloadReservationIntentStatus(t, db, appointment.ID))
-		var finalized model.MedicalRecord
-		require.NoError(t, db.First(&finalized, record.ID).Error)
-		assert.Equal(t, model.MedicalRecordStatusFinalized, finalized.Status)
 	})
 
-	t.Run("no-show wins and later finalization is rejected", func(t *testing.T) {
-		db, repo, appointment, record := newFixture(t)
+	t.Run("no-show wins and later lifecycle-lock preparation is rejected", func(t *testing.T) {
+		db, repo, appointment, _ := newFixture(t)
 		noShowApplied := make(chan struct{})
 		releaseNoShow := make(chan struct{})
 		noShowDone := make(chan error, 1)
@@ -588,9 +601,6 @@ func TestReservationRepository_NoShowAndMedicalRecordFinalizationSerialize(t *te
 		require.Error(t, finalizationErr)
 		assert.True(t, apperrors.IsConflict(finalizationErr))
 		assert.Equal(t, model.ReservationStatusNoShow, reloadReservationIntentStatus(t, db, appointment.ID))
-		var draft model.MedicalRecord
-		require.NoError(t, db.First(&draft, record.ID).Error)
-		assert.Equal(t, model.MedicalRecordStatusDraft, draft.Status)
 	})
 }
 
@@ -1267,7 +1277,6 @@ func TestReservationRepository_TrimmingMutationSafety(t *testing.T) {
 			RecordNo:      "MR-TRIMMING-DELETE-GUARD",
 			Date:          time.Now().UTC(),
 			AppointmentID: &appointment.ID,
-			Status:        model.MedicalRecordStatusDraft,
 		}
 		require.NoError(t, db.Create(record).Error)
 
@@ -1296,7 +1305,6 @@ func TestReservationRepository_TrimmingMutationSafety(t *testing.T) {
 			RecordNo:      "MR-TRIMMING-UPDATE-GUARD",
 			Date:          time.Now().UTC(),
 			AppointmentID: &appointment.ID,
-			Status:        model.MedicalRecordStatusDraft,
 		}
 		require.NoError(t, db.Create(record).Error)
 		newStart := appointment.StartTime.Add(time.Hour)

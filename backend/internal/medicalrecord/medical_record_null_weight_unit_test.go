@@ -72,22 +72,22 @@ func setupNullWeightUnitFixture(t *testing.T) *nullWeightUnitFixture {
 	older := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "NULLUNIT-OLDER",
 		Date:    time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
-		OwnerID: &ownerA.ID, PetID: &petA.ID, Status: model.MedicalRecordStatusFinalized,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
 	})
 	newer := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "NULLUNIT-NEWER",
 		Date:    time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC),
-		OwnerID: &ownerA.ID, PetID: &petA.ID, Status: model.MedicalRecordStatusFinalized,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
 	})
 	foreign := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicB, RecordNo: "NULLUNIT-FOREIGN",
 		Date:    time.Date(2026, 3, 3, 0, 0, 0, 0, time.UTC),
-		OwnerID: &ownerB.ID, PetID: &petB.ID, Status: model.MedicalRecordStatusFinalized,
+		OwnerID: &ownerB.ID, PetID: &petB.ID,
 	})
 	deleted := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "NULLUNIT-DELETED",
 		Date:    time.Date(2026, 3, 4, 0, 0, 0, 0, time.UTC),
-		OwnerID: &ownerA.ID, PetID: &petA.ID, Status: model.MedicalRecordStatusFinalized,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
 	})
 
 	kgUnit, gUnit := model.BodyWeightUnitKg, model.BodyWeightUnitG

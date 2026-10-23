@@ -27,7 +27,6 @@ func draftMedicalRecordWithPet(clinicID, recordID, petID uint64) *model.MedicalR
 		ID:       recordID,
 		ClinicID: clinicID,
 		PetID:    &petID,
-		Status:   model.MedicalRecordStatusDraft,
 	}
 }
 
@@ -389,7 +388,7 @@ func TestMedicalRecordImageService_Delete(t *testing.T) {
 			medRecRepo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 					// stub: always return a valid draft parent record (LockByIDForUpdate delegates to FindByID)
-					return &model.MedicalRecord{ID: tt.medicalRecordID, Status: model.MedicalRecordStatusDraft}, nil
+					return &model.MedicalRecord{ID: tt.medicalRecordID}, nil
 				},
 			}
 			svc := NewMedicalRecordImageService(repo, medRecRepo, &mockCheckupTransactor{})
@@ -404,59 +403,6 @@ func TestMedicalRecordImageService_Delete(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestMedicalRecordImageService_FinalizedGuard は SD-2 回帰テスト:
-// 確定済み(finalized)カルテへの画像追加・削除が拒否されることを検証する
-// （examination_service.go の同型テストが先例、backend/internal/service/CLAUDE.md
-// 「カルテ子エンティティ書込」不変条件）。
-func TestMedicalRecordImageService_FinalizedGuard(t *testing.T) {
-	t.Run("Create: returns conflict when parent medical record is finalized", func(t *testing.T) {
-		repo := &mockMedicalRecordImageRepository{
-			createFn: func(_ context.Context, _ *model.MedicalRecordImage) error {
-				t.Fatal("repo.Create must not be called when parent medical record is finalized")
-				return nil
-			},
-		}
-		medRecRepo := &mockMedicalRecordRepository{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusFinalized}, nil
-			},
-		}
-		svc := NewMedicalRecordImageService(repo, medRecRepo, &mockCheckupTransactor{})
-
-		image, err := svc.Create(context.Background(), 1, 1, &CreateMedicalRecordImageInput{
-			ImageURL:  "https://example.com/image.jpg",
-			FileName:  "image.jpg",
-			ImageType: model.MedicalImageTypeXray,
-		})
-
-		assert.Error(t, err)
-		assert.Nil(t, image)
-	})
-
-	t.Run("Delete: returns conflict when parent medical record is finalized", func(t *testing.T) {
-		repo := &mockMedicalRecordImageRepository{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecordImage, error) {
-				return &model.MedicalRecordImage{ID: 1, MedicalRecordID: 1, FileName: "image.jpg"}, nil
-			},
-			deleteFn: func(_ context.Context, _, _ uint64) error {
-				t.Fatal("repo.Delete must not be called when parent medical record is finalized")
-				return nil
-			},
-		}
-		medRecRepo := &mockMedicalRecordRepository{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusFinalized}, nil
-			},
-		}
-		svc := NewMedicalRecordImageService(repo, medRecRepo, &mockCheckupTransactor{})
-		attachImageDeletionDeps(svc)
-
-		err := svc.Delete(context.Background(), 1, 1, 1, 1, nil)
-
-		assert.Error(t, err)
-	})
 }
 
 func TestMedicalRecordImageService_CreateRejectsInvalidRequestRelations(t *testing.T) {

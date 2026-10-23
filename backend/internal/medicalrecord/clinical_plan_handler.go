@@ -66,7 +66,11 @@ func (h *ClinicalPlanHandler) UpdateClinicalPlan(c *gin.Context) {
 		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
-	input := req.toServiceInput()
+	input, err := req.toServiceInput()
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	input.ActorID = &staffID
 	plan, err := h.service.Update(c.Request.Context(), clinicID, medicalRecordID, input)
 	if err != nil {

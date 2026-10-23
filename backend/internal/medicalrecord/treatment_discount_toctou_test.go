@@ -48,7 +48,6 @@ func seedDraftTreatmentWithDiscount(t *testing.T, db *gorm.DB, clinicID uint64, 
 		PetID:    &pet.ID,
 		RecordNo: "TR-DISC-TOCTOU",
 		Date:     time.Now(),
-		Status:   model.MedicalRecordStatusDraft,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
 	tr := &model.Treatment{
@@ -70,7 +69,7 @@ func seedDraftTreatmentWithDiscount(t *testing.T, db *gorm.DB, clinicID uint64, 
 func draftMRForTreatment(mrID uint64) *mockMedicalRecordRepository {
 	return &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{ID: id, Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{ID: id}, nil
 		},
 	}
 }

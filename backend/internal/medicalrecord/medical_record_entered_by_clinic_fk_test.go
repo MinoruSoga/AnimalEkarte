@@ -227,13 +227,11 @@ func TestEnteredBy_AutoCreateNilActor_SkipsAssignmentGate(t *testing.T) {
 	ownerB := makeTestOwner(t, db, clinicB, "自動作成飼主")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "自動作成ペット")
 	svc := newEnteredByActorTestService(t, db)
-	status := model.MedicalRecordStatusDraft
 	got, err := svc.Create(context.Background(), clinicB, &CreateMedicalRecordInput{
 		Date:      time.Now(),
 		VisitType: model.VisitTypeRevisit,
 		OwnerID:   &ownerB.ID,
 		PetID:     &petB.ID,
-		Status:    &status,
 	})
 	require.NoError(t, err)
 	assert.Nil(t, got.EnteredBy)

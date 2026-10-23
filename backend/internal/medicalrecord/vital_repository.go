@@ -85,7 +85,7 @@ func (r *vitalRepository) Create(ctx context.Context, vital *model.VitalRecord) 
 // cmd.Version が nil の場合は従来どおり version 述語なし（照合スキップ、後方互換）。
 // RowsAffected==0 は「存在しない/他クリニック」と「バージョン不一致」を区別するため
 // existsInClinic で再照会し正しいエラー種別に正規化する。親カルテの draft ガードは
-// service 側の lockDraftParent（親 FOR UPDATE + finalized Conflict）が担う。
+// service 側の lockDraftParent（親 FOR UPDATE + 同一性検査）が担う。
 func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateVitalInput) error {
 	return r.update(ctx, clinicID, id, buildVitalUpdate(&cmd), cmd.Version)
 }

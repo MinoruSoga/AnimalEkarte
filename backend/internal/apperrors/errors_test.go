@@ -294,3 +294,28 @@ func TestFromGORM(t *testing.T) {
 		assert.Contains(t, err.Error(), "database error")
 	})
 }
+
+func TestWrapMedicalRecordStatusRetired(t *testing.T) {
+	err := WrapMedicalRecordStatusRetired("旧 finalize は未提供です")
+
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnprocessable), "422 class sentinel only")
+	assert.False(t, errors.Is(err, ErrConflict))
+	assert.False(t, errors.Is(err, ErrInvalidInput))
+	assert.Contains(t, err.Error(), "旧 finalize は未提供です")
+
+	var appErr *AppError
+	require.True(t, errors.As(err, &appErr))
+	assert.Equal(t, CodeMedicalRecordStatusRetired, appErr.Code)
+	assert.Equal(t, "medical_record_status_retired", appErr.Code)
+}
+
+func TestWrapUnprocessableWithCode(t *testing.T) {
+	err := WrapUnprocessableWithCode("custom_code", "message")
+
+	var appErr *AppError
+	require.True(t, errors.As(err, &appErr))
+	assert.Equal(t, "custom_code", appErr.Code)
+	assert.Equal(t, "message", appErr.Message)
+	assert.True(t, errors.Is(err, ErrUnprocessable))
+}

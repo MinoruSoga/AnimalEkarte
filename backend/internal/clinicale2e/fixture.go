@@ -191,7 +191,6 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 				OwnerID:  &owner.ID,
 				PetID:    &petID,
 				DoctorID: &staff.ID,
-				Status:   model.MedicalRecordStatusFinalized,
 			}
 			if err := tx.Create(record).Error; err != nil {
 				return apperrors.Wrap(err, "create synthetic medical record")

@@ -19,7 +19,6 @@ func TestToMedicalRecordResponse_InquirySummaryIncludesNotes(t *testing.T) {
 		ID:       42,
 		ClinicID: 1,
 		RecordNo: "MR-042",
-		Status:   model.MedicalRecordStatusDraft,
 		Version:  1,
 		Inquiry: &model.Inquiry{
 			ID:             inquiryID,
@@ -44,7 +43,6 @@ func TestToMedicalRecordResponse_IncludesVisitTypeAndChiefComplaintType(t *testi
 		ID:        42,
 		ClinicID:  1,
 		RecordNo:  "MR-042",
-		Status:    model.MedicalRecordStatusDraft,
 		Version:   1,
 		VisitType: &visitType,
 		Inquiry: &model.Inquiry{
@@ -69,7 +67,6 @@ func TestToMedicalRecordResponse_InquirySummaryEmptyNotes(t *testing.T) {
 		ID:       1,
 		ClinicID: 1,
 		RecordNo: "MR-001",
-		Status:   model.MedicalRecordStatusFinalized,
 		Version:  2,
 		Inquiry: &model.Inquiry{
 			ID:             1,
@@ -119,7 +116,6 @@ func TestToMedicalRecordResponse_WeightMeasurementsProjection(t *testing.T) {
 		ID:       recordID,
 		ClinicID: 1,
 		RecordNo: "MR-042",
-		Status:   model.MedicalRecordStatusFinalized,
 		Version:  3,
 		PetID:    &petID,
 		Vitals: []model.VitalRecord{
@@ -163,7 +159,6 @@ func TestToMedicalRecordResponse_WeightMeasurementsOnlyCorrelatedWeights(t *test
 		ID:       recordID,
 		ClinicID: 1,
 		RecordNo: "MR-042",
-		Status:   model.MedicalRecordStatusDraft,
 		Version:  1,
 		PetID:    &petID,
 		Vitals: []model.VitalRecord{
@@ -195,7 +190,6 @@ func TestToMedicalRecordResponse_WeightMeasurementsEmptyWhenNoWeights(t *testing
 		ID:       42,
 		ClinicID: 1,
 		RecordNo: "MR-042",
-		Status:   model.MedicalRecordStatusDraft,
 		Version:  1,
 	}
 

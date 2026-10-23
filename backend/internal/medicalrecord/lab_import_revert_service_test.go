@@ -2,7 +2,7 @@ package medicalrecord
 
 // lab_import_revert_service_test.go — TASK-032 compensating revert state machine.
 //
-// Covers: safe success, conflict gates (confirmed / finalized / manual mutation /
+// Covers: safe success, conflict gates (confirmed / manual mutation /
 // downstream use / usage_unknown), idempotent replay, conflicting payload 409,
 // ambient-tx requirement, and zero-write on conflict.
 
@@ -241,20 +241,6 @@ func TestLabImportRevert_ConflictTable(t *testing.T) {
 				}).Error)
 			},
 			wantMsg: "downstream_use",
-		},
-		{
-			name: "finalized medical record",
-			seed: func(t *testing.T, db *gorm.DB, clinicID uint64, job *model.LabImportJob, exam *model.Examination) {
-				mr := &model.MedicalRecord{
-					ClinicID: clinicID,
-					RecordNo: "MR-REVERT-1",
-					Date:     time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
-					Status:   model.MedicalRecordStatusFinalized,
-				}
-				require.NoError(t, db.Create(mr).Error)
-				require.NoError(t, db.Model(exam).Update("medical_record_id", mr.ID).Error)
-			},
-			wantMsg: "finalized",
 		},
 	}
 

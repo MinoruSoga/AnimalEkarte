@@ -186,7 +186,6 @@ func TestMedicalRecordService_Update_RejectsCrossClinicOwnerPetAndMismatch(t *te
 	existing := &model.MedicalRecord{
 		ID: 1, ClinicID: 1, Version: 0,
 		OwnerID: &existingOwner, PetID: &existingPet,
-		Status: model.MedicalRecordStatusDraft,
 	}
 
 	tests := []struct {
@@ -272,7 +271,6 @@ func TestMedicalRecordService_Update_AcceptsSameClinicFinalOwnerPet(t *testing.T
 	existing := &model.MedicalRecord{
 		ID: 1, ClinicID: 1, Version: 0,
 		OwnerID: &existingOwner, PetID: &existingPet,
-		Status: model.MedicalRecordStatusDraft,
 	}
 
 	updated := false

@@ -226,7 +226,19 @@ func (r *treatmentRepository) CountFinalizedUnconfirmedByPetAndDate(ctx context.
 		Joins("LEFT JOIN billing_confirmations bc ON bc.medical_record_id = medical_records.id").
 		Where("medical_records.clinic_id = ? AND medical_records.pet_id = ? AND medical_records.deleted_at IS NULL", clinicID, petID).
 		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = medical_records.pet_id AND p.clinic_id = medical_records.clinic_id)").
-		Where("medical_records.status = ?", model.MedicalRecordStatusFinalized).
+		// EMR-495 Q5: medical_records.status は廃止。診療終了済み = consultation events の最新 revision が ended。
+		// events は終了ルート（B）が書く。それまでは 0 件を返す（DB は 001 から再構築済みで旧データなし）。
+		Where(`EXISTS (
+			SELECT 1 FROM medical_record_consultation_events mce
+			WHERE mce.clinic_id = medical_records.clinic_id
+			  AND mce.medical_record_id = medical_records.id
+			  AND mce.event_kind = 'ended'
+			  AND mce.revision = (
+				SELECT MAX(mce2.revision) FROM medical_record_consultation_events mce2
+				WHERE mce2.clinic_id = mce.clinic_id
+				  AND mce2.medical_record_id = mce.medical_record_id
+			  )
+		)`).
 		Where("DATE(medical_records.date) = DATE(?)", date).
 		Where("(bc.id IS NULL OR bc.status != 'confirmed')").
 		Where("NOT EXISTS (SELECT 1 FROM billings b WHERE b.medical_record_id = medical_records.id AND b.clinic_id = medical_records.clinic_id AND b.status != 'cancelled' AND b.deleted_at IS NULL)").

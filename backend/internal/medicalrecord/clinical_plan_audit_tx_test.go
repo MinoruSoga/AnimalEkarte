@@ -129,41 +129,6 @@ func TestClinicalPlanService_Update_AuditFailureReturnsError(t *testing.T) {
 	assert.True(t, auditCalled)
 }
 
-// BUG-010 residual: 拒否経路（finalized）では audit も update も走らない。
-func TestClinicalPlanService_Update_FinalizedDoesNotAudit(t *testing.T) {
-	physicalExam := "後書き"
-	auditCalled := false
-	updateCalled := false
-	repo := &mockClinicalPlanRepository{
-		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
-			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, PhysicalExam: "確定前"}, nil
-		},
-		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
-			updateCalled = true
-			return nil
-		},
-	}
-	medRec := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
-		},
-	}
-	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
-		auditCalled = true
-		return nil
-	}}
-	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, audit)
-
-	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam,
-		ActorID: clinicalPlanTestActorID(),
-	})
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err))
-	assert.Nil(t, plan)
-	assert.False(t, updateCalled)
-	assert.False(t, auditCalled)
-}
-
 // BUG-010 residual: stale version 拒否時も audit ゼロ。
 func TestClinicalPlanService_Update_StaleVersionDoesNotAudit(t *testing.T) {
 	physicalExam := "競合更新"
@@ -246,6 +211,7 @@ func TestClinicalPlanService_Update_AuditSuccessCommitsDB(t *testing.T) {
 	mr := makeClinicalPlanMedicalRecord(t, db, clinicA, "MR-CP-AUDIT-OK")
 	repo := NewClinicalPlanRepository(db)
 	plan := &model.ClinicalPlan{
+		ClinicID:        clinicA,
 		MedicalRecordID: mr.ID,
 		PhysicalExam:    "before",
 		Version:         1,
@@ -276,8 +242,8 @@ func TestClinicalPlanService_Update_AuditSuccessCommitsDB(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, updated)
-	assert.Equal(t, "after", updated.PhysicalExam)
-	assert.Equal(t, 2, updated.Version)
+	assert.Equal(t, "after", updated.Plan.PhysicalExam)
+	assert.Equal(t, 2, updated.Plan.Version)
 	assert.Equal(t, 1, auditEntries)
 
 	persisted, err := repo.FindByMedicalRecordID(context.Background(), clinicA, mr.ID)
@@ -412,37 +378,6 @@ func TestClinicalPlanService_Delete_AuditFailureReturnsError(t *testing.T) {
 	assert.True(t, auditCalled)
 }
 
-// BUG-010 residual: 拒否経路（finalized）では audit も delete も走らない。
-func TestClinicalPlanService_Delete_FinalizedDoesNotAudit(t *testing.T) {
-	auditCalled := false
-	deleteCalled := false
-	repo := &mockClinicalPlanRepository{
-		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
-			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, PhysicalExam: "確定前"}, nil
-		},
-		deleteFn: func(_ context.Context, _, _ uint64) error {
-			deleteCalled = true
-			return nil
-		},
-	}
-	medRec := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
-		},
-	}
-	audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, _ *AuditEntry) error {
-		auditCalled = true
-		return nil
-	}}
-	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, audit)
-
-	err := svc.Delete(context.Background(), 1, 1, clinicalPlanTestActorID())
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err))
-	assert.False(t, deleteCalled)
-	assert.False(t, auditCalled)
-}
-
 // BUG-010 residual: 対象不在では audit ゼロ・delete ゼロ。
 func TestClinicalPlanService_Delete_NotFoundDoesNotAudit(t *testing.T) {
 	auditCalled := false
@@ -464,7 +399,7 @@ func TestClinicalPlanService_Delete_NotFoundDoesNotAudit(t *testing.T) {
 	svc := NewClinicalPlanService(repo, &mockMedicalRecordRepository{
 		lockByIDForUpdateFn: func(context.Context, uint64, uint64) (*model.MedicalRecord, error) {
 			parentLockCalled = true
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+			return &model.MedicalRecord{}, nil
 		},
 	}, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, audit)
 
@@ -519,6 +454,7 @@ func TestClinicalPlanService_Delete_AuditSuccessCommitsDB(t *testing.T) {
 	mr := makeClinicalPlanMedicalRecord(t, db, clinicA, "MR-CP-DEL-AUDIT-OK")
 	repo := NewClinicalPlanRepository(db)
 	plan := &model.ClinicalPlan{
+		ClinicID:        clinicA,
 		MedicalRecordID: mr.ID,
 		PhysicalExam:    "to-delete",
 		Version:         1,

@@ -45,7 +45,6 @@ func TestTreatmentRepository_Update_OptimisticLock(t *testing.T) {
 			ClinicID: clinicA,
 			RecordNo: recordNo,
 			Date:     time.Now(),
-			Status:   model.MedicalRecordStatusDraft,
 		}
 		require.NoError(t, db.WithContext(ctx).Create(mr).Error)
 		return mr
@@ -232,7 +231,6 @@ func TestVitalService_Update_StaleExpectedVersionConflict(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
 				ID: 1, ClinicID: clinicID, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
-				Status: model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}
@@ -347,47 +345,4 @@ func TestVaccinationService_Update_StaleExpectedVersionConflict(t *testing.T) {
 	assert.Nil(t, updated)
 	require.NotNil(t, gotVersion, "input.Version は repository Update へそのまま渡るべき")
 	assert.Equal(t, 1, *gotVersion)
-}
-
-// TestVaccinationService_Update_FinalizedMedicalRecordRejected は設計票 §最小設計の
-// 接種 draft ガードを検証する: medical_record_id != nil の接種更新は、紐付くカルテが
-// 確定済みなら Conflict で拒否される（治療/バイタル/処方の lockDraftMedicalRecord と対称化）。
-func TestVaccinationService_Update_FinalizedMedicalRecordRejected(t *testing.T) {
-	const clinicID = uint64(1)
-	const vaccinationID = uint64(1)
-	recordID := uint64(30)
-	updateCalls := 0
-	repo := &mockVaccinationRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
-			return &model.Vaccination{
-				ID: vaccinationID, ClinicID: clinicID, VaccineID: 1,
-				MedicalRecordID: &recordID,
-			}, nil
-		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ UpdateVaccinationInput) (*model.Vaccination, error) {
-			updateCalls++
-			return &model.Vaccination{ID: vaccinationID, ClinicID: clinicID}, nil
-		},
-	}
-	locker := &vaccinationMedicalRecordLockerStub{records: map[uint64]*model.MedicalRecord{
-		recordID: {
-			ID: recordID, ClinicID: clinicID,
-			Status: model.MedicalRecordStatusFinalized,
-		},
-	}}
-	svc := NewVaccinationService(
-		repo, okVaccineRepo(), nil,
-		&permissiveVaccinationRelationVerifier{},
-		locker,
-		vaccinationTestTransactor{},
-		&mockAuditTxLogger{},
-	)
-
-	remarks := "確定後の書込"
-	updated, err := svc.Update(context.Background(), clinicID, vaccinationID, &UpdateVaccinationInput{Remarks: &remarks})
-
-	require.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err), "確定済みカルテ紐付け接種の更新はConflictであるべき: %v", err)
-	assert.Nil(t, updated)
-	assert.Zero(t, updateCalls, "確定済みカルテへの書込は repository Update まで到達してはならない")
 }

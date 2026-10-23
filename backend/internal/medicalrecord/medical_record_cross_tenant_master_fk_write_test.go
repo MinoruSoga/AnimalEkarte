@@ -66,7 +66,8 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisFK(t *
 			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
+			// EMR-495 A: 診断だけの入力は plan 列 Update を呼ばず、診断行の置換で書き込む。
+			replaceDiagnosesFn: func(_ context.Context, _, _ uint64, _ []ClinicalPlanDiagnosisInput) error {
 				*updated = true
 				return nil
 			},
@@ -80,19 +81,19 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisFK(t *
 		}
 	}
 
-	t.Run("rejects cross-clinic diagnosis_1_category_id and does not update clinical plan", func(t *testing.T) {
+	t.Run("rejects cross-clinic diagnoses[].diagnosis_type_id and does not update clinical plan", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignTypeID
-		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1CategoryID: &foreign})
+		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnoses: []ClinicalPlanDiagnosisInput{{Slot: 1, DiagnosisTypeID: &foreign}}})
 		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis type")
 	})
 
-	t.Run("accepts same-clinic diagnosis_1_category_id (no false-reject)", func(t *testing.T) {
+	t.Run("accepts same-clinic diagnoses[].diagnosis_type_id (no false-reject)", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedTypeID
-		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1CategoryID: &owned})
+		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnoses: []ClinicalPlanDiagnosisInput{{Slot: 1, DiagnosisTypeID: &owned}}})
 		assert.True(t, updated)
 	})
 }
@@ -107,7 +108,8 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisNameFK
 			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
 			},
-			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
+			// EMR-495 A: 診断だけの入力は plan 列 Update を呼ばず、診断行の置換で書き込む。
+			replaceDiagnosesFn: func(_ context.Context, _, _ uint64, _ []ClinicalPlanDiagnosisInput) error {
 				*updated = true
 				return nil
 			},
@@ -121,19 +123,19 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisNameFK
 		}
 	}
 
-	t.Run("rejects cross-clinic diagnosis_1_name_id and does not update clinical plan", func(t *testing.T) {
+	t.Run("rejects cross-clinic diagnoses[].diagnosis_name_id and does not update clinical plan", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignNameID
-		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1NameID: &foreign})
+		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnoses: []ClinicalPlanDiagnosisInput{{Slot: 1, DiagnosisNameID: &foreign}}})
 		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis name")
 	})
 
-	t.Run("accepts same-clinic diagnosis_1_name_id (no false-reject)", func(t *testing.T) {
+	t.Run("accepts same-clinic diagnoses[].diagnosis_name_id (no false-reject)", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedNameID
-		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1NameID: &owned})
+		_ = svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnoses: []ClinicalPlanDiagnosisInput{{Slot: 1, DiagnosisNameID: &owned}}})
 		assert.True(t, updated)
 	})
 }

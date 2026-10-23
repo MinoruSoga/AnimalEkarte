@@ -621,7 +621,6 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 		name            string
 		medicalRecordID uint64
 		input           *BulkUpdateTreatmentsInput
-		parentStatus    model.MedicalRecordStatus
 		repoErr         error
 		wantErr         bool
 		wantConflict    bool
@@ -636,9 +635,8 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					{ID: 3, SortOrder: 2},
 				},
 			},
-			parentStatus: model.MedicalRecordStatusDraft,
-			repoErr:      nil,
-			wantErr:      false,
+			repoErr: nil,
+			wantErr: false,
 		},
 		{
 			name:            "returns error when repository fails",
@@ -648,9 +646,8 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					{ID: 1, SortOrder: 1},
 				},
 			},
-			parentStatus: model.MedicalRecordStatusDraft,
-			repoErr:      errors.New("db error"),
-			wantErr:      true,
+			repoErr: errors.New("db error"),
+			wantErr: true,
 		},
 		{
 			name:            "handles empty treatments list",
@@ -658,22 +655,8 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 			input: &BulkUpdateTreatmentsInput{
 				Treatments: []BulkTreatmentItem{},
 			},
-			parentStatus: model.MedicalRecordStatusDraft,
-			repoErr:      nil,
-			wantErr:      false,
-		},
-		{
-			name:            "returns conflict when parent medical record is finalized",
-			medicalRecordID: 1,
-			input: &BulkUpdateTreatmentsInput{
-				Treatments: []BulkTreatmentItem{
-					{ID: 1, SortOrder: 1},
-				},
-			},
-			parentStatus: model.MedicalRecordStatusFinalized,
-			repoErr:      nil,
-			wantErr:      true,
-			wantConflict: true,
+			repoErr: nil,
+			wantErr: false,
 		},
 	}
 
@@ -686,7 +669,7 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 			}
 			mrRepo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{Status: tt.parentStatus}, nil
+					return &model.MedicalRecord{}, nil
 				},
 			}
 			// mockTransactor: DB 不要でトランザクションをインライン実行（BE-refactor.md H-8c）

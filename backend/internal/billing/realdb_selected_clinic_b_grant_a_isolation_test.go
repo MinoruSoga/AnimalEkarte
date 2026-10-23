@@ -514,9 +514,9 @@ func seedRealDBBillingFixture(t *testing.T, db *gorm.DB, forbiddenClinicID uint6
 	petA := seedSpeciesPet(t, db, fx.ClinicA, ownerA.ID, realDBBillPetA)
 	petB := seedSpeciesPet(t, db, fx.ClinicB, ownerB.ID, realDBBillPetB)
 
-	mrA := &model.MedicalRecord{ClinicID: fx.ClinicA, RecordNo: realDBBillMRA, Date: day, Status: model.MedicalRecordStatusDraft}
+	mrA := &model.MedicalRecord{ClinicID: fx.ClinicA, RecordNo: realDBBillMRA, Date: day}
 	require.NoError(t, db.WithContext(ctx).Create(mrA).Error)
-	mrB := &model.MedicalRecord{ClinicID: fx.ClinicB, RecordNo: realDBBillMRB, Date: day, Status: model.MedicalRecordStatusDraft}
+	mrB := &model.MedicalRecord{ClinicID: fx.ClinicB, RecordNo: realDBBillMRB, Date: day}
 	require.NoError(t, db.WithContext(ctx).Create(mrB).Error)
 	require.NoError(t, db.WithContext(ctx).Create(&model.BillingConfirmation{MedicalRecordID: mrB.ID, Status: model.ConfirmationStatusPending}).Error)
 

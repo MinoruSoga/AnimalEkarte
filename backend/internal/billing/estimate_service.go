@@ -675,11 +675,8 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64, actor
 	}
 	oldValue := extractEstimateImportantFields(existing)
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書削除を拒否。
-		if err := lockDraftMedicalRecordIfPresent(txCtx, s.medicalRecordRepo, clinicID, existing.MedicalRecordID,
-			"failed to find medical record", "確定済みカルテの見積書は削除できません"); err != nil {
-			return err
-		}
+		// D2/495: 旧「親カルテ確定済みなら見積書削除を拒否」(SD-2 / X-11) の判定は削除した。
+		// 見積書自身の承認/却下ロックと DeleteIfNotLocked の原子条件は維持する。
 		// 早期 Count は UX 用。防御の本体は DeleteIfNotLocked の原子条件（status + active items=0）。
 		count, err := s.repo.CountItemsByEstimateID(txCtx, clinicID, id)
 		if err != nil {

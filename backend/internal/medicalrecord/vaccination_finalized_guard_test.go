@@ -1,11 +1,9 @@
 package medicalrecord
 
-// EMR-323 RED tests: vaccination Delete/Create/Update must hold the same
-// finalized-parent guard as the sibling child-record services (vital/checkup/
-// treatment). These tests are written against the UNSAFE current implementation
-// and are expected to fail until the service gains parent locking inside the
-// write transaction. Audit-LogEntryTx assertions are intentionally deferred
-// until the audit dependency API is agreed (Lead decision).
+// EMR-323 tests: vaccination Delete/Create/Update hold the parent medical-record
+// row lock inside the write transaction (ascending order for source+destination
+// relink). EMR-495 P1: the old finalized-parent rejection (and its tests) was retired
+// together with medical_records.status; the lock, ownership and relink protections remain.
 
 import (
 	"context"
@@ -99,11 +97,7 @@ func distinctVaccinationLockOrder(calls []uint64) []uint64 {
 }
 
 func draftGuardRecord(id, clinicID uint64) *model.MedicalRecord {
-	return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}
-}
-
-func finalizedGuardRecord(id, clinicID uint64) *model.MedicalRecord {
-	return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusFinalized}
+	return &model.MedicalRecord{ID: id, ClinicID: clinicID}
 }
 
 // ownerLoadedVaccination builds a vaccination whose Pet/Owner preloads satisfy
@@ -120,41 +114,6 @@ func ownerLoadedVaccination(id, clinicID, petID, ownerID uint64, medicalRecordID
 			Owner: &model.Owner{ID: ownerID, ClinicID: clinicID},
 		},
 	}
-}
-
-// Deleting a vaccination linked to a finalized medical record must be rejected
-// with Conflict and must produce no delete and no tag resync.
-func TestVaccinationService_Delete_FinalizedParentRejected(t *testing.T) {
-	const clinicID, vaccinationID, recordID uint64 = 1, 10, 30
-	deleteCalls := 0
-	resyncCalls := 0
-	repo := &mockVaccinationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
-			return &model.Vaccination{ID: id, ClinicID: clinicID, MedicalRecordID: ptrUint64(recordID), VaccineID: 1}, nil
-		},
-		deleteFn: func(_ context.Context, _, _ uint64) error {
-			deleteCalls++
-			return nil
-		},
-	}
-	locker := &vaccinationMedicalRecordLockerStub{records: map[uint64]*model.MedicalRecord{
-		recordID: finalizedGuardRecord(recordID, clinicID),
-	}}
-	tagSync := &mockLstepTagSyncService{
-		resyncOwnerVaccineTagsFn: func(context.Context, uint64, uint64) error {
-			resyncCalls++
-			return nil
-		},
-	}
-	svc := NewVaccinationService(repo, okVaccineRepo(), tagSync,
-		&permissiveVaccinationRelationVerifier{}, locker, vaccinationTestTransactor{}, &mockAuditTxLogger{})
-
-	err := svc.Delete(context.Background(), clinicID, vaccinationID)
-
-	require.Error(t, err, "deleting a vaccination on a finalized record must fail")
-	assert.True(t, apperrors.IsConflict(err), "finalized parent must map to conflict: %v", err)
-	assert.Zero(t, deleteCalls, "rejected delete must not reach the repository delete")
-	assert.Zero(t, resyncCalls, "rejected delete must not resync owner tags")
 }
 
 // A linked parent that is missing/foreign under the caller clinic must fail
@@ -398,37 +357,6 @@ func TestVaccinationService_Delete_ResyncsTagsFromCurrentLockedRecord(t *testing
 	assert.Equal(t, ownerID, resynced, "resync must use the current in-transaction owner, not the stale snapshot")
 }
 
-// Creating a vaccination linked to a finalized record must be rejected before
-// any write, matching the update-path guard.
-func TestVaccinationService_Create_FinalizedParentRejected(t *testing.T) {
-	const clinicID, recordID uint64 = 1, 30
-	createCalls := 0
-	repo := &mockVaccinationRepository{
-		createFn: func(_ context.Context, vaccination *model.Vaccination) error {
-			createCalls++
-			vaccination.ID = 10
-			return nil
-		},
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
-			return &model.Vaccination{ID: id, VaccineID: 1}, nil
-		},
-	}
-	locker := &vaccinationMedicalRecordLockerStub{records: map[uint64]*model.MedicalRecord{
-		recordID: finalizedGuardRecord(recordID, clinicID),
-	}}
-	svc := NewVaccinationService(repo, okVaccineRepo(), nil,
-		&permissiveVaccinationRelationVerifier{}, locker, vaccinationTestTransactor{}, &mockAuditTxLogger{})
-
-	got, err := svc.Create(context.Background(), clinicID, &CreateVaccinationInput{
-		MedicalRecordID: ptrUint64(recordID), VaccineID: 1, Date: time.Now(),
-	})
-
-	require.Error(t, err, "creating a vaccination on a finalized record must fail")
-	assert.True(t, apperrors.IsConflict(err), "finalized parent must map to conflict: %v", err)
-	assert.Nil(t, got)
-	assert.Zero(t, createCalls, "rejected create must not write the child row")
-}
-
 // Creating a vaccination linked to a draft record stays allowed.
 func TestVaccinationService_Create_AllowsDraftLinkedRecord(t *testing.T) {
 	const clinicID, recordID uint64 = 1, 30
@@ -456,36 +384,6 @@ func TestVaccinationService_Create_AllowsDraftLinkedRecord(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, 1, createCalls)
-}
-
-// Relinking a vaccination AWAY from a finalized record must be rejected: the
-// source record's guard applies to removals, not only to writes into it.
-func TestVaccinationService_Update_RelinkOffFinalizedSourceRejected(t *testing.T) {
-	const clinicID, vaccinationID, sourceID, destID uint64 = 1, 10, 30, 40
-	updateCalls := 0
-	repo := &mockVaccinationRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccination, error) {
-			return &model.Vaccination{ID: id, ClinicID: clinicID, MedicalRecordID: ptrUint64(sourceID), VaccineID: 1}, nil
-		},
-		updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateVaccinationInput) (*model.Vaccination, error) {
-			updateCalls++
-			return &model.Vaccination{ID: id}, nil
-		},
-	}
-	locker := &vaccinationMedicalRecordLockerStub{records: map[uint64]*model.MedicalRecord{
-		sourceID: finalizedGuardRecord(sourceID, clinicID),
-		destID:   draftGuardRecord(destID, clinicID),
-	}}
-	svc := NewVaccinationService(repo, okVaccineRepo(), nil,
-		&permissiveVaccinationRelationVerifier{}, locker, vaccinationTestTransactor{}, &mockAuditTxLogger{})
-
-	got, err := svc.Update(context.Background(), clinicID, vaccinationID,
-		&UpdateVaccinationInput{MedicalRecordID: ptrUint64(destID)})
-
-	require.Error(t, err, "relinking a child off a finalized record must be rejected")
-	assert.True(t, apperrors.IsConflict(err), "finalized source must map to conflict: %v", err)
-	assert.Nil(t, got)
-	assert.Zero(t, updateCalls)
 }
 
 // Comparing the post-input "effective" relations lets a concurrent move hide
@@ -556,68 +454,5 @@ func TestVaccinationService_Update_RelinkParentsLockedAscending(t *testing.T) {
 	})
 	t.Run("source_above_destination", func(t *testing.T) {
 		assert.Equal(t, []uint64{30, 50}, run(t, 50, 30))
-	})
-}
-
-// Real-DB coverage: a vaccination linked to a finalized record must be rejected
-// with Conflict and survive; a draft-linked vaccination deletes normally.
-func TestVaccinationService_Delete_FinalizedGuardRealDB(t *testing.T) {
-	db := setupVaccinationRepoTestDB(t)
-	ctx := context.Background()
-	const clinicA = uint64(1)
-	ensureVaccinationTestClinics(t, db, clinicA)
-
-	owner := makeTestOwner(t, db, clinicA, "finalized guard owner")
-	pet := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "finalized guard pet")
-	vaccine := makeVaccineMaster(t, db, clinicA, "finalized guard vaccine")
-	realRepo := NewVaccinationRepository(db)
-	svc := NewVaccinationService(
-		realRepo,
-		NewVaccineRepository(db),
-		nil,
-		reservation.NewReservationRepository(db),
-		NewMedicalRecordRepository(db),
-		vaccinationTestTransactor{db: db},
-		&mockAuditTxLogger{},
-	)
-
-	t.Run("finalized_parent_rejected_and_row_survives", func(t *testing.T) {
-		record := &model.MedicalRecord{
-			ClinicID: clinicA, RecordNo: "VAC-GUARD-FIN", Date: time.Now(),
-			OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusFinalized,
-		}
-		require.NoError(t, db.WithContext(ctx).Create(record).Error)
-		vaccination := &model.Vaccination{
-			ClinicID: clinicA, PetID: &pet.ID, MedicalRecordID: &record.ID,
-			VaccineID: vaccine.ID, Date: time.Now(),
-		}
-		require.NoError(t, db.WithContext(ctx).Create(vaccination).Error)
-
-		err := svc.Delete(ctx, clinicA, vaccination.ID)
-
-		require.Error(t, err, "delete on a finalized record must be rejected")
-		assert.True(t, apperrors.IsConflict(err), "finalized parent must map to conflict: %v", err)
-		still, findErr := realRepo.FindByID(ctx, clinicA, vaccination.ID)
-		require.NoError(t, findErr, "rejected delete must leave the row untouched")
-		require.NotNil(t, still)
-	})
-
-	t.Run("draft_parent_deleted", func(t *testing.T) {
-		record := &model.MedicalRecord{
-			ClinicID: clinicA, RecordNo: "VAC-GUARD-DRAFT", Date: time.Now(),
-			OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
-		}
-		require.NoError(t, db.WithContext(ctx).Create(record).Error)
-		vaccination := &model.Vaccination{
-			ClinicID: clinicA, PetID: &pet.ID, MedicalRecordID: &record.ID,
-			VaccineID: vaccine.ID, Date: time.Now(),
-		}
-		require.NoError(t, db.WithContext(ctx).Create(vaccination).Error)
-
-		err := svc.Delete(ctx, clinicA, vaccination.ID)
-
-		require.NoError(t, err)
-		_, findErr := realRepo.FindByID(ctx, clinicA, vaccination.ID)
-		assert.True(t, apperrors.IsNotFound(findErr), "deleted row must not be visible")
 	})
 }

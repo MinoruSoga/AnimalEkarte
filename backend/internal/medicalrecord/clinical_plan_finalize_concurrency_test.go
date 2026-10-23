@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/testdb"
@@ -88,7 +87,10 @@ func setupClinicalPlanFinalizeTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-func TestClinicalPlanFinalizeConcurrency(t *testing.T) {
+// EMR-495 P1: 旧「finalize commits before child mutation」ケース（親確定後の更新/削除が Conflict）は
+// status 廃止に伴い削除した。ここでは子 mutation が親行ロックを保持する間、親 header 書込が待たされる
+// 直列化のみを検証する。
+func TestClinicalPlanParentWriteConcurrency(t *testing.T) {
 	const clinicID = uint64(95101)
 
 	operations := []struct {
@@ -142,12 +144,12 @@ func TestClinicalPlanFinalizeConcurrency(t *testing.T) {
 	}
 
 	for _, operation := range operations {
-		t.Run(operation.name+" child mutation commits before finalize", func(t *testing.T) {
+		t.Run(operation.name+" child mutation commits before the parent header write", func(t *testing.T) {
 			db := setupClinicalPlanFinalizeTestDB(t)
 			clinicalPlanRepo := NewClinicalPlanRepository(db)
 			medicalRecordRepo := NewMedicalRecordRepository(db)
 			record := makeClinicalPlanMedicalRecord(t, db, clinicID, "F1-CHILD-FIRST-"+operation.name)
-			plan := &model.ClinicalPlan{MedicalRecordID: record.ID, PhysicalExam: "before finalize"}
+			plan := &model.ClinicalPlan{ClinicID: clinicID, MedicalRecordID: record.ID, PhysicalExam: "before parent write"}
 			require.NoError(t, clinicalPlanRepo.Create(context.Background(), plan))
 
 			auditReached := make(chan struct{})
@@ -182,7 +184,7 @@ func TestClinicalPlanFinalizeConcurrency(t *testing.T) {
 						context.Background(),
 						clinicID,
 						record.ID,
-						medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized),
+						medicalRecordParentWrite(),
 						nil,
 					)
 					return err
@@ -215,45 +217,8 @@ func TestClinicalPlanFinalizeConcurrency(t *testing.T) {
 
 			persistedRecord, err := medicalRecordRepo.FindByID(context.Background(), clinicID, record.ID)
 			require.NoError(t, err)
-			assert.Equal(t, model.MedicalRecordStatusFinalized, persistedRecord.Status)
-		})
-
-		t.Run(operation.name+" finalize commits before child mutation", func(t *testing.T) {
-			db := setupClinicalPlanFinalizeTestDB(t)
-			clinicalPlanRepo := NewClinicalPlanRepository(db)
-			medicalRecordRepo := NewMedicalRecordRepository(db)
-			record := makeClinicalPlanMedicalRecord(t, db, clinicID, "F1-FINALIZE-FIRST-"+operation.name)
-			plan := &model.ClinicalPlan{MedicalRecordID: record.ID, PhysicalExam: "must remain"}
-			require.NoError(t, clinicalPlanRepo.Create(context.Background(), plan))
-
-			_, err := medicalRecordRepo.Update(
-				context.Background(),
-				clinicID,
-				record.ID,
-				medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized),
-				nil,
-			)
-			require.NoError(t, err)
-
-			auditCalled := false
-			actorID := uint64(95102)
-			svc := NewClinicalPlanService(
-				clinicalPlanRepo,
-				medicalRecordRepo,
-				nil,
-				nil,
-				persistence.NewTransactor(db),
-				AuditTxLoggerFunc(func(context.Context, *AuditEntry) error {
-					auditCalled = true
-					return nil
-				}),
-			)
-
-			err = operation.mutate(svc, context.Background(), clinicID, record.ID, &actorID)
-			require.Error(t, err)
-			assert.True(t, apperrors.IsConflict(err))
-			assert.False(t, auditCalled)
-			operation.assertUnchanged(t, clinicalPlanRepo, db, clinicID, plan)
+			require.NotNil(t, persistedRecord.VisitType)
+			assert.Equal(t, model.VisitTypeRevisit, *persistedRecord.VisitType)
 		})
 	}
 }

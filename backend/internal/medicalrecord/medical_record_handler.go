@@ -116,6 +116,12 @@ func (h *MedicalRecordHandler) CreateMedicalRecord(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
+	// 診断行の形（diagnosis_slot 欠落）はカルテ作成前に弾く。
+	subRecords, err := input.toSubRecordsInput()
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
 	if isAdmin, ok := httpapi.PeekIsSystemAdmin(c); ok && isAdmin {
 		svcInput.EnteredBySystemAdmin = true
 	}
@@ -126,7 +132,7 @@ func (h *MedicalRecordHandler) CreateMedicalRecord(c *gin.Context) {
 		return
 	}
 	// MRC-04 / DEC-32: do not return 201 when chief complaint / clinical plan subrecords failed.
-	if err := h.service.CreateSubRecords(ctx, clinicID, record.ID, input.toSubRecordsInput()); err != nil {
+	if err := h.service.CreateSubRecords(ctx, clinicID, record.ID, subRecords); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}

@@ -182,11 +182,10 @@ func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input 
 			return err
 		}
 		// EMR-323: validateRelations locks the linked parent row but never checks its
-		// status. Re-check the already-held row lock in the same tx so a finalized
-		// parent rejects the create (Update/Delete と同じ lockDraftMedicalRecord 規約)。
+		// identity. Re-check under the already-held row lock in the same tx
+		// (Update/Delete と同じ lockDraftMedicalRecord 規約)。
 		if vaccination.MedicalRecordID != nil {
-			if err := s.lockVaccinationParentDraft(txCtx, clinicID, *vaccination.MedicalRecordID,
-				"確定済みカルテのワクチン接種は編集できません"); err != nil {
+			if err := s.lockVaccinationParentDraft(txCtx, clinicID, *vaccination.MedicalRecordID); err != nil {
 				return err
 			}
 		}
@@ -243,12 +242,10 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 		// EMR-323 / P323-LOCKS: guard BOTH the original source and the effective
 		// destination parent. Unique parent IDs are locked FOR UPDATE in deterministic
 		// ascending order BEFORE validateRelations may take the destination lock, so
-		// opposite-direction relinks cannot deadlock. A finalized source or
-		// destination rejects with Conflict (treatment/vital/checkup の
+		// opposite-direction relinks cannot deadlock (treatment/vital/checkup の
 		// lockDraftMedicalRecord 規約と対称化)。
 		for _, recordID := range uniqueSortedVaccinationParentIDs(snapshot.MedicalRecordID, medicalRecordID) {
-			if err := s.lockVaccinationParentDraft(txCtx, clinicID, recordID,
-				"確定済みカルテのワクチン接種は編集できません"); err != nil {
+			if err := s.lockVaccinationParentDraft(txCtx, clinicID, recordID); err != nil {
 				return err
 			}
 		}
@@ -321,12 +318,10 @@ func (s *vaccinationService) Delete(ctx context.Context, clinicID, id uint64) er
 	}
 	var current *model.Vaccination
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// Lock the linked parent before the child row so a concurrent finalize
-		// serializes against this delete (X-11); a finalized parent rejects with
-		// Conflict and produces no child delete, audit, or tag resync.
+		// Lock the linked parent before the child row so a concurrent parent writer
+		// serializes against this delete (X-11).
 		if existing.MedicalRecordID != nil {
-			if err := s.lockVaccinationParentDraft(txCtx, clinicID, *existing.MedicalRecordID,
-				"確定済みカルテのワクチン接種は削除できません"); err != nil {
+			if err := s.lockVaccinationParentDraft(txCtx, clinicID, *existing.MedicalRecordID); err != nil {
 				return err
 			}
 		}
@@ -460,11 +455,12 @@ func sameOptionalUint64(a, b *uint64) bool {
 }
 
 // lockVaccinationParentDraft locks the parent medical record FOR UPDATE inside the
-// ambient transaction and rejects a finalized record with Conflict — the EMR-323
-// extension of the X-11 draft-parent invariant (sharedkernel.LockDraftMedicalRecord
-// と同じ写像) with an added identity check so nil / foreign-clinic / wrong-ID
-// parents also fail closed instead of being trusted by scope alone.
-func (s *vaccinationService) lockVaccinationParentDraft(txCtx context.Context, clinicID, recordID uint64, conflictMsg string) error {
+// ambient transaction — the EMR-323 extension of the X-11 parent-lock invariant
+// (sharedkernel.LockDraftMedicalRecord と同じ写像) with an added identity check so
+// nil / foreign-clinic / wrong-ID parents fail closed instead of being trusted by
+// scope alone. EMR-495: the finalized rejection was retired (no status column);
+// the row lock and identity check remain. The 494 fence does not participate yet.
+func (s *vaccinationService) lockVaccinationParentDraft(txCtx context.Context, clinicID, recordID uint64) error {
 	if s.medicalRecords == nil {
 		return apperrors.WrapInternalServerError("vaccination medical record dependency is required")
 	}
@@ -475,9 +471,7 @@ func (s *vaccinationService) lockVaccinationParentDraft(txCtx context.Context, c
 	if parent == nil || parent.ID != recordID || parent.ClinicID != clinicID {
 		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", recordID))
 	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return apperrors.WrapConflict(conflictMsg)
-	}
+	// EMR-495: 旧 finalized 拒否は廃止した。行ロックと同一性検査は維持する。
 	return nil
 }
 

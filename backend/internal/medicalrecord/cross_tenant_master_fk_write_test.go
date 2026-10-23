@@ -165,7 +165,7 @@ func TestCheckupService_Create_RejectsCrossClinicCheckupType(t *testing.T) {
 			},
 		}
 		medRec := &mockMedicalRecordRepository{findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{}, nil
 		}}
 		return NewCheckupService(repo, medRec, rejectCheckupTypeRepo(ownedCheckupTypeID), nil, nil)
 	}
@@ -843,21 +843,22 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisFK(t *testing.T) 
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignTypeID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &foreign,
-			ActorID: clinicalPlanTestActorID(),
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{
+			Diagnoses: &[]ClinicalPlanDiagnosisInput{{Slot: 1, DiagnosisTypeID: &foreign}},
+			ActorID:   clinicalPlanTestActorID(),
 		})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis type")
 	})
 
-	t.Run("rejects cross-clinic diagnosis_2_type_id (second slot)", func(t *testing.T) {
+	t.Run("rejects cross-clinic diagnosis_type_id on a second-slot row", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignTypeID
-		foreignPtr := &foreign
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2TypeID: &foreignPtr,
-			ActorID: clinicalPlanTestActorID(),
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{
+			Diagnoses: &[]ClinicalPlanDiagnosisInput{{Slot: 2, DiagnosisTypeID: &foreign}},
+			ActorID:   clinicalPlanTestActorID(),
 		})
 		assert.Error(t, err)
 		assert.Nil(t, out)
@@ -868,8 +869,9 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisFK(t *testing.T) 
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedTypeID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &owned,
-			ActorID: clinicalPlanTestActorID(),
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{
+			Diagnoses: &[]ClinicalPlanDiagnosisInput{{Slot: 1, DiagnosisTypeID: &owned}},
+			ActorID:   clinicalPlanTestActorID(),
 		})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
@@ -896,21 +898,22 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisName(t *testing.T
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignNameID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisNameID: &foreign,
-			ActorID: clinicalPlanTestActorID(),
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{
+			Diagnoses: &[]ClinicalPlanDiagnosisInput{{Slot: 1, DiagnosisNameID: &foreign}},
+			ActorID:   clinicalPlanTestActorID(),
 		})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis name")
 	})
 
-	t.Run("rejects cross-clinic diagnosis_2_name_id (second slot)", func(t *testing.T) {
+	t.Run("rejects cross-clinic diagnosis_name_id on a second-slot row", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignNameID
-		foreignPtr := &foreign
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2NameID: &foreignPtr,
-			ActorID: clinicalPlanTestActorID(),
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{
+			Diagnoses: &[]ClinicalPlanDiagnosisInput{{Slot: 2, DiagnosisNameID: &foreign}},
+			ActorID:   clinicalPlanTestActorID(),
 		})
 		assert.Error(t, err)
 		assert.Nil(t, out)
@@ -921,8 +924,9 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisName(t *testing.T
 		updated := false
 		svc := newSvc(&updated)
 		owned := ownedNameID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisNameID: &owned,
-			ActorID: clinicalPlanTestActorID(),
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{
+			Diagnoses: &[]ClinicalPlanDiagnosisInput{{Slot: 1, DiagnosisNameID: &owned}},
+			ActorID:   clinicalPlanTestActorID(),
 		})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)

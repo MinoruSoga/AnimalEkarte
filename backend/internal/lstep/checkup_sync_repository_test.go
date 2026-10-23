@@ -95,7 +95,6 @@ func makeSyncMedicalRecord(t *testing.T, db *gorm.DB, clinicID, ownerID, petID u
 		Date:     date,
 		OwnerID:  &oid,
 		PetID:    &pid,
-		Status:   model.MedicalRecordStatusFinalized,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
 	return mr

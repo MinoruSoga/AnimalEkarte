@@ -44,7 +44,6 @@ func makeTreatmentPlanMedicalRecord(t *testing.T, db *gorm.DB, clinicID uint64, 
 		ClinicID: clinicID,
 		RecordNo: recordNo,
 		Date:     time.Now(),
-		Status:   model.MedicalRecordStatusFinalized,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
 	return mr

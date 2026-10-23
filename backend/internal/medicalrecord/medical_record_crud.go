@@ -199,13 +199,7 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 		return nil, apperrors.Wrap(err, "failed to get medical record")
 	}
 
-	// 確定済みカルテは更新不可
-	if existing.Status == model.MedicalRecordStatusFinalized {
-		slog.WarnContext(ctx, "attempted to update finalized medical record",
-			slog.Uint64("record_id", id),
-			slog.Uint64("clinic_id", clinicID))
-		return nil, apperrors.WrapConflict("確定済みカルテは編集できません。訂正追記 (addendum) を使用してください")
-	}
+	// EMR-495: 旧 finalized による更新拒否は廃止（契約 §0.1）。版 CAS・予約紐付け/診療日規則・監査は維持する。
 	if input.AppointmentID != nil && (existing.AppointmentID == nil || *input.AppointmentID != *existing.AppointmentID) {
 		return nil, apperrors.WrapConflict("作成済みカルテの予約紐付けは変更できません。監査付きの専用再紐付け手順が必要です")
 	}
@@ -231,10 +225,6 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	effective := input
 	effective.persistVersion = &nextVersion
 
-	// 監査 diff は更新前に取得（finalize 検出のため）
-	wasFinalized := existing.Status == model.MedicalRecordStatusFinalized
-	isBecomingFinalized := input.Status != nil && *input.Status == model.MedicalRecordStatusFinalized && !wasFinalized
-
 	var record *model.MedicalRecord
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
 		updated, err := s.updateMedicalRecordInTx(
@@ -248,7 +238,6 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 			finalDoctorID,
 			needsLinkValidation,
 			needsContextValidation,
-			isBecomingFinalized,
 		)
 		if err != nil {
 			return err
@@ -262,71 +251,21 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 		slog.Uint64("record_id", id),
 		slog.Uint64("clinic_id", clinicID))
 
-	// 監査ログ: update（best-effort）。finalize は上の transaction 内で fail-closed に記録する。
+	// 監査ログ: update（best-effort）。
 	s.logMedicalRecordChangeBestEffort(ctx, clinicID, input.ActorID, "update", id, existing, record, "audit log failed for medical record update")
-
-	if isBecomingFinalized {
-		s.syncVisitCompletionTags(ctx, clinicID, record)
-	}
 
 	return record, nil
 }
 
-func (s *medicalRecordService) Delete(ctx context.Context, clinicID, id uint64) error {
-	var existing *model.MedicalRecord
-	if err := s.withTx(ctx, func(txCtx context.Context) error {
-		// appointments を先にロックし、予約側（LockAndFindByID → COUNT）と同じ順序にする。
-		link, err := s.repo.LockLinkedAppointmentForUpdate(txCtx, clinicID, id)
-		if err != nil {
-			return apperrors.Wrap(err, "failed to lock linked appointment for deletion")
-		}
-		if link != nil && link.Appointment != nil && link.Appointment.Status == model.ReservationStatusInConsultation {
-			return wrapMedicalRecordDeleteConflict(
-				medicalRecordDeleteStateConflict,
-				"診療中の予約に紐づくカルテは削除できません",
-			)
-		}
-		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, id)
-		if err != nil {
-			return apperrors.Wrap(err, "failed to lock medical record for deletion")
-		}
-		if locked.Status != model.MedicalRecordStatusDraft {
-			return wrapMedicalRecordDeleteConflict(
-				medicalRecordDeleteStateConflict,
-				"確定済みまたは下書き以外のカルテは削除できません",
-			)
-		}
-		estimateCount, err := s.repo.CountEstimatesByMedicalRecordID(txCtx, clinicID, id)
-		if err != nil {
-			return apperrors.Wrap(err, "failed to check estimate dependencies")
-		}
-		if estimateCount > 0 {
-			return wrapMedicalRecordDeleteConflict(
-				medicalRecordDeleteDependencyConflict,
-				"この項目は使用中のため削除できません",
-			)
-		}
-		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
-			return apperrors.Wrap(err, "failed to delete medical record")
-		}
-		existing = locked
-		return nil
-	}); err != nil {
-		return err
-	}
-	oldValue := extractMedicalRecordImportantFields(existing)
-	slog.InfoContext(ctx, "medical record deleted",
-		slog.Uint64("record_id", id),
-		slog.Uint64("clinic_id", clinicID))
+// medicalRecordDeleteRetiredMessage は Delete が返す固定エラーの利用者向け文言（EMR-495 Q1 d1）。
+const medicalRecordDeleteRetiredMessage = "カルテの削除は未提供です。下書きかどうかを削除可否の根拠にしません。誤作成や記入済みの訂正は訂正手順で行ってください。"
 
-	// 監査ログ: delete（best-effort, actorID=nil）
-	if s.auditService != nil {
-		if err := s.auditService.LogMedicalRecordChange(ctx, clinicID, nil, "delete", id, oldValue, nil); err != nil {
-			slog.ErrorContext(ctx, "audit log failed for medical record delete", "error", err, "record_id", id)
-		}
-	}
-	s.syncVisitCompletionTags(ctx, clinicID, existing)
-	return nil
+// Delete は EMR-495 P1 でカルテ削除を提供しない固定エラー（422 medical_record_status_retired）にした。
+// 旧実装は status=draft だけを削除可の根拠にしていた。spec（medical-records/lifecycle §3）は
+// 「draftという状態だけでは削除可と判定しない・空かつ関連なしを確認し判定不能なら削除しない」ため、
+// status 列が無い現在は空判定が実装されるまで削除しない（fail-closed）。read / write / audit は一切行わない。
+func (s *medicalRecordService) Delete(_ context.Context, _, _ uint64) error {
+	return apperrors.WrapMedicalRecordStatusRetired(medicalRecordDeleteRetiredMessage)
 }
 
 func (s *medicalRecordService) UpdateRecommendationReason(
@@ -345,15 +284,7 @@ func (s *medicalRecordService) UpdateRecommendationReason(
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find medical record")
 	}
-	// 確定済みカルテは推奨理由も更新不可（Update と同一方針。repo.Update 自体も
-	// status=draft の WHERE で原子的に拒否するが、この事前チェックで友好的な
-	// エラーメッセージと slog 警告を出す。SD-2 系ガード監査で発見された欠落）。
-	if existing.Status == model.MedicalRecordStatusFinalized {
-		slog.WarnContext(ctx, "attempted to update recommendation_reason on finalized medical record",
-			slog.Uint64("record_id", id),
-			slog.Uint64("clinic_id", clinicID))
-		return nil, apperrors.WrapConflict("確定済みカルテの推奨理由は編集できません")
-	}
+	// EMR-495: 旧 finalized による推奨理由の更新拒否は廃止（Update と同一方針）。
 	// 3. build update map
 	var reasonValue any
 	if input.Reason == "" {
@@ -378,21 +309,6 @@ func (s *medicalRecordService) UpdateRecommendationReason(
 	s.logMedicalRecordChangeBestEffort(ctx, clinicID, nil, "update", id, existing, record, "audit log failed for recommendation_reason update")
 
 	return record, nil
-}
-
-func (s *medicalRecordService) validateMedicalRecordUpdateLinks(
-	ctx context.Context,
-	clinicID uint64,
-	ownerID, petID *uint64,
-	needsLinkValidation, isBecomingFinalized bool,
-) error {
-	if needsLinkValidation {
-		return s.validateMedicalRecordOwnerPetLinks(ctx, clinicID, ownerID, petID)
-	}
-	if isBecomingFinalized {
-		return s.validateMedicalRecordSnapshotOwnerPetClinicRelations(ctx, clinicID, ownerID, petID)
-	}
-	return nil
 }
 
 func (s *medicalRecordService) logMedicalRecordChangeBestEffort(

@@ -64,9 +64,6 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		if filters.EndDate != nil {
 			q = q.Where("medical_records.date <= ?", *filters.EndDate)
 		}
-		if filters.Status != nil {
-			q = q.Where("medical_records.status = ?", *filters.Status)
-		}
 		if filters.DoctorID != nil {
 			q = q.Where("medical_records.doctor_id = ?", *filters.DoctorID)
 		}

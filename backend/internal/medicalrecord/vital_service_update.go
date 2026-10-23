@@ -13,14 +13,13 @@ func (s *vitalService) updateVitalInTx(
 	input *UpdateVitalInput,
 	existing *model.VitalRecord,
 ) (*model.VitalRecord, error) {
-	// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
-	// バイタル編集が確定済みカルテに混入する競合を防ぐ。
+	// BE-refactor.md X-11: 親カルテを行ロックし、同一性（clinic/ID）を検証する。
+	// EMR-495: 旧 finalized 拒否は廃止した。
 	parent, err := s.lockDraftParent(
 		txCtx,
 		clinicID,
 		medicalRecordID,
 		"failed to find medical record",
-		"確定済みカルテのバイタルは編集できません",
 	)
 	if err != nil {
 		return nil, err

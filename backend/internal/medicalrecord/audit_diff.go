@@ -11,7 +11,6 @@ func extractMedicalRecordImportantFields(r *model.MedicalRecord) map[string]any 
 		return nil
 	}
 	m := map[string]any{
-		"status":    string(r.Status),
 		"date":      r.Date,
 		"doctor_id": r.DoctorID,
 		"owner_id":  r.OwnerID,
@@ -54,7 +53,6 @@ func diffMedicalRecordImportantFields(oldRec, newRec *model.MedicalRecord) (oldD
 	}
 
 	comparisons := []comparison{
-		{key: "status", oldVal: string(oldRec.Status), newVal: string(newRec.Status), equal: oldRec.Status == newRec.Status},
 		{key: "date", oldVal: oldRec.Date, newVal: newRec.Date, equal: oldRec.Date.Equal(newRec.Date)},
 		{key: "doctor_id", oldVal: oldRec.DoctorID, newVal: newRec.DoctorID, equal: ptrUint64Equal(oldRec.DoctorID, newRec.DoctorID)},
 		{key: "owner_id", oldVal: oldRec.OwnerID, newVal: newRec.OwnerID, equal: ptrUint64Equal(oldRec.OwnerID, newRec.OwnerID)},

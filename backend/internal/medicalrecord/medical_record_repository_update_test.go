@@ -29,8 +29,11 @@ func medicalRecordUpdateRecordNoAndVersion(recordNo string, nextVersion int) Upd
 	}
 }
 
-func medicalRecordUpdateStatus(status model.MedicalRecordStatus) UpdateMedicalRecordInput {
-	return UpdateMedicalRecordInput{Status: &status}
+// medicalRecordParentWrite は親カルテの header 書込（visit_type のみ）。EMR-495: 旧 status=finalized への
+// 書込を、並行 writer 直列化テストの「親 writer」として置き換えるための status 非依存の書込。
+func medicalRecordParentWrite() UpdateMedicalRecordInput {
+	visitType := model.VisitTypeRevisit
+	return UpdateMedicalRecordInput{VisitType: &visitType}
 }
 
 // TestMedicalRecordRepository_LockByIDForUpdate は X-11 finalize-child-write-race fix の
@@ -46,27 +49,15 @@ func TestMedicalRecordRepository_LockByIDForUpdate(t *testing.T) {
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "LockByIDForUpdateペット")
 	draftRec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "LDB-001", Date: time.Now(), OwnerID: &ownerA.ID, PetID: &petA.ID,
-		Status: model.MedicalRecordStatusDraft,
-	})
-	finalizedRec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
-		ClinicID: clinicA, RecordNo: "LDB-002", Date: time.Now(), OwnerID: &ownerA.ID, PetID: &petA.ID,
-		Status: model.MedicalRecordStatusFinalized,
 	})
 
-	t.Run("同一医院からは draft レコードを取得できる", func(t *testing.T) {
+	// EMR-495 P1: medical_records.status 列は 001 で廃止された。ロックは状態に関わらず取得でき、
+	// 追加の判定は呼び出し元（494 fence 等）が担う。
+	t.Run("同一医院からはレコードを取得できる", func(t *testing.T) {
 		got, err := repo.LockByIDForUpdate(ctx, clinicA, draftRec.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got)
 		assert.Equal(t, draftRec.ID, got.ID)
-		assert.Equal(t, model.MedicalRecordStatusDraft, got.Status)
-	})
-
-	t.Run("status に関わらずロック取得できる（finalized も返す。判定は呼び出し元）", func(t *testing.T) {
-		got, err := repo.LockByIDForUpdate(ctx, clinicA, finalizedRec.ID)
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		assert.Equal(t, finalizedRec.ID, got.ID)
-		assert.Equal(t, model.MedicalRecordStatusFinalized, got.Status)
 	})
 
 	t.Run("他院からは NotFound（clinic_id 越境防止）", func(t *testing.T) {
@@ -82,8 +73,8 @@ func TestMedicalRecordRepository_LockByIDForUpdate(t *testing.T) {
 	})
 }
 
-// TestMedicalRecordRepository_Update は draft のみ更新可能な業務ルールと
-// clinic_id 越境更新の拒否を検証する。
+// TestMedicalRecordRepository_Update は header 更新の version CAS と
+// clinic_id 越境更新の拒否を検証する（EMR-495: 旧「draft のみ更新可」の述語は廃止）。
 func TestMedicalRecordRepository_Update(t *testing.T) {
 	db := setupMedicalRecordListTestDB(t)
 	repo := NewMedicalRecordRepository(db)
@@ -100,21 +91,11 @@ func TestMedicalRecordRepository_Update(t *testing.T) {
 		assert.Equal(t, "UP-DRAFT-EDITED", updated.RecordNo)
 	})
 
-	t.Run("finalized カルテは Conflict で更新できない", func(t *testing.T) {
-		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, RecordNo: "UP-FIN", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID,
-			Status: model.MedicalRecordStatusFinalized,
-		})
-		_, err := repo.Update(ctx, clinicA, rec.ID, medicalRecordUpdateRecordNo("UP-FIN-EDITED"), nil)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsConflict(err), "確定済みカルテの更新は Conflict であるべき: %v", err)
-	})
-
-	t.Run("他院からの更新は対象0件で Conflict（越境更新の拒否）", func(t *testing.T) {
+	t.Run("他院からの更新は対象0件で NotFound（越境更新の拒否）", func(t *testing.T) {
 		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "UP-XCLINIC", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID})
 		_, err := repo.Update(ctx, clinicB, rec.ID, medicalRecordUpdateRecordNo("HACKED"), nil)
 		require.Error(t, err)
-		assert.True(t, apperrors.IsConflict(err))
+		assert.True(t, apperrors.IsNotFound(err), "越境更新は NotFound であるべき: %v", err)
 
 		// 実データが書き換わっていないことも確認する。
 		got, err := repo.FindByID(ctx, clinicA, rec.ID)
@@ -140,23 +121,11 @@ func TestMedicalRecordRepository_Update(t *testing.T) {
 		_, err := repo.Update(ctx, clinicA, rec.ID, medicalRecordUpdateRecordNoAndVersion("SHOULD-NOT-APPLY", rec.Version+1), &staleVersion)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsConflict(err))
-		assert.Contains(t, err.Error(), "他のユーザーがこのカルテを変更しました", "version不一致は not-draft とは異なる文言で区別されるべき")
+		assert.Contains(t, err.Error(), "他のユーザーがこのカルテを変更しました", "version不一致は専用文言で区別されるべき")
 
 		got, err := repo.FindByID(ctx, clinicA, rec.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "UP-VER-STALE", got.RecordNo, "version不一致時はフィールドが書き換わってはならない")
-	})
-
-	t.Run("finalized カルテへの expectedVersion 付き更新は version不一致メッセージではなく not-draft を返す", func(t *testing.T) {
-		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, RecordNo: "UP-VER-FIN", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID,
-			Status: model.MedicalRecordStatusFinalized,
-		})
-		expected := rec.Version
-		_, err := repo.Update(ctx, clinicA, rec.ID, medicalRecordUpdateRecordNo("SHOULD-NOT-APPLY"), &expected)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsConflict(err))
-		assert.Contains(t, err.Error(), "not in draft status", "確定済みは version不一致ではなく従来の not-draft 文言を維持するべき")
 	})
 }
 

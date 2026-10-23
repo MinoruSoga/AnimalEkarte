@@ -135,9 +135,6 @@ func TestCreateAndDelete_DisposableClinicGraph(t *testing.T) {
 	var records []model.MedicalRecord
 	require.NoError(t, db.Where("clinic_id = ?", got.ClinicID).Find(&records).Error)
 	require.Len(t, records, medicalRecordCount)
-	for _, record := range records {
-		assert.Equal(t, model.MedicalRecordStatusFinalized, record.Status)
-	}
 
 	var examinations []model.Examination
 	require.NoError(t, db.Where("clinic_id = ?", got.ClinicID).Find(&examinations).Error)

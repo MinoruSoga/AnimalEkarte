@@ -4,12 +4,11 @@ package medicalrecord
 // transactions, no mocks for the lock behaviour under test):
 //
 //  1. Delete-first: the delete transaction holding the parent FOR UPDATE lock
-//     forces a concurrent finalize UPDATE to wait until commit — the same X-11
-//     serialization medical_record_finalize_lock_concurrency_test.go proves for
-//     treatment writes.
-//  2. Finalize-first: an in-flight finalize tx holding the row lock forces
-//     Delete's parent lock to wait; after commit Delete observes
-//     status=finalized and rejects with Conflict, leaving the row untouched.
+//     forces a concurrent parent header UPDATE to wait until commit — the same
+//     X-11 serialization medical_record_finalize_lock_concurrency_test.go proves
+//     for treatment writes.
+//  2. (EMR-495 P1: the "finalize-first rejects Delete" direction was retired
+//     with medical_records.status; its test was removed.)
 //  3. A concurrent relink committed between the pre-transaction snapshot and
 //     the child row lock is caught by the ORIGINAL-snapshot revalidation and
 //     rejects with Conflict — the stale deletion is never performed.
@@ -70,7 +69,7 @@ func (b vaccinationTestAuditTxBridge) LogEntryTx(ctx context.Context, entry *Aud
 
 // gatingVaccinationParentLocker wraps the real medical-record repository and
 // pauses while still holding the parent FOR UPDATE lock inside Delete's write
-// transaction, so a concurrent finalize provably blocks on the same row lock.
+// transaction, so a concurrent parent write provably blocks on the same row lock.
 type gatingVaccinationParentLocker struct {
 	inner    medicalRecordLocker
 	locked   chan struct{}
@@ -137,8 +136,8 @@ func newRealVaccinationServiceForConcurrency(db *gorm.DB, repo VaccinationReposi
 }
 
 // Direction 1: Delete's transaction holds the parent FOR UPDATE lock while a
-// concurrent finalize UPDATE must wait; once Delete commits, finalize succeeds.
-func TestVaccinationService_Delete_RealDBParentLockBlocksFinalizeUntilCommit(t *testing.T) {
+// concurrent parent header UPDATE must wait; once Delete commits, the UPDATE succeeds.
+func TestVaccinationService_Delete_RealDBParentLockBlocksParentWriteUntilCommit(t *testing.T) {
 	db := setupVaccinationRepoTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
@@ -152,7 +151,7 @@ func TestVaccinationService_Delete_RealDBParentLockBlocksFinalizeUntilCommit(t *
 
 	record := &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "VAC-DEL-LOCK", Date: time.Now(),
-		OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &owner.ID, PetID: &pet.ID,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(record).Error)
 	vaccination := &model.Vaccination{
@@ -190,18 +189,18 @@ func TestVaccinationService_Delete_RealDBParentLockBlocksFinalizeUntilCommit(t *
 
 	finCtx, finCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer finCancel()
-	finalizeDone := make(chan error, 1)
+	parentWriteDone := make(chan error, 1)
 	go func() {
 		_, err := medRecRepo.Update(finCtx, clinicA, record.ID,
-			medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
-		finalizeDone <- err
+			medicalRecordParentWrite(), nil)
+		parentWriteDone <- err
 	}()
 
-	// Real lock evidence: the finalize UPDATE cannot complete while the delete
+	// Real lock evidence: the parent header UPDATE cannot complete while the delete
 	// transaction still holds the parent row lock.
 	select {
-	case err := <-finalizeDone:
-		t.Fatalf("finalize completed while the delete tx held the parent lock: %v", err)
+	case err := <-parentWriteDone:
+		t.Fatalf("parent write completed while the delete tx held the parent lock: %v", err)
 	case <-time.After(300 * time.Millisecond):
 	}
 
@@ -213,116 +212,18 @@ func TestVaccinationService_Delete_RealDBParentLockBlocksFinalizeUntilCommit(t *
 		t.Fatal("delete transaction never completed after release")
 	}
 	select {
-	case err := <-finalizeDone:
-		require.NoError(t, err, "finalize must succeed after the delete commit released the lock")
+	case err := <-parentWriteDone:
+		require.NoError(t, err, "parent write must succeed after the delete commit released the lock")
 	case <-finCtx.Done():
-		t.Fatal("finalize transaction never completed")
+		t.Fatal("parent write never completed")
 	}
 
 	_, findErr := realRepo.FindByID(ctx, clinicA, vaccination.ID)
 	assert.True(t, apperrors.IsNotFound(findErr), "committed delete must remove the row")
 	final, err := medRecRepo.FindByID(ctx, clinicA, record.ID)
 	require.NoError(t, err)
-	assert.Equal(t, model.MedicalRecordStatusFinalized, final.Status)
-}
-
-// Direction 2: an in-flight finalize holds the row lock first; Delete's parent
-// lock waits, then observes the committed finalized status and rejects with
-// Conflict while the vaccination row survives.
-func TestVaccinationService_Delete_RealDBFinalizeCommittingFirstRejectsDelete(t *testing.T) {
-	db := setupVaccinationRepoTestDB(t)
-	ctx := context.Background()
-	const clinicA = uint64(1)
-	ensureVaccinationTestClinics(t, db, clinicA)
-
-	owner := makeTestOwner(t, db, clinicA, "finalize-first owner")
-	pet := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "finalize-first pet")
-	vaccine := makeVaccineMaster(t, db, clinicA, "finalize-first vaccine")
-	medRecRepo := NewMedicalRecordRepository(db)
-	realRepo := NewVaccinationRepository(db)
-
-	record := &model.MedicalRecord{
-		ClinicID: clinicA, RecordNo: "VAC-FIN-FIRST", Date: time.Now(),
-		OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
-	}
-	require.NoError(t, db.WithContext(ctx).Create(record).Error)
-	vaccination := &model.Vaccination{
-		ClinicID: clinicA, PetID: &pet.ID, MedicalRecordID: &record.ID,
-		VaccineID: vaccine.ID, Date: time.Now(),
-	}
-	require.NoError(t, db.WithContext(ctx).Create(vaccination).Error)
-
-	svc := newRealVaccinationServiceForConcurrency(db, realRepo, medRecRepo, &mockAuditTxLogger{})
-
-	finalizeApplied := make(chan struct{})
-	releaseFinalize := make(chan struct{})
-	var releaseOnce sync.Once
-	release := func() { releaseOnce.Do(func() { close(releaseFinalize) }) }
-	defer release()
-
-	finCtx, finCancel := context.WithTimeout(ctx, 30*time.Second)
-	defer finCancel()
-	finalizeDone := make(chan error, 1)
-	go func() {
-		finalizeDone <- withTx(finCtx, db, func(txCtx context.Context) error {
-			if _, err := medRecRepo.Update(txCtx, clinicA, record.ID,
-				medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil); err != nil {
-				return err
-			}
-			close(finalizeApplied)
-			// Hold the row lock until the test releases it or the bounded
-			// context forces a rollback — never an unbounded wait.
-			select {
-			case <-releaseFinalize:
-				return nil
-			case <-txCtx.Done():
-				return txCtx.Err()
-			}
-		})
-	}()
-
-	select {
-	case <-finalizeApplied:
-	case err := <-finalizeDone:
-		t.Fatalf("finalize transaction failed before holding the row lock: %v", err)
-	case <-finCtx.Done():
-		t.Fatal("finalize transaction never applied its UPDATE")
-	}
-
-	deleteCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	deleteDone := make(chan error, 1)
-	go func() {
-		deleteDone <- svc.Delete(deleteCtx, clinicA, vaccination.ID)
-	}()
-
-	// Real lock evidence: Delete's parent LockByIDForUpdate cannot complete
-	// while the finalize transaction still holds the row lock.
-	select {
-	case err := <-deleteDone:
-		t.Fatalf("delete completed while finalize held the parent lock: %v", err)
-	case <-time.After(300 * time.Millisecond):
-	}
-
-	release()
-	var deleteErr error
-	select {
-	case deleteErr = <-deleteDone:
-	case <-deleteCtx.Done():
-		t.Fatal("delete never completed after the finalize lock released")
-	}
-	require.Error(t, deleteErr, "delete must be rejected once the parent is finalized")
-	assert.True(t, apperrors.IsConflict(deleteErr), "finalized parent must map to conflict: %v", deleteErr)
-	select {
-	case err := <-finalizeDone:
-		require.NoError(t, err)
-	case <-finCtx.Done():
-		t.Fatal("finalize transaction never committed")
-	}
-
-	still, findErr := realRepo.FindByID(ctx, clinicA, vaccination.ID)
-	require.NoError(t, findErr, "rejected delete must leave the row untouched")
-	require.NotNil(t, still)
+	require.NotNil(t, final.VisitType)
+	assert.Equal(t, model.VisitTypeRevisit, *final.VisitType)
 }
 
 // A relink committed by another transaction between the snapshot read and the
@@ -342,12 +243,12 @@ func TestVaccinationService_Delete_RealDBCommittedRelinkBetweenSnapshotAndLockRe
 
 	source := &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "VAC-RELINK-S", Date: time.Now(),
-		OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &owner.ID, PetID: &pet.ID,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(source).Error)
 	dest := &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "VAC-RELINK-D", Date: time.Now(),
-		OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &owner.ID, PetID: &pet.ID,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(dest).Error)
 	vaccination := &model.Vaccination{
@@ -396,7 +297,7 @@ func TestVaccinationService_Delete_RealDBAuditEntryPersisted(t *testing.T) {
 
 	record := &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "VAC-AUDIT-OK", Date: time.Now(),
-		OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &owner.ID, PetID: &pet.ID,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(record).Error)
 	vaccination := &model.Vaccination{
@@ -470,12 +371,12 @@ func TestVaccinationService_Update_RealDBRelinkLocksBothParentsWithoutDeadlock(t
 	// Creation order gives lower < higher IDs deterministically.
 	lower := &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "VAC-RELINK-LO", Date: time.Now(),
-		OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &owner.ID, PetID: &pet.ID,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(lower).Error)
 	higher := &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "VAC-RELINK-HI", Date: time.Now(),
-		OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &owner.ID, PetID: &pet.ID,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(higher).Error)
 	require.Less(t, lower.ID, higher.ID)
@@ -607,12 +508,12 @@ func TestVaccinationService_Delete_RealDBForeignAndCorruptRowsRejected(t *testin
 
 	recordA := &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "VAC-BND-A", Date: time.Now(),
-		OwnerID: &ownerA.ID, PetID: &petA.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(recordA).Error)
 	recordB := &model.MedicalRecord{
 		ClinicID: clinicB, RecordNo: "VAC-BND-B", Date: time.Now(),
-		OwnerID: &ownerB.ID, PetID: &petB.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &ownerB.ID, PetID: &petB.ID,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(recordB).Error)
 

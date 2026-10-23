@@ -159,6 +159,26 @@ func WrapUnprocessable(message string) error {
 	}
 }
 
+// CodeMedicalRecordStatusRetired は廃止された medical record の status 操作
+// （旧 finalize / unfinalize、status による削除可否判定）を拒否する 422 の安定コード（EMR-495）。
+const CodeMedicalRecordStatusRetired = "medical_record_status_retired"
+
+// WrapUnprocessableWithCode は WrapUnprocessable と同じ 422 に、FE が機械判定できる安定 code を付ける。
+// Err はセンチネル単独（WrapUnprocessable の注記どおり他センチネルを合成しない）。
+func WrapUnprocessableWithCode(code, message string) error {
+	return &AppError{
+		Code:    code,
+		Message: message,
+		Err:     ErrUnprocessable,
+	}
+}
+
+// WrapMedicalRecordStatusRetired は旧 finalize/unfinalize が未提供であることを示す固定エラー（422）を返す。
+// message は操作ごとの利用者向け文言。code は CodeMedicalRecordStatusRetired 固定。
+func WrapMedicalRecordStatusRetired(message string) error {
+	return WrapUnprocessableWithCode(CodeMedicalRecordStatusRetired, message)
+}
+
 // エラー判定ヘルパー
 func IsNotFound(err error) bool {
 	return errors.Is(err, ErrNotFound)

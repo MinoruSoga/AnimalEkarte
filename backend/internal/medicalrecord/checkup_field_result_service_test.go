@@ -31,7 +31,7 @@ func (m *mockCheckupResultMedicalRecordRepository) FindByID(ctx context.Context,
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
-	return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+	return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 }
 
 // LockByIDForUpdate は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
@@ -369,20 +369,6 @@ func TestCheckupFieldResultService_ReplaceForCheckup(t *testing.T) {
 		svc := NewCheckupFieldResultService(checkupRepo, medRepo, fieldRepo, nil, nil, &mockCheckupTransactor{})
 		_, err := svc.ReplaceForCheckup(ctx, 1, 10, 50, nil, []UpsertCheckupFieldResultInput{})
 		assert.Error(t, err)
-	})
-
-	t.Run("parent medical record finalized", func(t *testing.T) {
-		checkupRepo := &mockCheckupResultCheckupRepository{}
-		medRepo := &mockCheckupResultMedicalRecordRepository{
-			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-				return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusFinalized}, nil
-			},
-		}
-		fieldRepo := &mockCheckupTypeFieldRepository{}
-		svc := NewCheckupFieldResultService(checkupRepo, medRepo, fieldRepo, nil, nil, &mockCheckupTransactor{})
-		_, err := svc.ReplaceForCheckup(ctx, 1, 10, 50, nil, []UpsertCheckupFieldResultInput{})
-		assert.Error(t, err)
-		assert.True(t, apperrors.IsConflict(err))
 	})
 
 	t.Run("fieldRepo error", func(t *testing.T) {

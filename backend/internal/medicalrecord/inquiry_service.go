@@ -59,3 +59,11 @@ func (s *inquiryService) Save(ctx context.Context, input UpsertInquiryInput) (*m
 	slog.InfoContext(ctx, "inquiry upserted", slog.Uint64("clinic_id", input.ClinicID), slog.Uint64("medical_record_id", input.MedicalRecordID))
 	return result, nil
 }
+
+// optionalDoubleUint64 は PATCH の **uint64（nil=未送信 / &nil=クリア / &&v=値）から検証対象の *uint64 を取り出す。
+func optionalDoubleUint64(v **uint64) *uint64 {
+	if v == nil {
+		return nil
+	}
+	return *v
+}

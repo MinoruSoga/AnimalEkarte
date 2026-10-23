@@ -57,36 +57,30 @@ func (s *medicalRecordService) ensureClinicalPlanSubRecord(
 		if !apperrors.IsNotFound(err) {
 			return apperrors.Wrap(err, "failed to find medical record clinical plan")
 		}
-		plan = &model.ClinicalPlan{MedicalRecordID: recordID}
+		// clinical_plans.clinic_id は NOT NULL（001）。trusted な clinicID を必ず設定する（EMR-495 Finding 5）。
+		plan = &model.ClinicalPlan{ClinicID: clinicID, MedicalRecordID: recordID}
 		if err := s.clinicalPlanRepo.Create(ctx, plan); err != nil {
 			return apperrors.Wrap(err, "failed to create medical record clinical plan")
 		}
 	}
-	if input.Plan == nil && input.Assessment == nil && input.Diagnosis1CategoryID == nil && input.Diagnosis1NameID == nil &&
-		input.Diagnosis2TypeID == nil && input.Diagnosis2NameID == nil {
+	if input.Plan == nil && input.Assessment == nil && input.Diagnoses == nil {
 		return nil
 	}
-	// MRC-14: clinical plan と同じ validateDiagnosisMasterFKs / assertDiagnosisNameBelongsToType を使う。
-	if err := validateDiagnosisMasterFKs(
-		ctx,
-		clinicID,
-		[]*uint64{input.Diagnosis1CategoryID, input.Diagnosis2TypeID},
-		[]*uint64{input.Diagnosis1NameID, input.Diagnosis2NameID},
-		s.diagTypeRepo,
-		s.diagNameRepo,
-	); err != nil {
+	// MRC-14 / EMR-495 A: clinical plan Update と同じ診断行検査（件数・slot・マスタ所有権・type↔name 整合）。
+	if err := validateDiagnosisRows(ctx, clinicID, input.Diagnoses, s.diagTypeRepo, s.diagNameRepo); err != nil {
 		return apperrors.Wrap(err, "failed to verify diagnosis masters for medical record subrecords")
-	}
-	// AUD-007: 第2診断 type↔name 整合（clinical plan Update と同契約）
-	if err := assertDiagnosisNameBelongsToType(
-		ctx, clinicID, input.Diagnosis2TypeID, input.Diagnosis2NameID, "diagnosis_2", s.diagNameRepo,
-	); err != nil {
-		return err
 	}
 
 	cmd := clinicalPlanUpdateFromSubRecords(input)
-	if err := s.clinicalPlanRepo.Update(ctx, clinicID, plan.ID, cmd, nil); err != nil {
-		return apperrors.Wrap(err, "failed to update medical record clinical plan")
+	if cmd.hasPlanColumns() {
+		if err := s.clinicalPlanRepo.Update(ctx, clinicID, plan.ID, cmd, nil); err != nil {
+			return apperrors.Wrap(err, "failed to update medical record clinical plan")
+		}
+	}
+	if input.Diagnoses != nil {
+		if err := s.clinicalPlanRepo.ReplaceDiagnoses(ctx, clinicID, plan.ID, input.Diagnoses); err != nil {
+			return apperrors.Wrap(err, "failed to replace medical record clinical plan diagnoses")
+		}
 	}
 	return nil
 }
@@ -106,21 +100,10 @@ func (s *medicalRecordService) assertChiefComplaintTypeForSubRecords(
 }
 
 func clinicalPlanUpdateFromSubRecords(input CreateSubRecordsInput) UpdateClinicalPlanInput {
-	cmd := UpdateClinicalPlanInput{
+	return UpdateClinicalPlanInput{
 		TreatmentPolicy:  input.Plan,
 		DiagnosisDetails: input.Assessment,
-		DiagnosisTypeID:  input.Diagnosis1CategoryID,
-		DiagnosisNameID:  input.Diagnosis1NameID,
 	}
-	if input.Diagnosis2TypeID != nil {
-		id := input.Diagnosis2TypeID
-		cmd.Diagnosis2TypeID = &id
-	}
-	if input.Diagnosis2NameID != nil {
-		id := input.Diagnosis2NameID
-		cmd.Diagnosis2NameID = &id
-	}
-	return cmd
 }
 
 func hasInquirySubRecordInput(input CreateSubRecordsInput) bool {

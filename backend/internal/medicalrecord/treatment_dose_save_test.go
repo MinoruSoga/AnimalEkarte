@@ -101,9 +101,8 @@ func newDoseSaveFixture(t *testing.T, calcType model.MedicineCalculationType, pa
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			petID := uint64(7)
 			return &model.MedicalRecord{
-				Status: model.MedicalRecordStatusDraft,
-				PetID:  &petID,
-				Pet:    &model.Pet{AnimalSpecies: &model.AnimalSpecies{Name: "犬"}},
+				PetID: &petID,
+				Pet:   &model.Pet{AnimalSpecies: &model.AnimalSpecies{Name: "犬"}},
 			}, nil
 		},
 	}
@@ -272,9 +271,8 @@ func TestTreatmentDoseSave_Create(t *testing.T) {
 					f.mrRepo.findByIDFn = func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 						petID := uint64(7)
 						return &model.MedicalRecord{
-							Status: model.MedicalRecordStatusDraft,
-							PetID:  &petID,
-							Pet:    &model.Pet{AnimalSpecies: &model.AnimalSpecies{Name: "鳥"}},
+							PetID: &petID,
+							Pet:   &model.Pet{AnimalSpecies: &model.AnimalSpecies{Name: "鳥"}},
 						}, nil
 					}
 				},

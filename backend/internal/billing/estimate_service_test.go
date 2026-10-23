@@ -855,6 +855,36 @@ func TestEstimateService_Delete_TOCTOU_ItemsAddedAfterCount(t *testing.T) {
 	assert.Contains(t, err.Error(), "明細")
 }
 
+// D2/495: 旧「親カルテが確定済みなら見積書削除を拒否」（SD-2 / X-11）の判定は削除した。
+// 見積書の削除は親カルテ状態に依存せず、見積書自身の承認/却下ロックと DeleteIfNotLocked の原子条件だけで守る。
+// 親カルテは参照（ロック）されない。
+func TestEstimateService_Delete_D2_495_DoesNotConsultParentMedicalRecord(t *testing.T) {
+	mrID := uint64(77)
+	deleted := false
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft, MedicalRecordID: &mrID}, nil
+		},
+		countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) { return 0, nil },
+		deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
+			deleted = true
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		lockByIDForUpdateFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			t.Fatal("estimate Delete must not lock the parent medical record (D2/495)")
+			return nil, nil
+		},
+	}
+	svc := NewEstimateService(repo, mrRepo, nil, nil, nil, noopTransactor{})
+
+	err := svc.Delete(context.Background(), 1, 1, nil)
+
+	require.NoError(t, err)
+	assert.True(t, deleted)
+}
+
 // estimateAuditActions は mockAuditService.entries から Resource="estimate" の Action を収集する。
 func estimateAuditActions(auditSvc *mockAuditService) []string {
 	actions := make([]string, 0, len(auditSvc.entries))
@@ -1173,34 +1203,6 @@ func TestEstimateService_LockedStatus_DoesNotAudit(t *testing.T) {
 	})
 }
 
-// TestEstimateService_Create_RejectsFinalizedParentMedicalRecord は確定済みカルテに紐付く
-// 見積書作成が Conflict(409) で拒否され、repo.Create が呼ばれないことを検証する
-// （SD-2 系ガード監査: estimates は docs/architecture/erd.md で「カルテ配下データ」に分類）。
-func TestEstimateService_Create_RejectsFinalizedParentMedicalRecord(t *testing.T) {
-	createCalled := false
-	repo := &mockEstimateRepository{
-		createFn: func(_ context.Context, _ *model.Estimate) error {
-			createCalled = true
-			return nil
-		},
-	}
-	mrRepo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
-		},
-	}
-	svc := NewEstimateService(repo, mrRepo, nil, &mockStaffClinicMembershipCounter{}, nil, noopTransactor{})
-
-	in := estimateCreateBaseInput()
-	in.MedicalRecordID = ptrU64(1)
-	out, err := svc.Create(context.Background(), 1, in)
-
-	assert.Error(t, err)
-	assert.Nil(t, out)
-	assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの見積書作成は Conflict(409) であるべき: %v", err)
-	assert.False(t, createCalled, "確定済みカルテに見積書が作成されてはならない")
-}
-
 // TestEstimateService_Create_AllowsNoParentMedicalRecord は medical_record_id 未指定（独立見積）の
 // 作成がカルテ確定ガードの影響を受けないことを検証する（回帰: nil ガードの取りこぼし防止）。
 func TestEstimateService_Create_AllowsNoParentMedicalRecord(t *testing.T) {
@@ -1222,64 +1224,6 @@ func TestEstimateService_Create_AllowsNoParentMedicalRecord(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, out)
 	assert.True(t, createCalled)
-}
-
-// TestEstimateService_Update_RejectsFinalizedParentMedicalRecord は確定済みカルテに紐付く
-// 見積書更新が Conflict(409) で拒否され、repo.UpdateIfNotLocked が呼ばれないことを検証する。
-func TestEstimateService_Update_RejectsFinalizedParentMedicalRecord(t *testing.T) {
-	updateCalled := false
-	mrID := uint64(1)
-	repo := &mockEstimateRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
-			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft, MedicalRecordID: &mrID}, nil
-		},
-		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ UpdateEstimateInput) (*model.Estimate, error) {
-			updateCalled = true
-			return nil, nil
-		},
-	}
-	mrRepo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
-		},
-	}
-	svc := NewEstimateService(repo, mrRepo, nil, nil, nil, noopTransactor{})
-
-	newTitle := "更新後タイトル"
-	out, err := svc.Update(context.Background(), 1, 1, &UpdateEstimateInput{Title: &newTitle})
-
-	assert.Error(t, err)
-	assert.Nil(t, out)
-	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの見積書更新は Conflict(409) であるべき: %v", err)
-	assert.False(t, updateCalled, "確定済みカルテの見積書は更新されてはならない")
-}
-
-// TestEstimateService_Delete_RejectsFinalizedParentMedicalRecord は確定済みカルテに紐付く
-// 見積書削除が Conflict(409) で拒否され、repo.DeleteIfNotLocked が呼ばれないことを検証する。
-func TestEstimateService_Delete_RejectsFinalizedParentMedicalRecord(t *testing.T) {
-	deleteCalled := false
-	mrID := uint64(1)
-	repo := &mockEstimateRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
-			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft, MedicalRecordID: &mrID}, nil
-		},
-		deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
-			deleteCalled = true
-			return nil
-		},
-	}
-	mrRepo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
-		},
-	}
-	svc := NewEstimateService(repo, mrRepo, nil, nil, nil, noopTransactor{})
-
-	err := svc.Delete(context.Background(), 1, 1, ptrU64(7))
-
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの見積書削除は Conflict(409) であるべき: %v", err)
-	assert.False(t, deleteCalled, "確定済みカルテの見積書は削除されてはならない")
 }
 
 // ---- CreateSuccessor (TASK-012 FINAL B) ----

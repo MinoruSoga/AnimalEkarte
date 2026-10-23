@@ -15,7 +15,6 @@ type UpdateMedicalRecordInput struct {
 	PetID         *uint64
 	DoctorID      *uint64
 	AppointmentID *uint64
-	Status        *model.MedicalRecordStatus
 	Version       *int // 楽観的ロック用: nil の場合はチェックをスキップ
 	VisitType     *model.VisitType
 	ActorID       *uint64 // 監査ログ用: 操作スタッフ ID（nil = システム）
@@ -33,7 +32,6 @@ type CreateMedicalRecordInput struct {
 	PetID                *uint64
 	DoctorID             *uint64
 	AppointmentID        *uint64
-	Status               *model.MedicalRecordStatus
 	VisitType            model.VisitType
 	RecommendationReason *string
 	EnteredBy            *uint64
@@ -117,10 +115,8 @@ type CreateSubRecordsInput struct {
 	Notes                *string
 	Plan                 *string // → ClinicalPlan.TreatmentPolicy
 	Assessment           *string // → ClinicalPlan.DiagnosisDetails
-	Diagnosis1CategoryID *uint64
-	Diagnosis1NameID     *uint64
-	Diagnosis2TypeID     *uint64
-	Diagnosis2NameID     *uint64
+	// Diagnoses は診断行（EMR-495 A）。空（nil）= 診断行を変更しない。
+	Diagnoses []ClinicalPlanDiagnosisInput
 }
 
 type medicalRecordService struct {

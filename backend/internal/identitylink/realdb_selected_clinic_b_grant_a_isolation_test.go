@@ -229,7 +229,6 @@ func seedTreatment(
 		RecordNo: recordNo,
 		Date:     time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC),
 		PetID:    &pet,
-		Status:   model.MedicalRecordStatusFinalized,
 	}
 	require.NoError(t, db.Create(mr).Error)
 	tr := &model.Treatment{

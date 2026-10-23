@@ -149,8 +149,25 @@ func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinic
 	return count, nil
 }
 
+// endedMedicalRecordPredicate は SQL 別名 mr のカルテが「診療終了」状態である条件（EMR-495 Q4/Q5）。
+// medical_records.status 列は 001 で廃止された。終了状態は medical_record_consultation_events の
+// 最新 revision が ended のときだけ成立する（end_undone が最新なら未終了）。events への書込は
+// 終了ルート（EMR-495 B。このPRには含まない）が行う。未実装の間は events が空で、どの予約も
+// 「終了済みカルテあり」に当たらない（DB は 001 から再構築済みで旧データなし）。
+const endedMedicalRecordPredicate = `EXISTS (
+				SELECT 1 FROM medical_record_consultation_events mce
+				WHERE mce.clinic_id = mr.clinic_id
+				  AND mce.medical_record_id = mr.id
+				  AND mce.event_kind = 'ended'
+				  AND mce.revision = (
+					SELECT MAX(mce2.revision) FROM medical_record_consultation_events mce2
+					WHERE mce2.clinic_id = mce.clinic_id
+					  AND mce2.medical_record_id = mce.medical_record_id
+				  )
+			  )`
+
 // FindNoShowCandidates は終了から4時間以上経過した confirmed/pending 予約のうち、
-// 確定済みカルテが存在しないものを返す（BE-014）。
+// 診療終了済みのカルテが存在しないものを返す（BE-014）。
 func (r *reservationRepository) FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error) {
 	return r.FindNoShowCandidatesAt(ctx, clinicID, time.Now().UTC())
 }
@@ -172,9 +189,9 @@ func (r *reservationRepository) FindNoShowCandidatesAt(
 			SELECT 1 FROM medical_records mr
 			WHERE mr.clinic_id = appointments.clinic_id
 			  AND mr.appointment_id = appointments.id
-			  AND mr.status = ?
 			  AND mr.deleted_at IS NULL
-		)`, model.MedicalRecordStatusFinalized).
+			  AND ` + endedMedicalRecordPredicate + `
+		)`).
 		Order("id ASC").
 		Limit(noShowCandidateMax).
 		Find(&reservations).Error

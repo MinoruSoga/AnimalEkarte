@@ -110,7 +110,6 @@ func makeMedicalRecordForNextVisitIntentTest(t *testing.T, db *gorm.DB, clinicID
 		Date:     time.Now().UTC(),
 		OwnerID:  &ownerID,
 		PetID:    &petID,
-		Status:   model.MedicalRecordStatusDraft,
 	}
 	require.NoError(t, db.Create(record).Error)
 	return record

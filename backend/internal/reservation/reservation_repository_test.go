@@ -43,11 +43,32 @@ func setupReservationRepoTestDB(t *testing.T) *gorm.DB {
 		&model.StaffClinicAssignment{},
 		// Validators that assert no partial side-effects also count audit_logs.
 		&model.AuditLog{},
+		// EMR-495 Q4: no-show 判定の「診療終了済みカルテ」は consultation events の最新が ended のもの。
+		&model.MedicalRecordConsultationEvent{},
 	))
+	db.Exec("TRUNCATE TABLE medical_record_consultation_events CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE") // appointments も連鎖クリア
 	db.Exec("TRUNCATE TABLE staffs CASCADE")            // shift_entries/staff_clinic_assignments も連鎖クリア
 	db.Exec("TRUNCATE TABLE line_customers CASCADE")
 	return db
+}
+
+// recordConsultationEventForReservationRepoTest は consultation events に 1 行を直接挿入する
+// （AutoMigrate の test double には 001 の trigger / operation receipt 制約がない）。
+func recordConsultationEventForReservationRepoTest(
+	t *testing.T, db *gorm.DB, clinicID, recordID uint64, revision int64, kind string,
+) {
+	t.Helper()
+	require.NoError(t, db.Create(&model.MedicalRecordConsultationEvent{
+		ClinicID:        clinicID,
+		MedicalRecordID: recordID,
+		Revision:        revision,
+		EventKind:       kind,
+		SourceKind:      "consultation",
+		OccurredAt:      time.Now(),
+		OperationID:     1,
+		RecordedBy:      1,
+	}).Error)
 }
 
 // makeReservationForReservationRepoTest は開始時刻・ステータス・source・line_customer_id・
@@ -382,16 +403,26 @@ func TestReservationRepository_FindNoShowCandidates(t *testing.T) {
 		model.ReservationStatusConfirmed, model.ReservationSourceManual, nil, nil)
 	cancelledOld := makeReservationForReservationRepoTest(t, db, clinicA, rt.ID, oldEnoughEnd.Add(-30*time.Minute),
 		model.ReservationStatusCancelled, model.ReservationSourceManual, nil, nil)
-	finalized := makeReservationForReservationRepoTest(t, db, clinicA, rt.ID, oldEnoughEnd.Add(-30*time.Minute),
+	endedRecordAppt := makeReservationForReservationRepoTest(t, db, clinicA, rt.ID, oldEnoughEnd.Add(-30*time.Minute),
 		model.ReservationStatusConfirmed, model.ReservationSourceManual, nil, nil)
 	record := &model.MedicalRecord{
 		ClinicID:      clinicA,
 		RecordNo:      "MR-NO-SHOW-CANDIDATE-EXCLUSION",
 		Date:          now,
-		AppointmentID: &finalized.ID,
-		Status:        model.MedicalRecordStatusFinalized,
+		AppointmentID: &endedRecordAppt.ID,
 	}
 	require.NoError(t, db.Create(record).Error)
+	recordConsultationEventForReservationRepoTest(t, db, clinicA, record.ID, 1, "ended")
+
+	// 終了が取り消された（最新イベントが end_undone）カルテだけを持つ予約は、ノーショウ候補に戻る。
+	undone := makeReservationForReservationRepoTest(t, db, clinicA, rt.ID, oldEnoughEnd.Add(-30*time.Minute),
+		model.ReservationStatusConfirmed, model.ReservationSourceManual, nil, nil)
+	undoneRecord := &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "MR-NO-SHOW-CANDIDATE-UNDONE", Date: now, AppointmentID: &undone.ID,
+	}
+	require.NoError(t, db.Create(undoneRecord).Error)
+	recordConsultationEventForReservationRepoTest(t, db, clinicA, undoneRecord.ID, 1, "ended")
+	recordConsultationEventForReservationRepoTest(t, db, clinicA, undoneRecord.ID, 2, "end_undone")
 
 	t.Run("4時間以上経過したconfirmed/pendingのみ該当", func(t *testing.T) {
 		got, err := repo.FindNoShowCandidates(ctx, clinicA)
@@ -403,7 +434,9 @@ func TestReservationRepository_FindNoShowCandidates(t *testing.T) {
 		assert.Contains(t, ids, candidate.ID)
 		assert.NotContains(t, ids, notOldEnough.ID, "4時間未満はノーショウ候補外のはず")
 		assert.NotContains(t, ids, cancelledOld.ID, "cancelledはノーショウ候補外のはず")
-		assert.NotContains(t, ids, finalized.ID, "確定済みカルテがある予約はノーショウ候補外のはず")
+		// EMR-495 Q4: 除外条件は「診療終了イベント(ended)が最新のカルテ」。
+		assert.NotContains(t, ids, endedRecordAppt.ID, "終了済みカルテがある予約はノーショウ候補外のはず")
+		assert.Contains(t, ids, undone.ID, "終了が取り消された（最新が end_undone）カルテだけの予約は候補に戻る")
 	})
 
 	t.Run("該当データが無い医院は空を返す", func(t *testing.T) {
@@ -485,19 +518,19 @@ func TestReservationRepository_CountMedicalRecordsByReservationID_ExcludesCrossT
 	// Corrupt: MR claims clinic B but points at clinic A appointment.
 	require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{
 		ClinicID: clinicB, RecordNo: "MR-RES-B1-FOREIGN-CHILD",
-		Date: time.Now(), AppointmentID: &apptA.ID, Status: model.MedicalRecordStatusDraft,
+		Date: time.Now(), AppointmentID: &apptA.ID,
 	}).Error)
 
 	// Corrupt reverse: MR claims clinic A but points at clinic B appointment.
 	require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "MR-RES-B1-CROSS-PARENT",
-		Date: time.Now(), AppointmentID: &apptB.ID, Status: model.MedicalRecordStatusDraft,
+		Date: time.Now(), AppointmentID: &apptB.ID,
 	}).Error)
 
 	// Healthy same-clinic edge on apptA.
 	require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "MR-RES-B1-SAME",
-		Date: time.Now(), AppointmentID: &apptA.ID, Status: model.MedicalRecordStatusDraft,
+		Date: time.Now(), AppointmentID: &apptA.ID,
 	}).Error)
 
 	t.Run("cross-tenant parent is not counted for requester clinic", func(t *testing.T) {
@@ -535,7 +568,7 @@ func TestReservationRepository_Delete_RejectsWhenMedicalRecordReferencesAppointm
 		appt := makeReservation(t, db, clinicA)
 		require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{
 			ClinicID: clinicA, RecordNo: "MR-DEL-SAME",
-			Date: time.Now(), AppointmentID: &appt.ID, Status: model.MedicalRecordStatusDraft,
+			Date: time.Now(), AppointmentID: &appt.ID,
 		}).Error)
 
 		count, err := repo.CountMedicalRecordsByReservationID(ctx, clinicA, appt.ID)
@@ -552,7 +585,7 @@ func TestReservationRepository_Delete_RejectsWhenMedicalRecordReferencesAppointm
 		appt := makeReservation(t, db, clinicA)
 		require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{
 			ClinicID: clinicB, RecordNo: "MR-DEL-FOREIGN",
-			Date: time.Now(), AppointmentID: &appt.ID, Status: model.MedicalRecordStatusDraft,
+			Date: time.Now(), AppointmentID: &appt.ID,
 		}).Error)
 
 		count, err := repo.CountMedicalRecordsByReservationID(ctx, clinicA, appt.ID)

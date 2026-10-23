@@ -52,7 +52,7 @@ func TestVaccinationService_SameDayMultiVaccineInChartRealDB(t *testing.T) {
 	// 保存済み（draft 確定前）カルテ — カルテ内フォーム経路の入口。
 	record := &model.MedicalRecord{
 		ClinicID: clinicID, RecordNo: "EMR105-SAMEDAY", Date: time.Now(),
-		OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &owner.ID, PetID: &pet.ID,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(record).Error)
 

@@ -7,8 +7,7 @@ package medicalrecord
 //   (a) expectedVersion 一致 → 更新成功、version は +1 される
 //   (b) expectedVersion 不一致（親は draft のまま）→ Conflict「他のユーザーが...」
 //   (c) expectedVersion == nil → 従来どおり無条件更新（照合スキップ、後方互換）
-//   (d) 親カルテが確定済み（expectedVersion は一致していても）→ 従来の「確定済み...」Conflict
-//       （(b) の新しい disambiguation 分岐が既存の確定済みガードを退行させていないことの証明）
+//   (d) 存在しない plan → NotFound（EMR-495: 旧「親カルテ確定済み」Conflict ケースは廃止）
 //
 // setupClinicalPlanTestDB / makeClinicalPlanMedicalRecord は clinical_plan_repository_test.go の
 // ものを再利用する（重複定義しない）。
@@ -32,7 +31,7 @@ func TestClinicalPlanRepository_Update_OptimisticLock(t *testing.T) {
 
 	t.Run("expectedVersion一致で更新成功しversionが+1される", func(t *testing.T) {
 		mr := makeClinicalPlanMedicalRecord(t, db, clinicA, "MR-CP-LOCK-001")
-		plan := &model.ClinicalPlan{MedicalRecordID: mr.ID, PhysicalExam: "更新前"}
+		plan := &model.ClinicalPlan{ClinicID: clinicA, MedicalRecordID: mr.ID, PhysicalExam: "更新前"}
 		require.NoError(t, repo.Create(ctx, plan))
 		require.Equal(t, 1, plan.Version, "新規作成時の初期バージョンは1であるべき")
 
@@ -53,7 +52,7 @@ func TestClinicalPlanRepository_Update_OptimisticLock(t *testing.T) {
 
 	t.Run("expectedVersionが古い(stale)場合はConflictで新しいメッセージを返す", func(t *testing.T) {
 		mr := makeClinicalPlanMedicalRecord(t, db, clinicA, "MR-CP-LOCK-002")
-		plan := &model.ClinicalPlan{MedicalRecordID: mr.ID, PhysicalExam: "更新前"}
+		plan := &model.ClinicalPlan{ClinicID: clinicA, MedicalRecordID: mr.ID, PhysicalExam: "更新前"}
 		require.NoError(t, repo.Create(ctx, plan))
 
 		// 先に一度更新してversionを2に進める（他ユーザーの書込みをシミュレート）
@@ -86,7 +85,7 @@ func TestClinicalPlanRepository_Update_OptimisticLock(t *testing.T) {
 
 	t.Run("expectedVersionがnilの場合は実際のversionを問わず無条件更新される(後方互換)", func(t *testing.T) {
 		mr := makeClinicalPlanMedicalRecord(t, db, clinicA, "MR-CP-LOCK-003")
-		plan := &model.ClinicalPlan{MedicalRecordID: mr.ID, PhysicalExam: "更新前"}
+		plan := &model.ClinicalPlan{ClinicID: clinicA, MedicalRecordID: mr.ID, PhysicalExam: "更新前"}
 		require.NoError(t, repo.Create(ctx, plan))
 
 		// version を明示的に進めておく
@@ -109,25 +108,15 @@ func TestClinicalPlanRepository_Update_OptimisticLock(t *testing.T) {
 		assert.Equal(t, "照合スキップ更新", got.PhysicalExam)
 	})
 
-	t.Run("親カルテが確定済みの場合はexpectedVersion一致でも従来のConflictメッセージのまま", func(t *testing.T) {
-		mrFinalized := makeClinicalPlanMedicalRecord(t, db, clinicA, "MR-CP-LOCK-004")
-		finalizedPlan := &model.ClinicalPlan{MedicalRecordID: mrFinalized.ID, PhysicalExam: "確定前"}
-		require.NoError(t, repo.Create(ctx, finalizedPlan))
-		require.NoError(t, db.WithContext(ctx).Model(&model.MedicalRecord{}).
-			Where("id = ?", mrFinalized.ID).Update("status", model.MedicalRecordStatusFinalized).Error)
-
-		// expectedVersion はDB上の実際の値と一致させる（バージョン不一致が理由でないことを担保）
-		matching := finalizedPlan.Version
-		exam := "確定後の書込"
-		next := matching + 1
-		err := repo.Update(ctx, clinicA, finalizedPlan.ID, UpdateClinicalPlanInput{
-			PhysicalExam:   &exam,
-			persistVersion: &next,
-		}, &matching)
-
+	// EMR-495 P1: 旧「親カルテが確定済みなら従来の Conflict メッセージ」ケースは廃止した
+	// （medical_records.status 列は 001 で廃止）。行が存在し version だけが不一致の場合は、
+	// 上の stale ケースの version 競合メッセージになる。
+	t.Run("存在しない plan への更新はNotFound(expectedVersion指定でも)", func(t *testing.T) {
+		exam := "存在しない"
+		expected := 1
+		next := 2
+		err := repo.Update(ctx, clinicA, 9999999, UpdateClinicalPlanInput{PhysicalExam: &exam, persistVersion: &next}, &expected)
 		require.Error(t, err)
-		assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの更新はConflictであるべき: %v", err)
-		assert.Contains(t, err.Error(), "確定済みカルテの所見・診断は編集できません",
-			"親確定済みの場合はversion不一致用の新メッセージではなく従来のメッセージを返すべき（回帰防止）")
+		assert.True(t, apperrors.IsNotFound(err))
 	})
 }

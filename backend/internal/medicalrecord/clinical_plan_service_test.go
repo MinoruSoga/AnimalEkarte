@@ -23,6 +23,33 @@ type mockClinicalPlanRepository struct {
 	updateFn                func(ctx context.Context, clinicID, planID uint64, cmd UpdateClinicalPlanInput) error
 	updateWithVersionFn     func(ctx context.Context, clinicID, planID uint64, cmd UpdateClinicalPlanInput, expectedVersion *int) error
 	deleteFn                func(ctx context.Context, clinicID, planID uint64) error
+	listDiagnosesFn         func(ctx context.Context, clinicID, planID uint64) ([]model.ClinicalPlanDiagnosis, error)
+	replaceDiagnosesFn      func(ctx context.Context, clinicID, planID uint64, rows []ClinicalPlanDiagnosisInput) error
+	deleteDiagnosesFn       func(ctx context.Context, clinicID, planID uint64) error
+}
+
+// ListDiagnoses は listDiagnosesFn 未設定のとき診断行なしを返す。
+func (m *mockClinicalPlanRepository) ListDiagnoses(ctx context.Context, clinicID, planID uint64) ([]model.ClinicalPlanDiagnosis, error) {
+	if m.listDiagnosesFn != nil {
+		return m.listDiagnosesFn(ctx, clinicID, planID)
+	}
+	return nil, nil
+}
+
+// ReplaceDiagnoses は replaceDiagnosesFn 未設定のとき成功する（書込なし）。
+func (m *mockClinicalPlanRepository) ReplaceDiagnoses(ctx context.Context, clinicID, planID uint64, rows []ClinicalPlanDiagnosisInput) error {
+	if m.replaceDiagnosesFn != nil {
+		return m.replaceDiagnosesFn(ctx, clinicID, planID, rows)
+	}
+	return nil
+}
+
+// DeleteDiagnoses は deleteDiagnosesFn 未設定のとき成功する（書込なし）。
+func (m *mockClinicalPlanRepository) DeleteDiagnoses(ctx context.Context, clinicID, planID uint64) error {
+	if m.deleteDiagnosesFn != nil {
+		return m.deleteDiagnosesFn(ctx, clinicID, planID)
+	}
+	return nil
 }
 
 func (m *mockClinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
@@ -57,16 +84,9 @@ func okMedRecForPlan() *mockMedicalRecordRepository {
 
 func TestBuildClinicalPlanUpdate(t *testing.T) {
 	physicalExam := "Normal"
-	diagnosisTypeID := uint64(1)
-	diagnosisNameID := uint64(2)
-	diagnosis2TypeID := uint64(3)
-	diagnosis2NameID := uint64(4)
 	diagnosisDetails := "details"
 	treatmentPolicy := "policy"
-	diagnosis2TypePtr := &diagnosis2TypeID
-	diagnosis2NamePtr := &diagnosis2NameID
-	var nilDiagnosis2Type *uint64
-	var nilDiagnosis2Name *uint64
+	nextVersion := 4
 
 	tests := []struct {
 		name       string
@@ -81,38 +101,29 @@ func TestBuildClinicalPlanUpdate(t *testing.T) {
 			wantFields: map[string]any{},
 		},
 		{
-			name: "all fields set are reflected with real column names",
+			name: "all scalar fields set are reflected with real column names",
 			input: &UpdateClinicalPlanInput{
 				PhysicalExam:     &physicalExam,
-				DiagnosisTypeID:  &diagnosisTypeID,
-				DiagnosisNameID:  &diagnosisNameID,
-				Diagnosis2TypeID: &diagnosis2TypePtr,
-				Diagnosis2NameID: &diagnosis2NamePtr,
 				DiagnosisDetails: &diagnosisDetails,
 				TreatmentPolicy:  &treatmentPolicy,
+				persistVersion:   &nextVersion,
 				ActorID:          clinicalPlanTestActorID(),
 			},
 			wantFields: map[string]any{
-				"physical_exam":       physicalExam,
-				"diagnosis_type_id":   diagnosisTypeID,
-				"diagnosis_name_id":   diagnosisNameID,
-				"diagnosis_2_type_id": diagnosis2TypePtr, // *uint64（NULLクリアと同形）
-				"diagnosis_2_name_id": diagnosis2NamePtr,
-				"diagnosis_details":   diagnosisDetails,
-				"treatment_policy":    treatmentPolicy,
+				"physical_exam":     physicalExam,
+				"diagnosis_details": diagnosisDetails,
+				"treatment_policy":  treatmentPolicy,
+				"version":           nextVersion,
 			},
 		},
 		{
-			name: "null diagnosis_2 fields clear to NULL",
+			// 診断は clinical_plan_diagnoses の行で保持する（EMR-495 A）。plan 本体の列更新には含めない。
+			name: "diagnosis rows are not part of the plan column update",
 			input: &UpdateClinicalPlanInput{
-				Diagnosis2TypeID: &nilDiagnosis2Type,
-				Diagnosis2NameID: &nilDiagnosis2Name,
-				ActorID:          clinicalPlanTestActorID(),
+				Diagnoses: &[]ClinicalPlanDiagnosisInput{{Slot: 1}},
+				ActorID:   clinicalPlanTestActorID(),
 			},
-			wantFields: map[string]any{
-				"diagnosis_2_type_id": nilDiagnosis2Type,
-				"diagnosis_2_name_id": nilDiagnosis2Name,
-			},
+			wantFields: map[string]any{},
 		},
 	}
 
@@ -201,7 +212,7 @@ func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, plan)
-				assert.Equal(t, tt.medicalRecordID, plan.MedicalRecordID)
+				assert.Equal(t, tt.medicalRecordID, plan.Plan.MedicalRecordID)
 			}
 		})
 	}
@@ -209,8 +220,6 @@ func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 
 func TestClinicalPlanService_Update(t *testing.T) {
 	physicalExam := "Abnormal findings"
-	diagnosisTypeID := uint64(1)
-	diagnosisNameID := uint64(5)
 	diagnosisDetails := "Suspected infection"
 	treatmentPolicy := "Prescribe antibiotics"
 
@@ -228,9 +237,8 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			name:            "updates clinical plan successfully",
 			medicalRecordID: 1,
 			input: &UpdateClinicalPlanInput{
-				PhysicalExam:    &physicalExam,
-				DiagnosisTypeID: &diagnosisTypeID,
-				ActorID:         clinicalPlanTestActorID(),
+				PhysicalExam: &physicalExam,
+				ActorID:      clinicalPlanTestActorID(),
 			},
 			repoFindPlan: &model.ClinicalPlan{
 				ID:              1,
@@ -242,7 +250,6 @@ func TestClinicalPlanService_Update(t *testing.T) {
 				ID:              1,
 				MedicalRecordID: 1,
 				PhysicalExam:    physicalExam,
-				DiagnosisTypeID: &diagnosisTypeID,
 			},
 			wantErr: false,
 		},
@@ -284,8 +291,6 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			medicalRecordID: 1,
 			input: &UpdateClinicalPlanInput{
 				PhysicalExam:     &physicalExam,
-				DiagnosisTypeID:  &diagnosisTypeID,
-				DiagnosisNameID:  &diagnosisNameID,
 				DiagnosisDetails: &diagnosisDetails,
 				TreatmentPolicy:  &treatmentPolicy,
 				ActorID:          clinicalPlanTestActorID(),
@@ -300,8 +305,6 @@ func TestClinicalPlanService_Update(t *testing.T) {
 				ID:               1,
 				MedicalRecordID:  1,
 				PhysicalExam:     physicalExam,
-				DiagnosisTypeID:  &diagnosisTypeID,
-				DiagnosisNameID:  &diagnosisNameID,
 				DiagnosisDetails: diagnosisDetails,
 				TreatmentPolicy:  treatmentPolicy,
 			},
@@ -382,36 +385,6 @@ func TestClinicalPlanService_Update_EmptyStringClearsFields(t *testing.T) {
 	assert.Equal(t, 3, *got.persistVersion)
 }
 
-// BUG-010: 確定済み親カルテへの clinical plan 更新は Conflict で拒否し repo.Update を呼ばない。
-func TestClinicalPlanService_Update_FinalizedParentRejected(t *testing.T) {
-	physicalExam := "後から書いた所見"
-	updateCalled := false
-	repo := &mockClinicalPlanRepository{
-		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
-			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, PhysicalExam: "確定前"}, nil
-		},
-		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
-			updateCalled = true
-			return nil
-		},
-	}
-	medRec := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
-		},
-	}
-	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
-
-	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam,
-		ActorID: clinicalPlanTestActorID(),
-	})
-
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err))
-	assert.Nil(t, plan)
-	assert.False(t, updateCalled)
-}
-
 // TestClinicalPlanService_Update_ValidateDiagnosisFKsError は、貼り替え先の診断マスタFKが
 // 呼び出し元医院の所有でない場合に Update がエラーを返し、repo.Update が呼ばれない
 // ことを検証する（クロステナント write 防止）。
@@ -425,6 +398,10 @@ func TestClinicalPlanService_Update_ValidateDiagnosisFKsError(t *testing.T) {
 			t.Fatal("clinical plan must not be updated when diagnosis FK ownership check fails")
 			return nil
 		},
+		replaceDiagnosesFn: func(_ context.Context, _, _ uint64, _ []ClinicalPlanDiagnosisInput) error {
+			t.Fatal("diagnosis rows must not be written when diagnosis FK ownership check fails")
+			return nil
+		},
 	}
 	diagTypeRepo := &mockDiagnosisTypeRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisType, error) {
@@ -436,8 +413,9 @@ func TestClinicalPlanService_Update_ValidateDiagnosisFKsError(t *testing.T) {
 	}
 	svc := NewClinicalPlanService(repo, okMedRecForPlan(), diagTypeRepo, okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
 
-	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &foreignTypeID,
-		ActorID: clinicalPlanTestActorID(),
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{
+		Diagnoses: &[]ClinicalPlanDiagnosisInput{{Slot: 1, DiagnosisTypeID: &foreignTypeID}},
+		ActorID:   clinicalPlanTestActorID(),
 	})
 
 	assert.Error(t, err)
@@ -595,75 +573,24 @@ func TestClinicalPlanService_GetOrCreate_CrossTenantParentRejected(t *testing.T)
 	assert.False(t, createCalled, "親カルテ所有権検証に失敗した場合、clinical_plan を永続化してはならない")
 }
 
-// TestClinicalPlanService_Update_RejectsFinalizedParent は確定済みカルテの clinical_plan
-// 更新が Conflict(409) で拒否され、repo.Update が呼ばれないことを検証する（SD-2 系ガード監査）。
-func TestClinicalPlanService_Update_RejectsFinalizedParent(t *testing.T) {
-	updateCalled := false
-	repo := &mockClinicalPlanRepository{
-		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
-			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
-		},
-		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
-			updateCalled = true
-			return nil
-		},
-	}
-	medRec := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
-		},
-	}
-	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
-	physicalExam := "test"
+// EMR-495 P1（契約 §0.1）: 親カルテの旧 finalized 拒否（旧 Update_FinalizedParentRejected /
+// Update_RejectsFinalizedParent / Delete_RejectsFinalizedParent）は廃止した。medical_records.status は
+// 001 で廃止され、model.MedicalRecord に Status もない。親行ロック（lockDraftMedicalRecord）は維持され、
+// 更新は plan の version CAS・監査・診断行 FK 検査で守られる（下記の各テスト）。
 
-	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam,
-		ActorID: clinicalPlanTestActorID(),
-	})
-
-	assert.Error(t, err)
-	assert.Nil(t, plan)
-	assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの clinical_plan 更新は Conflict(409) であるべき: %v", err)
-	assert.False(t, updateCalled, "確定済みカルテの所見・診断は更新されてはならない")
-}
-
-// TestClinicalPlanService_Delete_RejectsFinalizedParent は確定済みカルテの clinical_plan
-// 削除が Conflict(409) で拒否され、repo.Delete が呼ばれないことを検証する。
-func TestClinicalPlanService_Delete_RejectsFinalizedParent(t *testing.T) {
-	deleteCalled := false
-	repo := &mockClinicalPlanRepository{
-		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
-			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
-		},
-		deleteFn: func(_ context.Context, _, _ uint64) error {
-			deleteCalled = true
-			return nil
-		},
-	}
-	medRec := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
-		},
-	}
-	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
-
-	err := svc.Delete(context.Background(), 1, 1, clinicalPlanTestActorID())
-
-	assert.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの clinical_plan 削除は Conflict(409) であるべき: %v", err)
-	assert.False(t, deleteCalled, "確定済みカルテの所見・診断は削除されてはならない")
-}
-
-func TestClinicalPlanService_Update_RejectsMismatchedDiagnosis2TypeName(t *testing.T) {
+func TestClinicalPlanService_Update_RejectsMismatchedDiagnosisTypeName(t *testing.T) {
 	typeID := uint64(10)
 	nameID := uint64(20)
-	typePtr := &typeID
-	namePtr := &nameID
 	repo := &mockClinicalPlanRepository{
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
 		},
 		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error {
-			t.Fatal("must not update when diagnosis_2 type/name mismatch")
+			t.Fatal("must not update when diagnosis type/name mismatch")
+			return nil
+		},
+		replaceDiagnosesFn: func(_ context.Context, _, _ uint64, _ []ClinicalPlanDiagnosisInput) error {
+			t.Fatal("must not write diagnosis rows when diagnosis type/name mismatch")
 			return nil
 		},
 	}
@@ -679,11 +606,11 @@ func TestClinicalPlanService_Update_RejectsMismatchedDiagnosis2TypeName(t *testi
 	}
 	svc := NewClinicalPlanService(repo, okMedRecForPlan(), diagTypeRepo, diagNameRepo, &mockCheckupTransactor{}, &mockAuditTxLogger{})
 	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{
-		Diagnosis2TypeID: &typePtr,
-		Diagnosis2NameID: &namePtr,
-		ActorID:          clinicalPlanTestActorID(),
+		Diagnoses: &[]ClinicalPlanDiagnosisInput{{Slot: 2, DiagnosisTypeID: &typeID, DiagnosisNameID: &nameID}},
+		ActorID:   clinicalPlanTestActorID(),
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
 	assert.Nil(t, plan)
 }
 
@@ -754,4 +681,185 @@ func TestClinicalPlanService_Update_VersionPassthrough(t *testing.T) {
 		require.NotNil(t, got.persistVersion)
 		assert.Equal(t, claimedVersion+1, *got.persistVersion, "persistVersion must be *input.Version+1")
 	})
+}
+
+// EMR-495 A: 診断行の書込（置換・version・件数 guard・clinic_id）。
+func TestClinicalPlanService_Update_DiagnosisRows(t *testing.T) {
+	typeID := uint64(10)
+	nameID := uint64(20)
+	snap := "snapshot-name"
+	cat := "snapshot-category"
+	rows := []ClinicalPlanDiagnosisInput{
+		{Slot: 1, DiagnosisTypeID: &typeID, DiagnosisNameID: &nameID, DiagnosisNameSnapshot: &snap, CategoryNameSnapshot: &cat, SortOrder: 0},
+		{Slot: 2, DiagnosisNameSnapshot: &snap},
+	}
+	diagNameRepo := &mockDiagnosisNameRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {
+			return &model.DiagnosisName{ID: id, DiagnosisTypeID: typeID}, nil
+		},
+	}
+	newRepo := func(updateCmd *UpdateClinicalPlanInput, replaced *[][]ClinicalPlanDiagnosisInput) *mockClinicalPlanRepository {
+		return &mockClinicalPlanRepository{
+			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+				return &model.ClinicalPlan{ID: 7, MedicalRecordID: 1, Version: 2}, nil
+			},
+			updateWithVersionFn: func(_ context.Context, _, _ uint64, cmd UpdateClinicalPlanInput, _ *int) error {
+				*updateCmd = cmd
+				return nil
+			},
+			replaceDiagnosesFn: func(_ context.Context, clinicID, planID uint64, in []ClinicalPlanDiagnosisInput) error {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(7), planID)
+				*replaced = append(*replaced, in)
+				return nil
+			},
+		}
+	}
+
+	t.Run("diagnosis-only PATCH replaces rows and bumps the plan version", func(t *testing.T) {
+		var cmd UpdateClinicalPlanInput
+		var replaced [][]ClinicalPlanDiagnosisInput
+		repo := newRepo(&cmd, &replaced)
+		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), diagNameRepo, &mockCheckupTransactor{}, &mockAuditTxLogger{})
+
+		view, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{Diagnoses: &rows, ActorID: clinicalPlanTestActorID()})
+
+		require.NoError(t, err)
+		require.NotNil(t, view)
+		require.Len(t, replaced, 1)
+		assert.Equal(t, rows, replaced[0], "snapshots are stored as sent, never derived from the current master")
+		require.NotNil(t, cmd.persistVersion)
+		assert.Equal(t, 3, *cmd.persistVersion, "Q9: a diagnosis-only PATCH advances the plan version")
+	})
+
+	t.Run("empty array clears all rows", func(t *testing.T) {
+		var cmd UpdateClinicalPlanInput
+		var replaced [][]ClinicalPlanDiagnosisInput
+		repo := newRepo(&cmd, &replaced)
+		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), diagNameRepo, &mockCheckupTransactor{}, &mockAuditTxLogger{})
+		empty := []ClinicalPlanDiagnosisInput{}
+
+		_, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{Diagnoses: &empty, ActorID: clinicalPlanTestActorID()})
+
+		require.NoError(t, err)
+		require.Len(t, replaced, 1)
+		assert.Empty(t, replaced[0])
+	})
+
+	t.Run("omitted diagnoses leaves rows untouched", func(t *testing.T) {
+		var cmd UpdateClinicalPlanInput
+		var replaced [][]ClinicalPlanDiagnosisInput
+		repo := newRepo(&cmd, &replaced)
+		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), diagNameRepo, &mockCheckupTransactor{}, &mockAuditTxLogger{})
+		exam := "x"
+
+		_, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &exam, ActorID: clinicalPlanTestActorID()})
+
+		require.NoError(t, err)
+		assert.Empty(t, replaced)
+	})
+
+	t.Run("audit carries the diagnosis rows", func(t *testing.T) {
+		var cmd UpdateClinicalPlanInput
+		var replaced [][]ClinicalPlanDiagnosisInput
+		repo := newRepo(&cmd, &replaced)
+		repo.listDiagnosesFn = func(_ context.Context, _, _ uint64) ([]model.ClinicalPlanDiagnosis, error) {
+			return []model.ClinicalPlanDiagnosis{{ID: 5, ClinicalPlanID: 7, DiagnosisSlot: 1, DiagnosisNameSnapshot: &snap}}, nil
+		}
+		var entry *AuditEntry
+		audit := &mockAuditTxLogger{logEntryTxFn: func(_ context.Context, e *AuditEntry) error {
+			entry = e
+			return nil
+		}}
+		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), diagNameRepo, &mockCheckupTransactor{}, audit)
+
+		_, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{Diagnoses: &rows, ActorID: clinicalPlanTestActorID()})
+
+		require.NoError(t, err)
+		require.NotNil(t, entry)
+		oldValue, ok := entry.OldValue.(map[string]any)
+		require.True(t, ok)
+		oldDiagnoses, ok := oldValue["diagnoses"].([]map[string]any)
+		require.True(t, ok)
+		require.Len(t, oldDiagnoses, 1)
+		assert.Equal(t, uint64(5), oldDiagnoses[0]["id"])
+		newValue, ok := entry.NewValue.(map[string]any)
+		require.True(t, ok)
+		_, ok = newValue["diagnoses"].([]map[string]any)
+		assert.True(t, ok)
+	})
+
+	t.Run("more than the row cap is rejected before any repository call", func(t *testing.T) {
+		repo := &mockClinicalPlanRepository{}
+		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), diagNameRepo, &mockCheckupTransactor{}, &mockAuditTxLogger{})
+		tooMany := make([]ClinicalPlanDiagnosisInput, maxClinicalPlanDiagnosisRows+1)
+		for i := range tooMany {
+			tooMany[i] = ClinicalPlanDiagnosisInput{Slot: 1, SortOrder: i}
+		}
+
+		view, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{Diagnoses: &tooMany, ActorID: clinicalPlanTestActorID()})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Nil(t, view)
+	})
+
+	t.Run("slot outside 1..2 is rejected", func(t *testing.T) {
+		repo := &mockClinicalPlanRepository{}
+		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), diagNameRepo, &mockCheckupTransactor{}, &mockAuditTxLogger{})
+		bad := []ClinicalPlanDiagnosisInput{{Slot: 3}}
+
+		_, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{Diagnoses: &bad, ActorID: clinicalPlanTestActorID()})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+}
+
+// EMR-495 Finding 5: clinical_plans.clinic_id は NOT NULL。GetOrCreate が信頼できる clinic を設定して作成する。
+func TestClinicalPlanService_GetOrCreate_SetsClinicID(t *testing.T) {
+	var created *model.ClinicalPlan
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return nil, apperrors.WrapNotFound("clinical_plan", "1")
+		},
+		createFn: func(_ context.Context, plan *model.ClinicalPlan) error {
+			created = plan
+			plan.ID = 9
+			return nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
+
+	view, err := svc.GetOrCreate(context.Background(), 5, 1)
+
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	assert.Equal(t, uint64(5), created.ClinicID)
+	assert.Equal(t, uint64(9), view.Plan.ID)
+}
+
+// Delete は診断行の論理削除を plan 削除と同じ経路で行う。
+func TestClinicalPlanService_Delete_DeletesDiagnosisRows(t *testing.T) {
+	var order []string
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 7, MedicalRecordID: 1}, nil
+		},
+		deleteDiagnosesFn: func(_ context.Context, _, planID uint64) error {
+			assert.Equal(t, uint64(7), planID)
+			order = append(order, "diagnoses")
+			return nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			order = append(order, "plan")
+			return nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo(), &mockCheckupTransactor{}, &mockAuditTxLogger{})
+
+	err := svc.Delete(context.Background(), 1, 1, clinicalPlanTestActorID())
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"diagnoses", "plan"}, order)
 }

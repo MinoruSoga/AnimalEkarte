@@ -75,7 +75,7 @@ func (m *mockMedicalRecordRepository) FindByID(ctx context.Context, clinicID, id
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
-	return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+	return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 }
 
 func (m *mockMedicalRecordRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
@@ -86,7 +86,7 @@ func (m *mockMedicalRecordRepository) LockByIDForUpdate(ctx context.Context, cli
 	if m.findByIDFn != nil {
 		return m.findByIDFn(ctx, clinicID, id)
 	}
-	return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+	return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 }
 
 // mockAuditService — billingAuditLogger view の最小モック。

@@ -44,51 +44,6 @@ func (*failingMedicalRecordAuditLogger) LogEntryTx(context.Context, *AuditEntry)
 	return errMedicalRecordAuditWrite
 }
 
-func TestMedicalRecordService_Update_FinalizeAuditFailureRollsBack(t *testing.T) {
-	const clinicID = uint64(71001)
-	db := setupMedicalRecordAddendumTestDB(t)
-	record := &model.MedicalRecord{
-		ClinicID: clinicID,
-		RecordNo: "AUDIT-TX-FINALIZE",
-		Date:     time.Date(2026, 7, 26, 0, 0, 0, 0, time.UTC),
-		Status:   model.MedicalRecordStatusDraft,
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(record).Error)
-	originalVersion := record.Version
-
-	repo := NewMedicalRecordRepository(db)
-	auditFailure := &failingMedicalRecordAuditLogger{}
-	service := NewMedicalRecordServiceWithTxAudit(
-		repo,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		auditFailure,
-		auditFailure,
-		persistence.NewTransactor(db),
-	)
-	finalized := model.MedicalRecordStatusFinalized
-	actorID := uint64(101)
-
-	updated, err := service.Update(context.Background(), clinicID, record.ID, UpdateMedicalRecordInput{
-		Status:  &finalized,
-		ActorID: &actorID,
-	})
-
-	require.ErrorIs(t, err, errMedicalRecordAuditWrite)
-	assert.Nil(t, updated)
-
-	var persisted model.MedicalRecord
-	require.NoError(t, db.WithContext(context.Background()).First(&persisted, record.ID).Error)
-	assert.Equal(t, model.MedicalRecordStatusDraft, persisted.Status)
-	assert.Equal(t, originalVersion, persisted.Version)
-}
-
 func TestMedicalRecordAddendumService_Create_AuditFailureRollsBack(t *testing.T) {
 	const clinicID = uint64(71002)
 	db := setupMedicalRecordAddendumTestDB(t)
@@ -97,7 +52,6 @@ func TestMedicalRecordAddendumService_Create_AuditFailureRollsBack(t *testing.T)
 		ClinicID: clinicID,
 		RecordNo: "AUDIT-TX-ADDENDUM",
 		Date:     time.Date(2026, 7, 26, 0, 0, 0, 0, time.UTC),
-		Status:   model.MedicalRecordStatusFinalized,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(record).Error)
 
@@ -143,12 +97,9 @@ func TestMedicalRecordService_Create_AuditFailureRemainsBestEffort(t *testing.T)
 		&failingMedicalRecordAuditLogger{},
 		nil,
 		persistence.NewTransactor(db))
-	draft := model.MedicalRecordStatusDraft
-
 	created, err := service.Create(context.Background(), clinicID, &CreateMedicalRecordInput{
 		RecordNo:  "AUDIT-BEST-EFFORT-CREATE",
 		Date:      time.Date(2026, 7, 26, 0, 0, 0, 0, time.UTC),
-		Status:    &draft,
 		VisitType: model.VisitTypeRevisit,
 	})
 
@@ -167,7 +118,6 @@ func TestMedicalRecordService_Update_AuditFailureRemainsBestEffort(t *testing.T)
 		ClinicID: clinicID,
 		RecordNo: "AUDIT-BEST-EFFORT-UPDATE",
 		Date:     time.Date(2026, 7, 25, 0, 0, 0, 0, time.UTC),
-		Status:   model.MedicalRecordStatusDraft,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(record).Error)
 

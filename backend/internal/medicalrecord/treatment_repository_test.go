@@ -241,10 +241,28 @@ func TestTreatmentRepository_FindHistoryByPetID_ProcedureFilters(t *testing.T) {
 func setupTreatmentBillingTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTreatmentHistoryTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.BillingConfirmation{}, &model.BillingItem{}))
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.BillingConfirmation{}, &model.BillingItem{}, &model.MedicalRecordConsultationEvent{}))
 	db.Exec("TRUNCATE TABLE billing_items CASCADE")
 	db.Exec("TRUNCATE TABLE billing_confirmations CASCADE")
+	db.Exec("TRUNCATE TABLE medical_record_consultation_events CASCADE")
 	return db
+}
+
+// recordConsultationEventForTest は medical_record_consultation_events に 1 行を直接挿入する
+// （AutoMigrate の test double には 001 の trigger / operation receipt 制約がない）。
+// EMR-495 Q5: 「診療終了済み」は最新 revision の event_kind が ended であること。書込経路（B）は別 PR。
+func recordConsultationEventForTest(t *testing.T, db *gorm.DB, clinicID, recordID uint64, revision int64, kind string) {
+	t.Helper()
+	require.NoError(t, db.Create(&model.MedicalRecordConsultationEvent{
+		ClinicID:        clinicID,
+		MedicalRecordID: recordID,
+		Revision:        revision,
+		EventKind:       kind,
+		SourceKind:      "consultation",
+		OccurredAt:      time.Now(),
+		OperationID:     1,
+		RecordedBy:      1,
+	}).Error)
 }
 
 func TestTreatmentRepository_FindByID(t *testing.T) {
@@ -770,7 +788,8 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate(t *testing.T)
 
 	t.Run("counts finalized medical record with no billing_confirmation and no billing", func(t *testing.T) {
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "取り残しペット1")
-		makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-LEFTOVER-1", date)
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-LEFTOVER-1", date)
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 1, "ended")
 
 		count, err := repo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicA, pet.ID, date)
 		require.NoError(t, err)
@@ -780,6 +799,7 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate(t *testing.T)
 	t.Run("excludes when billing_confirmation is confirmed", func(t *testing.T) {
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "取り残しペット2")
 		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-CONFIRMED", date)
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 1, "ended")
 		require.NoError(t, db.Create(&model.BillingConfirmation{
 			MedicalRecordID: mr.ID,
 			Status:          model.ConfirmationStatusConfirmed,
@@ -793,6 +813,7 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate(t *testing.T)
 	t.Run("counts when billing_confirmation exists but is not confirmed", func(t *testing.T) {
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "取り残しペット3")
 		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-STILL-PENDING", date)
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 1, "ended")
 		require.NoError(t, db.Create(&model.BillingConfirmation{
 			MedicalRecordID: mr.ID,
 			Status:          model.ConfirmationStatusPending,
@@ -806,6 +827,7 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate(t *testing.T)
 	t.Run("excludes when a non-cancelled billing already exists", func(t *testing.T) {
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "取り残しペット4")
 		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-ALREADY-BILLED", date)
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 1, "ended")
 		require.NoError(t, db.Create(&model.Billing{
 			ClinicID:        clinicA,
 			MedicalRecordID: &mr.ID,
@@ -821,6 +843,7 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate(t *testing.T)
 	t.Run("foreign-clinic billing does not suppress clinic leftover", func(t *testing.T) {
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "取り残し別院会計汚染ペット")
 		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-FOREIGN-BILLING-LEFTOVER", date)
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 1, "ended")
 		require.NoError(t, db.Create(&model.Billing{
 			ClinicID:        clinicB,
 			MedicalRecordID: &mr.ID,
@@ -833,7 +856,7 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate(t *testing.T)
 		assert.Equal(t, int64(1), count)
 	})
 
-	t.Run("excludes draft (non-finalized) medical records", func(t *testing.T) {
+	t.Run("excludes medical records without an ended consultation event", func(t *testing.T) {
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "取り残しペット5")
 		petID := pet.ID
 		mr := &model.MedicalRecord{
@@ -841,18 +864,41 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate(t *testing.T)
 			RecordNo: "MR-DRAFT",
 			Date:     date,
 			PetID:    &petID,
-			Status:   model.MedicalRecordStatusDraft,
 		}
 		require.NoError(t, db.Create(mr).Error)
 
 		count, err := repo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicA, pet.ID, date)
 		require.NoError(t, err)
-		assert.Equal(t, int64(0), count, "draft は対象外")
+		assert.Equal(t, int64(0), count, "終了イベントのないカルテは対象外")
+	})
+
+	t.Run("excludes records whose latest consultation event is end_undone", func(t *testing.T) {
+		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "取り残し終了取消ペット")
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-END-UNDONE", date)
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 1, "ended")
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 2, "end_undone")
+
+		count, err := repo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicA, pet.ID, date)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count, "最新イベントが end_undone なら終了済みではない")
+	})
+
+	t.Run("counts again when the consultation end is re-recorded after an undo", func(t *testing.T) {
+		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "取り残し再終了ペット")
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-RE-ENDED", date)
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 1, "ended")
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 2, "end_undone")
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 3, "ended")
+
+		count, err := repo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicA, pet.ID, date)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), count)
 	})
 
 	t.Run("excludes different date", func(t *testing.T) {
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "取り残しペット6")
-		makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-OTHER-DATE", date)
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-OTHER-DATE", date)
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 1, "ended")
 
 		otherDate := date.AddDate(0, 0, 1)
 		count, err := repo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicA, pet.ID, otherDate)
@@ -862,7 +908,8 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate(t *testing.T)
 
 	t.Run("clinic isolation: other clinic scope returns zero", func(t *testing.T) {
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "取り残しペット7")
-		makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-CLINIC-ISO", date)
+		mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-CLINIC-ISO", date)
+		recordConsultationEventForTest(t, db, clinicA, mr.ID, 1, "ended")
 
 		count, err := repo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicB, pet.ID, date)
 		require.NoError(t, err)
@@ -879,7 +926,8 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate_RejectsCorrup
 	ownerA := makeTestOwner(t, db, clinicA, "取り残し取得対象飼主")
 	crossClinicPet := makeSpeciesAndPet(t, db, clinicB, ownerA.ID, "破損した別医院ペット")
 	date := time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC)
-	makeHistoryMedicalRecord(t, db, clinicA, crossClinicPet.ID, "MR-CORRUPT-COUNT", date)
+	mr := makeHistoryMedicalRecord(t, db, clinicA, crossClinicPet.ID, "MR-CORRUPT-COUNT", date)
+	recordConsultationEventForTest(t, db, clinicA, mr.ID, 1, "ended")
 
 	count, err := repo.CountFinalizedUnconfirmedByPetAndDate(ctx, clinicA, crossClinicPet.ID, date)
 

@@ -261,7 +261,7 @@ func TestVaccinationRepository_RelationPreloadsAreClinicScoped(t *testing.T) {
 	petA2 := makeVaccinationRepoTestPet(t, db, clinicA, ownerA.ID, "scope pet A2")
 	foreignRecord := &model.MedicalRecord{
 		ClinicID: clinicB, RecordNo: "VAC-SCOPE-MR-B", Date: time.Now(),
-		OwnerID: &ownerB.ID, PetID: &petB.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &ownerB.ID, PetID: &petB.ID,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(foreignRecord).Error)
 	foreignMedicalRecordVaccination := &model.Vaccination{
@@ -305,7 +305,7 @@ func TestVaccinationRepository_FindByID_AllowsHistoricalOwnerAfterPetTransfer(t 
 	vaccine := makeVaccineMaster(t, db, clinicID, "譲渡後ワクチン")
 	record := &model.MedicalRecord{
 		ClinicID: clinicID, RecordNo: "MR-VAC-TRANSFER", Date: time.Now(),
-		OwnerID: &previousOwner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &previousOwner.ID, PetID: &pet.ID,
 	}
 	require.NoError(t, db.Create(record).Error)
 	vaccination := &model.Vaccination{

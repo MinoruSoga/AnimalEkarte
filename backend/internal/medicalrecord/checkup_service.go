@@ -196,9 +196,6 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		if parent.PetID != nil {
 			parentPetID = *parent.PetID
 		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテのため健診記録は追加できません")
-		}
 		if err := validateClinicalRelations(txCtx, s.relationVerifier, input.ClinicID, parent, input.PetID, input.DoctorID); err != nil {
 			return err
 		}
@@ -284,9 +281,6 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 		if err != nil {
 			return apperrors.Wrap(err, "failed to find medical record")
 		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテのため健診記録は編集できません")
-		}
 		petID, doctorID := effectiveCheckupRelations(existing, input)
 		if err := validateClinicalRelations(txCtx, s.relationVerifier, clinicID, parent, petID, doctorID); err != nil {
 			return err
@@ -331,14 +325,11 @@ func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, 
 
 	var existing *model.Checkup
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// Keep the same parent-before-child order as Create/Update so concurrent finalize and
-		// checkup writes cannot deadlock while the parent status guard remains stable.
-		parent, err := lockClinicalMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID)
+		// Keep the same parent-before-child order as Create/Update so concurrent parent and
+		// checkup writes cannot deadlock (EMR-495: the finalized rejection was retired).
+		_, err := lockClinicalMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to find medical record")
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテのため健診記録は削除できません")
 		}
 
 		locked, err := s.repo.LockByIDForUpdate(txCtx, clinicID, checkupID)

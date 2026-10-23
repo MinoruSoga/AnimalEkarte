@@ -120,7 +120,7 @@ func TestDB_CheckupRepository_LockedDeleteRollsBackWithAmbientTx(t *testing.T) {
 	assert.Equal(t, checkup.ID, persisted.ID)
 }
 
-func TestDB_CheckupRepository_ParentThenChildLocksSerializeMedicalRecordFinalization(t *testing.T) {
+func TestDB_CheckupRepository_ParentThenChildLocksSerializeParentWrites(t *testing.T) {
 	fixture := setupClinicalRelationWriteFixture(t)
 	checkups := NewCheckupRepository(fixture.db)
 	records := NewMedicalRecordRepository(fixture.db)
@@ -135,7 +135,7 @@ func TestDB_CheckupRepository_ParentThenChildLocksSerializeMedicalRecordFinaliza
 	err := fixture.writeTransactor.WithTx(ctx, func(txCtx context.Context) error {
 		parent, lockErr := records.LockByIDForUpdate(txCtx, fixture.clinicA, fixture.recordA.ID)
 		require.NoError(t, lockErr)
-		assert.Equal(t, model.MedicalRecordStatusDraft, parent.Status)
+		require.NotNil(t, parent)
 		_, lockErr = checkups.LockByIDForUpdate(txCtx, fixture.clinicA, checkup.ID)
 		require.NoError(t, lockErr)
 
@@ -145,13 +145,13 @@ func TestDB_CheckupRepository_ParentThenChildLocksSerializeMedicalRecordFinaliza
 		require.NoError(t, competingTx.Exec("SET LOCAL lock_timeout = '200ms'").Error)
 
 		competingCtx := persistence.WithTxValue(ctx, competingTx)
-		_, updateErr := records.Update(competingCtx, fixture.clinicA, fixture.recordA.ID, medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
-		require.Error(t, updateErr, "finalization must wait while checkup deletion holds the parent lock")
+		_, updateErr := records.Update(competingCtx, fixture.clinicA, fixture.recordA.ID, medicalRecordParentWrite(), nil)
+		require.Error(t, updateErr, "a parent header write must wait while checkup deletion holds the parent lock")
 		return nil
 	})
 	require.NoError(t, err)
 
-	finalized, err := records.Update(ctx, fixture.clinicA, fixture.recordA.ID, medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
+	updated, err := records.Update(ctx, fixture.clinicA, fixture.recordA.ID, medicalRecordParentWrite(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, model.MedicalRecordStatusFinalized, finalized.Status)
+	assert.Equal(t, fixture.recordA.ID, updated.ID)
 }

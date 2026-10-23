@@ -43,7 +43,6 @@ func TestMedicalRecordRepository_FindByIDAndFindAllRejectPollutedParent(t *testi
 		Date:     time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC),
 		OwnerID:  &ownerBID,
 		PetID:    &petBID,
-		Status:   model.MedicalRecordStatusDraft,
 		RecordNo: "AUD008-CONTAMINATED",
 	}
 	require.NoError(t, db.WithContext(ctx).Create(contaminated).Error)
@@ -389,7 +388,6 @@ func TestMedicalRecordRepository_Create_ParticipatesInAmbientTransaction(t *test
 			Date:     time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC),
 			OwnerID:  &ownerID,
 			PetID:    &petID,
-			Status:   model.MedicalRecordStatusDraft,
 			RecordNo: "AUD008-TX-CREATE",
 		}
 		if e := repo.Create(txCtx, rec); e != nil {
@@ -447,7 +445,6 @@ func TestMedicalRecordRepository_FindByAppointmentID_CorrelatesAppointmentClinic
 			ClinicID:      clinicA,
 			Date:          time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC),
 			AppointmentID: &apptID,
-			Status:        model.MedicalRecordStatusDraft,
 			RecordNo:      "MR-B1-APPT-POLLUTED",
 		}
 		require.NoError(t, db.WithContext(ctx).Create(polluted).Error)
@@ -464,7 +461,6 @@ func TestMedicalRecordRepository_FindByAppointmentID_CorrelatesAppointmentClinic
 			ClinicID:      clinicA,
 			Date:          time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC),
 			AppointmentID: &apptID,
-			Status:        model.MedicalRecordStatusDraft,
 			RecordNo:      "MR-B1-APPT-VALID",
 		}
 		require.NoError(t, db.WithContext(ctx).Create(valid).Error)
@@ -483,7 +479,6 @@ func TestMedicalRecordRepository_FindByAppointmentID_CorrelatesAppointmentClinic
 			ClinicID:      clinicA,
 			Date:          time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC),
 			AppointmentID: &apptID,
-			Status:        model.MedicalRecordStatusDraft,
 			RecordNo:      "MR-B1-APPT-DELETED",
 		}
 		require.NoError(t, db.WithContext(ctx).Create(rec).Error)

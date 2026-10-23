@@ -145,7 +145,6 @@ func makeCurrentOwnerTransferFixture(
 		Date:     recordDate,
 		OwnerID:  &previousOwner.ID,
 		PetID:    &pet.ID,
-		Status:   model.MedicalRecordStatusFinalized,
 	})
 	require.NoError(t, db.WithContext(ctx).Model(pet).Update("owner_id", currentOwner.ID).Error)
 	return currentOwnerTransferFixture{
@@ -502,22 +501,13 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 		}).Error)
 	}
 
-	draft := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+	recDog := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "F-DRAFT", Date: time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC),
-		OwnerID: &owner.ID, PetID: &dogPet.ID, DoctorID: &doctorA.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &owner.ID, PetID: &dogPet.ID, DoctorID: &doctorA.ID,
 	})
-	finalized := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+	recCat := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "F-FINAL", Date: time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC),
-		OwnerID: &owner.ID, PetID: &catPet.ID, DoctorID: &doctorB.ID, Status: model.MedicalRecordStatusFinalized,
-	})
-
-	t.Run("status で絞り込める", func(t *testing.T) {
-		statusDraft := model.MedicalRecordStatusDraft
-		got, total, err := repo.FindAll(ctx, []uint64{clinicA}, MedicalRecordListFilters{Status: &statusDraft}, 1, 100)
-		require.NoError(t, err)
-		assert.Equal(t, int64(1), total)
-		require.Len(t, got, 1)
-		assert.Equal(t, draft.ID, got[0].ID)
+		OwnerID: &owner.ID, PetID: &catPet.ID, DoctorID: &doctorB.ID,
 	})
 
 	t.Run("doctor_id で絞り込める", func(t *testing.T) {
@@ -525,7 +515,7 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, got, 1)
-		assert.Equal(t, finalized.ID, got[0].ID)
+		assert.Equal(t, recCat.ID, got[0].ID)
 	})
 
 	t.Run("animal_species_id で絞り込める", func(t *testing.T) {
@@ -533,7 +523,7 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, got, 1)
-		assert.Equal(t, finalized.ID, got[0].ID)
+		assert.Equal(t, recCat.ID, got[0].ID)
 	})
 
 	medicine := &model.Medicine{ClinicID: clinicA, Name: "フィルタ検証薬", IsActive: true}
@@ -541,33 +531,33 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 	otherMedicine := &model.Medicine{ClinicID: clinicA, Name: "別の薬", IsActive: true}
 	require.NoError(t, db.WithContext(ctx).Create(otherMedicine).Error)
 	makeTreatmentSearchTreatment(t, db, &model.Treatment{
-		MedicalRecordID: draft.ID,
+		MedicalRecordID: recDog.ID,
 		ItemType:        model.TreatmentItemTypeMedicine,
 		MedicineID:      &medicine.ID,
 	})
 	makeTreatmentSearchTreatment(t, db, &model.Treatment{
-		MedicalRecordID: finalized.ID,
+		MedicalRecordID: recCat.ID,
 		ItemType:        model.TreatmentItemTypeMedicine,
 		MedicineID:      &otherMedicine.ID,
 	})
 	procedure := &model.Procedure{ClinicID: clinicA, Name: "フィルタ検証処置"}
 	require.NoError(t, db.WithContext(ctx).Create(procedure).Error)
 	makeTreatmentSearchTreatment(t, db, &model.Treatment{
-		MedicalRecordID: draft.ID,
+		MedicalRecordID: recDog.ID,
 		ItemType:        model.TreatmentItemTypeProcedure,
 		ProcedureID:     &procedure.ID,
 	})
 	consultation := &model.Consultation{ClinicID: clinicA, Name: "フィルタ検証診察"}
 	require.NoError(t, db.WithContext(ctx).Create(consultation).Error)
 	makeTreatmentSearchTreatment(t, db, &model.Treatment{
-		MedicalRecordID: finalized.ID,
+		MedicalRecordID: recCat.ID,
 		ItemType:        model.TreatmentItemTypeConsultation,
 		ConsultationID:  &consultation.ID,
 	})
 	inventory := &model.InventoryItem{ClinicID: clinicA, Name: "フィルタ検証物品", Category: model.InventoryCategoryOther}
 	require.NoError(t, db.WithContext(ctx).Create(inventory).Error)
 	makeTreatmentSearchTreatment(t, db, &model.Treatment{
-		MedicalRecordID: draft.ID,
+		MedicalRecordID: recDog.ID,
 		ItemType:        model.TreatmentItemTypeOther,
 		InventoryID:     &inventory.ID,
 	})
@@ -577,7 +567,7 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, got, 1)
-		assert.Equal(t, draft.ID, got[0].ID)
+		assert.Equal(t, recDog.ID, got[0].ID)
 	})
 
 	t.Run("procedure_id で絞り込める", func(t *testing.T) {
@@ -585,7 +575,7 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, got, 1)
-		assert.Equal(t, draft.ID, got[0].ID)
+		assert.Equal(t, recDog.ID, got[0].ID)
 	})
 
 	t.Run("consultation_id で絞り込める", func(t *testing.T) {
@@ -593,7 +583,7 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, got, 1)
-		assert.Equal(t, finalized.ID, got[0].ID)
+		assert.Equal(t, recCat.ID, got[0].ID)
 	})
 
 	t.Run("inventory_id で絞り込める", func(t *testing.T) {
@@ -601,7 +591,7 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, got, 1)
-		assert.Equal(t, draft.ID, got[0].ID)
+		assert.Equal(t, recDog.ID, got[0].ID)
 	})
 
 	t.Run("start_date/end_date で絞り込める（既存挙動の維持）", func(t *testing.T) {
@@ -611,7 +601,7 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, got, 1)
-		assert.Equal(t, finalized.ID, got[0].ID)
+		assert.Equal(t, recCat.ID, got[0].ID)
 	})
 
 	t.Run("フィルタ未指定時は全件返す", func(t *testing.T) {
@@ -638,11 +628,11 @@ func TestMedicalRecordRepository_FindAll_Sort(t *testing.T) {
 	// 日付の昇順と record_no の対応が食い違うように意図的に作成順序をずらす。
 	recNewer := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "S-NEW", Date: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
-		OwnerID: &ownerB.ID, PetID: &petB.ID, Status: model.MedicalRecordStatusFinalized,
+		OwnerID: &ownerB.ID, PetID: &petB.ID,
 	})
 	recOlder := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "S-OLD", Date: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-		OwnerID: &ownerA.ID, PetID: &petA.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
 	})
 
 	t.Run("sort=date & order=asc は日付昇順になる", func(t *testing.T) {
@@ -675,13 +665,6 @@ func TestMedicalRecordRepository_FindAll_Sort(t *testing.T) {
 		require.Len(t, got, 2)
 		assert.Equal(t, recNewer.ID, got[0].ID, "Bソートペット が先頭")
 		assert.Equal(t, recOlder.ID, got[1].ID, "Aソートペット が次")
-	})
-
-	t.Run("sort=status & order=asc はステータス昇順になる", func(t *testing.T) {
-		got, _, err := repo.FindAll(ctx, []uint64{clinicA}, MedicalRecordListFilters{Sort: "status", Order: "asc"}, 1, 100)
-		require.NoError(t, err)
-		require.Len(t, got, 2)
-		assert.Equal(t, string(model.MedicalRecordStatusDraft), string(got[0].Status))
 	})
 
 	t.Run("未許可の sort キーは既定順（date DESC）にフォールバックする", func(t *testing.T) {
@@ -866,7 +849,7 @@ func TestMedicalRecordRepository_Create(t *testing.T) {
 
 		got, err := repo.FindByID(ctx, clinicA, rec.ID)
 		require.NoError(t, err)
-		assert.Equal(t, model.MedicalRecordStatusDraft, got.Status, "既定ステータスは draft であるべき")
+		assert.Equal(t, rec.ID, got.ID)
 	})
 }
 
@@ -905,52 +888,6 @@ func TestMedicalRecordRepository_Delete(t *testing.T) {
 		err := repo.Delete(ctx, clinicA, uint64(999999))
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
-	})
-
-	t.Run("確定済みカルテは削除できない", func(t *testing.T) {
-		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, RecordNo: "DEL-FINALIZED", Date: time.Now(),
-			OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusFinalized,
-		})
-
-		err := repo.Delete(ctx, clinicA, rec.ID)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsConflict(err))
-
-		var persisted model.MedicalRecord
-		require.NoError(t, db.Unscoped().First(&persisted, rec.ID).Error)
-		assert.Equal(t, model.MedicalRecordStatusFinalized, persisted.Status)
-		assert.False(t, persisted.DeletedAt.Valid)
-	})
-
-	t.Run("確定commit待機後の削除はConflictになり確定記録を残す", func(t *testing.T) {
-		rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
-			ClinicID: clinicA, RecordNo: "DEL-FINALIZE-RACE", Date: time.Now(),
-			OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
-		})
-		tx := db.Begin()
-		require.NoError(t, tx.Error)
-		defer tx.Rollback()
-		txCtx := persistence.WithTxValue(ctx, tx)
-		_, err := repo.Update(txCtx, clinicA, rec.ID, medicalRecordUpdateStatus(model.MedicalRecordStatusFinalized), nil)
-		require.NoError(t, err)
-
-		deleteDone := make(chan error, 1)
-		go func() { deleteDone <- repo.Delete(ctx, clinicA, rec.ID) }()
-		select {
-		case err := <-deleteDone:
-			require.Failf(t, "delete did not wait for finalization", "err=%v", err)
-		case <-time.After(100 * time.Millisecond):
-		}
-		require.NoError(t, tx.Commit().Error)
-
-		err = <-deleteDone
-		require.Error(t, err)
-		assert.True(t, apperrors.IsConflict(err))
-		var persisted model.MedicalRecord
-		require.NoError(t, db.Unscoped().First(&persisted, rec.ID).Error)
-		assert.Equal(t, model.MedicalRecordStatusFinalized, persisted.Status)
-		assert.False(t, persisted.DeletedAt.Valid)
 	})
 }
 
@@ -1064,7 +1001,7 @@ func TestMedicalRecordRepository_CountByPetAndDate_IsScopedAndJoinsAmbientTransa
 	txCtx := persistence.WithTxValue(ctx, tx)
 	require.NoError(t, repo.Create(txCtx, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "DATE-A-UNCOMMITTED", Date: date,
-		OwnerID: &ownerA.ID, PetID: &petA.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
 	}))
 	inTxCount, err := repo.CountByPetAndDate(txCtx, clinicA, petA.ID, "2026-08-01")
 	require.NoError(t, err)
