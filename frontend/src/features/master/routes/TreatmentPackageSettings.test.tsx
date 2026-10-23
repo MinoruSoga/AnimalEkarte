@@ -1153,4 +1153,69 @@ describe("EMR-532 Codex 4354539658: editor なし（list-only）の失権にも�
     await vi.waitFor(() => expect(reorderDisabled()).toBe(false));
     expect(vi.mocked(axios.patch)).not.toHaveBeenCalled();
   });
+
+  /** 再確認中の一覧 GET を保留にする。detail は呼ばれない前提（list-only）。 */
+  const deferListGet = () => {
+    let settle!: { resolve: (v: unknown) => void; reject: (e: unknown) => void };
+    vi.mocked(axios.get).mockImplementation(
+      () =>
+        new Promise((resolve, reject) => {
+          settle = { resolve, reject };
+        }),
+    );
+    return { settle: () => settle };
+  };
+
+  it("Q3: 再確認の一覧 GET 保留中は latch を解除せず、403 で解決しても非表示を維持する", async () => {
+    const { user } = await loseAuthorizationByReorder();
+    const deferred = deferListGet();
+    await user.click(screen.getByText("権限を再確認"));
+    await vi.waitFor(() => expect(refreshPermissionsMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(vi.mocked(axios.get)).toHaveBeenCalled());
+
+    // 保留中: キャッシュ済みの行が有効な並替操作として復活してはならない。
+    expect(screen.getByText(LIST_ONLY_COPY)).toBeTruthy();
+    expect(reorderDisabled()).toBe(true);
+
+    await act(async () => {
+      deferred.settle().reject(apiError(403));
+    });
+    expect(await screen.findByText("パッケージ一覧へのアクセス権がありません。")).toBeTruthy();
+    expect(screen.getByText(LIST_ONLY_COPY)).toBeTruthy();
+    expect(screen.queryByLabelText("セットAを下へ")).toBeNull(); // 一覧は error 表示（操作なし）。
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1); // 自動再送しない。
+  });
+
+  it("Q3: 再確認の一覧 GET が 500 → latch 維持・失敗表示", async () => {
+    const { user } = await loseAuthorizationByReorder();
+    const deferred = deferListGet();
+    await user.click(screen.getByText("権限を再確認"));
+    await vi.waitFor(() => expect(vi.mocked(axios.get)).toHaveBeenCalled());
+    expect(screen.getByText(LIST_ONLY_COPY)).toBeTruthy();
+
+    await act(async () => {
+      deferred.settle().reject(apiError(500));
+    });
+    expect(
+      await screen.findByText("再確認中に取得エラーが発生しました。権限状態は不明です。"),
+    ).toBeTruthy();
+    expect(screen.getByText(LIST_ONLY_COPY)).toBeTruthy();
+    expect(screen.queryByLabelText("セットAを下へ")).toBeNull();
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("Q3: 一覧 GET が保留の間は latch 維持。成功した後にだけ解除される", async () => {
+    const { user } = await loseAuthorizationByReorder();
+    const deferred = deferListGet();
+    await user.click(screen.getByText("権限を再確認"));
+    await vi.waitFor(() => expect(vi.mocked(axios.get)).toHaveBeenCalled());
+    expect(screen.getByText(LIST_ONLY_COPY)).toBeTruthy();
+    expect(reorderDisabled()).toBe(true);
+
+    await act(async () => {
+      deferred.settle().resolve(twoItems);
+    });
+    await vi.waitFor(() => expect(screen.queryByText(LIST_ONLY_COPY)).toBeNull());
+    await vi.waitFor(() => expect(reorderDisabled()).toBe(false));
+  });
 });

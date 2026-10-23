@@ -195,8 +195,21 @@ export function TreatmentPackageSettings() {
       return;
     }
     if (recheckTokenRef.current !== token) return;
-    // 一覧の再取得は event handler 内の副作用として掛け、判定自体はレンダーで行う。
-    void list.refetch();
+    if (sessionTarget === null) {
+      // Q3: list-only は対象 GET がないため、一覧の再取得結果が唯一の認可確認。
+      // 結果が出るまで latch を解除しない（react-query は再取得中も前回成功データを保持し、
+      // 解除すると 403 になる一覧の行・並替操作が復活してしまう）。
+      const result = await list.refetch();
+      if (recheckTokenRef.current !== token) return;
+      if (result.isError) {
+        // 403 は失権、5xx・通信失敗は権限状態不明として区別する（いずれも latch 維持）。
+        setRecheck({ kind: isForbiddenError(result.error) ? "denied-get-forbidden" : "failed" });
+        return;
+      }
+    } else {
+      // 一覧の再取得は event handler 内の副作用として掛け、判定自体はレンダーで行う。
+      void list.refetch();
+    }
     setRecheck({ kind: "get-ok" });
   }, [target, list, refreshPermissions]);
 
@@ -436,7 +449,9 @@ export function TreatmentPackageSettings() {
           <p className={`mt-2 text-sm ${C.text60}`}>権限を確認しています…</p>
         ) : recheck.kind === "denied-get-forbidden" ? (
           <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
-            対象パッケージへのアクセス権がありません。
+            {target === null
+              ? "パッケージ一覧へのアクセス権がありません。"
+              : "対象パッケージへのアクセス権がありません。"}
           </p>
         ) : recheck.kind === "denied-get-deleted" ? (
           <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
