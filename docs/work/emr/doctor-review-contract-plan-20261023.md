@@ -1,28 +1,28 @@
 # 医師確認集合：内部reader・writer参加の設計作業案（2026-10-23）
 
-**内部契約の限定技術選定と後続計画整備。製品実装Ready・公開HTTP契約採択・実行受入ではない。**
+**内部契約と既存billing Confirm/Returnの限定技術選定。製品runtime Ready・実装・公開API供給・実行受入ではない。**
 
 | 項目 | 内容 |
 |---|---|
 | 文書ID | work.emr.doctor-review-contract-plan-20261023 |
 | 種別 | 選定済みINTERNAL契約への接続と後続設計作業案 |
-| 決定状態 | T06は承認済みidentity/数量/record集合の限定signature/digest/世代参加へ修正。確認時signature保存・共用医師reader方向を維持。物理保存/HTTP/総lock合成等は未供給・未選定 |
-| 実装状態 | 候補の供給・接続・全writer閉包は未完 |
+| 決定状態 | T06は承認済みidentity/数量/record集合の限定signature/digest/世代参加へ修正。確認時signature保存・共用医師reader方向を維持。既存billingのwire/保存差分/専用lock順を追加選定。実provider・DDL/API・共通gate・writer閉包の供給は未完、準備billing/Complete等は別packet |
+| 実装状態 | 選定契約の供給・接続・全writer閉包は未完 |
 | 実機検証状態 | NOT_RUN（tests/build/codegen/DB/Docker/browser/設定変更なし） |
-| 文書確認日 | 2026-10-23（資料受領・静的整形） |
+| 文書確認日 | 2026-10-24 JST（限定契約の選定反映、実行NOT_RUN） |
 
 [今回の索引・判定軸](emr-limited-audit-plans-index-20261023.md#limited-audit-status)を参照。以下の監査範囲・件数は受領した固定基準の報告であり、今回再度の全件照会を行ったという意味ではない。
 
-2026-10-23のroot修正選定は既存technical-spec:450–456を優先し、広いclinical_content差分による失効と新current列の先行採用を撤回した。§3の非活性内部境界は[技術契約](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-scope)へ集約した。以下の§4–7の公開wire・anchor・総取得順等は引き続き未採択の後続案である。内部選定、文書公開、必要供給、consumer接続、全writer閉包、実行受入、activationを区別し、担当/実行ID/供給SHA受領済みとはしない。
+2026-10-23のroot修正選定は既存technical-spec:450–456を優先し、広いclinical_content差分による失効と新current列の先行採用を撤回した。§3の非活性内部境界は[技術契約](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-scope)へ集約した。既存billingの公開wire・anchor・保存差分・専用取得順は[Confirm/Return契約](../../design/domains/accounting/doctor-review-confirm-return-contract.md#review-actions-scope)へ2026-10-24に限定選定した。以下のComplete・生前分C・退院D等は別packetに保持する。内容レビュー、文書公開、必要供給、consumer接続、全writer閉包、実行受入、activationを区別し、担当/実行ID/供給SHA受領済みとはしない。
 
 <a id="doctor-review-plan-scope"></a>
 ## 1. 結論と確認済み根拠
 
-今回選定した限定成果は、非活性の内部typed reader/projection契約と純粋世代参加計画・合成fixture仕様である。新HTTP route、医師確認write、準備billing作成、Complete gate有効化、anchor DDL、既存通常Completeの動作変更は含めない。全体機能sliceをReady/閉鎖済みとはしない。以下の§4–7は後続実装の依存/検討表であり、そのまま採択可能なclosed API/物理契約ではない。
+先行の非活性内部typed reader/projectionと純粋世代参加契約を維持し、今回[既存billingの現在集合read・明示Confirm・理由付きReturn・不変履歴/C06 read・旧writer迂回排除](../../design/domains/accounting/doctor-review-confirm-return-contract.md#review-actions-scope)を技術選定した。準備billing作成/Complete gate有効化/既存Complete動作変更は含めず、全体機能sliceをReady/実装済みとはしない。
 
 readerは一つの既存billingの完全な現在record集合（複数record可）とplan-backed treatmentを扱う。各linkを対応する同recordへ照合する内部範囲であって、製品の通常Completeをこの範囲に制限する業務判断ではない。billingなしComplete、新規作成、他sourceは今後の接続残ACとして保持する。生前分Cと退院takeover Dも別slice。選んだcohort内のwriter閉包を点検できる成果を先に作り、全source/全495/全489のDone待ちにしない。
 
-当初の調査基準は `171b56575e7ee028e54358dad22ae28574853125`（PR843 merge）。今回の選定は `b81abc26b3657bd662475a1f55b912672a24a265` を基準に再照合した入力を受領し、固定根拠を[内部契約](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-evidence)へ置いた。以下の既存171b565リンクは当初観測の固定参照として保持する。Planeは462本文と8コメント、481本文と3コメント、484本文と4コメント、495本文と15コメントを取得し、各responseの next_page_results=false を確認。過去の未merge/未選定記述を現在条件にしない。
+当初の調査基準は `171b56575e7ee028e54358dad22ae28574853125`（PR843 merge）。先行内部選定は `b81abc26b3657bd662475a1f55b912672a24a265`、今回のConfirm/Return追加選定は `7dad9adc7f066fab5cc734dc8ff7e125a80d67d4` を基準とした入力を受領し、固定根拠を[内部契約](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-evidence)へ置いた。以下の既存171b565リンクは当初観測の固定参照として保持する。Planeは462本文と8コメント、481本文と3コメント、484本文と4コメント、495本文と15コメントを取得し、各responseの next_page_results=false を確認。過去の未merge/未選定記述を現在条件にしない。
 
 - [462](https://app.plane.so/baritechllc/browse/EMR-462/): 06c5f90c-503d-44f0-9f91-977ff8b746a9（通常一source先行、C/D分離）、0c13fe63-b33b-42e1-a8f2-2da811b85ced（既存Complete 201/200・Billing wire、元target現在view）、6a7c73d4-f44d-4391-befe-85bb1f590c4b（nil死亡readerの残差）。
 - [481](https://app.plane.so/baritechllc/browse/EMR-481/): f45a38ae-83c0-47ac-90ae-5ce96808b348（A/B/C/D維持、対象writer閉包）。
@@ -66,7 +66,7 @@ readerは一つの既存billingの完全な現在record集合（複数record可�
 <a id="doctor-review-plan-projection-candidate"></a>
 ### 3.2 projection・digestと会計側履歴
 
-[exact shape](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-shapes)、[canonical digest](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-canonical-digest)、[論理保存方向](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-storage-direction)へ。失効signatureは安定行/source・薬剤/処置identity・数量とrecord集合に限定する。current billing identityは481のactive binding＋保存済みtreatment_originalを、現在採用値との一致をadapterが証明できる行で再利用し、quantityはbilling_itemsから読む。treatment_originalは最後の取込snapshotで、manual override/keep_billing後の現在値を当然には証明しない。不明ならunresolvedを保持し現在treatmentで補修しない。新current projection列の自動採用は撤回し、既存doctor_review_setsへの確認時の限定signature全量不変保存の論理方向だけを維持する。物理列/型・同TXprovider/readerは未供給で、既存列・完全履歴とはしない。doctor_review_recordsはrecord側であり、billing digestだけから過去会計内容を復元せず、現在source補修や481 v1無断拡張もしない。物理供給を待たず内部契約を選定したが、確認履歴機能Readyの不足は解消していない。
+[exact shape](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-shapes)、[canonical digest](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-canonical-digest)、[論理保存方向](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-storage-direction)へ。失効signatureは安定行/source・薬剤/処置identity・数量とrecord集合に限定する。current billing identityは481のactive binding＋保存済みtreatment_originalを、現在採用値との一致をadapterが証明できる行で再利用し、quantityはbilling_itemsから読む。treatment_originalは最後の取込snapshotで、manual override/keep_billing後の現在値を当然には証明しない。不明ならunresolvedを保持し現在treatmentで補修しない。新current projection列の自動採用は撤回し、既存doctor_review_setsへの確認時の限定signature全量不変保存の論理方向だけを維持する。物理保存の選定は[保存差分](../../design/domains/accounting/doctor-review-confirm-return-contract.md#review-actions-storage)へ進めたが、DDL/model・同TXprovider/readerは未供給で、既存列・完全履歴とはしない。doctor_review_recordsはrecord側であり、billing digestだけから過去会計内容を復元せず、現在source補修や481 v1無断拡張もしない。物理供給を待たず内部契約を選定したが、確認履歴機能Readyの不足は解消していない。
 
 用法・経路・dose metadata/pattern revision、価格/sort・技術linkだけの変更は、対象identity/quantity/record集合が同じなら確認世代/digest不変。metadata-onlyをunsupportedにして実質的に会計停止する条件も作らない。薬量安全確認等の別目的gate・監査・履歴は保持する。対象signatureの評価自体が不明/失敗なら未評価として停止し、全dose writer受入済みとはしない。
 
@@ -78,56 +78,25 @@ readerは一つの既存billingの完全な現在record集合（複数record可�
 review_sets.billing_idは必須で、新準備workflow・新集合confirm wire・新規billing Complete互換は別の未閉鎖packet。既存Completeのbillingなし新規作成を禁止したり、他billing確認を流用したりしない。本内部契約から製品Completeへ新禁止条件を追加しない。
 
 <a id="doctor-review-plan-c06-candidate"></a>
-## 4. 後続依存: C06参加草案と公開互換（このPRで採択しない）
+## 4. 既存billingの選定契約と別packet
 
-| 操作 | Content（業務内容） | Preconditions（実行前提） | 同TXの結果 |
-|---|---|---|---|
-| 医師確認（案 billing.doctor_review.confirm） | billing_id、確認対象billing/record世代とdigest、完全record集合、exact note commitment | billing CAS、現在record/source/行CAS、適用される現在fence | set/全records/現在参照/監査/receipt |
-| 確認差戻し（案 billing.doctor_review.return） | billing_id、対象review_set_id、既存必要理由のcommitment | 現在参照、billing CAS、適用fence | 旧確認を不変保存し現在参照解除、監査/receipt |
-| 既存Complete adapter | 既存Completeの業務payloadと対象billing/source identity、数量/金額/支払内容 | unbilled revision、現在billing/record/source CAS、現在有効なreview_set、現readiness/ack条件 | 既存Billing response相当の固定成功、確定event/必要fund/totals/監査/receipt |
-| 481 import/resolution | 採択済みsource_stamp/decision/ack commitment | 採択済みbilling/item/binding/records等 | 481 refs/versionsを変更しない |
-| 484 performed/prepared/revoke | 採択済みgenerationはContent、owner-link/kind/reason等 | plan/source/event-head/fence CAS | 採択済み484 refs/versions。医師確認を自動生成しない |
-| 495/518/treatment通常writer | 各既存intentのimmutable command | 各既存CAS/fence | 元operation一つに462世代＋481同期/差異＋484 contextのambient参加 |
-
-確認ではユーザーがこの集合を確認するため、確認対象generation/digestはContent。同keyで別集合へ差替え不可。Completeでは医師確認は業務payloadを変えない現在有効性のPreconditionで、再読後の同内容retryを許容する。別source/数量へ変えるのは別Content。既決481 source_stamp、484 source_generationをCAS扱いへ変えない。
-
-scopeは認証医院・同actor、金融ownerはbilling。Completeの実際のintent識別子は現統合ownerの登録を再利用し、本案で第二namespaceを追加しない。新confirm/return案の名前はAPI単一ownerの登録差分として採択対象。Qは現operation.NewVerifiedCommandを利用し、Applyはreq.VerifiedCommandのみからdecodeする。別DTO closureとfingerprintを二系統にしない。
-
-元targetはclaim winnerの同短TXで不変anchorとして保存する。案 `billing_review_operation_targets(clinic_id,operation_id,billing_id)`、PK(clinic,operation)、binding複合FK、immutable/RLS、業務billing FKなし。既存同等anchorの供給があれば再利用し二表にしない。claimには業務row lockを入れない。success前/拒否後/unknownもbinding+clinicから元billingを解決し、URL/requestをfallbackにしない。missing anchorは非開示。未確定bindingをGETで修復しない。
-
-新規claim前は現在write/scope preflight、確定的なbinding不在だけclaim。lookup障害を不在扱いしない。既存bindingは先に元target現在accounting:viewを検査し、成功なら現在CAS/readinessに先行して保存結果を返す。
+[Confirm/ReturnのC06・認可・response](../../design/domains/accounting/doctor-review-confirm-return-contract.md#review-actions-c06)を正本とする。確認した完全集合/世代/digest・理由/memoはimmutable command/Contentに、billing版/現在参照はPreconditionsへ分離する。同key成功/unknownは元target現在view認可後、CAS・医師資格・readinessより先に処理する。Q/ClaimMetadataWriterは実在を再利用するが、consumer anchor/供給は未完である。
 
 <a id="doctor-review-plan-wire-dependencies"></a>
-### 4.1 現存wire/権限/理由の証拠と未閉鎖範囲
+### 4.1 wire・保存・医師reader
 
-- routes.go L103–106の既存confirm/returnはいずれもaccounting:edit、GETはaccounting:view。handlerはExtractStaffIDをconfirmed_by/returned_byへ注入し、client指定の代理医師IDを受け付けない。担当医以外の資格ある医師が代行できる業務規則と、actorと確認doctorを別IDで保存する仕組みは別である。**後者は本案では採用しない**。
-- 現存confirm bodyの許可keyはmemoのみ、string、TrimSpace後1000 Unicode rune以下、省略は空文字。return bodyの許可keyはreturn_reason/memoのみ、string。TrimSpace後return_reason必須・500 rune以下、memo1000 rune以下。両方8 KiB body上限、application/json、成功200の旧BillingConfirmation response。新billing/世代/digest/operation_keyはこのwireにない。これは現行実装の観測であり、そのまま新医師確認集合wireとして使えるという意味ではない。
-- service Confirm/Returnは現在staffとclinic assignmentをrepository.LockActiveStaffAssignmentで検査し、staffs.deleted_at IS NULL、staffs.is_active=TRUE、staff_clinic_assignments.deleted_at IS NULLをSHARE lock下で照合する。確認した関数は職種/医院が認めた医師資格を検証していない。accounting:edit＋active assignmentを医師資格の代用にしない。
-- 新集合confirmの医師readerは[T03/T06共用の既存predicate再利用方向](../../design/domains/accounting/doctor-review-internal-projection.md#review-internal-physician-dependency)を選定済み。実provider・designation対応根拠・保護順、既存return_reasonの新監査/履歴保存先と正規化後Content commitmentは**後続462/API/既存staff ownerの明示依存**。今回のreader仕様はこれらを閉じたとしない。旧表のreturn_reasonを復活させず、保存先未確定のままReturn機能Readyにしない。
-- 既決の業務判断は再質問しない。正本が定める医院が認めた医師・担当医以外の代行可は維持し、技術readerの既存機構への対応付けを実装ownerへ渡す。
+[exact wire](../../design/domains/accounting/doctor-review-confirm-return-contract.md#review-actions-wire)、[set/Return/anchor保存差分](../../design/domains/accounting/doctor-review-confirm-return-contract.md#review-actions-storage)、[旧入口封鎖](../../design/domains/accounting/doctor-review-confirm-return-contract.md#review-actions-bypass)を選定した。doctor_review_setsのbilling_signature/operation_id、doctor_review_returns、billing_review_operation_targetsは必要供給であり現DDLに存在済みとはしない。旧GET GetOrCreateをpure readとして温存せず、旧APIから推定billing・架空確認へ変換しない。共有医師predicateのdesignation検証・ambient/NOWAIT adapterは未供給、Returnへ新医師限定なし。
 
-固定根拠: [request/理由上限](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/internal/billing/billing_confirmation_request.go)、[handler/actor注入](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/internal/billing/billing_confirmation_handler.go)、[repository/assignment検査](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/internal/billing/billing_confirmation_repository.go)、[業務上の確認actor規則](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/docs/design/domains/reservations/technical-spec.md#reservation-receiving-contracts)。
-
-confirm成功refs案: billing_id,doctor_review_set_id。versions案: billing,clinical_set_generation。record別詳細は固定typed result detailに置き、C06 mapへJSON配列を押し込まない。Returnは元set refと保存後billing版。Completeは既存**初回201/成功再送200・Billing wire・整数wire**を保持。新確認adapterの400 validation、409 stale/dependency/key conflict、202 busy、503 recorded unknown、403現在非開示、404同scope bindingなしをC06から写像する案。現在再認可後のresult-store障害500と記録済みunknown503を分離。既存Complete全error envelopeの破壊変更はしない。
+既存Completeの初回201/再送200・Billing整数wire・元請求日は維持する。[準備billing/新規Complete](../../design/domains/accounting/doctor-review-confirm-return-contract.md#review-actions-complete-dependency)は別packetで、新billing_id必須や製品のbillingなしComplete禁止を追加しない。481/484/495/518の既存Content/CAS/receiptは各採択契約を維持する。
 
 <a id="doctor-review-plan-lock-candidate"></a>
-## 5. 後続依存: 総取得順の合成案（共有owner受領前・activation不可）
+## 5. 専用lock順の選定と供給残
 
-既決[予約§6.4](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/docs/design/domains/reservations/technical-spec.md#reservation-global-lock-contract)は共通gateで既存Complete close→billingとrefund/item billing→closeの逆辺を保護する。**全ownerに一つのFK順を強制する契約ではない**。481 §7と484 §5の部分順序を単純に互いのservice呼出しへネストさせない。
+[専用TX/lock順](../../design/domains/accounting/doctor-review-confirm-return-contract.md#review-actions-locks)を正本とする。短claim終了→最外TXのreservation-graph:write:v1 try gate→binding NOWAIT→元target現在view/success/unknown→savepoint/Apply。必要clinic/staff/assignment保護→billing→Confirmだけrecords/plan/dependency/treatment/billing_items/active bindingsを取得し、未宣言上位lockが必要なら最外TXをやり直す。Returnはcurrent projection全量を要求しない。
 
-以下は未採択の総取得順案である。このsliceの実行plannerが業務lock前に必要全資源を列挙し、以下の列の順で取得する。各集合内は (clinic_id, typed kind, id) の昇順。同物理TX内で既取得の同じlockは再取得せず、ambient participantへ渡す。
+481のbilling→必要close→record/sourceと484 source-onlyのeditrights→record/source、Complete close→billingは再定義せず、共通gate上位直列化と対象writer閉包の供給を必要とする。Confirm/Returnに不要なclose/fund/method/appointmentや506 participantを追加しない。ContextGate/try-gate、current provider、auth/staff、membership/writer参加は未供給で、gateだけで安全とはしない。現在Runner Gate(ctx)errorをContextGate実装済みとしない。
 
-1. 読取preflight/claim短TXを終了。既存scope/keyのbinding+元targetを固定。
-2. 最外業務TX → 既存reservation-graph:write:v1 gate → C06 binding NOWAIT。ここまで業務row/policy/close/staff lock先取りなし。
-3. 現在元target read認可 → 成功/unknownを先に返す。未成功だけsavepoint、現在write適格性と現在対象集合再発見。上位集合がpreflightと変わればwhole TX再開始、下位後に追加しない。
-4. 予約状態を触るCompleteだけ必要staff-global→clinic-booking→pet-intent/lifecycle→appointment資源を既存順で先に確保。通常source writerへ不要な予約資源lockを要求しない。
-5. 金融上位: **481 sync/import/confirmは関連billing ID昇順→必要close境界**。**既存Completeは既存close境界→対象billing**を維持。両者は共通gateにより同時に下位へ入らない。新fund操作/預り金lockを本sliceで設計し直さず506 ambient subsetの宣言を受領する。必要上位資源の未宣言はactivation不可。
-6. 必要な494 edit-right行→medical_records ID昇順→既存plan rows ID昇順→plan_items dependency row→typed treatment ID昇順→billing_items ID昇順→active billing_source_bindingsの主キー順→履行event/referenceとreview set参照。
-7. 現在集合/世代/digest、readiness、ack、税計算、現在grantを全部再検査し、writer/監査/receiptを同最外TXへ書く。commit前の必須処理失敗は全rollback。commit後のHTTP本文構築/送信失敗はこのrollback条件に含めず、永続成功を失敗へ書換えない。
-
-上記は「入れ子484 participantに後から会計lockを取らせる」方式ではない。484/treatment/planの入口が、source lock前に481影響billingを発見して段5まで確保する。membership/link追加削除も同gateなので発見後phantomを許さない。全writerがgateを持たない段階ではこの議論は成立せず未activation。既存source単独484は金融資源集合が空のときだけ段5をskipする。
-
-receipt replay/lookupは新業務lock/CAS/fenceを要求せず元target現在readのみ。495 P1の通常編集許可と本sliceの全writer適合判定は別であり、T06未接続を理由に全子writerを停止へ巻き戻さない。
+Confirm/Returnはclinical世代/digest不変。billing参照変更のversionは既存storage guardが一度増分し、手動version+1なし。mutation/履歴/監査/receipt失敗はcommit前だけ全rollback、commit後送信失敗は永続成功を反転させず元key lookupへ進む。
 
 <a id="doctor-review-plan-owner-handoffs"></a>
 ## 6. 今回の参加台帳成果: writer閉包・共有owner・必要subset
@@ -146,7 +115,7 @@ receipt replay/lookupは新業務lock/CAS/fenceを要求せず元target現在rea
 | funds/payments/確定event | 506 | Completeが今使う限定ambient subset/必要lock/refだけ。一般506新wireは本案の採択対象外 |
 | operation/{contract,runner,store,dto}.go | 489 | 実在Q/claim hookを再利用、元billing anchor resolverとconsumer参加・同TX成功だけ。共通再実装なし |
 | routes.go/request/response/backend/docs/api.yaml | 445/API単一owner | 既存Complete wire維持、confirm/returnとlookup adapterの正式収録。生成は本人指示の扱いを維持 |
-| 001/ERD、model/accounting.go/storage_finance.go | 446/466、既存model共有owner | 保存先再選定なし。必要anchor/制約差だけ。適合と供給SHAの受領、DDL適用なし |
+| 001/ERD、model/accounting.go/storage_finance.go | 446/466、既存model共有owner | 保存先再選定なし。選定済みsignature/Return/anchorの必要保存差分。DDL/model適合と供給SHAは未受領、DDL適用なし |
 
 各行に「実行ID、現在claim、具体hunk、供給SHAまたは同PR合意、AC/残AC、旧writer拒否or移行」を記入してからimplementationへ渡す。現在4票のassigneeは空であり、機能owner表を個人割当済みと読み替えない。495の現claimは最新コメントのclaim/EMR-495を尊重し別claimしない。
 
@@ -164,9 +133,9 @@ Dは元stay/退院明細/再利用billing/必要405 source event/元owner/版の
 <a id="doctor-review-plan-acceptance"></a>
 ## 8. reader限定1PRの完了条件と後続fixture
 
-選定した非活性内部契約は、(a) §3のclosed型・decimal/JCS入力/digest規則、(b) 完全集合の比較関数の入出力/エラー区分、(c) writerの効果分類と最外TXへの参加要求、(d) 未供給matrixを含む。製品への配線・API・DDLは同PRの達成対象にしない。fixtureコード作成とgolden bytes/hash生成は後段で、今回実物を作成・実行済みとはしない。
+選定した先行の非活性内部契約は、(a) §3のclosed型・decimal/JCS入力/digest規則、(b) 完全集合の比較関数の入出力/エラー区分、(c) writerの効果分類と最外TXへの参加要求、(d) 未供給matrixを含む。今回追加のConfirm/Return契約も文書選定までで、製品への配線・API YAML・実DDLは達成対象にしない。fixtureコード作成とgolden bytes/hash生成は後段で、今回実物を作成・実行済みとはしない。
 
-内部契約の限定技術選定と、文書の公開・実供給・後続機能契約採択を区別する。次の不足を「単に試験NOT_RUN」へ隠さない: 既存481 identityの現在採用値への適合providerと、確認時限定signature不変保存の物理供給、共用医師readerとdesignation受入根拠、confirm/return exact wireとReturn理由保存先、準備billingと新規Complete互換、元billing anchor物理契約、506を含む全lock資源宣言。したがって**full doctor-review/Complete機能sliceはReadyではない**。以下は後続機能接続で必要なfixture一覧。
+内部契約の限定技術選定と、文書の公開・実供給・後続機能契約採択を区別する。次の不足を「単に試験NOT_RUN」へ隠さない: 既存481 identityの現在採用値への適合providerと、確認時限定signature不変保存の物理供給、共用医師readerとdesignation受入根拠、選定済みconfirm/return wire・Return履歴・元billing anchorの実供給、準備billingと新規Complete互換、各cohortの必要lock資源宣言。したがって**full doctor-review/Complete機能sliceはReadyではない**。以下は後続機能接続で必要なfixture一覧。
 
 すべてfixture仕様のみ、実行NOT_RUN。
 
@@ -191,9 +160,9 @@ Dは元stay/退院明細/再利用billing/必要405 source event/元owner/版の
 
 metadata-only/technical-link-onlyは対象signatureが同じなら世代/digest不変で、unsupportedによる会計停止へ変換しない。対象identity/quantityの評価自体ができなければ未評価で止める。薬量安全確認等の別gate・監査は維持する。影響先はbefore/final双方の所属から列挙し、削除・移管前の依存billingも保持する。同じ最外TXに複数変更があっても各変更対象の増分は一回だけ。依存record世代を再読したreaderは再増分しない。期待CAS不一致なら業務値・世代・履歴・receiptはzero-writeで、旧確認を変更しない。成功時の失効と不変、失敗時の不変を別fixtureにする。
 
-commit後のHTTP本文構築/送信失敗では、永続成功を失敗へ反転させず、rollbackしたとも報告しない。HTTPエラーが絶対に返らないとは約束しない。clientの結果不明は元key lookupへ進み、commit成否不明も新key再送で迂回せず既存unknown規則に従う。commit前の必須projection生成失敗とcommit後の応答喪失を別fixtureにし、未採択案を実行済みにしない。
+commit後のHTTP本文構築/送信失敗では、永続成功を失敗へ反転させず、rollbackしたとも報告しない。HTTPエラーが絶対に返らないとは約束しない。clientの結果不明は元key lookupへ進み、commit成否不明も新key再送で迂回せず既存unknown規則に従う。commit前の必須projection生成失敗とcommit後の応答喪失を別fixtureにし、選定契約を実行済みにしない。
 
-完了は「技術案採択」「正本公開」「必要subset供給」「consumer接続」「全対象writer閉包」「実試験」「activation」を別々に記録する。内部reader型/純粋参加計画は限定選定済みだが、必要供給以降の完了ではない。非活性reader/projectionの契約整備を先行し、通常Completeへの新しい禁止条件は採択しない。billingなし新規Complete/複数record/他source/C/Dと上記未供給を見えるまま保持する。
+完了は「技術契約選定」「正本公開」「必要subset供給」「consumer接続」「全対象writer閉包」「実試験」「activation」を別々に記録する。内部reader型/純粋参加計画は限定選定済みだが、必要供給以降の完了ではない。非活性reader/projectionの契約整備を先行し、通常Completeへの新しい禁止条件は採択しない。billingなし新規Complete/複数record/他source/C/Dと上記未供給を見えるまま保持する。
 
 <a id="doctor-review-plan-references"></a>
 ## 9. 追加の固定参照

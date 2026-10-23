@@ -33,3 +33,8 @@
 [legacy-finance-evidence.md](legacy-finance-evidence.md#legacy-evidence-purpose-and-ownership)に原本occurrence/派生版の多対多lineage、identity、関連検証、選定read契約、producer報告の受領と設計残を置く。[会計FR/6AC](../../../spec/domains/accounting/lifecycle.md#requirement-fr-accounting-legacy-evidence-preservation)と[見積FR/1AC](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-legacy-evidence-preservation)を実現する共通構造・保存tableの役割・関係制約（chunk/field/payload上限は未選定）・readonly APIは2026-10-23選定。6入れ子型・verification_ref検証記録/供給binding・配送local→stable UUID耐久対応と実データprofile/manifest/集約元列挙は未閉鎖で、全wire完成ではない。実DDL/API/UIの実装・試験NOT_RUN。旧work pathは実施記録の索引のみ。
 
 [A1/A2区分締めの限定契約](../finance-operations/cash-closing-contract.md#cash-closing-source-completeness)は464初回受領の2sourceを消費する別の後発選定。預り受領契約自体が509締め全体や非R1 producer/B grantを採択したという意味ではない。実装/供給/利用開始は未完。
+
+<a id="doctor-review-confirm-return-entry"></a>
+## 既存会計の医師確認・差戻し
+
+[Confirm/Return契約](doctor-review-confirm-return-contract.md#review-actions-scope)は2026-10-24に限定技術選定。先行の[内部signature](doctor-review-internal-projection.md#review-internal-scope)を変えず、既存billingの現在集合read・明示確認・理由付き差戻し・保存signature/履歴・C06/元target read・旧writer迂回排除を閉じる。billing参照の版更新はstorage guard一回で手動加算なし。共通gate/医師predicate/current provider/writer閉包/API・DDL・model供給/実装・受入は未完。準備billing・Complete・金銭/在庫・生前分C・退院Dは別packetで、全体Ready/実装完了とはしない。
