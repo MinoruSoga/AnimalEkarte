@@ -271,3 +271,8 @@ FR-trimming-zero-performance-abort: 同じ予約・専用記録について、�
 ## EMR-370：ブラウザ調査の現在位置
 
 [EMR-370](https://app.plane.so/baritechllc/browse/EMR-370/)は本人の解消済みとの認識により、古い環境証拠の不足を現在の仕様・設計blockerにしない。今回の原因確定・コード修正・実端末合格ではない。推奨は最新Chrome／Edgeとし、固定の最低版を新設しない。EMR-181のWindows 8／Chrome 109エミュレーションは実端末証拠と区別し、toSorted原因説を確定しない。EMR-300の画像問題は別件として扱う。
+
+<a id="trimming-start-end-technical-selection"></a>
+## 2026-10-23開始・終了の技術接続
+
+[開始・終了の限定契約](../../../design/domains/trimming/trimming-start-end-contract.md#trimming-start-end-closed-wire)で468単一writer、T4 schema2の実担当者（actor/予約指名と別）、閉じたstart/end fingerprintと最小準備readproofを選定。準備はmetadataのみで記録作成/本文save/状態変更なし。現在認可/版検査を維持し、同key成功はproof再検証前に扱う。途中保存/開始に実担当者・料金の新gateを加えず、終了の既決9ACを保持。共有供給/実装/試験/全9AC受入/activationは未完（NOT_RUN）。

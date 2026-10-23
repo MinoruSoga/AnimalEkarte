@@ -100,7 +100,7 @@ artifactはDB固定版成立後の別段階。server rendererが不変editionだ
 presentation request: operation_key、expected_estimate_version、confirmed_content_digest、confirmed_calculation_id/revision。
 505がprepared計算を同TX新設する場合はcalculation ID/revisionを入力で捏造せず、別variant prepared_calculation_digestを必須にして前記固定Contentに束縛。両variant同時指定は禁止。明細/recipient/期限/計算実値は確認済sourceからimmutable commandへ固定し現在値に黙って置換しない。
 
-estimate FOR UPDATEで通常編集/提示/返答/後継を直列化し、root版と全明細digest（追加/削除含む）、未提示編集可能状態・現在認可・医院/飼主/pet/親関係を検査。計算revision/presentation/全固定lines/監査/receiptを同TX保存。親カルテ確定だけで未提示編集を拒否する旧gateは適用しないが、通常削除の親未確定条件は別に維持する。
+estimate FOR UPDATEで通常編集/提示/返答/後継を直列化し、root版と全明細digest（追加/削除含む）、未提示編集可能状態・現在認可・医院/飼主/pet/親関係を検査。計算revision/presentation/全固定lines/監査/receiptを同TX保存。親カルテ確定だけで未提示編集を拒否する旧gateは適用しない。通常削除も[2026-10-23本人判断](../../spec/domains/estimates/business-rules.md#estimates-delete-parent-state-20261023)に従い親未確定条件だけを外す。見積自身の削除条件/履歴保全を維持し、診療終了/医師確認/会計確定を代替条件にしない。
 成功refs: estimate_id,presentation_id,calculation_id。versions: estimate_version,presentation_revision,calculation_revision。
 reader: 固定header_snapshot、§9.7のnullable reply、固定recipient、nullable valid_until、digest、line_countと順序/元line refs/source_values/ExactNumeric値、固定計算ref・当時値、presented_by/at。提示保存は外部送信成功ではない。
 

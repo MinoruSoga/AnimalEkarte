@@ -18,13 +18,13 @@
 | D03 | [通常カルテ](medical-records/technical-spec.md) | [業務・受入](../../spec/domains/medical-records/README.md) |
 | D04 | [飼主・ペット台帳](owners-pets/technical-spec.md) | [業務・受入](../../spec/domains/owners-pets/lifecycle.md) |
 | D05 | [入院・ホテル](hospitalization/technical-spec.md) | [業務・受入](../../spec/domains/hospitalization/lifecycle.md) |
-| D06 | [トリミング](trimming/technical-spec.md) | [業務・受入](../../spec/domains/trimming/lifecycle.md) |
-| D07 | [検査・機器受信](examinations/technical-spec.md) | [業務・受入](../../spec/domains/examinations/lifecycle.md) |
+| D06 | [トリミング](trimming/technical-spec.md)、[開始・終了限定契約](trimming/trimming-start-end-contract.md#trimming-start-end-closed-wire) | [業務・受入](../../spec/domains/trimming/lifecycle.md) |
+| D07 | [検査・機器受信](examinations/technical-spec.md)、[Detach](examinations/job-detach-contract.md#exam-detach-scope)、[出典/official要約](examinations/provenance-official-summary-contract.md#exam-provenance-summary-scope) | [業務・受入](../../spec/domains/examinations/lifecycle.md) |
 | D08 | [予防接種](vaccinations/technical-spec.md) | [業務・受入](../../spec/domains/vaccinations/lifecycle.md) |
 | D09 | [健診](checkups/technical-spec.md) | [業務・受入](../../spec/domains/checkups/lifecycle.md) |
 | D10 | [会計・未納](accounting/technical-spec.md) | [業務・受入](../../spec/domains/accounting/lifecycle.md) |
 | D11 | [見積](finance-operations/technical-spec.md) | [業務・受入](../../spec/domains/estimates/business-rules.md) |
-| D12 | [レジ締め](finance-operations/technical-spec.md) | [業務・受入](../../spec/domains/cash-register/business-rules.md) |
+| D12 | [レジ締め](finance-operations/technical-spec.md)、[A1/A2有限契約](finance-operations/cash-closing-contract.md#cash-closing-public-wire) | [業務・受入](../../spec/domains/cash-register/business-rules.md) |
 | D13 | [在庫](finance-operations/technical-spec.md) | [業務・受入](../../spec/domains/inventory/business-rules.md) |
 | D14 | [職員・シフト](staff-workforce/technical-spec.md) | [業務・受入](../../spec/domains/staff-workforce/README.md) |
 | D15 | [CRM・Lステップ](../../spec/line/lstep-integration.md) | [業務・受入](../../spec/line/lstep-integration.md) |

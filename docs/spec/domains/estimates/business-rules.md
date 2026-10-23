@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | domain.estimates.business-rules／業務仕様 |
-| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。2026-10-17追加決定は末尾と進捗入口を参照。従来：既存契約を継承。E1は依頼者2026-10-15承認（Sentinel_5b14560fa7308191a92a2882c517a23d）。期限内の提示単価・提示後の改訂は追加承認（Sentinel_1fda6cf121048191943efab56cc16a23）。 2026-10-23：移行原本証拠の保全/通常台帳との分離は既決方針。EMR-547の技術設計は候補・設計未完で、closed schema/DDL/APIは未採択。 |
+| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。2026-10-17追加決定は末尾と進捗入口を参照。従来：既存契約を継承。E1は依頼者2026-10-15承認（Sentinel_5b14560fa7308191a92a2882c517a23d）。期限内の提示単価・提示後の改訂は追加承認（Sentinel_1fda6cf121048191943efab56cc16a23）。 2026-10-23：D2通常削除から親未確定条件だけを廃止（下記決定）。移行原本証拠の保全/通常台帳との分離は既決方針。EMR-547は共通構造・保存tableの役割・関係制約（chunk/field/payload上限は未選定）・readonly APIを2026-10-23選定。6入れ子型・verification_ref検証記録/供給binding・配送local→stable UUID耐久対応と実データprofile/manifest/集約入力は未閉鎖、全wire完成/実装済みではない。 |
 | 実装状態 | 現行差を分離。今回実装変更・網羅監査なし。EMR-547の保存/read/UI接続は未実装。 |
 | 実機検証状態 | 未実施。受入条件は検査定義。今回tests/build/codegen/DB/import/browserはNOT_RUN。 |
 | 文書確認日 | 2026-10-23（移行証拠保全の設計境界/語彙追補。従来確認2026-10-20は既存範囲） |
@@ -21,7 +21,7 @@ Minoru Sogaの2026-10-23保全/閲覧整備承認のうち見積部分。旧見�
 |---|---|---|---|
 | AC-estimates-legacy-evidence-discount-provenance | 旧割引のraw/丸め値/負値/欠損と生成定数を含む旧見積を参照 | 元値・丸め値・規則/由来を別に保持/表示。生成insurance=0/rate=0/tax/status等を元情報の確認済み事実と見せず、割後単価へ割引を二重適用しない。通常見積の原本を変更しない | 合成値でraw/derived/表示/通常見積不変を対照。NOT_RUN |
 
-本FR/1ACに加え、[会計側6共通AC](../accounting/lifecycle.md#requirement-fr-accounting-legacy-evidence-preservation)の関係履歴/再送/現在認可/read-only/通常台帳分離/機密を継承する。見積証拠は現在の見積閲覧権限を用い、会計閲覧から推定許可しない。新しいFR/AC IDは既存5FR/24ACの確認範囲と分ける。実装・実機は未完、技術型/保存/APIの未採択候補は[移行証拠設計](../../../design/domains/accounting/legacy-finance-evidence.md#legacy-evidence-read-api-ui-candidates)へ。
+本FR/1ACに加え、[会計側6共通AC](../accounting/lifecycle.md#requirement-fr-accounting-legacy-evidence-preservation)の関係履歴/再送/現在認可/read-only/通常台帳分離/機密を継承する。見積証拠は現在の見積閲覧権限を用い、会計閲覧から推定許可しない。新しいFR/AC IDは既存5FR/24ACの確認範囲と分ける。実装・実機は未完、選定済み共通型/保存/readと未閉鎖依存は[移行証拠設計](../../../design/domains/accounting/legacy-finance-evidence.md#legacy-evidence-read-api-ui-candidates)へ。
 
 ## 担当者・権限・前提
 
@@ -36,7 +36,12 @@ Minoru Sogaの2026-10-23保全/閲覧整備承認のうち見積部分。旧見�
 <a id="requirement-fr-estimates-state-protection"></a>
 ### FR-estimates-state-protection：状態と確定保護
 
-現行実装では新規作成は下書き／送付済みで、下書き・送付済みは権限付きで編集でき、承認済み／却下へ移行すると原見積を編集・削除・下書きへ戻せない。2026-10-15追加承認の目標では、飼主へ提示済みなら返答待ちでも提示原本を保持し、金額・明細の直接上書きや削除で失わせない。変更は理由付き後継を作り再提示する。提示版を識別して承認／却下を記録する状態遷移は可能だが、内容の改変とは分離する。未提示下書きの通常編集は維持し、送付済みの現行編集可を新目標の例外にしない。送付済みという状態変更だけで外部へ自動送信したことにはならない。見積の状態とカルテの確定状態は別に扱う。親draftを要求する旧更新gateは現行実装との差として扱い、目標では未提示下書きの通常編集を親カルテの確定状態だけで禁止しない。見積自身の提示状態・期待版・医院と親子関係・権限を検査し、提示原本や確定見積の保護を維持する。通常削除における親カルテ未確定条件は更新とは別の保護として維持する。
+現行実装では新規作成は下書き／送付済みで、下書き・送付済みは権限付きで編集でき、承認済み／却下へ移行すると原見積を編集・削除・下書きへ戻せない。2026-10-15追加承認の目標では、飼主へ提示済みなら返答待ちでも提示原本を保持し、金額・明細の直接上書きや削除で失わせない。変更は理由付き後継を作り再提示する。提示版を識別して承認／却下を記録する状態遷移は可能だが、内容の改変とは分離する。未提示下書きの通常編集は維持し、送付済みの現行編集可を新目標の例外にしない。送付済みという状態変更だけで外部へ自動送信したことにはならない。見積の状態とカルテの確定状態は別に扱う。親draftを要求する旧更新gateは現行実装との差として扱い、目標では未提示下書きの通常編集を親カルテの確定状態だけで禁止しない。見積自身の提示状態・期待版・医院と親子関係・権限を検査し、提示原本や確定見積の保護を維持する。2026-10-23の[通常削除条件の限定訂正](#estimates-delete-parent-state-20261023)により、通常削除も親カルテ未確定を条件にしない。
+
+<a id="estimates-delete-parent-state-20261023"></a>
+### 2026-10-23：通常削除の親カルテ条件だけを廃止
+
+本人が「親カルテが未確定であること」だけを見積の通常削除条件から外すと回答した（Sentinel_ec171df8a1408191977cfb41a21cb12d）。見積自身の提示原本/承認・却下保護、編集可能状態、期待版、医院/親子関係、削除権限、明細/受渡し依存と履歴保全は維持する。診療終了・医師確認・会計確定を代替の削除禁止条件にしない。削除に伴って親や見積原本を再開せず、元履歴を消さない。これはEMR-495 D2の既決条件訂正であり、製品削除writerや試験の変更/実行は今回行わない。
 
 <a id="requirement-fr-estimates-successor"></a>
 ### FR-estimates-successor：原本を残す後継訂正
@@ -69,7 +74,7 @@ D10／D03の既決境界を継承：見積保存／承認／後継作成のみ�
 
 ## 異常系・保存・取消
 
-- 通常削除は権限に加え編集可能状態・明細依存なし・親カルテ未確定を検査。明細が残る見積を削除して消さない。
+- 通常削除は権限に加え見積自身の編集可能状態・期待版・医院/関連整合・明細/受渡し依存なしを検査し、履歴を保全する。親カルテ未確定は条件にしない。明細が残る見積を削除して消さない。
 - 保存中の二重クリック抑止と、サーバーの同時更新保証は別。承認と明細置換が競合した場合、確定後の明細更新を通さない。
 - 後継作成の必須監査失敗では新下書きを残さない。通常CRUDの監査は現行best-effortであり、全操作fail-closed実装済みとは書かない。
 - 応答消失時は現在の見積・後継関係を読み直し、同じ意図の後継を盲目的に再作成しない。操作ID・内容一致・結果照会・版競合時の再確認は[選定技術契約](../../../design/domains/finance-operations/technical-spec.md#finance-selected-operation-contract)に従う。
@@ -86,7 +91,7 @@ D10／D03の既決境界を継承：見積保存／承認／後継作成のみ�
 | AC-estimates-no-unlock | 承認済み見積を下書きへ変更／削除 | 原本を保持して拒否 | [FR-estimates-state-protection](#requirement-fr-estimates-state-protection)。保存値を照合、未実施 |
 | AC-estimates-successor | 確定見積に理由付き後継作成 | 別番号の下書きと原見積参照、原本不変 | [FR-estimates-successor](#requirement-fr-estimates-successor)。新旧ID／項目を照合、未実施 |
 | AC-estimates-successor-audit | 後継作成の監査保存失敗 | 後継を成功として残さない | [FR-estimates-successor](#requirement-fr-estimates-successor)。rollback境界を照合、未実施 |
-| AC-estimates-parent-finalized | 確定カルテ配下で未提示下書きと提示済み原見積の金額・明細変更をそれぞれ要求 | 未提示下書きは見積自身の状態・版・関係・権限が適合すれば親確定だけで拒否しない。提示済み原見積は直接変更を拒否し専用後継へ。通常削除の親未確定条件は維持 | [FR-estimates-state-protection](#requirement-fr-estimates-state-protection)・[FR-estimates-successor](#requirement-fr-estimates-successor)。旧親draft更新gateとの現行差を検査、未実施 |
+| AC-estimates-parent-finalized | 確定カルテ配下で未提示下書きと提示済み原見積の金額・明細変更をそれぞれ要求 | 未提示下書きは見積自身の状態・版・関係・権限が適合すれば親確定だけで拒否しない。提示済み原見積は直接変更を拒否し専用後継へ。通常削除も親未確定を条件とせず、見積自身の削除条件・履歴保全を維持 | [FR-estimates-state-protection](#requirement-fr-estimates-state-protection)・[FR-estimates-successor](#requirement-fr-estimates-successor)。旧親draft更新gateとの現行差を検査、未実施 |
 | AC-estimates-successor-edit-handoff | 確定親の承認済み見積から後継を作り必要箇所を変更 | 親・原見積は不変、専用経路で変更保存後に確認して未確定会計へ渡せる | [FR-estimates-successor](#requirement-fr-estimates-successor)。承認E1目標と現行update拒否差を検査、未実施 |
 | AC-estimates-items-omitted | 明細あり見積へヘッダのみ変更 | 既存明細を消さず明細由来金額の整合を保つ | [FR-estimates-money-source](#requirement-fr-estimates-money-source)。nilと空配列を別ケース、未実施 |
 | AC-estimates-items-empty | 明細空配列を明示して保存 | 省略扱いせず現行全行置換契約を適用 | [FR-estimates-money-source](#requirement-fr-estimates-money-source)。旧合計残留を確認、未実施 |

@@ -15,7 +15,7 @@
 ## 範囲・根拠・判定
 2026-10-15の全ドメイン仕様整理。基準commitは `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`。既存[一覧](../../screens/12-examinations-list.md)、[入力](../../screens/13-examinations-form.md)、[検査マスタ](../../screens/settings/master-examinations.md)、[ADR007](../../../architecture/adr/007-lab-device-receive-and-commit.md)、[ADR008](../../../architecture/adr/008-local-lab-device-agent.md)、[現行接続正本](../../../ops/deploy/lab-devices/LAB_DEVICE_CONNECTIVITY.md)とD03の[後日結果契約](../medical-records/pages/medical-record-form.md#requirement-fr-medical-records-late-result-shared-history)を一つの業務境界へ整理する。新しい臨床数値・機器運用の承認ではない。
 
-D4の結果CAS・atomic read・closed write・固定target付きC06・writer参加閉包・CORS受領は、2026-10-23選定の[限定技術契約](../../../design/domains/examinations/result-mutation-contract.md)を参照する。業務状態・権限の既決は維持し、共有供給・実装・生成・試験・activationは未完。Detach job回復、501 A/B独立wire、正式実行ID等を選定済み/実装済みへ読み替えない。
+D4の結果CAS・atomic read・closed write・固定target付きC06・writer参加閉包・CORS受領は、2026-10-23選定の[限定技術契約](../../../design/domains/examinations/result-mutation-contract.md)を参照する。業務状態・権限の既決は維持し、共有供給・実装・生成・試験・activationは未完。後発の[Detach有限契約](../../../design/domains/examinations/job-detach-contract.md#exam-detach-scope)と[出典・日付/official要約](../../../design/domains/examinations/provenance-official-summary-contract.md#exam-provenance-summary-scope)は2026-10-23技術案選定済み。Revert unknown、臨床mapping47、create C06等の必要依存、正式実行ID/claim、供給/実装/試験/activationは未完。v1互換・既存臨床状態/認可・nonofficial別consumerを維持し、技術選定を製品完成としない。
 
 要件責任者は既存ADRのMinoruSoga。検査値／基準値の具体的内容・種・単位・出典の判断者は医師であり、新たな「臨床責任者」役割を要求しない。実装、医院実権限、基準値bundle承認、旧データ対応、実機受入／公開は今回の完了判定外。[技術契約](../../../design/domains/examinations/technical-spec.md)に現状差と停止条件を残す。
 

@@ -57,3 +57,8 @@
 ## 治療プラン予定から結果への対応（2026-10-20）
 
 [3タブの予定概念](medical-records.md#plan-domain-tab-concept)と[D03共通FR／AC](../domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-plan-domain-tabs)へ接続する。検査・接種・健診の予定表示は各結果／実績正本の複製ではない。検査の機器受信／手入力結果も同じ元予定との対応を辿り、結果待ちを未実施・陰性・確定に読み替えない。受信ジョブと予定、パネル／結果版の多重度は一律1対1へ固定せず設計で整理する。接種・健診は各ownerに残す。
+
+<a id="exam-provenance-official-summary-boundary"></a>
+## 出典・official要約と補償manifestの技術接点（2026-10-23）
+
+[出典/日付とofficial要約](../../design/domains/examinations/provenance-official-summary-contract.md#exam-provenance-summary-scope)は初official前のaggregate保存と固定official revisionを分離する。原値の存在は臨床解釈とは別で、非空の原文を陽性/陰性/実施確認へ読み替えない。official専用summaryは既存nonofficial detail/履歴の代替ではない。日付・精度・出典を推測補完しない。[Detach manifest](../../design/domains/examinations/job-detach-contract.md#exam-detach-scope)はjob由来全examの補償結果の固定参照で、clinical official版やfixture Revert receiptとは別。技術案選定と共有供給/実装/試験/activationは別で、後者は未完（NOT_RUN）。
