@@ -40,12 +40,12 @@ readerの評価対象を「既存billingに紐づく、同院・同recordのplan
 |---|---|---|
 | medical_records | clinical_set_generation bigint NULL、正値CHECK、clinical_set_digest bytea NULL/32byte。Goは *int64 / *[]byte | 現在record集合の状態。NULLを1/空集合/確認済みに補完しない |
 | billings | 同じnullable世代/digest、doctor_review_set_id nullable、clinic/id込み複合FK | 会計側集合状態と確認参照。存在だけで有効としない |
-| doctor_review_sets | billing_id必須、billing_clinical_generation正値、32byte digest、record_count、reviewed_by/at、任意note | 既決のimmutable確認snapshot。第二確認表なし |
+| doctor_review_sets | billing_id必須、billing_clinical_generation正値、32byte digest、record_count、reviewed_by/at、任意note | 既存の確認世代/digest等の保存形。会計側clinical_itemsの不変保存まで供給済みとは扱わない。第二確認表を今回追加しない |
 | doctor_review_records | (clinic,review_set,record) PK、billing込みFK、正値世代/32byte digest、clinical_items JSON配列 | record集合は完全一致で照合。部分一致不可 |
 | 001 L8160–8192 | opt-in metadata。parent-updating treatment triggerを作らず全writerをconsumer TXへ参加、と明記 | 共通DB triggerへの丸投げ/第二counterは禁止 |
 | accounting_complete.go/tx.go | 旧completion_request_id/hash、旧status/totals caller、既存最外TX・unbilled版・takeover保護 | 削除列の復活ではなく462統合adapter。completeInTxにdoctor_review_sets照合がない |
 | billing_confirmation_service.go | GetOrCreateが旧表をINSERT、Confirm/Returnが旧statusとLockDraftMedicalRecordを使用 | GETをwriterとして温存しない。互換reader/新確認adapterへ移行 |
-| operation/contract.go, runner.go | VerifiedCommand、ClaimMetadataWriterが実在 | 「489基盤が未実装」は古い。consumer anchor/統合/実DB受入は未完 |
+| operation/contract.go, runner.go | VerifiedCommand Q、ClaimMetadataWriter、RunnerのGate(ctx) errorは実在 | 派生contextを引き継ぐContextGate拡張自体のruntime interface/hookは未実装。consumer接続だけの不足とはしない。Q等を未実装へ戻さず、consumer anchor/統合/実DB受入と分ける |
 
 一次根拠:
 - [最終DDL A1](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/migrations/001_init.sql#L8160-L8192)
@@ -76,6 +76,8 @@ record itemのexact keyは `{source_kind,treatment_id,plan_item_id,charge_link_i
 clinical_contentは全key必須のclosed object、exact key/typeは次の通り。content:string、admin_route:string、administration_dose_amount:decimal|null、administration_dose_unit:string|null、administration_instructions:string|null、prescription_total_amount:decimal|null、prescription_total_unit:string|null、dose_amount_mg:decimal|null、dose_amount_unit:string|null、dose_pattern_revision_id:positive-decimal-id|null。decimalは元numeric(12,6)のexact canonical decimal string。これ以外のkey、省略、数値JSON、bool、配列を拒否する。各nullable列のSQL NULLだけnullで表現し、読取失敗をnullへ丸めない。content/admin_routeの空文字は実保存値として保持する。
 
 型根拠は [Treatment model](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/backend/internal/model/treatment.go)。dose_weight_kg/source・dose_param_snapshot等の入力根拠はこのv1へ入れない。これらだけの変更を実内容変更とみなすかは別の臨床signature選定依存であり、本readerの出力だけで全dose writer適合/activationを認定しない。price/discount/tax/insurance、sort、無関係memo、CAS version、履行event/head、recording時刻も含めない。本v1は新しい臨床再確認業務条件を決定するものではなく、対象列に実差があるケースの候補検出契約である。
+
+**確認当時の会計側内容の未供給条件：** doctor_review_setsのbilling digest/generationだけでは、確認したbilling_clinical_itemsを後から復元できない。doctor_review_recordsのclinical_itemsはrecord側であり会計側内容の保存先ではない。型契約・保存案を採択する前に、確認集合へ束縛した不変の会計側projection、又は全必要項目を保持する不変revision参照の供給を必須とする。具体保存先/参照shapeは未選定で、現在DDLが保持済みとは記載しない。現在sourceから過去会計内容を補修せず、digestから復元可能とも扱わない。この閉鎖前は確認履歴を再構成可能な機能sliceとしてReady/activationにしない。
 
 会計itemのexact keyは `{billing_item_id,source_kind,source_id,medical_record_id,item_kind,master_id,quantity,clinical_content}`。source_kindはliteral treatment、source_id=treatment_id、全IDは非null正signed64 canonical decimal string、item_kindはmedicine|procedure、quantityは会計保存数値のexact canonical decimal string、clinical_contentは上記同一closed型。source identityは現在bindingから取得する。clinical_contentを会計当時値として返すには、その保存snapshotの同型projectionを供給するreaderが必要であり、現在treatmentから過去会計値を補修してはならない。現在481 imported_valuesのtreatment_originalはこの全臨床内容を保持していないため、**現時点ではそのbranchはunresolved/projection_inconsistent**。typed fixtureからの評価はできるが、実DBでknownを成立させる会計側projection供給は後続依存。この不足を理由に未知fieldを追加・推定保存しない。明示manualはunsupported/manual_clinical、source解決失敗はunresolved/source_missing。
 
@@ -183,7 +185,7 @@ Dは元stay/退院明細/再利用billing/必要405 source event/元owner/版の
 
 後続の非活性adapter契約成果候補は、(a) §3のclosed型・decimal/JCS golden inputと期待digest、(b) 完全集合の比較関数の入出力/エラー区分、(c) §6各writerの変更分類と同TX参加要求、(d) 未供給matrixを含む。製品への配線・API・DDLを同PRの達成対象にしない。fixtureコード作成は実装側の後段で、今回実物のgolden bytesや計算済みhashを作成したとは報告しない。
 
-本書の段階では正本への技術採択とレビューが必要。次の不足を「単に試験NOT_RUN」へ隠さない: 会計clinical_contentの保存projection、確認医師reader、confirm/return exact wireとReturn理由保存先、準備billingと新規Complete互換、元billing anchor物理契約、506を含む全lock資源宣言。したがって**full doctor-review/Complete機能sliceはReadyではない**。以下は後続機能接続で必要なfixture一覧。
+本書の段階では正本への技術採択とレビューが必要。次の不足を「単に試験NOT_RUN」へ隠さない: 会計clinical_contentの保存projectionと確認集合に束縛する不変の会計側確認内容/不変revision参照、確認医師reader、confirm/return exact wireとReturn理由保存先、準備billingと新規Complete互換、元billing anchor物理契約、506を含む全lock資源宣言。したがって**full doctor-review/Complete機能sliceはReadyではない**。以下は後続機能接続で必要なfixture一覧。
 
 すべてfixture仕様のみ、実行NOT_RUN。
 
@@ -192,7 +194,7 @@ Dは元stay/退院明細/再利用billing/必要405 source event/元owner/版の
 3. 同期・直接明細変更・医師確認・Completeの各二先行順で誤通過なし。差異だけ保存は会計適用成功ではない。旧GETが確認を作らない。
 4. 現世代take_home prepared+内容数量確認済みはclinical pending単独で拒否しない。deferred/cancelled/removed/unknown、revoked/旧世代readyは不可。請求/確認/prepareで在庫不変。
 5. claim winner/loser、同key同内容CAS更新retry、同key別集合、成功応答喪失、sticky unknown、認可失効、元target欠損、別URL、lookup障害を分離。成功replayで現在master/CAS/readyを検査し直して失敗へ反転しない。
-6. record/billing世代各一増分、overflow、監査/差異/receipt/reader応答作成失敗で全rollback。projection digestのgolden bytesと空/null/unknown/decimal同値を固定。
+6. 確認後にbilling itemsが変わっても確認時の会計側不変内容を再読でき、record側内容と混同しない。digestだけ・現在sourceからの補修では履歴受入不可。record/billing世代各一増分、overflow、監査/差異/receipt/reader応答作成失敗で全rollback。projection digestのgolden bytesと空/null/unknown/decimal同値を固定。
 7. billingなしCompleteの既存新規作成機能を無断禁止しない一方、架空確認/他billing確認を作らない。準備/新規互換adapterの閉鎖後に初回Complete=201、同成功再送=200、元請求日不変を検証。
 8. Cは死亡登録対保存両順序、生前証明消失/変更/不明、主飼主変更、nil reader。Dはstay/source/再利用billing不一致。Aとは別受入。
 

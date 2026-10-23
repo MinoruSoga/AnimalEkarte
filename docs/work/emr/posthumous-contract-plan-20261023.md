@@ -52,11 +52,11 @@ PR845はstateだけを返すため死亡時刻や版の証拠を返したこと�
 | CAS | `vital_repository.Update` はambient TX、version条件付きUPDATE＋version+1。`Version=nil`はCASを省略する既存互換動作 | 専用訂正adapterはversion必須としてnil分岐へ入れない。ID/版の範囲と既存rowのclinic/record/pet対応を再検査。createの重複防止は後述のoperation anchor設計を必要とし、record.versionを子集合版と偽装しない |
 | payload/clear | 現 `vital_request.go` updateのポインタ型は省略とJSON nullを識別できず、JSON nullをclearとする選定根拠はない。`notes` createのnil→空文字は既存規則 | 専用wireのclearを勝手に新設しない。まず現owner updateと同じ非null値変更に限定した有限案か、presence-aware clear型の追加を明示選定する。旧値不明を補完しない。臨床上限/薬量値は追加しない |
 | 監査/履歴 | `auditVitalTx`→`AuditTxLogger.LogEntryTx` は既存audit_logsへambient参加し、失敗時error。resource=vital、OldValue/NewValue、metadata medical_record_id。createはStaffIDをactorに使用 | 保存先は既存audit_logsを第一案とし、新revision表を当然の依存にしない。ただし現在の重要項目diffだけでは元保存版の完全性を保証しない。専用操作のbefore/after全許可field・元vital版・認証actor・確認医師/根拠・理由・生前時点・basic revision参照・binding/keyを同TXで追記するclosed audit shapeと認可付き履歴readを選定。create担当StaffIDを認証actorに流用しない |
-| 生前確認/再送 | D03の理由・医師確認・原記録/以前保存版保持は既決。495のproposal/receipt方式自体は採択済みだが対象外資源 | vitalについて確認者・確認対象値/版を不変に結ぶ保存先/typed command/target anchor/lookupを選定する。自由文やclient confirmedだけでは代替しない。495 C0/C1にvitalを追加しない。確定後だけchild変更＋履歴＋audit＋C06成功receiptを同TX、unknownは元key照会 |
+| 生前確認/再送 | D03の理由・医師確認・原記録/以前保存版保持は既決。495のproposal/receipt方式自体は採択済みだが対象外資源 | vitalについて確認者・確認対象値/版を不変に結ぶ保存先/typed command/target anchor/lookupを選定する。確認者IDの束縛だけでは確認行為の証拠にならず、下記Ready条件2のserver適格性reader/権威ある確認証跡を必要とする。自由文やclient confirmedだけでは代替しない。495 C0/C1にvitalを追加しない。確定後だけchild変更＋履歴＋audit＋C06成功receiptを同TX、unknownは元key照会 |
 
 **Ready前の残条件を4成果に閉じる：**
 1. P0のlife snapshot出力と死亡writer/child総順序1行が供給SHA付きである。
-2. vital専用「生前実施内容・元事実/元版・理由・現在確認医師」を束縛するclosed commandと耐久保存先が一つに選定され、source_ref/attestation等の未定義汎用objectがない。既存factあり訂正とchildなし後日入力は混ぜず、先行する方を明記する。
+2. vital専用「生前実施内容・元事実/元版・理由・現在確認医師」を束縛するclosed commandと耐久保存先が一つに選定され、source_ref/attestation等の未定義汎用objectがない。既存factあり訂正とchildなし後日入力は混ぜず、先行する方を明記する。 server側の現在医師資格/医院権限readerと、確認対象患者・元事実/版・実施時点・変更内容・理由へ束縛した認証済み確認操作の耐久receipt（又は既存正本に定義された同等の権威ある確認証跡）を必須供給として選定・受領する。入力actorと確認医師が別IDの場合も、client doctor_id/booleanだけで代行確認を成立させない。確認医師の認証された行為と現在適格性を検証できなければ保留する。新しい医師資格や代行権限は本案で付与しない。
 3. その選定commandに対するexact method/path/body/response、494平坦fence、mandatory vital CAS又はcreate不存在条件、C06 scope/intent/元target lookupを1表にする。現時点は未選定であり『closed API』とは呼ばない。
 4. 既存audit_logs再利用のclosed before/after＋metadataと履歴read、通常writer迂回排除一覧を揃える。履歴保証を既存sinkで満たせない具体項目が出た場合だけ、該当列/制約の限定DDL差分へ進む。
 
@@ -78,4 +78,4 @@ PR845はstateだけを返すため死亡時刻や版の証拠を返したこと�
 
 [331](https://app.plane.so/baritechllc/browse/EMR-331/)本文/全3コメント、[495](https://app.plane.so/baritechllc/browse/EMR-495/)本文/最新決裁を読取。固定mainの [494契約](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/docs/work/emr/emr-494-edit-draft-contract-20261020.md) §§3–5、[495契約](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/docs/work/emr/emr-495-consultation-correction-contract-20261021.md) §§0.2–0.3、[D03正本](https://github.com/MinoruSoga/AnimalEkarte/blob/171b56575e7ee028e54358dad22ae28574853125/docs/spec/domains/medical-records/lifecycle.md#medical-record-deceased-retrospective)、[PR845](https://github.com/MinoruSoga/AnimalEkarte/pull/845)の固定head readerを再読。mainのvital_request/repository/audit/service_create/service_update、各route、model/ERDを限定静的照合した。
 
-受入設計は死亡先行/child先行、half-dead/unknown、共通他院revision更新、死亡日時訂正、同日時点不明、元fact/child版変更、医師確認対象変更、失権/fence喪失、audit/receipt失敗、同key並行/異内容/応答断、通常writer迂回、担当者≠actor、旧値/履歴不変、副作用0を固定する。今回は全てNOT_RUN。全repo writer閉包、runtime Ready、臨床受入、331/495全体完了は認定しない。
+受入設計はclient doctor_id/booleanだけの確認拒否、別actorの確認証跡未供給/失権/対象版変更時の保留、認証済み確認操作と現在資格/医院権限の照合、死亡先行/child先行、half-dead/unknown、共通他院revision更新、死亡日時訂正、同日時点不明、元fact/child版変更、医師確認対象変更、失権/fence喪失、audit/receipt失敗、同key並行/異内容/応答断、通常writer迂回、担当者≠actor、旧値/履歴不変、副作用0を固定する。今回は全てNOT_RUN。全repo writer閉包、runtime Ready、臨床受入、331/495全体完了は認定しない。
