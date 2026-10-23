@@ -14,7 +14,7 @@
    "http_status": 200,
    "expected_schema": "valid",
    "scenario": "保存済み tax_rate 長桁（BE 許容値）",
-   "semantic_expectation": "GET は保存値の十進文字列を返す。FE はこの文字列を number 化して再送しない",
+   "semantic_expectation": "GET は保存値の十進文字列を返す。FE はこの文字列を number 化して再送しない。EMR-445 A01（#826）で Medicine の required に加わった is_bill_discount_excluded（既知未設定の raw null）と version（1）を含む",
    "verification": "NOT_RUN"
   },
   {
@@ -25,7 +25,7 @@
    "http_status": 200,
    "expected_schema": "valid",
    "scenario": "保存済み tax_rate 1e-7 相当",
-   "semantic_expectation": "FE が指数表記へ変換して保存不能にならない",
+   "semantic_expectation": "FE が指数表記へ変換して保存不能にならない。EMR-445 A01（#826）で Medicine の required に加わった is_bill_discount_excluded（既知未設定の raw null）と version（1）を含む",
    "verification": "NOT_RUN"
   },
   {
@@ -212,18 +212,18 @@
    "http_status": 200,
    "expected_schema": "valid",
    "scenario": "対照: GET 応答に clear_strength キーを追加しない",
-   "semantic_expectation": "共用 Medicine に clear_strength property なし",
+   "semantic_expectation": "共用 Medicine に clear_strength property なし。EMR-445 A01（#826）で Medicine の required に加わった is_bill_discount_excluded（既知未設定の raw null）と version（1）を含む",
    "verification": "NOT_RUN"
   },
   {
    "file": "post-control-no-clear-strength.request.json",
    "operationId": "createMedicine",
    "body_kind": "request",
-   "component_ref": "#/components/schemas/Medicine",
+   "component_ref": "#/components/schemas/CreateMedicineRequest",
    "http_status": null,
    "expected_schema": "valid",
-   "scenario": "対照: POST は共用 Medicine のまま（clear_strength を含まない作成、税率は十進文字列）",
-   "semantic_expectation": "POST requestBody は共用 Medicine を維持し clear_strength property を持たない（静的 test でも Medicine に無いことを固定）。共用 Medicine は additionalProperties を閉じていないため、POST へ clear_strength を送った場合の拒否は schema では表さず本PRで変更しない",
+   "scenario": "対照: POST は作成専用 CreateMedicineRequest（EMR-445 A01 #826 で共用 Medicine から分離）を維持し clear_strength を含まない。税率は十進文字列",
+   "semantic_expectation": "POST requestBody の CreateMedicineRequest は clear_strength property を持たない（PATCH 専用 flag）。is_bill_discount_excluded は任意で省略可（サーバーが false を保存）",
    "verification": "NOT_RUN"
   }
  ]
