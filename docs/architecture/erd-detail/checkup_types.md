@@ -28,6 +28,7 @@
 | `import_key` | `text` | NULL | — | — | [001_init.sql:5204](../../../backend/migrations/001_init.sql#L5204) |
 | `is_non_insurance` | `BOOLEAN` | NULL | — | — | [001_init.sql:7611](../../../backend/migrations/001_init.sql#L7611) |
 | `version` | `bigint` | NOT NULL | `1` | — | [001_init.sql:9941](../../../backend/migrations/001_init.sql#L9941) |
+| `is_bill_discount_excluded` | `boolean` | NULL | — | — | [007_bill_discount_excluded_and_master_versions.sql:21](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql#L21) |
 
 PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で一意という意味ではありません。部分uniqueは下記indexの述語を参照してください。
 
@@ -57,6 +58,7 @@ erDiagram
         text import_key
         BOOLEAN is_non_insurance
         bigint version
+        boolean is_bill_discount_excluded
     }
     clinics {
         BIGSERIAL id PK

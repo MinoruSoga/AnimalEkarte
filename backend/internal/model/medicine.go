@@ -25,6 +25,7 @@ const (
 )
 
 type Medicine struct {
+	Version             int64                   `gorm:"column:version;type:bigint;not null;default:1" json:"-"`
 	ID                  uint64                  `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
 	ClinicID            uint64                  `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
 	Name                string                  `gorm:"column:name;type:text;not null" json:"name"`
@@ -49,6 +50,8 @@ type Medicine struct {
 	DefaultDurationDays *int                    `gorm:"column:default_duration_days;type:integer" json:"default_duration_days,omitempty"`
 	Inventory           *InventoryItem          `gorm:"foreignKey:InventoryID;references:ID" json:"inventory,omitempty"`
 	DoseParams          []MedicineDoseParam     `gorm:"foreignKey:MedicineID,ClinicID;references:ID,ClinicID"  json:"dose_params,omitempty"`
+
+	IsBillDiscountExcluded *bool `gorm:"column:is_bill_discount_excluded;type:boolean" json:"-"`
 }
 
 func (Medicine) TableName() string { return "medicines" }

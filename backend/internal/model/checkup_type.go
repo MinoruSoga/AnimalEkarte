@@ -23,6 +23,8 @@ type CheckupType struct {
 	ImportKey       *string        `gorm:"column:import_key;type:text" json:"import_key,omitempty"`
 	IsNonInsurance  *bool          `gorm:"column:is_non_insurance;type:boolean" json:"-"`
 	Version         int64          `gorm:"column:version;type:bigint;not null;default:1" json:"-"`
+
+	IsBillDiscountExcluded *bool `gorm:"column:is_bill_discount_excluded;type:boolean" json:"-"`
 }
 
 func (CheckupType) TableName() string { return "checkup_types" }
