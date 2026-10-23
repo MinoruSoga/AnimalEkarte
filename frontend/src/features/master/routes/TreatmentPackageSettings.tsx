@@ -157,6 +157,7 @@ export function TreatmentPackageSettings() {
     | { kind: "checking" }
     | { kind: "get-ok" }
     | { kind: "denied-get-forbidden" }
+    | { kind: "denied-list-forbidden" }
     | { kind: "denied-get-deleted" }
     | { kind: "denied-view" }
     | { kind: "failed" };
@@ -165,6 +166,7 @@ export function TreatmentPackageSettings() {
   // A2-03: 依存は primitive/安定値のみ（毎レンダー生成の kindViewCanView は依存に入れない）。
   // EMR-532: editor を開かない一覧操作（並替 403）の失権もこの経路で復帰できる。
   // target === null のときは対象 GET を送らず、refreshPermissions → 一覧再取得 → 判定の順で進む。
+  // 対象あり/新規でも同じ順序（対象 GET[既存のみ] → refreshPermissions → 一覧再取得 → 判定）。
   const handleRecheckPermission = useCallback(async () => {
     const token = ++recheckTokenRef.current;
     const sessionTarget = target;
@@ -195,20 +197,15 @@ export function TreatmentPackageSettings() {
       return;
     }
     if (recheckTokenRef.current !== token) return;
-    if (sessionTarget === null) {
-      // Q3: list-only は対象 GET がないため、一覧の再取得結果が唯一の認可確認。
-      // 結果が出るまで latch を解除しない（react-query は再取得中も前回成功データを保持し、
-      // 解除すると 403 になる一覧の行・並替操作が復活してしまう）。
-      const result = await list.refetch();
-      if (recheckTokenRef.current !== token) return;
-      if (result.isError) {
-        // 403 は失権、5xx・通信失敗は権限状態不明として区別する（いずれも latch 維持）。
-        setRecheck({ kind: isForbiddenError(result.error) ? "denied-get-forbidden" : "failed" });
-        return;
-      }
-    } else {
-      // 一覧の再取得は event handler 内の副作用として掛け、判定自体はレンダーで行う。
-      void list.refetch();
+    // Q3: 一覧の再取得結果も認可確認の一部（list-only では唯一の確認）。結果が出るまで
+    // latch を解除しない。react-query は再取得中も前回成功データを保持するため、先に解除すると
+    // 後で 403 になる一覧の行・並替操作が復活する（他パッケージの構成型 view 喪失でも一覧は 403）。
+    const result = await list.refetch();
+    if (recheckTokenRef.current !== token) return;
+    if (result.isError) {
+      // 403 は失権、5xx・通信失敗は権限状態不明として区別する（いずれも latch 維持）。
+      setRecheck({ kind: isForbiddenError(result.error) ? "denied-list-forbidden" : "failed" });
+      return;
     }
     setRecheck({ kind: "get-ok" });
   }, [target, list, refreshPermissions]);
@@ -449,9 +446,11 @@ export function TreatmentPackageSettings() {
           <p className={`mt-2 text-sm ${C.text60}`}>権限を確認しています…</p>
         ) : recheck.kind === "denied-get-forbidden" ? (
           <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
-            {target === null
-              ? "パッケージ一覧へのアクセス権がありません。"
-              : "対象パッケージへのアクセス権がありません。"}
+            対象パッケージへのアクセス権がありません。
+          </p>
+        ) : recheck.kind === "denied-list-forbidden" ? (
+          <p role="alert" className={`mt-2 text-sm ${C.danger}`}>
+            パッケージ一覧へのアクセス権がありません。
           </p>
         ) : recheck.kind === "denied-get-deleted" ? (
           <p role="alert" className={`mt-2 text-sm ${C.danger}`}>

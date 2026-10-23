@@ -106,4 +106,36 @@ describe("EMR-532: refreshPermissions", () => {
     expect(mockQueryClient.setQueryData).toHaveBeenCalledTimes(1);
     expect(mockQueryClient.setQueryData.mock.calls[0]![1]).toEqual(FRESH_STAFF);
   });
+
+  it("保留中にログアウトした後で /me が返っても reject し、旧ユーザーを復元しない", async () => {
+    let resolveRefresh!: (v: { user: typeof FRESH_STAFF }) => void;
+    refreshTokenMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+    await renderProvider();
+    mockQueryClient.setQueryData.mockClear();
+
+    const pending = latestAuth!.refreshPermissions();
+    const settled = pending.then(
+      () => "resolved" as const,
+      (error: unknown) => error,
+    );
+    await act(async () => {
+      await latestAuth!.logout(); // セッション境界（generation）が進む。
+    });
+    expect(latestAuth!.user).toBeNull();
+
+    await act(async () => {
+      resolveRefresh({ user: FRESH_STAFF });
+    });
+
+    const outcome = await settled;
+    expect(outcome).not.toBe("resolved");
+    expect(outcome).toBeInstanceOf(Error);
+    expect(mockQueryClient.setQueryData).not.toHaveBeenCalled();
+    expect(latestAuth!.user).toBeNull();
+  });
 });

@@ -370,7 +370,14 @@ function AuthProviderSession({
   );
 
   const refreshPermissions = useCallback(async () => {
+    // 保留中にログアウト/再ログイン（restore generation の前進）や unmount が起きた場合、
+    // 遅れて返った /me で旧セッションの身元・権限を復元しない。refresh 自体はセッション変更ではない
+    // ため invalidateRestore は呼ばない。
+    const generation = restoreGenerationRef.current;
     const result = await refreshToken();
+    if (!applyEnabledRef.current || generation !== restoreGenerationRef.current) {
+      throw new Axios.CanceledError("stale permission refresh");
+    }
     if (result === null) {
       // refreshToken は /me の 401/403/5xx/通信断をすべて null に丸める。更新できなかったのに
       // resolve すると、呼出側が古い権限キャッシュを「現在の権限」と誤認する（fail-open）。

@@ -462,7 +462,10 @@ describe("S07/Q3: 型別403失権は editor を認可不能へ切替。再表示
     });
     expect(await screen.findByText(/この構成を表示する権限がありません/)).toBeTruthy();
 
-    // 再確認 1 回目: 新規 draft なので対象 GET は発生しない。物販 view なしで denied。
+    // 再確認 1 回目: 新規 draft なので対象 GET は発生しない。一覧は成功し、物販 view なしで denied。
+    vi.mocked(axios.get).mockResolvedValue({
+      data: { items: [pkg("201", "セットA")], order_version: "17" },
+    });
     await user.click(screen.getByText("権限を再確認"));
     expect(await screen.findByText(/構成に含まれる型の閲覧権限がありません/)).toBeTruthy();
     const detailGets = vi.mocked(axios.get).mock.calls.filter(([u]) => u !== LIST_URL);
@@ -974,6 +977,91 @@ describe("EMR-532 R1/R2: 再確認の順序・conflict terminal・refreshPermiss
     expect(vi.mocked(axios.patch)).not.toHaveBeenCalled();
   });
 
+  /** 再確認中の一覧 GET だけを保留にする（対象 detail GET は成功）。 */
+  const deferListOnly = () => {
+    vi.mocked(axios.get).mockClear(); // setup 由来の GET 呼出しを除く。
+    let settle!: { resolve: (v: unknown) => void; reject: (e: unknown) => void };
+    vi.mocked(axios.get).mockImplementation((url: string) =>
+      url === DETAIL_URL
+        ? Promise.resolve({ data: pkg("201", "セットA") })
+        : new Promise((resolve, reject) => {
+            settle = { resolve, reject };
+          }),
+    );
+    return { settle: () => settle };
+  };
+
+  /**
+   * 失権を「競合取得の detail 403」で作る。一覧は成功したままなので react-query が
+   * 前回成功データ（行）を保持しており、再確認中にそれが復活しないことを検証できる。
+   */
+  const loseAuthorizationByConflict = async () => {
+    const user = userEvent.setup();
+    vi.mocked(axios.get).mockImplementation((url: string) =>
+      url === DETAIL_URL ? Promise.reject(apiError(403)) : Promise.resolve(listBody),
+    );
+    vi.mocked(axios.patch).mockRejectedValue(apiError(409));
+    render_();
+    await user.click(await screen.findByText("セットA"));
+    const nameInput = screen.getByLabelText("名称") as HTMLInputElement;
+    await user.clear(nameInput);
+    await user.type(nameInput, "自分の入力");
+    await user.click(screen.getByText("保存"));
+    expect(await screen.findByText(/この構成を表示する権限がありません/)).toBeTruthy();
+    return { user };
+  };
+
+  const startPendingRecheck = async () => {
+    const { user } = await loseAuthorizationByConflict();
+    const deferred = deferListOnly();
+    await user.click(screen.getByText("権限を再確認"));
+    // 再確認が発行した一覧 GET が保留になるまで待つ（setup の呼出しは mockClear 済み）。
+    await vi.waitFor(() => expect(vi.mocked(axios.get)).toHaveBeenCalledWith(LIST_URL));
+    return { user, deferred };
+  };
+
+  const reorderDown = () => screen.getByLabelText("セットAを下へ") as HTMLButtonElement;
+
+  it("Q3: editor 経路でも一覧 GET 保留中は latch 維持（行・並替・editor は復活しない）", async () => {
+    await startPendingRecheck();
+    expect(screen.getByText(/この構成を表示する権限がありません/)).toBeTruthy();
+    expect(screen.queryByLabelText("名称")).toBeNull();
+    expect(reorderDown().disabled).toBe(true);
+  });
+
+  it("Q3: editor 経路で一覧が 403 → 非表示維持・一覧アクセス権なし表示・PATCH なし", async () => {
+    const { deferred } = await startPendingRecheck();
+    await act(async () => {
+      deferred.settle().reject(apiError(403));
+    });
+    expect(await screen.findByText("パッケージ一覧へのアクセス権がありません。")).toBeTruthy();
+    expect(screen.getByText(/この構成を表示する権限がありません/)).toBeTruthy();
+    expect(screen.queryByLabelText("名称")).toBeNull();
+    expect(screen.queryByText(/対象パッケージへのアクセス権がありません/)).toBeNull();
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("Q3: editor 経路で一覧が 500 → 失敗表示・非表示維持", async () => {
+    const { deferred } = await startPendingRecheck();
+    await act(async () => {
+      deferred.settle().reject(apiError(500));
+    });
+    expect(
+      await screen.findByText("再確認中に取得エラーが発生しました。権限状態は不明です。"),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("名称")).toBeNull();
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1);
+  });
+
+  it("Q3: editor 経路で一覧が成功 → 同一 draft で editor 復帰", async () => {
+    const { deferred } = await startPendingRecheck();
+    await act(async () => {
+      deferred.settle().resolve(listBody);
+    });
+    expect(((await screen.findByLabelText("名称")) as HTMLInputElement).value).toBe("自分の入力");
+    expect(vi.mocked(axios.patch)).toHaveBeenCalledTimes(1); // 409 の保存のみ。自動再送なし。
+  });
+
   it.each([
     ["500", () => apiError(500)],
     ["通信断（response なし）", () => new AxiosError("Network Error")],
@@ -1156,6 +1244,8 @@ describe("EMR-532 Codex 4354539658: editor なし（list-only）の失権にも�
 
   /** 再確認中の一覧 GET を保留にする。detail は呼ばれない前提（list-only）。 */
   const deferListGet = () => {
+    // setup 由来の GET 呼出しを除き、後続の toHaveBeenCalled が再確認の GET だけを指すようにする。
+    vi.mocked(axios.get).mockClear();
     let settle!: { resolve: (v: unknown) => void; reject: (e: unknown) => void };
     vi.mocked(axios.get).mockImplementation(
       () =>
