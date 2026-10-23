@@ -63,7 +63,7 @@ func (r *reservationStaffRepository) FindAll(ctx context.Context, clinicID uint6
 		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id"+
 			" AND sca.clinic_id = ? AND sca.deleted_at IS NULL", clinicID).
 		Where("staffs.deleted_at IS NULL").
-		Order("COALESCE(staffs.sort_order, 0) ASC, staffs.id ASC").
+		Order("staffs.sort_order ASC, staffs.id ASC").
 		Find(&staffs).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation_staff", "")

@@ -154,6 +154,7 @@ func buildStaffSlotInputsFromWindow(
 	staffEntries := entriesByDateStaff[dateStr]
 
 	inputs := make([]StaffSlotInput, 0, len(staffs))
+staffLoop:
 	for i := range staffs {
 		si := StaffSlotInput{StaffID: staffs[i].ID}
 
@@ -168,7 +169,9 @@ func buildStaffSlotInputsFromWindow(
 				start := sharedkernel.ShiftTimestampToClock(b.StartsAt)
 				end := sharedkernel.ShiftTimestampToClock(b.EndsAt)
 				if start == nil || end == nil {
-					continue // 区間を持たない休憩行は枠を塞がない
+					// 区間不明の休憩を「休憩なし」とみなさない（unknown を確認済みへ変換しない）。
+					// 空き枠を過大に提示しないよう、その日の候補から当該スタッフを外す。
+					continue staffLoop
 				}
 				override.Breaks = append(override.Breaks, BreakPeriod{
 					Start: timeToHHMM(*start), // "HH:MM:SS" → "HHMM"

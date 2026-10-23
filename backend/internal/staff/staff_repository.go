@@ -51,7 +51,7 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 		Preload("Account", "deleted_at IS NULL").
 		Preload("Occupation", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(paginate(page, limit)).
-		Order("COALESCE(staffs.sort_order, 0) ASC, staffs.name ASC").
+		Order("staffs.sort_order ASC, staffs.name ASC").
 		Distinct("staffs.*").
 		Find(&staffs).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "staff", "")
@@ -743,10 +743,14 @@ func (r *staffRepository) SwapSortOrderForReservation(ctx context.Context, clini
 		if err != nil || neighbor == nil {
 			return err
 		}
-		if err := updateReservationStaffSortOrder(tx, clinicID, target.ID, StaffSortOrderValue(neighbor.SortOrder)); err != nil {
+		// NULL の表示順を 0 等へ推測補完して保存しない（fail-closed）。
+		if target.SortOrder == nil || neighbor.SortOrder == nil {
+			return apperrors.WrapConflict("表示順が未設定のスタッフを含むため並べ替えできません")
+		}
+		if err := updateReservationStaffSortOrder(tx, clinicID, target.ID, *neighbor.SortOrder); err != nil {
 			return err
 		}
-		if err := updateReservationStaffSortOrder(tx, clinicID, neighbor.ID, StaffSortOrderValue(target.SortOrder)); err != nil {
+		if err := updateReservationStaffSortOrder(tx, clinicID, neighbor.ID, *target.SortOrder); err != nil {
 			return err
 		}
 		return nil
@@ -786,12 +790,15 @@ func selectReservationStaffSwap(
 	}
 	ordered := append([]model.Staff(nil), locked...)
 	sort.SliceStable(ordered, func(i, j int) bool {
-		left := StaffSortOrderValue(ordered[i].SortOrder)
-		right := StaffSortOrderValue(ordered[j].SortOrder)
-		if left == right {
+		// DB の ORDER BY staffs.sort_order ASC と同じく NULL は末尾（NULLS LAST）。
+		left, right := ordered[i].SortOrder, ordered[j].SortOrder
+		if left == nil || right == nil || *left == *right {
+			if (left == nil) != (right == nil) {
+				return right == nil
+			}
 			return ordered[i].ID < ordered[j].ID
 		}
-		return left < right
+		return *left < *right
 	})
 	for index := range ordered {
 		if ordered[index].ID != id {

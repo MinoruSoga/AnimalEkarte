@@ -36,8 +36,9 @@ type staffResponse struct {
 	ReservationImageURL    string          `json:"reservation_image_url"`
 }
 
-// StaffSortOrderValue は staffs.sort_order（NULL 許容）を読み取り用の int へ変換する。
-// NULL は列の既定値 0 として扱う。書き込み側は常に非 nil を渡す。
+// StaffSortOrderValue は staffs.sort_order（NULL 許容）を応答表示用の int へ変換する（wire は int のまま）。
+// NULL の表示は列の既定値 0 とするが、表示専用であり並び順・入替・保存には使わない
+// （並び順は DB の ORDER BY と同じ NULLS LAST、入替は NULL を含むと拒否する）。
 func StaffSortOrderValue(sortOrder *int) int {
 	if sortOrder == nil {
 		return 0

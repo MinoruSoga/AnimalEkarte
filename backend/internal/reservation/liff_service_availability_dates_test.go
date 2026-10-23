@@ -56,6 +56,17 @@ func TestBuildStaffSlotInputsFromWindow(t *testing.T) {
 		assert.Nil(t, inputs[1].ScheduleOverride)
 	})
 
+	t.Run("区間不明の休憩を持つスタッフはその日の候補から外す（休憩なしとみなさない）", func(t *testing.T) {
+		entry := &model.ShiftEntry{ID: 300, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, rsvShiftDate, startStr), EndsAt: rsvTS(t, rsvShiftDate, endStr)}
+		entriesByDateStaff := map[string]map[uint64]*model.ShiftEntry{dateStr: {1: entry}}
+		breaksByEntry := map[uint64][]model.ShiftEntryBreak{300: {{StartsAt: nil, EndsAt: nil}}}
+
+		inputs := buildStaffSlotInputsFromWindow(staffs, date, entriesByDateStaff, breaksByEntry, nil)
+
+		require.Len(t, inputs, 1, "staff 1 は区間不明の休憩のため候補外、staff 2 は残る")
+		assert.Equal(t, uint64(2), inputs[0].StaffID)
+	})
+
 	t.Run("当日の既存予約はキャンセル済みを除外し担当スタッフでフィルタする", func(t *testing.T) {
 		doctorID1 := uint64(1)
 		start := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC)
