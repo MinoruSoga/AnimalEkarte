@@ -10,7 +10,7 @@ description: "抽象的なタスク依頼を実装粒度に分解し、Plane (EM
 1. **起票先は Plane**（workspace `baritechllc` / project `EMR`）。タイトル・ラベル・本文テンプレート・UUID 対応表の正本は [`docs/ops/plane-ticket-conventions.md`](../../../docs/ops/plane-ticket-conventions.md)
 2. **エージェントの新規起票は承認不要**（2026-10-06 決定）。作成した `EMR-N` は報告に列挙する
 3. repo 入口・FAIL・人間レーンは [`todo.md`](../../../todo.md)。Slack/スプシ/GitHub 等の出典がある場合は todo.md 該当節に `→ EMR-N` の対応を残す
-4. BE/FE 分割が必要な場合は **親票 + 子票**（`parent`）で表現する
+4. 複数の独立した成功単位がある場合は **親票 + 成果ごとの子票**（`parent`）で表現する。BE/FE各1票を固定で作らない
 
 > **パス正本の注意**: `STATUS.md`、旧 `3-session-agent.html#ledger`、`backend/issues/` / `frontend/issues/`・docs/tasks 体系、Linear 新規 Issue は廃止済み。復活させない。`bug.md` は空であり、製品 FAIL 台帳は Plane の `bug` ラベルが正本。
 
@@ -42,13 +42,13 @@ description: "抽象的なタスク依頼を実装粒度に分解し、Plane (EM
 
 Plane が採番する `EMR-N` を使う。旧来の `TASK-XXX` 連番採番は廃止。起票後に返る identifier を確定 ID とし、claim ブランチ（`claim/EMR-N`・AGENTS.md packet claim protocol）も同じ ID を使う。
 
-### 1.2 BE/FE 分割時の構造
+### 1.2 成功単位ごとの親子構造
 
 旧 `TASK-XXX-BE` / `TASK-XXX-FE` のテキスト分割は廃止。Plane の親子構造を使う:
 
-1. 親票を作成（目的・全体受入・子票への導線のみ）
-2. 子票（BE / FE）を `parent` に親の UUID を指定して作成
-3. 依存は[必要subset4状態](../../../docs/ops/plane-ticket-conventions.md#adopted-baseline-and-dependency-subsets)・供給owner/票・受領SHAで記す。必要API/契約/runtimeの受領待ちと、許可されたmock/契約先行の限定成果を区別し、BE親票全体のDoneを一律gateにしない
+1. 調査後に[正本の成功単位](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)で境界付き成果を列挙し、既存の適切な実行票/子票を照合する。層・endpoint・componentだけで分割せず、同じ層にも複数の独立成果があり得る。
+2. 集約が必要なら既存親の再利用/不足親の候補を区別し、各成果の範囲/対象AC・完了条件・owner・後続/必要subsetを対応付ける。Phase 3で既存票の再利用を先に判定し、不足する親/実行票だけを作成、Phase 4で各IDの対応を確認する。
+3. 依存は[必要subset4状態](../../../docs/ops/plane-ticket-conventions.md#adopted-baseline-and-dependency-subsets)・供給owner/実行票・受領SHAで示し、両ID確定後にPhase 5の許可確認を経てPlane relationも同期する。必要API/型/runtime受領待ちと、許可済みmock/契約先行の独立成果を分け、BE親票全体のDoneを一律gateにしない。
 
 ---
 
@@ -132,7 +132,7 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ### 2.5.2 質問の提示
 
-曖昧な点が **1つでもあれば**、以下のフォーマットでユーザーに質問する:
+成果単位ごとに既決契約・決定履歴を確認し、残る曖昧さがあれば、その影響scope・質問owner・回答先を明記して以下の形式で質問する。既決を質問し直さない:
 
 ```
 ## 仕様確認（回答をお願いします）
@@ -141,17 +141,21 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ### 必須（これがないと実装方針が決まらない）
 1. [質問内容]
+   - 対象成果/影響scope: [...] / 質問owner: [...] / 回答先: [票・コメント又は決定記録]
 2. [質問内容]
+   - 対象成果/影響scope: [...] / 質問owner: [...] / 回答先: [票・コメント又は決定記録]
 
 ### 任意（デフォルト値で進めてもよい場合はスキップ可）
 3. [質問内容] — デフォルト: [推定値]
+   - 対象成果/影響scope: [...] / 質問owner: [...] / 回答先: [票・コメント又は決定記録]
 4. [質問内容] — デフォルト: [推定値]
+   - 対象成果/影響scope: [...] / 質問owner: [...] / 回答先: [票・コメント又は決定記録]
 ```
 
 **ルール:**
-- 「必須」の質問がある場合は **ユーザーの回答を待ってから Phase 3 に進む**
-- 「任意」の質問のみの場合は、デフォルト値を提示し、ユーザーが「それでOK」と言えば進める
-- **曖昧な点が一切なければ、このフェーズはスキップして Phase 3 に進む**（無理に質問を作らない）
+- 「必須」の質問がある成果単位は、その回答に依存するscopeだけを保留し、回答後に採択内容を反映してPhase 3へ進む。全体共通の真の前提が未決なら、それに依存する全成果を止める。依存しない確定済みの独立成果は、着手契約を満たす別実行ID/残件対応で起票できる。未決scopeを含めた実装Readyや無条件続行にはしない
+- 当該成果に「任意」の質問のみの場合は、デフォルト値を提示し、ユーザーが「それでOK」と言えば進める
+- **当該成果に曖昧な点がなければ、このフェーズの質問をスキップしてPhase 3へ進む**（無理に質問を作らない）
 - 回答が得られない・リポジトリ調査だけでは決められない場合、実装票の起票を無期限に保留せず、論点を【人間への質問】として本文先頭に載せた `needs-human` 票、または【調査問い】を持つ調査票（state=Research）として起票する分岐を取れる（どちらにするかは論点の性質で判断し、迷ったらユーザーに確認する）
 
 ### 2.5.3 回答の記録
@@ -160,9 +164,11 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ---
 
-## Phase 3: Plane チケット作成
+## Phase 3: 既存票照合と不足票だけの作成
 
-### 出力先: Plane `workitem create`（`project_id` は規約文書の附録参照）
+作成前に、Phase 2の調査/2.5の決定を反映した成果一覧と既存の親/実行票を照合し、各成果を「既存IDを再利用」「不足票を作成」「未決scopeを保留」へ対応付ける。全成果が既存票で充足し、集約先も存在又は不要なら`create`を呼ばない。必要な親も含め不足が実証された票だけを作る。単一成果に不要な親を追加しない。
+
+### 不足票の出力先: Plane `workitem create`（`project_id` は規約文書の附録参照）
 
 [`docs/ops/plane-ticket-conventions.md`](../../../docs/ops/plane-ticket-conventions.md) の規約に従う:
 
@@ -177,15 +183,19 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ---
 
-## Phase 4: BE 子票（BE/FE 分割時のみ）
+## Phase 4: 成果ごとの実行ID対応を確認
 
-親票作成後、BE 子票を `parent` でぶら下げて作成する。本文は機能票テンプレートの BE 範囲分。
+独立成果の一覧を一巡し、Phase 3で再利用した既存IDと新規作成で返却されたIDを確認する。この段階で重複作成しない。集約する子票は適切な親との対応も確認する。BE1票/FE1票という固定ペアではなく、宣言した成功単位ごとに実行IDを確定し、親AC→各実行IDと残件ownerを網羅対応する。
+
+各票は[着手契約](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)に従い、実callerを含む機能成果又は明示した契約/基盤/mock成果のどちらかと、その受入/activation条件を記す。未受領の機能scopeをReadyにしない。
 
 ---
 
-## Phase 5: FE 子票（BE/FE 分割時のみ）
+## Phase 5: 両ID確定後の依存relation同期
 
-同様に FE 子票を作成。[着手契約](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)で必要なAPI/型/契約/runtime subsetと受領条件を示す。mock先行等の独立成果は明示した範囲で判断し、実機能のactivationやBE親票全体の完了とは分ける。未受領の機能scopeをReadyにしない。
+必要subsetの受領を待つconsumerごとに、供給する既存の限定実行票/子票とconsumerの両IDが実在・確定した後、[正本のrelation操作許可](../../../docs/ops/plane-ticket-conventions.md#dependency-relation-permission)を確認する。create/update/comment/stateの許可だけで別操作のrelateを許可済みと推定しない。適用される既存許可又は本人の明示許可が確認できた対象だけ、consumerの`blocked_by`を供給票へ作成/同期する。許可不足なら両ID・必要subset・予定する関係を示して確認し、当該依存scopeだけ保留する。既存relationは読取照合し重複を作らない。供給範囲が親票全体なら限定成功単位の対応を先に確定し、未確定IDを捏造してrelationを作らない。
+
+[正本の両側整合確認](../../../docs/ops/plane-ticket-conventions.md#existing-ticket-scope-reassessment)に従い、両票本文/最新決定コメント/依存記述とrelationが同じsubset・受領条件を指すことを再読確認する。本文だけの依存や不要な全親Done待ちを残さず、関係/状態を根拠なしに一括削除しない。受領SHA等が未確定なら待ち条件として残し、relationの存在だけで受領済みとはしない。
 
 ---
 
@@ -196,8 +206,8 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 ```
 ## タスク分解完了
 
-### 起票済み（N件）
-- EMR-NNN: タイトル — state / labels
+### 新規作成（N件、全て再利用なら0件）/ 再利用（M件）
+- EMR-NNN: タイトル — 新規又は再利用 / state / labels
 
 ### 実装順序
 1. EMR-NNN — 宣言した契約/基盤又は機能の成功単位・共有owner

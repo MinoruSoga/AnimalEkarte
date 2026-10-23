@@ -33,7 +33,7 @@ description: 自社アプリ(AnimalEkarte)への許可された攻撃シミュ�
 ### 0. 準備
 
 - テストアカウント: 複数 clinic の staff(権限違い)× clinic A/B を揃える。ローカル seed や STG デモカタログのアカウントを使い、実ユーザーの認証情報は使わない。足りなければユーザーに確認する。
-- ルート票(任意): ループを継続的に回すなら `kind:case-hub` の親票を 1 つ起票し、各ラウンドの findings を子票として親に紐付ける(Plane 規約の BE/FE 分割・親子ルールに従う)。
+- ルート票(任意): ループを継続的に回すなら `kind:case-hub` の親票を 1 つ起票し、各ラウンドの findings を子票として親に紐付ける(Plane 規約の成功単位・親子ルールに従う)。
 
 ### 1. 偵察(Recon)
 
@@ -61,7 +61,7 @@ description: 自社アプリ(AnimalEkarte)への許可された攻撃シミュ�
 
 ### 5. Plane 起票
 
-- [docs/ops/plane-ticket-conventions.md](../../../docs/ops/plane-ticket-conventions.md) のバグ票テンプレートに従う。タイトル `[BUG:] 要旨`(出典アンカーは `RedBlue-R<N>:` 形式。N はラウンド番号)、labels は `source:manual` + `lane:dev` + `bug`(+ clinic 分離・権限に踏むなら `risk:high`)、state は受入条件が書けていれば Ready。
+- [docs/ops/plane-ticket-conventions.md](../../../docs/ops/plane-ticket-conventions.md) のバグ票テンプレートに従う。タイトル `[BUG:] 要旨`(出典アンカーは `RedBlue-R<N>:` 形式。N はラウンド番号)、labels は `source:manual` + `lane:dev` + `bug`(+ clinic 分離・権限に踏むなら `risk:high`)、state は[正本の着手契約](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)を満たす対象scopeだけReadyとする。ACの記載だけで判定せず、採用基準SHA・必要subset受領・共有owner・限定完了条件を確認する。未受領/未決は停止範囲を明記して正本の状態規則に従う。
 - 再現手順は「常に/時々/未再現」を明記し、**エージェントが再実行できる形(マスク済み curl コマンド)**で書く。これが再攻撃(手順6)の入力になる。
 - 起票した `EMR-N` をセッション報告に列挙する。
 

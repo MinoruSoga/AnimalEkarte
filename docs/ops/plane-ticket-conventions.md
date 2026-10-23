@@ -287,18 +287,23 @@
 - スプシ・Slack 原文は本文に `【クライアント原文】` 節として転記する（後で出典を遡れるようにする）。秘密・実データを含む場合は転記しない（下記禁止事項）
 - bug-report 自動起票は `audit_logs` に action=`support_bug_report.plane_ticket_auto` で結果分類（`claimed`/`creation_failed`/`claim_lost`/`claim_error`）を記録する。監査書込みは報告保存とは別トランザクションの best-effort であり、監査書込み失敗時は ERROR ログで可視化する（DB-atomic ではない点に注意）。監査値は固定分類と safe ID のみで、報告タイトル/本文/URL 等のユーザー入力や Plane 応答本文は含めない
 
-## BE/FE 分割
+## 成功単位による分割（BE/FEを含む）
 
 - 1票に収まらない変更は **親票 + 子票**（`parent` に親の UUID）で表現する。旧 `-BE` / `-FE` テキスト分割は Plane では使わない。Plane の Epic type・intake（下書き取込）も使わない — 集約は `kind:case-hub` + parent 関係、intake/draft は起票前の仮置きであり正式起票時に本規約を適用する
 - 子票は親票の `source:*`・`lane:*` を継承し、本文の【出典】節に親票 `EMR-N` を記す
-- 子票の依存は[必要subset4状態](#adopted-baseline-and-dependency-subsets)と供給/受領SHAで記す。受領が必要なscopeは依存待ちとして扱い、独立した限定成果はその完了条件で判断する。BE親票全体のDone待ちを一律条件にしない
+- 子票の依存は[必要subset4状態](#adopted-baseline-and-dependency-subsets)と供給/受領SHAで記す。待つconsumerと必要subsetを供給する限定実行票/子票の両IDが実在・確定した後、作成/同期前に両票本文の依存記述/最新決定コメントが同じ受領単位を指すことを照合し、下記の操作許可を確認したうえでconsumerの`blocked_by`を供給票へ作成/同期する。実行後もrelationと両側記述の一致を読戻す。既存relationを照合して重複を避け、存在しないIDや機械的な全親待ちで代用しない。受領が必要なscopeは依存待ちとして扱い、独立した限定成果はその完了条件で判断する。BE親票全体のDone待ちを一律条件にしない
 - `task-create` の単一責務・自己完結・コード参照という観点を使い、[本規約の成功単位/1PR完了条件](#scope-and-readiness-contract)で粒度を判断する。時間見積りは補助で、時間や票数だけで共有契約/安全性を切り離さない。個人Skillや権限の変更は本改訂に含めない
+
+<a id="dependency-relation-permission"></a>
+### relation操作の許可確認
+
+relationの作成/同期（relate）はcreate/update/comment/stateとは別操作として、適用される既存許可又は本人の明示許可を確認してから実施する。本規約はAGENTS等の承認範囲を拡大しない。許可不足なら供給/consumerの実在ID・必要subset・作成/変更する関係を示して確認し、当該依存scopeだけ保留する。本文だけで同期完了や受領済みとは報告せず、依存しない許可済み作業は続行できる。
 
 <a id="claim-and-work-start"></a>
 ## claim / 作業開始時
 
 - パケット claim protocol（AGENTS.md）の `<TASK-ID>` には Plane ID をそのまま使う: `claim/EMR-298`
-- **claim 取得 = state を `Running` に更新する**。`claim/EMR-N` ブランチの取得と Plane の state 遷移は1組で行い、片方だけの状態にしない。`Ready` / `本番切替対応` から着手者が自己遷移してよい。`Backlog` / `Research` は対象scopeの[着手契約](#scope-and-readiness-contract)を満たしReadyへ昇格してからclaimする。調査先行も独立した調査成果のscope/必要subsetを定義し、未確定の実装全体を着手可能とはしない（`本番切替対応` から動かす場合も切替期限の情報は priority・target_date・本文に残る）。`Phase2` / `Needs Human` / `Blocked` の票は claim しない — 滞留・保留理由の解消が先
+- **claim 取得 = state を `Running` に更新する**。`claim/EMR-N` ブランチの取得と Plane の state 遷移は1組で行い、片方だけの状態にしない。`Ready` / `本番切替対応` のいずれもclaim前に対象scopeの[着手契約](#scope-and-readiness-contract)成立を確認・記録してから、着手者が自己遷移してよい。`本番切替対応` は期限によるstateだけで契約成立とみなさず、Readyへの変更は不要で期限情報を保持する。`Backlog` / `Research` は対象scopeの[着手契約](#scope-and-readiness-contract)を満たしReadyへ昇格してからclaimする。調査先行も独立した調査成果のscope/必要subsetを定義し、未確定の実装全体を着手可能とはしない（`本番切替対応` から動かす場合も切替期限の情報は priority・target_date・本文に残る）。`Phase2` / `Needs Human` / `Blocked` の票は claim しない — 滞留・保留理由の解消が先
 - state 遷移の権限: 作業者は Running → Review → UAT まで自己遷移してよい（UAT 入り＝人間に受入を依頼する意味）。**Done / Cancelled / Duplicate への遷移は人間の受入コメントまたは明示指示がある場合のみ** — 実装者・エージェントは自己 Done しない。遷移時は証跡（コミット・検証結果・受入記録）をコメントに残す
 - **マージ連動**（`.github/workflows/plane-merge-state.yml`）: `main` へマージされた PR の `EMR-N` は Review にする。`staging` へマージされた PR では、その PR の `head.ref` が `main`（production main の staging 取り込み）の場合に限り、差分に含まれる main マージ済み PR の `EMR-N` のうち現在 Review の票だけを UAT にする。feature ブランチなど `main` 以外を head に持つ staging 向けマージでは state を動かさない。`EMR-123`、`[EMR-123]`、`EMR-282/325/326` を同じ番号列として読む。括弧の有無は問わない。マージせずのクローズと `production` は対象外。Done / Cancelled / Duplicate / Needs Human / Blocked / Phase2 は動かさない。UAT 以降の票は main への再マージでも Review に戻さない（退行防止）。state PATCH 成否とは独立に監査コメントを `external_id`（`gh-merge:<PR番号>:<base>:<遷移先>`）で照合し、コメント照合・作成の失敗はその実行を失敗として扱う。再実行時に state が既に遷移済みでも欠けたコメントを1件だけ補完し、既存コメントは二重投稿しない。UAT の票への main マージイベントでも同様に、状態を戻さず監査コメントのみ補完する（補完コメントは実際の現在 state を記し、状態変更がないことを明記する）。シークレット `PLANE_GITHUB_AUTOMATION_KEY` が無いと workflow は失敗する。Plane 公式 GitHub 連携の「マージ成功」への state 割り当ては空のままにする
 - 逆方向の遷移（UAT → Running の差戻し、Blocked / Needs Human 解除後の戻し、Running → Backlog の棚卸し）も人間判断または人間のコメント指示に基づく。解除後の戻り先は Backlog（再トリアージ）または Ready（引き続き着手可能なら）。例外はなく、UAT 以降の票は main への再マージでも Review に戻さない
