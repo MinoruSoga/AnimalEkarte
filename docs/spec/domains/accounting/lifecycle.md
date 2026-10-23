@@ -3,10 +3,10 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | lifecycle.accounting／業務・保存境界 |
-| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。2026-10-17追加決定は末尾と進捗入口を参照。従来：初回〜第十群の計9FRと追加の死亡後精算条件は合意済み。死亡後精算2ACは文書反映・独立レビュー済み。支払方法停止の追加合意は下記に反映し、追加7ACも本差分の独立内容レビュー・限定構造検査済み。品目別保険設定の追加1FR・12ACは本候補の文書確認対象。未決・未照合は末尾と全体進捗に分離 |
-| 実装状態 | 未確認。現行との差分は技術仕様に明示 |
-| 実機検証状態 | 未実施 |
-| 文書確認日 | 2026-10-20（本差分。従来：2026-10-17追加差分（従来確認2026-10-15）） |
+| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。2026-10-17追加決定は末尾と進捗入口を参照。従来：初回〜第十群の計9FRと追加の死亡後精算条件は合意済み。死亡後精算2ACは文書反映・独立レビュー済み。支払方法停止の追加合意は下記に反映し、追加7ACも本差分の独立内容レビュー・限定構造検査済み。品目別保険設定の追加1FR・12ACは本候補の文書確認対象。未決・未照合は末尾と全体進捗に分離。2026-10-23：移行原本証拠の保全/通常台帳との分離は既決方針。EMR-547の技術設計は候補・設計未完で、closed schema/DDL/APIは未採択。 |
+| 実装状態 | 未確認。現行との差分は技術仕様に明示。EMR-547の保存/read/UI接続は未実装。 |
+| 実機検証状態 | 未実施。今回tests/build/codegen/DB/import/browserはNOT_RUN。 |
+| 文書確認日 | 2026-10-23（移行証拠保全の設計境界/語彙追補。従来確認2026-10-20は既存範囲） |
 
 <a id="accounting-agreement-first-five"></a>
 ## 目的・対象範囲
@@ -18,6 +18,26 @@
 本書が初回5点〜第十群と追加の死亡後精算・[支払方法停止](#accounting-inactive-payment-method)・[品目別保険設定](#requirement-fr-accounting-item-insurance-setting)の業務正本。[語彙](../../ontology/accounting.md)は定義・関係、[技術仕様](../../../design/domains/accounting/technical-spec.md)は実現案と現行差分。[画面](pages/accounting-settlement.md)の継承本文・API表は旧挙動の参照で、今回の合意と異なる箇所を現行制約として区別する。保険オンライン請求や機器連携を追加しない。
 
 第二群の根拠は Sentinel_e6565c89fd488191982ad524c997fe6c の質問へのユーザー Sentinel_6d647c8c719c81919daecc6db67d9455（1は前金を使う旨の修正、3 yes／4 ok／5 yes）と、Sentinel_b4d6e8ae144081919d9e19d797a2faba の訂正例・表示・前金説明へのユーザー Sentinel_67776f0e70c881919019002d47011b1e のok。前金を扱わない案は不採用。第2問の「どういうこと？」は承認とせず、後続説明へのokを根拠とする。下記の更新を第二群として2026-10-14に反映。
+
+<a id="accounting-legacy-finance-evidence-design"></a>
+<a id="requirement-fr-accounting-legacy-evidence-preservation"></a>
+## FR-accounting-legacy-evidence-preservation：旧会計の証拠保全・履歴参照
+
+業務判断窓口Minoru Sogaの2026-10-23の保全/閲覧整備承認に基づく。旧請求の状態・flag・日付・額と出典を、通常請求と分離して保持し、意味不明・未取得・生成定数を事実へ補完しない。旧精算完了の証拠と新請求確定日不明は別表示し、保存/閲覧できることを正式import適格性/請求確定/入金配賦の許可としない。見積固有の原値は[見積の追加FR/AC](../estimates/business-rules.md#requirement-fr-estimates-legacy-evidence-preservation)が所有する。
+
+権限のあるスタッフが、現在の医院と対象の閲覧認可の範囲で移行履歴の一覧/詳細をread-only参照する。未リンクを関連確認済みと見せず、譲渡前の正当な帰属と現在の閲覧可否を分ける。参照だけで通常会計/未請求候補/集計に混入させず、通常編集・回収・再計算・帳票・再請求の対象へ昇格しない。理由/履歴を保持する関連の追記訂正とread権限は別責務で、新write権限を本承認から推測しない。
+
+追加は本FRと下記6AC（既存範囲13FR/184ACの過去確認とは別）。以下は業務条件であり、具体的な保存型/identity wire/digest/API/DDLは[技術設計候補](../../../design/domains/accounting/legacy-finance-evidence.md#legacy-evidence-storage-roles)に分離する。実装未着手・実試験NOT_RUN。
+
+| 条件ID | 前提/操作 | 期待結果 | 確認手順/証跡 |
+|---|---|---|---|
+| AC-accounting-legacy-evidence-originals | 旧状態/flag/日付/額に不明・欠損・生成定数がある証拠を保全/参照 | 原値と由来を失わず、不明0/日付補完や新finalize/入金/終了eventを生成しない。旧精算状態と新確定日不明を分離 | 合成例の原値/表示/通常台帳不変を対照。NOT_RUN |
+| AC-accounting-legacy-evidence-related-history | 同医院内の患者/飼主/記録/金銭記録への関係を参照 | 保存済みの正しい履歴関係だけ関連表示/filterに使用し、不明は未リンク保留、矛盾/無関係患者への露出を拒否。主飼主変更だけで過去帰属を変更しない | 他院/同院別患者/譲渡/未リンク/入院/複数頭会計を対照。NOT_RUN |
+| AC-accounting-legacy-evidence-replay-history | 同じ原本を再受領、別の検証済原本版を受領、関連を追加/訂正/撤回 | 再送で原本を二重生成せず、異なる原本版・元の原値・関連の旧履歴を上書き/削除しない。衝突を無言成功にしない | 同原本再送/衝突/別版/関連撤回後の履歴を対照。具体方式は技術設計。NOT_RUN |
+| AC-accounting-legacy-evidence-authorized-read | 権限あり/なしで移行履歴一覧/詳細を参照 | 認証医院と現在の資源別閲覧権限を守り、原値/変換値/不明/由来/保留/関連履歴を区別。他院/未認可情報を返さず、取得失敗を空成功にしない | 会計/見積別view、scope、未リンク、読取障害を対照。NOT_RUN |
+| AC-accounting-legacy-evidence-normal-ledger-separation | 証拠保存/閲覧後に通常会計/未請求候補/集計を確認 | 証拠は移行履歴参照専用・通常反映保留。通常編集/回収/再計算/帳票/再請求を生まず、legacy証拠を通常対象IDとして利用しない。formal保留解除ではない | UI導線とserver入口/集計の分離を対照。NOT_RUN |
+| AC-accounting-legacy-evidence-safe-acceptance | 非PHIの合成証拠で受領→保存→read/UIと復旧を確認 | 同一証拠の原値/不明/履歴が途切れず、外部原本file喪失だけでDB保存対象の表示が空にならない。患者/飼主の実データをGit/票/通常ログへ転載しない | 欠損/null/空/実0/改訂/競合/拒否を合成例で照合。実データを使った受入を今回済みとしない。NOT_RUN |
+
 
 ## 担当者・権限・前提
 
@@ -669,6 +689,7 @@ D03の診療終了後の通常編集、自動保存、タブクリア／履歴�
 
 確定前／確定後／訂正／再請求、記録時刻と実発生のずれ、読取欠損をconsumer fixtureで検証する。日付化方式・旧データ対応を検証前に完成とせず、実DB／model／migrationは今回変更しない。
 
+<a id="accounting-owner-transfer-financial-attribution"></a>
 ## 主飼主変更時の会計帰属
 
 [D04の2026-10-20本人回答](../owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020)に従い、未確定会計も元飼主へ残し、主飼主変更から自動移管しない。必要なら別途変更するという回答は、確定済み請求・預り金・発行原本の保護解除や無条件の付替え権限を与えない。別途変更の操作はD10の現在認可・医院／患者・元明細・版・履歴と既決訂正境界を照合する。

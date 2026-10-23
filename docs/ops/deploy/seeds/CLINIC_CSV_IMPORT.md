@@ -109,6 +109,7 @@ wrapperのexit 0は対象3院すべての投入完了を意味しません。man
 STG候補のapplyレポートは `-stg-uat-apply-medicines-22-candidate.json` としてlegacyのレポートから分離する。handoffの候補PASS再利用には現在のmanifest SHA-256との一致も必要。接続用local.envは明示選択したprofileを変更しない。wrapperのmock契約は `python3 scripts/old-db/stg-uat-profile.test.py` で確認できる（実DB・CSV投入は行わない）。
 
 
+<a id="formal-import-safety-boundaries"></a>
 ## 安全境界（以下はdeployed/mainの既存21表手順）
 
 - source は絶対パスを `/migration-input:ro` で read-only mount する。
@@ -288,12 +289,20 @@ consumer（現行 HEAD 観測値）の契約 digest:
 - PR #627 の merge（2026-10-11）と MIG-38 研究の INPUT_READY は、生成 candidate や producer/consumer 受入を示さない。
 - producer source は old_db main `985a7a57486403936d809e4448ed9fb48065694d` への統合後の HEAD が現行。f59 系列の旧 candidate profile は受理しない。
 
+<a id="formal-import-producer-resume-gate"></a>
 ### 再開条件（順序）
 
 1. **MIG-41 が唯一の producer**。同一 candidate source/run/build/hash で全 21 CSV・manifest・producer 検証を生成し、表・列・順序・placeholder・bytes を含む完全 receipt で受領する。
 2. profile は baseline 21 表。薬剤を含む 22 表は MIG-34 / EMR-343 が同一承認 profile に到達した場合のみ。未知・片側未対応 profile は Blocked。21 表 PASS を 22 表へ転用しない。
 3. EMR-345（NULL vs 0・source pins・consumer pins の apply）、EMR-364（税率契約）、EMR-365（decimal 契約）が未解決のまま正式受入へ進まない。
 4. clinic/band/consumer release/target/6 seed ID（「事前準備」4 項の 6 binding）を固定した完全 profile で、承認済み read-only preflight を実行する。target 不明のまま推測で進めない。リハーサル資格（REHEARSAL_ONLY 経路）は profile 固定まで維持する。
+
+<a id="producer-work-ownership-and-runtime-binding"></a>
+#### producer作業責務と実行binding（2026-10-23補足）
+
+上記「MIG-41 が唯一の producer」は既存formal手順のproducer作業責務・唯一窓口を示す。old_db HAC-CSV-1/HAC-PIPELINE-1のproducer責務とAnimalEkarteの現行csvimport/script経路を、作業票番号そのものや実際の操作者と同一視しない。各runの実行bindingは承認profile・producer/consumerの固定SHA・source/run/build/hash・mapping・完全receiptで照合する既存gateを維持し、別producerや未承認profileの許可へ読み替えない。
+
+[EMR-547のevidence-only保存設計](../../../design/domains/accounting/legacy-finance-evidence.md)と[221の引渡し案](../../../work/emr/emr-221-import-contract-design/DESIGN.md#legacy-finance-evidence-handoff)への対応は候補で、現行producer main `a38e71f904460ba3d33194e817bafcbb78886d0c`と静的mapping報告は設計入力として受領済みだが、新sidecarのclosed mapping/実artifact binding/実行receiptは未受領。本runbookの既存経路は新保存経路の接続済み・実行済みを確定しない。formalの安全gate、fresh-only/band保護、人手実行許可は変更せず、新evidence-onlyの利用を許可しない。
 
 ### 配置の現行形態（旧票記載との差異）
 

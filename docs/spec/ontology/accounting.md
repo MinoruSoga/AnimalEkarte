@@ -3,10 +3,10 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | ontology.accounting／語彙正本 |
-| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。[初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)＋[第七群](../domains/accounting/lifecycle.md#accounting-agreement-seventh)＋[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)＋[第九群](../domains/accounting/lifecycle.md#accounting-agreement-ninth)＋[第十群](../domains/accounting/lifecycle.md#accounting-agreement-tenth)と[支払方法停止の追加合意](../domains/accounting/lifecycle.md#accounting-inactive-payment-method)・[品目別保険設定](../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)、[医師確認・同期・請求対象](../domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)、[釣銭修正](../domains/accounting/lifecycle.md#accounting-manual-change-reconciliation-20261017)、[過受領](../domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)等の後続決定を含む。文書完成境界と実装判定外は設計へ |
-| 実装状態 | 未確認。概念と現モデルを同一視しない |
-| 実機検証状態 | 未実施 |
-| 文書確認日 | 2026-10-20（本差分。従来：2026-10-18（後続業務正本の用語追従）） |
+| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。[初回](../domains/accounting/lifecycle.md#accounting-agreement-first-five)＋[第二群](../domains/accounting/lifecycle.md#accounting-agreement-second)＋[第三群](../domains/accounting/lifecycle.md#accounting-agreement-third)＋[第四群](../domains/accounting/lifecycle.md#accounting-agreement-fourth)＋[第五群](../domains/accounting/lifecycle.md#accounting-agreement-fifth)＋[第六群](../domains/accounting/lifecycle.md#accounting-agreement-sixth)＋[第七群](../domains/accounting/lifecycle.md#accounting-agreement-seventh)＋[第八群](../domains/accounting/lifecycle.md#accounting-agreement-eighth)＋[第九群](../domains/accounting/lifecycle.md#accounting-agreement-ninth)＋[第十群](../domains/accounting/lifecycle.md#accounting-agreement-tenth)と[支払方法停止の追加合意](../domains/accounting/lifecycle.md#accounting-inactive-payment-method)・[品目別保険設定](../domains/accounting/lifecycle.md#requirement-fr-accounting-item-insurance-setting)、[医師確認・同期・請求対象](../domains/accounting/lifecycle.md#doctor-review-sync-billing-20261017)、[釣銭修正](../domains/accounting/lifecycle.md#accounting-manual-change-reconciliation-20261017)、[過受領](../domains/accounting/lifecycle.md#accounting-excess-receipt-resolution-20261017)等の後続決定を含む。文書完成境界と実装判定外は設計へ。2026-10-23：移行原本証拠の保全/通常台帳との分離は既決方針。EMR-547の技術設計は候補・設計未完で、closed schema/DDL/APIは未採択。 |
+| 実装状態 | 未確認。概念と現モデルを同一視しない。EMR-547の保存/read/UI接続は未実装。 |
+| 実機検証状態 | 未実施。今回tests/build/codegen/DB/import/browserはNOT_RUN。 |
+| 文書確認日 | 2026-10-23（移行証拠保全の設計境界/語彙追補。従来確認2026-10-20は既存範囲） |
 
 <a id="accounting-ontology"></a>
 ## 定義と別名
@@ -140,3 +140,20 @@
 [原請求日](../domains/accounting/lifecycle.md#accounting-bill-date-agreement-20261020)は請求確定日。確定前は存在せず、会計作成日・予定日・各診療日・実入金日と別である。後日訂正で元日付を上書きせず、取消後再請求は元請求参照を残した別identity／新番号とその確定日を持つ。再発行や入金追加は新請求の作成と同一視しない。
 
 [主飼主変更時](../domains/owners-pets/lifecycle.md#owner-transfer-draft-retention-20261020)は未確定会計・未提示見積も元飼主に残す。現在のpet.owner_id変更から金銭・見積帰属を再導出せず、必要時の別途変更と区別する。確定済請求・預り金・提示済み原本の既決保護を維持する。
+
+<a id="legacy-finance-evidence"></a>
+## 移行原本証拠と通常会計の分離
+
+移行原本証拠（immutable legacy finance evidence）は旧請求/旧見積の原値と由来を、通常請求・見積/計算revisionから分離して保持するもの。意味不明な旧状態からclaim確定・入金・終了eventを生成しない。[会計正本](../domains/accounting/lifecycle.md#accounting-legacy-finance-evidence-design)と[EMR-547設計方針](../../design/domains/accounting/legacy-finance-evidence.md#legacy-evidence-storage-roles)を参照する。
+
+| 概念・関係 | 多重度 | 定義/制約 |
+|---|---|---|
+| 元entity → snapshot occurrence（原行証拠） | 元entity 1に対しoccurrence 0..many。各occurrenceの元entityは0..1（未解決なら0）、検証済snapshotは1 | 医院/source system・系譜/table/構造化原キーで元entityを区別する。snapshotを含む証拠identityを弱めない。元entity未解決のlocator候補と、元entityを確認済みであることは別 |
+| 証拠identity → occurrence | 受入済identity 1に対し原本occurrence 1 | 同identityの原本bytes不一致はconflict。再送や契約版変更で原本を複製しない。別の検証済snapshotの変更は別証拠版として旧証拠を保持 |
+| source snapshot → occurrence | snapshot 1に対し0..many、各受入occurrenceは1 snapshot | snapshot全体と、その中の個々の原行を混同しない。原キー/取得成果物の厳密な結合方式は未選定 |
+| occurrence ↔ 派生projection revision | 各occurrenceから0..many派生版、各原行由来派生版は1..many入力occurrence | 複数原行の集約と複数派生版を許容するmany-to-many。原本を変えずmapping/transform/encoding別にimmutable追記し、入力集合digestだけで個別lineageを省略しない。派生版の採番/前版の分岐多重度は未選定。通常計算revisionを代用しない |
+| batch ↔ 原本・派生版 | batch 1から0..many参照、同じ原本/派生版へ0..many batchが参照可能 | 再処理batchは原本を参照し複製しない。同batch再送は同結果。batchの受入完了前/失敗を全体成功にしない |
+| batch → 完了receipt / chunk receipt | batch 1に対し論理的な完了結果は0..1（未完なら0）、成功後の再送は同じ結果。chunk数/耐久receiptの物理件数は未選定 | chunk receiptとbatch完了receiptは別役割の候補。再送で別の成功結果を作らず、formal適格性とも区別。chunk上限/再開wireは未選定 |
+| 原本証拠 → 検証済target link履歴 | 単一証拠1から履歴event 0..many。有効関係内の各nullable owner/pet/record/billing/estimateは0..1。集約projection対象linkの帰属単位は未選定 | 同院に加えて全指定targetの保存帰属・関連を検証。履歴はmanyを保持し、譲渡前帰属と現在認可を分離。追加/訂正/撤回は期待link revisionで競合防止。eventのsource/parent exactはclosed schema受領時に固定 |
+
+証拠保存/閲覧はformal importの保留解除ではない。論理役割と保全方針の定義であり、物理schema・closed payload/route・派生版採番・具体link検証readerは未採択/未受領。保存/read/UI実装・実試験は未完（NOT_RUN）。

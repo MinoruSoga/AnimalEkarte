@@ -3,14 +3,25 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | domain.estimates.business-rules／業務仕様 |
-| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。2026-10-17追加決定は末尾と進捗入口を参照。従来：既存契約を継承。E1は依頼者2026-10-15承認（Sentinel_5b14560fa7308191a92a2882c517a23d）。期限内の提示単価・提示後の改訂は追加承認（Sentinel_1fda6cf121048191943efab56cc16a23）。 |
-| 実装状態 | 現行差を分離。今回実装変更・網羅監査なし |
-| 実機検証状態 | 未実施。受入条件は検査定義 |
-| 文書確認日 | 2026-10-20（本差分。従来：2026-10-17追加差分（従来確認2026-10-15）） |
+| 決定状態 | 2026-10-20追加本人回答は末尾の該当節を参照。2026-10-17追加決定は末尾と進捗入口を参照。従来：既存契約を継承。E1は依頼者2026-10-15承認（Sentinel_5b14560fa7308191a92a2882c517a23d）。期限内の提示単価・提示後の改訂は追加承認（Sentinel_1fda6cf121048191943efab56cc16a23）。 2026-10-23：移行原本証拠の保全/通常台帳との分離は既決方針。EMR-547の技術設計は候補・設計未完で、closed schema/DDL/APIは未採択。 |
+| 実装状態 | 現行差を分離。今回実装変更・網羅監査なし。EMR-547の保存/read/UI接続は未実装。 |
+| 実機検証状態 | 未実施。受入条件は検査定義。今回tests/build/codegen/DB/import/browserはNOT_RUN。 |
+| 文書確認日 | 2026-10-23（移行証拠保全の設計境界/語彙追補。従来確認2026-10-20は既存範囲） |
 
 ## 目的・対象範囲
 
 D11は費用の説明、見積の保存・提示・承認／却下・後継訂正を扱う。見積承認は診療実施・カルテ確定・請求確定・入金・在庫出庫を意味しない。D10の明細必須という請求条件を、既存の見積下書きまで遡及適用しない。実装上の独立フォームとカルテタブの違いは[技術整理](../../../design/domains/finance-operations/technical-spec.md#estimate-current-gap)へ。
+
+<a id="requirement-fr-estimates-legacy-evidence-preservation"></a>
+## FR-estimates-legacy-evidence-preservation：旧見積の原値・由来の参照保全
+
+Minoru Sogaの2026-10-23保全/閲覧整備承認のうち見積部分。旧見積の割引原値と丸め値/規則、保険等の生成定数・未取得・意味不明を区別して保持/表示し、通常見積の計算revisionへ未知値を詰めない。通常編集/提示/再計算/帳票/会計化やformal importの保留解除を許可しない。
+
+| 条件ID | 前提/操作 | 期待結果 | 確認手順/証跡 |
+|---|---|---|---|
+| AC-estimates-legacy-evidence-discount-provenance | 旧割引のraw/丸め値/負値/欠損と生成定数を含む旧見積を参照 | 元値・丸め値・規則/由来を別に保持/表示。生成insurance=0/rate=0/tax/status等を元情報の確認済み事実と見せず、割後単価へ割引を二重適用しない。通常見積の原本を変更しない | 合成値でraw/derived/表示/通常見積不変を対照。NOT_RUN |
+
+本FR/1ACに加え、[会計側6共通AC](../accounting/lifecycle.md#requirement-fr-accounting-legacy-evidence-preservation)の関係履歴/再送/現在認可/read-only/通常台帳分離/機密を継承する。見積証拠は現在の見積閲覧権限を用い、会計閲覧から推定許可しない。新しいFR/AC IDは既存5FR/24ACの確認範囲と分ける。実装・実機は未完、技術型/保存/APIの未採択候補は[移行証拠設計](../../../design/domains/accounting/legacy-finance-evidence.md#legacy-evidence-read-api-ui-candidates)へ。
 
 ## 担当者・権限・前提
 

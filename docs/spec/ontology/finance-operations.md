@@ -3,10 +3,10 @@
 | 管理項目 | 記載 |
 |:---|:---|
 | 文書ID・種別 | ontology.finance-operations／語彙正本 |
-| 決定状態 | 各業務正本の決定状態を継承。用語整理は新しい業務承認ではない。 |
-| 実装状態 | 現行差を分離。今回実装変更・網羅監査なし |
-| 実機検証状態 | 未実施。受入条件は検査定義 |
-| 文書確認日 | 2026-10-20 |
+| 決定状態 | 各業務正本の決定状態を継承。用語整理は新しい業務承認ではない。 2026-10-23：移行原本証拠の保全/通常台帳との分離は既決方針。EMR-547の技術設計は候補・設計未完で、closed schema/DDL/APIは未採択。 |
+| 実装状態 | 現行差を分離。今回実装変更・網羅監査なし。EMR-547の保存/read/UI接続は未実装。 |
+| 実機検証状態 | 未実施。受入条件は検査定義 今回tests/build/codegen/DB/import/browserはNOT_RUN。 |
+| 文書確認日 | 2026-10-23（移行証拠保全の設計境界/語彙追補。従来確認2026-10-20は既存範囲） |
 
 <a id="estimate-ontology"></a>
 ## 定義
@@ -78,3 +78,7 @@
 [D13の本人回答](../domains/inventory/business-rules.md#inventory-outflow-confirmation-20261020)に従い、院内投薬の実施時、持帰薬・物販の実引渡し時に担当スタッフが出庫確定する。D10のready／準備完了は請求対象の条件で、実引渡し・出庫確定ではない。カルテ保存・請求確定だけでは在庫を減らさず、旧治療create自動減算は現行差として区別する。最小管理単位整数・不足拒否・履歴を維持し、小数臨床量の推測換算・新係数・丸めを追加しない。
 
 [医院営業時間・休診日の共通基準](../domains/clinic-settings/README.md#clinic-hours-common-basis-20261020)とLINE範囲内別設定は、レジのAM／PM／EMG営業日区分と別である。
+
+## 旧見積の移行原本証拠
+
+[移行原本証拠の共通定義](accounting.md#legacy-finance-evidence)を継承する。旧見積の割引raw/丸め値/変換規則・保険生成定数の由来を保持する証拠であり、提示済み原本や通常見積の計算revisionとは別。派生projection revisionや検証済みlinkの追加/訂正/撤回は原本不変の追記履歴として扱い、通常見積の編集/会計化を許可しない。[見積正本](../domains/estimates/business-rules.md)と[547設計候補](../../design/domains/accounting/legacy-finance-evidence.md)へ接続する。詳細closed schema/物理DDL/APIは未採択、実装/試験は未完（NOT_RUN）。

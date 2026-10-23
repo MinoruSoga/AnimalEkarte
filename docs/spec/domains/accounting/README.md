@@ -95,3 +95,8 @@ docs限定承認 Sentinel_f19ab03e8c2c81919c6f589bcf563811に基づき、[受け
 [決定根拠・適用範囲](../SPECIFICATION_PROGRESS.md#confirmed-business-decisions-20261017)：ユーザーの2026-10-16〜17 JSTの直接決定、文書更新承認は10月17日03:20 JST。以下は目標仕様・未実行の受入条件であり、実装・実機合格を示さない。
 
 [業務正本・受入条件](lifecycle.md#doctor-review-sync-billing-20261017)。会計ページは医師確認前から準備し待ち・金額未確定を表示する。確定精算は医師確認後。会計タブチェックが医師確認、診療終了で会計待ちへ進み、受付カードの確認状態は別軸とする。確認後の金額だけの変更は警告了承で可、薬剤処置追加削除・数量変更は再確認まで停止。未確定未手修正はプラン自動同期、手修正済みは値保護と差異判断、確定後は専用訂正。会計からプランへの自動逆書換えなし。通常請求対象は実施済み、持帰薬物販は内容数量確定・準備完了で、予定・実引渡し・在庫出庫と分離する。
+
+<a id="legacy-evidence-business-scope"></a>
+## 2026-10-23 移行原本証拠の追加範囲
+
+[FR-accounting-legacy-evidence-preservation/6AC](lifecycle.md#requirement-fr-accounting-legacy-evidence-preservation)は既存13FR/184ACの過去確認範囲とは別の追加業務条件。[見積の1FR/1AC](../estimates/business-rules.md#requirement-fr-estimates-legacy-evidence-preservation)と合わせEMR-547の7ACへ対応する。[設計候補](../../../design/domains/accounting/legacy-finance-evidence.md)は未完、実装/DB適用/試験NOT_RUN。今回の索引登録を通常会計移行の許可としない。
