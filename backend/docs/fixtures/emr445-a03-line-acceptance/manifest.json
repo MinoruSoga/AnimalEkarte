@@ -212,7 +212,7 @@
    "http_status": null,
    "expected_schema": "invalid",
    "scenario": "notification_email が email 形式でない",
-   "semantic_expectation": "400（既存 binding omitempty,email,max=254 と一致）",
+   "semantic_expectation": "400（既存 binding omitempty,email,max=254 と一致）。invalid 判定は format: email を検査する validator が前提（OAS 3.0 では format 検査は任意）。runtime は既存 Go binding omitempty,email,max=254 が 400",
    "verification": "NOT_RUN"
   },
   {
