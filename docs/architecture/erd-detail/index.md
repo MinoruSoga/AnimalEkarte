@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **7ファイル** から **251テーブル・2788カラム・765外部キー** を静的に導出しています。
+マイグレーション **8ファイル** から **251テーブル・2790カラム・765外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -151,7 +151,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [line_dispatch_intents](line_dispatch_intents.md) | 14 | 5 |
 | [line_dispatch_results](line_dispatch_results.md) | 10 | 2 |
 | [line_link_tokens](line_link_tokens.md) | 7 | 2 |
-| [line_reservation_settings](line_reservation_settings.md) | 28 | 1 |
+| [line_reservation_settings](line_reservation_settings.md) | 30 | 1 |
 | [lstep_auto_managed_prefixes](lstep_auto_managed_prefixes.md) | 6 | 0 |
 | [lstep_condition_tag_mappings](lstep_condition_tag_mappings.md) | 6 | 0 |
 | [lstep_csv_imports](lstep_csv_imports.md) | 12 | 2 |
@@ -284,7 +284,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `4ea9ae9b808cef3cbedec6832e5a2b792172f62d580fbea4d52bbbe871672e0d`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `2d1f5b94a4e83cde1e2126c497a760356e4e95af3341503d331f934450e8b9c1`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
@@ -295,6 +295,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [006_operation_anchor_and_lab_mapping_versions.sql](../../../backend/migrations/006_operation_anchor_and_lab_mapping_versions.sql) | `0687e72b87064c1f6933ea2ce03a789b00627dde3b808a9fa06dcad767137831` |
 | [007_bill_discount_excluded_and_master_versions.sql](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql) | `e028965694c7903444ccb3b59cc5d2fdbbe0e3478de9d565b4b40da4153fe45b` |
 | [008_clinic_operating_hours.sql](../../../backend/migrations/008_clinic_operating_hours.sql) | `41f4aabdbc018026b8090aa1a1d6a92946e6fd2914a5986ec8183d1227b19313` |
+| [009_line_acceptance_version.sql](../../../backend/migrations/009_line_acceptance_version.sql) | `6c27c9160a3daf7e79b49dc168fd042a3334581bab3e65a2d208816da158efea` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

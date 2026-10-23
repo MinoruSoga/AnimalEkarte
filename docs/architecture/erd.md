@@ -169,9 +169,9 @@ erDiagram
 |:---|:---|:---|
 | 統合baselineの履歴表数 | 138（現在数ではない） | 現行は末尾の追加/DROPまで適用した241表。CREATE行数だけで数えない。 |
 | 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーションのCREATE/DROP適用後の現行物理テーブル総数 | 251 | 2026-10-19 の統合時点は `001_init.sql` の241表。その後の直下増分（`003`〜`008`）を含めた現行数を `ls backend/migrations/*.sql` の全DDLから数える。統合前の履歴は §4.3 / §4.4 を参照する。 |
+| 全マイグレーションのCREATE/DROP適用後の現行物理テーブル総数 | 251 | 2026-10-19 の統合時点は `001_init.sql` の241表。その後の直下増分（`003`〜`009`）を含めた現行数を `ls backend/migrations/*.sql` の全DDLから数える。統合前の履歴は §4.3 / §4.4 を参照する。 |
 | 統合前の履歴 `002`〜`038`（`008`・`026`・`027` 欠番） | 新規テーブル11（`support_bug_reports`・`support_chat_messages`・`medical_record_image_deletions`・対応下書き 4・`trimming_image_deletions`・`lstep_next_visit_sync_retries`・`support_manual_embeddings`・`support_llm_budgets`）。`014` は `prescriptions` DROP（純減1）、`015` は検索 index のみ、`016`/`018`/`022` はカラム追加、`017` は担当医・actor・staff参照の複合FK置換、`019` は権限行削除、`020` は checksum reconcile、`023` は `lab_import_jobs.species` 追加と対応下書き 4 テーブル。`024` は drafts 複合キーの列順張り直し、`025` は `cages.merged_into_cage_id`（旧025〜027の承認済み統合版）、`028`〜`030` は EMR-308 tentative 予約基盤（enum値・列2件・部分unique index）と `medical_records.next_visit_recommended_date` の DROP（新規テーブル0）。`031` は予約の元カルテ参照を医院複合FKへ置換、`032` はトリミング画像削除予約台帳を新設、`033` は次回来院タグ同期の再試行記録を新設、`034` は同表への `cleanup_line_user_id` 列追加のみ、`035` は `trimming_image_deletions` への `storage_deleted_at` / `last_attempt_at` 列と pending 部分index 追加のみ（いずれも新規テーブル0）。`036` は入院の `next_visit` 列追加のみ、`037` は `item_category` への `house_call` 値の追加のみ（新規テーブル0）、`038` は共有マニュアルembeddingキャッシュとquota状態の2表を新設 | 記録者FK2件の置換、治療明細のlifetime unique、子レコード楽観ロック `version`、accounts RLS ops bypass、billings 複合index、seed checksum reconcile 2件、`care_plan_items.other_reason`、pets 由来列2件（§4.4。2026-09-29 訂正: 「002 / 003 / 004・新規テーブル0」→ `002`〜`013`・新規テーブル2。2026-10-05 訂正: 当時の `023` backfill DML は運用判断で削除。2026-10-06: 現行 `023_lab_device_mapping_drafts.sql` を追加。2026-10-10: `024`〜`030` を追加・`026`/`027` 欠番・新規テーブル0。2026-10-10: `031` の複合FK置換と `032` の新規テーブル1を追加） |
-| ERD ドメイン表の物理テーブル数 | 251 | migrations と一致（2026-10-22: 直下増分 `003`〜`008` を含む全DDLの現行数。006で4表を追加、007は列追加のみで表数不変、008で1表を追加。2026-09-29 訂正: 128 → 130。§1.1 に `support_bug_reports` / `support_chat_messages` を含む。EMR-236 で `prescriptions` 除去し 129。2026-10-05 訂正: §1.1 に `medical_record_image_deletions` を含み 130。2026-10-06 訂正: §1.1 に対応下書き 4 テーブルを含み 134。2026-10-10: §1.1 に `trimming_image_deletions` を含み 135） |
+| ERD ドメイン表の物理テーブル数 | 251 | migrations と一致（2026-10-22: 直下増分 `003`〜`009` を含む全DDLの現行数。006で4表を追加、007は列追加のみで表数不変、008で1表を追加（009は列追加のみ）。2026-09-29 訂正: 128 → 130。§1.1 に `support_bug_reports` / `support_chat_messages` を含む。EMR-236 で `prescriptions` 除去し 129。2026-10-05 訂正: §1.1 に `medical_record_image_deletions` を含み 130。2026-10-06 訂正: §1.1 に対応下書き 4 テーブルを含み 134。2026-10-10: §1.1 に `trimming_image_deletions` を含み 135） |
 | ERD へ追加した不足テーブル | 12: 従来6（`token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items`）+ identity 4 + `medical_record_image_upload_quota` + `medical_record_image_deletions` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
 | ERD にあり migrations にないテーブル | 0 | 整合済み |
@@ -293,6 +293,10 @@ erDiagram
 ## 008: 共通医院時間 aggregate（EMR-446/466、未試験）
 
 `008_clinic_operating_hours.sql` で1表を追加した。`clinic_operating_hours` は契約§2.1の共通医院時間aggregateで、clinic_id PK・`clinic-operating-hours/v1` schema marker・正version（`entity_version_guard`）・weekly_hours（7曜日配列）・closed_dates・national_holiday_closedを保持する。settings 3項目に default はなく、行なし=unconfigured。clinic RLS適用。旧clinic_holidays・clinic_settingsとのdual-writeはなく、API/writer接続・DB適用・試験は未実施。列・CHECKは生成した詳細ERDを正本とする。
+
+## 009: LINE受付版（EMR-446/466、未試験）
+
+`009_line_acceptance_version.sql` で `line_reservation_settings` に2列と2つのCHECK制約を追加した（新規テーブルなし、総数不変）。`acceptance_version` は `app_private.line_acceptance_version_guard()` が維持するCASカウンタで、契約§3.1の保護field P（12列）または reviewed marker の変更で+1、非P変更と真のno-opは同版。`reviewed_acceptance_version` は確認済み版（NULLまたは旧版=legacy-unreviewed、等値=configured）。既存行は acceptance=1・reviewed=NULL で未照合のまま。API/writer接続・DB適用・試験は未実施。
 
 ## 確定仕様からの保存不足追補
 
