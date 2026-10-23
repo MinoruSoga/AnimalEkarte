@@ -23,7 +23,7 @@ owner_kind=`reservation`、actor_kind=`staff`。Aは記録/billing本文を変�
 
 ### 2.1 A request・状態検証
 
-body exact、全key必須：
+bodyは下記4key必須、追加optional keyは`unknown_date_confirmation`だけ：
 
 ```json
 {"operation_key":"<UUID>","expected_version":"<今回予約版>","next_visit_intent":{"id":"<元予定ID>","expected_version":"<元予定版>"},"confirmed":true}
@@ -32,6 +32,20 @@ body exact、全key必須：
 pathは今回予約。`next_visit_intent`もexact2keys、confirmedはtrueだけ（false/null/省略拒否）。元予定と今回予約は別ID、同医院・同患者、削除なし。元予定はactive tentativeかつ未消化。今回statusは`pending/confirmed/checked_in/in_consultation/accounting/completed`だけ許可し、`tentative/cancelled/no_show`・削除・未知/nullは拒否する。pending/confirmedを来院済み・実施済みへ偽装せず、Aで状態を進めない。取消済み/未来院（no_show）の予約を再利用しない。
 
 今回予約の業務field/status、カルテ/専用記録の本文・状態、請求/入金は不変。関係追加のため今回予約versionとeventだけを一回進める。元予定の終端と両対象の履歴が片方だけ成立してはならない。Aを診療/会計の再保存や本文view要求へ拡張しない。
+
+### 2.1a 元診療との時系列・日付不明確認（2026-10-23採択）
+
+元`source_medical_record_id`で示される診療の業務日と、今回予約の来院業務日を既存正本に従うtyped readerで比較する。日付は厳密Gregorian `YYYY-MM-DD`のDate意味値とし、sourceは元診療の業務日、targetは既存予約/来院の業務日resolver（JST日付契約）を使う。created_at/intended_dateやレジ日界を代用しない。両日既知でtarget < sourceなら拒否、同日は拒否しない。必要なsource identity/clinic/petも再検査し、不正な他患者出典を日付不明として救済しない。元出典なし/正常に確認した欠損日付はunknown、読取障害/破損/未結線はunknown確認で迂回せず保存停止とする。
+
+Aの追加optional wireは`unknown_date_confirmation:{confirmed:true}`（object exact1key）。このkeyの省略は未確認、指定する場合は非nullのobjectとliteral trueだけを許し、null/false/他key/不正型を拒否する。top-level既存`confirmed:true`は対象の消化選択であり、日付不明の了承を兼ねない。日付不明をスタッフへ表示し、別の明示操作で了承した時だけこのobjectを設定する。対象確認だけから自動生成せず、未確認trueを捏造しない。
+
+serverの内部`ChronologyAssessment`はclosed `{source_business_date:Date|null,target_business_date:Date|null,state:"not-before"|"before"|"unknown"}`。正常に得た両日既知なら比較結果、片方以上が正当に不明ならunknownとする。これは内部型で、診療本文を公開するDTOや新routeではない。認可済み確認画面へ必要最小の判定/不明理由を渡すreader adapterが受領条件。source本文の不要な開示や追加一律write grantは要求しない。
+
+新key preflightと業務TX Applyで同じreader/判定を実行する。beforeは追加確認があっても拒否、unknownは追加確認なしなら拒否し、明示確認ありの場合だけ続行する。not-beforeには追加確認を要求しない。表示/確認後のsource/target日付・解決根拠の変化は再読取/再確認へ戻し、preflightでserverが取得してRequest.Preconditionsへ保持したreader依存版で再照合する（clientに未定義の版fieldを要求しない）。readerが保証する現在根拠版/同TX保護の具体adapterは未受領で、client日付を正本にしない。既知日付を隠してunknown化し了承を作らない。
+
+immutable A projectionには`unknown_date_confirmation`を追加し、省略時null、指定時上記objectをJCS化する。これはスタッフの意味的了承としてContentのpayload_sha256へ含め、変えて同key再送すればconflict。source eventの既存監査JSONへ`chronology_check:{source_business_date,target_business_date,state,unknown_date_confirmed:boolean}`を記録し、実際に評価した日付/判定とContentの明示確認有無を対応づける。actorはtrusted、読取生本文は監査へ複写しない。旧成功replayで日付/確認を再評価して元receiptを書き換えない。
+
+具体reader/日付型adapter・現在根拠版・認可済み確認投影は元診療/予約ownerからの**未受領subset**。共通Dateの意味型を採択したことを、実在する関数/公開API/追加列の完成と偽らない。未結線readerを単にunknownで代替して有効化しない。
 
 ### 2.2 B request・既存入力のpresence
 
@@ -51,7 +65,7 @@ pathは今回予約。`next_visit_intent`もexact2keys、confirmedはtrueだけ�
 
 | 操作 | immutable hash projection | Preconditions |
 |---|---|---|
-| A | exact `{schema_version:1,intent:"reservation.consume_next_visit_intent",appointment_id,next_visit_intent_id,confirmed:true}`。両IDは正規文字列 | 今回予約のexpected_versionと元予定のexpected_versionを別名・対象ID対応で保持 |
+| A | exact `{schema_version:1,intent:"reservation.consume_next_visit_intent",appointment_id,next_visit_intent_id,confirmed:true,unknown_date_confirmation}`。追加確認は省略時null/指定時§2.1a object、両IDは正規文字列 | 今回予約のexpected_versionと元予定のexpected_versionを別名・対象ID対応で保持。§2.1a readerの現在日付/出典根拠の依存版も照合 |
 | B | 480 exact `{schema_version:1,intent:"reservation.confirm_tentative",target_ref,booking_changes,trimming_selection}`。booking_changesはBで許された明示業務入力だけ（start/endと任意設定）、明示status（pending/confirmed）を含め、actor/key/CAS等は含めない。trimming_selectionは省略時null、指定時Content3key `{course_id,option_ids,expected_adoption_digest}` | expected_version、expected_booking_revision_id、warning_receipt等の現在状態/警告前提。expected_adoption_digestはContentに残す |
 
 省略と明示null/空/falseを区別し、DB現在値をhash前に埋めない。Bの数値ID入力は既存wireから検証後canonical ID文字列へ投影し、時刻は上記UTC、option_idsは480の数値順。projectionのpresenceを保った同じimmutable commandからApply時の保存値mergeを行う。
@@ -103,8 +117,9 @@ Aは元予定のstatus/version終端、今回予約の関係追加に伴うversi
 必要保存差分は以下を446/466へ渡す。新migration番号・model物理file名はここで予約しない。
 
 - `appointment_change_events.consumed_by_appointment_id bigint NULL`。FK `(consumed_by_appointment_id,clinic_id)` → `appointments(id,clinic_id) ON DELETE RESTRICT`、自己参照（appointment_idと同値）禁止。source eventの`intent='reservation.next_visit_intent_consumed'` iff relation非NULL、他eventはNULL。partial UNIQUE `(clinic_id,appointment_id) WHERE consumed_by_appointment_id IS NOT NULL`で元予定の二重消化を禁止。
+- 複数のsourceを同じtargetへ紐づけることは許可する。target側`consumed_by_appointment_id`へのUNIQUEは追加しない。各sourceごとに別の明示確認・独立operation/receipt・source/target eventを保存し、target期待版を毎回CASして関係追加版を一回増分、過去関係を全件保持する。同sourceの同key再送は元receipt固定でtarget版を再増分しない。既存single-active次回予定制約を維持し、複数active作成や混合batchへ拡張しない。
 - Aのbinding intent=`reservation.consume_next_visit_intent`。source eventは上記`reservation.next_visit_intent_consumed`、target eventは`reservation.consume_next_visit_intent`、同operation/clinic/actorで元/先のID・確定versionとA receipt refs/versionsへ一意対応する。actorは認証staffのみ、body由来にしない。
-- 新consume deferred guardはこのtyped source/target eventを追加する時点で、binding actor/clinic/intent、原anchor両ID、source終端・target業務値/status不変、両eventのbefore/afterと確定版、成功receiptの4refs/2versionsを検査する。孤立source/target・不一致・receipt欠落をcommitできない。既存のreceipt存在guardだけではこの対応検査を満たさない。
+- 新consume deferred guardはこのtyped source/target eventを追加する時点で、binding actor/clinic/intent、原anchor両ID、source終端・target業務値/status不変、§2.1aの日付判定/確認とContent・監査の対応、両eventのbefore/afterと確定版、成功receiptの4refs/2versionsを検査する。孤立source/target・不一致・receipt欠落をcommitできない。既存のreceipt存在guardだけではこの対応検査を満たさない。
 - 追加操作時の対応を検査し、後日の別予約更新で過去event版=現在appointments.versionを恒久要求しない。旧eventを補完/backfillせずimmutable/RLS/元FKを保持する。
 - consumed sourceだけはrestore/setによる再活性化を禁止。別の明示setは現在active予定を再取得/CASし、なければ新tentative IDを作る。過去consume/eventを削除しない。通常の誤取消復元まで禁止しない。
 
@@ -133,7 +148,7 @@ APIと共有型を先に非活性で収録し、新client/key/CAS/presence/480 p
 fixture作成と実行を分け、以下は全てNOT_RUN：
 
 - A：許可6statusと拒否status/null/削除、pending/confirmed非来院表示、同ID/別pet/別院拒否、未選択無変更、会計後も今回状態/診療/請求/入金不変。
-- A：両対象古版、患者付替え/取消/消化競合、同source別key二重消化、event片側/actor/refs/版不一致rollback、消化source復元拒否と通常誤取消復元保持、別setの新ID/active競合、通知候補と配送直前除外。
+- A：元診療より前/同日/後、source又はtarget日付不明（未確認拒否/明示確認可）、created_at/intended_date代用禁止、reader障害/未結線停止、日付根拠変更再確認、同来院への複数source独立履歴/target逐次CAS・同source replay非増分、両対象古版、患者付替え/取消/消化競合、同source別key二重消化、event片側/actor/refs/版不一致rollback、消化source復元拒否と通常誤取消復元保持、別setの新ID/active競合、通知候補と配送直前除外。
 - B：省略保持/doctor null解除/notes空とnull、status省略confirmed/明示pending/confirmed保持・他status/null拒否とContent一致、譲渡後pet owner解決/旧診療出典保持、visit_type保存値保持、trimming4key/digest/preview end/manual override、旧無key/無版拒否、後続check-in明示/unknown停止、通常カルテ作成失敗・再利用とreceiptの分離。
 - 共通：strict decode/非正規ID/UUID、同key同内容replay・異内容conflict・CASだけ再確認、sticky unknown/busy/失権/他actor lookup、失敗binding anchor・claim loser・metadata失敗rollback、監査/receipt失敗、後日更新後の元receipt読取、staff-global/clinic-booking/pet-intent順、初回commit後だけ旧/現owner tag再計算・replay非再実行。
 
