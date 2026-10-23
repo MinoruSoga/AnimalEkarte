@@ -1,0 +1,8 @@
+{
+  "schema_version": "line-acceptance/v1",
+  "clinic_id": "7",
+  "state": "unconfigured",
+  "acceptance_version": null,
+  "settings": null,
+  "common_version": "4"
+}

@@ -1,0 +1,14 @@
+{
+  "mode": "update",
+  "expected_acceptance_version": "2",
+  "expected_common_version": "4",
+  "changes": {
+    "business_hours": {
+      "start": "0800",
+      "end": "1800"
+    }
+  },
+  "dates": [
+    "2026-11-02"
+  ]
+}
