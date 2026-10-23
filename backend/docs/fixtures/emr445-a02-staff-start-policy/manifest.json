@@ -234,7 +234,7 @@
    "http_status": 200,
    "expected_schema": "invalid",
    "scenario": "delete preview なのに proposed_policy あり",
-   "semantic_expectation": "不適合（delete だけ proposed_policy null）",
+   "semantic_expectation": "不適合（delete だけ proposed_policy null）。対応正例 preview-delete-configured との差は proposed_policy の1点のみ",
    "verification": "NOT_RUN"
   },
   {
