@@ -14,7 +14,7 @@
 ## 対象と証拠
 業務正本は[検査ライフサイクル](../../../spec/domains/examinations/lifecycle.md)。2026-10-15、固定commit `41fcf3eb0a8befb7c0b5f613d1df749a60e30be8`の文書／source静的照合。API／DB／実装／実grantは変更せず、実機・並行性・性能未検証。既存実装とD03継承目標を分ける。
 
-2026-10-23選定の[D4検査結果mutation契約](result-mutation-contract.md)を、結果CAS・atomic read・closed write・固定target付きC06・writer参加閉包・両CORS preflight受領の技術正本として参照する。この限定範囲は選定済みだが、共有供給・実装・生成・試験・activationは未完。Detach job回復、501 A/B独立wire、正式実行ID等の未選定/未完は維持し、臨床状態・既存認可を変更しない。
+2026-10-23選定の[D4検査結果mutation契約](result-mutation-contract.md)を、結果CAS・atomic read・closed write・固定target付きC06・writer参加閉包・両CORS preflight受領の技術正本として参照する。この限定範囲は選定済みだが、共有供給・実装・生成・試験・activationは未完。後発の[Detach有限契約](job-detach-contract.md#exam-detach-scope)と[出典・日付/official要約](provenance-official-summary-contract.md#exam-provenance-summary-scope)は2026-10-23技術案選定済み。Revert unknown、臨床mapping47、create C06等の必要依存、正式実行ID/claim、供給/実装/試験/activationは未完。v1互換・既存臨床状態/認可・nonofficial別consumerを維持し、技術選定を製品完成としない。
 
 <a id="examination-state-contract"></a>
 ## 状態・版と保存単位

@@ -13,7 +13,7 @@
 
 [D07 lifecycle](../../../spec/domains/examinations/lifecycle.md) と [D07 technical-spec](./technical-spec.md) の臨床状態・確定・確認解除・revision・認可の意味は維持する。D4対象のwire・CAS・receipt・writer参加については本書を正本とし、旧wire/旧unguarded経路は移行対象とする。既採択の `exam-link-source-v1` はlink専用のままであり、本書のcounterへ置換しない。
 
-**限定採択に含めないもの:** Detachのexact job target/key/成功・unknown回復契約、Revert回復のC06同等性確認、501独立A/Bのprovenance・感染症summary等の未選定wire、正式実行ID/claim、schema・adapter・生成物の供給、実装接続、試験実行、DB適用、本番activation。詳細は§11・§13。契約採択はこれらの完了証拠ではない。
+**後発の別選定:** [Detach有限契約](job-detach-contract.md#exam-detach-scope)と[501 A/B出典・official要約契約](provenance-official-summary-contract.md#exam-provenance-summary-scope)を2026-10-23に選定した。D4 coreの採択から自動的に閉じたものではない。Revert回復のC06同等性確認、臨床mapping47/create C06等の必要供給、正式実行ID/claim、schema・adapter・生成物の供給、実装/試験/DB適用/activationは未完。各契約と§11・§13を参照。
 
 本書の受入caseは期待値であり、fixture code作成・試験実行の証拠ではない。試験状態は **NOT_RUN / 判定UNKNOWN**。新規臨床業務判断は追加しない。
 
@@ -323,7 +323,7 @@ lock後に、trusted clinic/current actor/grant、active/deleted、元identity�
 | exam_type_fields / reference ranges / staff | master更新、結果の参照検証 | 保存済み結果の書換は行わない。field削除は結果/range使用中拒否、staffはsoft-delete。master変更を全結果再計算へ広げない |
 | FK ON DELETE SET NULL / CASCADE | ERDにはdoctor、field、record/exam cascadeが存在 | 通常runtimeからのphysical deleteを既存拒否/soft-delete境界で閉じる。liveで暗黙結果変更を許す入口が見つかれば参加設計前にactivation不可。FKを無断変更しない |
 | csvimport/import、cutover、synthetic fixtures | SQL/COPY/DELETEのout-of-band writer | disposable/offline管理用途として通常API並行writerへ数え替えない。稼働環境で同時実行不可を運用ownerが証拠化。復元/cutover後は旧counter/key/cacheを持ち越す運用を禁止する設計引渡し |
-| 501他院provenance/将来採択writer | 現wire未選定部分あり | 既存A/Cの受入に本capabilityを追加し、自前counter/別保存台帳を作らない |
+| 501他院provenance/将来採択writer | 別A/B契約選定済み・供給未完 | 既存A/Cの受入に本capabilityを追加し、自前counter/別保存台帳を作らない |
 
 機器detach/revertは、人のstaleフォームの期待値とは異なる**server-side guarded batch**として扱う。job lockと既存job preconditionを取得後、同一TXの安定対象集合を読み、各examのcounterを取得して条件付き更新する。手動編集によるmanual_mutation receipt/confirmed/既存downstream useなら既存の拒否を維持する。これは人のPUTへのexpected自動補完を許す例外ではない。
 
@@ -384,7 +384,7 @@ AC番号は§12のcase番号を `D4-AC-01`〜`D4-AC-23` として参照する。
 | D4-SCHEMA-01 / 446専有・466統合 | result counter＋exam claim targetとmodel/ERDの明示先行成果 | 2DDL単位、NULL/FK/RLS/immutable/初期値/上限、供給SHA、D4-AC-16/17のfixture作成 | DB適用/consumer接続/機能公開は含まない。501 Cが受領。正規生成は本人実行/成果受領 |
 | D4-OWNER-01 / 501 C、516 S1の必要受領subset | atomic read・counter participant・historical lookup authorizer・低層writer閉包のlibrary先行成果 | 実file/symbol/ambient contract、全callsite matrix、D4-AC-03/04/08/09/10/12/14/16/19–21のfixture作成 | HTTP/FE旧caller切替、job回復未接続なら機能activation不可。501 C/516 E-linkへ引渡し |
 | D4-WIRE-01 / 501 Cと共有API/FE・Go CORS/Workerの現owner | 4mutation＋lookup＋readschema＋全旧caller切替、§5.5の両Allow-Headers最小追加を同版受領する縦割り機能成果 | handler/router/DI/typed Q/C06/FE cache・unknown回復接続、D4-AC-01/02/05/06/07/15/22/23のfixture、旧無guard到達0、両preflight差分の採用SHA | D4-OWNER/SCHEMA必要subset待ち、job未参加の該当入口は停止。Go/Worker片側不足ならブラウザactivation停止。501 A/Bの新provenance/summaryは残る |
-| D4-JOB-01 / 現機器job owner＋501 C受領 | job→exam counter/lock参加、既存RevertとDetachの成功/unknown契約 | D4-AC-11、§13.1 exact契約の受領SHA、全対象exam同TX/監査、existingreceiptとC06責務の対応 | §13.1は未選定。受領前に機器解除までclosedとしない。独立受信/閲覧全体は待ちにしない |
+| D4-JOB-01 / 現機器job owner＋501 C受領 | job→exam counter/lock参加、既存RevertとDetachの成功/unknown契約 | D4-AC-11、§13.1 exact契約の受領SHA、全対象exam同TX/監査、existingreceiptとC06責務の対応 | §13.1の別Detach契約は選定済み、実装供給未受領。Revert unknownは別残。独立受信/閲覧全体は待ちにしない |
 | D4-LINK-01 / 516既存S1/E-link | 既採択link-onlyとD4参加閉包の結合 | 516 exact契約不変、D4-AC-13/18、関連writer closure/usage/必要source generation | 接種517/健診500/501 A/B全体のDoneは不要。機器解除など必要未受領だけactivation gate |
 
 **execution IDの最終対応は未選定:** 本書は新規Plane子票や既存親票のscope変更を指示しない。上表の候補をそのまま `claim/<候補>` に使わない。452/445の現claim窓口と取りまとめownerが、既存適切実行票又は明示別実行IDへ対応を記録する必要がある。対応未記録の部分は実装開始条件未成立であり、NOT_RUNへ隠さない。
@@ -400,7 +400,7 @@ AC番号は§12のcase番号を `D4-AC-01`〜`D4-AC-23` として参照する。
 | 516 coordinator/dependency/source participant必要subset | 別owner待ち | 516 S1/S1a、必要runtime受領SHA未確認。影響あるwriter/link activationだけ停止 |
 | machine API/FE/generated正規成果 | 別owner待ち | shared API ownerと本人codegen、受領SHAなし。手書き生成型/stubで代用しない |
 | Go/Worker両preflightの新header許可 | 別owner待ち（D4-WIRE-01必要subset） | 04a9078では両方未許可。現共有ownerへ§5.5の最小差分を要求し、同一採用SHAと両fixtureを受領するまでブラウザactivation停止。変更・受領は未完 |
-| Detach job target/key/unknown契約 | 未選定 | §13.1。現job ownerへ限定設計要求。revert receipt存在を代用しない |
+| Detach job target/key/unknown契約 | 別契約選定済み・実装供給待ち | [Detach契約](job-detach-contract.md#exam-detach-scope)。Revert unknownは別有限残 |
 | 検証 | NOT_RUN / 判定UNKNOWN | 試験実行は延期中。fixtureは本書に期待値を記述しただけでコードfixture未作成。試験未実行と未実装/未接続を分ける |
 
 本書は契約成果であり、実装PRの供給証拠は含まない。実装ownerへ渡す際は本書の採用SHA・正式実行ID・限定scope・供給/受領owner・残ACを固定し、各subsetを「存在済み／同PR内に実装予定／別owner待ち／未選定」に分類して更新する。既に採択した契約を供給待ちのため未選定へ戻さない。
@@ -445,9 +445,9 @@ AC番号は§12のcase番号を `D4-AC-01`〜`D4-AC-23` として参照する。
 - model移行残（543）とD07nullable/ExactNumeric adapterの必要subset。compile/testsは未実行。
 - 実DB適用状況、運用import/復元経路の稼働隔離、権限/RLS/本番activation。実環境の確認証拠なし。
 
-**D4から切り離した未選定**
-- 501 A/Bの他院provenance exact wire、mapping管理、summary endpoint/cache世代の最終選定。D4 counterはそれらの臨床意味を決めない。
-- 495 D2見積削除等の本人業務判断。本契約のブロッカーへ混ぜない。
+**D4から分離した選定と残依存**
+- [501 A/B限定契約](provenance-official-summary-contract.md#exam-provenance-summary-scope)でprovenance/official summary wireと鮮度を選定。臨床mapping47・明示availability証拠・create C06等の必要供給は残る。D4 counterは臨床意味を決めない。
+- 495 D2は[別の本人判断](../../../spec/domains/estimates/business-rules.md#estimates-delete-parent-state-20261023)で親未確定条件のみ廃止。本D4のブロッカーへ混ぜない。
 - 不明結果の患者/record修復、死亡後新入力、新しい感染症判定の業務操作。本契約で新造しない。
 
 **既存記述との衝突**
@@ -457,16 +457,12 @@ AC番号は§12のcase番号を `D4-AC-01`〜`D4-AC-23` として参照する。
 - 516のlink digestに新counterを足す/置換する案は含めない。採択済みexam-link-source-v1のexact projectionを変えない。
 - Q未実装とする旧待ちを引き継がない。固定mainのVerifiedCommandは存在する。ただしD07 consumer adapter完成とは別。
 
-### 13.1 job ownerへの狭い残契約要求（未選定を維持）
-固定sourceの `labDeviceReceiveService.Detach` はjob cardを返し、`DetachDeviceJob` は成功receiptを挿入しない。一方 `Revert` は `lab_import_revert_receipts` を保存する。従って「全機器解除にも既にC06 replayがある」とする記述は誤りになる。
+<a id="exam-job-detach-handoff"></a>
+### 13.1 job ownerへの後発選定と未供給subset
 
-- D4から引き渡す決定候補は、**結果を消すDetachもjob ownerの単一最外operationに含め、examのcounter/補償snapshot/監査と耐久成功結果を一度にcommitすること**。各examで別Runner.Executeを開始しない。
-- job ownerが受け取る入力: trusted clinic/actor、元job UUID、操作action、元idempotency key、現在jobの許可状態。exam集合/期待counterはjob lock下のscoped再読から決める。返す成果: 元jobへの不変target解決、成功時のretracted exam ID集合と各counterの固定参照、現在認可付きsame-key lookup、unknown時の停止。外部機器送信なし。
-- exact job Scope/claim metadata/revert既存receiptとの写像を本D4だけで独自採択しない。特にexamination_operation_targetsはexam単体用であり、複数examやexamゼロのjob targetへ捏造しない。job用metadataを増やすなら既存job ownerと446/466へ別の限定差分として戻す。§10の「最小2DDL」は単体D4 consumerの差分であり、job owner追加schemaまで閉じた主張ではない。
-- 採択/受領前は、この未接続Detach経路をD4/516の安全なactivation証拠に含めない。**該当Detachだけfail closedのsubsetを選んで単体結果編集を先行する案**を提示する。独立機器受信/閲覧/新規保存を一律停止する案ではない。
-- Revert既存receiptについても、現在認可付きlookupの実route/未成功target/unknown回復の同等性は未検証。既存receiptの存在だけでC06全契約適合としない。counter/lock参加は本契約で指定できるが、結果回復の完全適合はjob owner受領のチェックを残す。
+初回D4採択時はDetachのjob target/key/unknownが未選定だった。現sourceのDetachに成功receiptがなくRevert旧receiptで代用できない差を保持し、後発の[Detach有限契約](job-detach-contract.md#exam-detach-scope)で独立job target digest/C06/3追加表/固定manifest/cursor/版付き補償snapshotを選定した。各examでRunnerを起動せず全examのcounter/補償/監査/manifest/成功結果を同TXに置く。
 
-この残点は技術調査不足を隠すための「実装時に検討」ではなく、単体exam consumerとjob補償ownerの境界にある具体的な採択待ちである。取りまとめownerと現job ownerが、job側の次の限定設計対象又は当該入口を停止した先行subsetを明示して選ぶ必要がある。
+単体D4の2DDLとjob用3追加表は別subset。元target reader・全membership writerのjob lock閉包・schema/API/FE切替は未受領。Revert unknownは別有限残。未参加入口だけactivation対象外とし、独立受信/閲覧・適合済み他mutationを一律停止しない。正式実行ID/claimと供給SHAは未確定。
 
 ## 14. 根拠索引
 基準sourceと既存正本・Plane記録。sourceは実装差分の根拠であり、臨床業務仕様を上書きするものではない。
