@@ -3,7 +3,7 @@
 
 [概要ERD](../erd.md)
 
-マイグレーション **8ファイル** から **251テーブル・2790カラム・765外部キー** を静的に導出しています。
+マイグレーション **9ファイル** から **253テーブル・2807カラム・769外部キー** を静的に導出しています。
 
 DDLは `backend/migrations/` 直下の `.sql` をファイル名順に読み、CREATE/ALTER/DROPとレビュー済みDOブロックの変更を反映します。seed、`schema_migrations`（migrate runnerの管理テーブル）、関数・trigger・RLS・実データはこの一覧の対象外です。
 
@@ -152,6 +152,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [line_dispatch_results](line_dispatch_results.md) | 10 | 2 |
 | [line_link_tokens](line_link_tokens.md) | 7 | 2 |
 | [line_reservation_settings](line_reservation_settings.md) | 30 | 1 |
+| [line_staff_start_policies](line_staff_start_policies.md) | 11 | 3 |
 | [lstep_auto_managed_prefixes](lstep_auto_managed_prefixes.md) | 6 | 0 |
 | [lstep_condition_tag_mappings](lstep_condition_tag_mappings.md) | 6 | 0 |
 | [lstep_csv_imports](lstep_csv_imports.md) | 12 | 2 |
@@ -216,6 +217,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [reservation_capacity_gates](reservation_capacity_gates.md) | 4 | 1 |
 | [reservation_contract_states](reservation_contract_states.md) | 6 | 1 |
 | [reservation_eligibility_evidence](reservation_eligibility_evidence.md) | 7 | 2 |
+| [reservation_master_operation_anchors](reservation_master_operation_anchors.md) | 6 | 1 |
 | [reservation_notification_eligibility](reservation_notification_eligibility.md) | 9 | 5 |
 | [reservation_type_available_slots](reservation_type_available_slots.md) | 10 | 2 |
 | [reservation_type_groups](reservation_type_groups.md) | 10 | 1 |
@@ -284,7 +286,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 
 ## 入力の照合情報
 
-入力digest（SHA-256）: `2d1f5b94a4e83cde1e2126c497a760356e4e95af3341503d331f934450e8b9c1`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
+入力digest（SHA-256）: `0444c6ab983bb5e77ce1ed557f1510caf431fe6d6302bcdd2cd9d1e306a56910`。各ファイルのSHA-256と生成器のSHA-256は [manifest.json](manifest.json) に記録します。
 
 | migration | SHA-256 |
 |:---|:---|
@@ -296,6 +298,7 @@ python3 -B scripts/tools/test_generate_erd_detail.py
 | [007_bill_discount_excluded_and_master_versions.sql](../../../backend/migrations/007_bill_discount_excluded_and_master_versions.sql) | `e028965694c7903444ccb3b59cc5d2fdbbe0e3478de9d565b4b40da4153fe45b` |
 | [008_clinic_operating_hours.sql](../../../backend/migrations/008_clinic_operating_hours.sql) | `41f4aabdbc018026b8090aa1a1d6a92946e6fd2914a5986ec8183d1227b19313` |
 | [009_line_acceptance_version.sql](../../../backend/migrations/009_line_acceptance_version.sql) | `6c27c9160a3daf7e79b49dc168fd042a3334581bab3e65a2d208816da158efea` |
+| [010_line_staff_start_policy_and_reservation_anchor.sql](../../../backend/migrations/010_line_staff_start_policy_and_reservation_anchor.sql) | `03d16767d1570fb0611a7a5325d24ac93f235df7517fdefd9848f088401c70a8` |
 
 レビュー済みDOブロック（本文変更・新規追加は再レビューが必要）:
 

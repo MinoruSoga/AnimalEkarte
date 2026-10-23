@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "generator": "scripts/tools/generate-erd-detail.py",
-  "source_digest": "2d1f5b94a4e83cde1e2126c497a760356e4e95af3341503d331f934450e8b9c1",
+  "source_digest": "0444c6ab983bb5e77ce1ed557f1510caf431fe6d6302bcdd2cd9d1e306a56910",
   "generator_sources": [
     {
       "name": "erd_render.py",
@@ -17,9 +17,9 @@
     }
   ],
   "counts": {
-    "tables": 251,
-    "columns": 2790,
-    "foreign_keys": 765
+    "tables": 253,
+    "columns": 2807,
+    "foreign_keys": 769
   },
   "migrations": [
     {
@@ -53,6 +53,10 @@
     {
       "name": "009_line_acceptance_version.sql",
       "sha256": "6c27c9160a3daf7e79b49dc168fd042a3334581bab3e65a2d208816da158efea"
+    },
+    {
+      "name": "010_line_staff_start_policy_and_reservation_anchor.sql",
+      "sha256": "03d16767d1570fb0611a7a5325d24ac93f235df7517fdefd9848f088401c70a8"
     }
   ],
   "reviewed_do_blocks": [
@@ -194,6 +198,7 @@
     "line_dispatch_results.md",
     "line_link_tokens.md",
     "line_reservation_settings.md",
+    "line_staff_start_policies.md",
     "lstep_auto_managed_prefixes.md",
     "lstep_condition_tag_mappings.md",
     "lstep_csv_imports.md",
@@ -258,6 +263,7 @@
     "reservation_capacity_gates.md",
     "reservation_contract_states.md",
     "reservation_eligibility_evidence.md",
+    "reservation_master_operation_anchors.md",
     "reservation_notification_eligibility.md",
     "reservation_type_available_slots.md",
     "reservation_type_groups.md",

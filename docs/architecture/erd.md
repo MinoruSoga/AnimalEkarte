@@ -6,7 +6,7 @@
 
 > **詳細**: [全カラム・全外部キーの詳細ERD](erd-detail/index.md) はマイグレーションから静的に生成する。型・NULL可否・複合FKの列順・削除動作・部分uniqueの述語をテーブル別に記録し、`python3 -B scripts/tools/generate-erd-detail.py --check` で更新漏れを確認できる。
 
-<!-- ERD:TABLE_COUNT=251 -->
+<!-- ERD:TABLE_COUNT=253 -->
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
 > **最終照合**: 2026-10-19 consolidated baseline | **対象**: `backend/migrations/001_init.sql`（現行241テーブル。001〜038統合直後は164テーブル。以下の旧ファイル名は履歴識別子で、現行ファイルは 001 のみ）。DDL の正本は 001、旧増分の原文は `consolidated from` マーカーと git 履歴を参照する。稼働DBの適用状態・実データ・STG/本番受入は未確認。
@@ -169,9 +169,9 @@ erDiagram
 |:---|:---|:---|
 | 統合baselineの履歴表数 | 138（現在数ではない） | 現行は末尾の追加/DROPまで適用した241表。CREATE行数だけで数えない。 |
 | 旧増分マイグレーションが追加していたテーブル | 6: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`)、`exam_reference_ranges`（2026-07-27統合の旧`005`） | 現在は全て `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーションのCREATE/DROP適用後の現行物理テーブル総数 | 251 | 2026-10-19 の統合時点は `001_init.sql` の241表。その後の直下増分（`003`〜`009`）を含めた現行数を `ls backend/migrations/*.sql` の全DDLから数える。統合前の履歴は §4.3 / §4.4 を参照する。 |
+| 全マイグレーションのCREATE/DROP適用後の現行物理テーブル総数 | 253 | 2026-10-19 の統合時点は `001_init.sql` の241表。その後の直下増分（`003`〜`010`）を含めた現行数を `ls backend/migrations/*.sql` の全DDLから数える。統合前の履歴は §4.3 / §4.4 を参照する。 |
 | 統合前の履歴 `002`〜`038`（`008`・`026`・`027` 欠番） | 新規テーブル11（`support_bug_reports`・`support_chat_messages`・`medical_record_image_deletions`・対応下書き 4・`trimming_image_deletions`・`lstep_next_visit_sync_retries`・`support_manual_embeddings`・`support_llm_budgets`）。`014` は `prescriptions` DROP（純減1）、`015` は検索 index のみ、`016`/`018`/`022` はカラム追加、`017` は担当医・actor・staff参照の複合FK置換、`019` は権限行削除、`020` は checksum reconcile、`023` は `lab_import_jobs.species` 追加と対応下書き 4 テーブル。`024` は drafts 複合キーの列順張り直し、`025` は `cages.merged_into_cage_id`（旧025〜027の承認済み統合版）、`028`〜`030` は EMR-308 tentative 予約基盤（enum値・列2件・部分unique index）と `medical_records.next_visit_recommended_date` の DROP（新規テーブル0）。`031` は予約の元カルテ参照を医院複合FKへ置換、`032` はトリミング画像削除予約台帳を新設、`033` は次回来院タグ同期の再試行記録を新設、`034` は同表への `cleanup_line_user_id` 列追加のみ、`035` は `trimming_image_deletions` への `storage_deleted_at` / `last_attempt_at` 列と pending 部分index 追加のみ（いずれも新規テーブル0）。`036` は入院の `next_visit` 列追加のみ、`037` は `item_category` への `house_call` 値の追加のみ（新規テーブル0）、`038` は共有マニュアルembeddingキャッシュとquota状態の2表を新設 | 記録者FK2件の置換、治療明細のlifetime unique、子レコード楽観ロック `version`、accounts RLS ops bypass、billings 複合index、seed checksum reconcile 2件、`care_plan_items.other_reason`、pets 由来列2件（§4.4。2026-09-29 訂正: 「002 / 003 / 004・新規テーブル0」→ `002`〜`013`・新規テーブル2。2026-10-05 訂正: 当時の `023` backfill DML は運用判断で削除。2026-10-06: 現行 `023_lab_device_mapping_drafts.sql` を追加。2026-10-10: `024`〜`030` を追加・`026`/`027` 欠番・新規テーブル0。2026-10-10: `031` の複合FK置換と `032` の新規テーブル1を追加） |
-| ERD ドメイン表の物理テーブル数 | 251 | migrations と一致（2026-10-22: 直下増分 `003`〜`009` を含む全DDLの現行数。006で4表を追加、007は列追加のみで表数不変、008で1表を追加（009は列追加のみ）。2026-09-29 訂正: 128 → 130。§1.1 に `support_bug_reports` / `support_chat_messages` を含む。EMR-236 で `prescriptions` 除去し 129。2026-10-05 訂正: §1.1 に `medical_record_image_deletions` を含み 130。2026-10-06 訂正: §1.1 に対応下書き 4 テーブルを含み 134。2026-10-10: §1.1 に `trimming_image_deletions` を含み 135） |
+| ERD ドメイン表の物理テーブル数 | 253 | migrations と一致（2026-10-22: 直下増分 `003`〜`010` を含む全DDLの現行数。006で4表を追加、007は列追加のみで表数不変、008で1表を追加（009は列追加のみ）、010で2表を追加。2026-09-29 訂正: 128 → 130。§1.1 に `support_bug_reports` / `support_chat_messages` を含む。EMR-236 で `prescriptions` 除去し 129。2026-10-05 訂正: §1.1 に `medical_record_image_deletions` を含み 130。2026-10-06 訂正: §1.1 に対応下書き 4 テーブルを含み 134。2026-10-10: §1.1 に `trimming_image_deletions` を含み 135） |
 | ERD へ追加した不足テーブル | 12: 従来6（`token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items`）+ identity 4 + `medical_record_image_upload_quota` + `medical_record_image_deletions` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
 | ERD にあり migrations にないテーブル | 0 | 整合済み |
@@ -297,6 +297,10 @@ erDiagram
 ## 009: LINE受付版（EMR-446/466、未試験）
 
 `009_line_acceptance_version.sql` で `line_reservation_settings` に2列と2つのCHECK制約を追加した（新規テーブルなし、総数不変）。`acceptance_version` は `app_private.line_acceptance_version_guard()` が維持するCASカウンタで、契約§3.1の保護field P（12列）または reviewed marker の変更で+1、非P変更と真のno-opは同版。`reviewed_acceptance_version` は確認済み版（NULLまたは旧版=legacy-unreviewed、等値=configured）。既存行は acceptance=1・reviewed=NULL で未照合のまま。API/writer接続・DB適用・試験は未実施。
+
+## 010: 担当者別開始policyと492 anchor（EMR-446/466、未試験）
+
+`010_line_staff_start_policy_and_reservation_anchor.sql` で2表と1 UNIQUEを追加した。`line_staff_start_policies` は契約§4.1の担当者別trimming開始policyで、`(clinic_id,reservation_type_id,assignment_id)` PK・`trimming-registered-starts/v1` schema marker・正version・weekly_times/date_overrides・deleted_at tombstoneを持ち、staff_idとassignmentの一致は `(assignment_id,staff_id,clinic_id)→staff_clinic_assignments` 複合FK（新`uq_staff_clinic_assignments_id_staff_clinic`）でDB保証する。物理DELETEは `line_staff_start_policy_no_delete` が23514で拒否。`reservation_master_operation_anchors` は492選定契約の基底表と§4.3後続差分を1つの作成文で定義するclaim時原対象anchorで、binding複合FK・clinic RLS・`contract_history_immutable`を持ち、業務type/staff/assignmentへのFKは付けない。API/writer接続・DB適用・試験は未実施。列・FK・CHECKは生成した詳細ERDを正本とする。
 
 ## 確定仕様からの保存不足追補
 

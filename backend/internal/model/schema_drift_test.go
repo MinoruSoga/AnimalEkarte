@@ -304,6 +304,10 @@ func allModels() []any {
 		&model.TrimmingServiceLine{},
 		// EMR-446/466 clinic_operating_hours (migration 008).
 		&model.ClinicOperatingHours{},
+		// EMR-446/466 line_staff_start_policies (migration 010).
+		// reservation_master_operation_anchors is SQL-only storage like
+		// staff_leave_operation_targets and has no GORM model.
+		&model.LineStaffStartPolicy{},
 	}
 }
 
