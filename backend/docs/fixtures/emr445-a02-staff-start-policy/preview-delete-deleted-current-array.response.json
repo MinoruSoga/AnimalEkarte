@@ -1,0 +1,35 @@
+{
+  "schema_version": "trimming-registered-starts-preview/v1",
+  "clinic_id": "7",
+  "reservation_type_id": "12",
+  "staff_id": "5",
+  "assignment_id": "31",
+  "mode": "delete",
+  "current_state": "deleted",
+  "observed_versions": {
+    "line_staff_start_policy": "3",
+    "clinic_operating_hours": "4",
+    "line_acceptance": "2"
+  },
+  "proposed_policy": null,
+  "days": [
+    {
+      "date": "2026-11-02",
+      "current_registered_times": [
+        "10:00",
+        "13:30"
+      ],
+      "proposed_registered_times": null,
+      "current_masked": {
+        "state": "policy-deleted",
+        "times": null
+      },
+      "proposed_masked": {
+        "state": "policy-deleted",
+        "times": null
+      }
+    }
+  ],
+  "reservation_eligibility": "not-evaluated",
+  "warning_receipt": null
+}
