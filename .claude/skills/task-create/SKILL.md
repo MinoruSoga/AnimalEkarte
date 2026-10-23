@@ -47,8 +47,8 @@ Plane が採番する `EMR-N` を使う。旧来の `TASK-XXX` 連番採番は�
 旧 `TASK-XXX-BE` / `TASK-XXX-FE` のテキスト分割は廃止。Plane の親子構造を使う:
 
 1. 調査後に[正本の成功単位](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)で境界付き成果を列挙し、既存の適切な実行票/子票を照合する。層・endpoint・componentだけで分割せず、同じ層にも複数の独立成果があり得る。
-2. 集約が必要なら親票を用意し、各成果の範囲/対象AC・完了条件・owner・後続/必要subsetを対応付ける。Phase 4で不足する実行票だけを作成し、返却された各IDを確定する。
-3. 依存は[必要subset4状態](../../../docs/ops/plane-ticket-conventions.md#adopted-baseline-and-dependency-subsets)・供給owner/実行票・受領SHAで示し、両ID確定後にPhase 5でPlane relationも同期する。必要API/型/runtime受領待ちと、許可済みmock/契約先行の独立成果を分け、BE親票全体のDoneを一律gateにしない。
+2. 集約が必要なら既存親の再利用/不足親の候補を区別し、各成果の範囲/対象AC・完了条件・owner・後続/必要subsetを対応付ける。Phase 3で既存票の再利用を先に判定し、不足する親/実行票だけを作成、Phase 4で各IDの対応を確認する。
+3. 依存は[必要subset4状態](../../../docs/ops/plane-ticket-conventions.md#adopted-baseline-and-dependency-subsets)・供給owner/実行票・受領SHAで示し、両ID確定後にPhase 5の許可確認を経てPlane relationも同期する。必要API/型/runtime受領待ちと、許可済みmock/契約先行の独立成果を分け、BE親票全体のDoneを一律gateにしない。
 
 ---
 
@@ -160,9 +160,11 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ---
 
-## Phase 3: Plane チケット作成
+## Phase 3: 既存票照合と不足票だけの作成
 
-### 出力先: Plane `workitem create`（`project_id` は規約文書の附録参照）
+作成前に、Phase 2の調査/2.5の決定を反映した成果一覧と既存の親/実行票を照合し、各成果を「既存IDを再利用」「不足票を作成」「未決scopeを保留」へ対応付ける。全成果が既存票で充足し、集約先も存在又は不要なら`create`を呼ばない。必要な親も含め不足が実証された票だけを作る。単一成果に不要な親を追加しない。
+
+### 不足票の出力先: Plane `workitem create`（`project_id` は規約文書の附録参照）
 
 [`docs/ops/plane-ticket-conventions.md`](../../../docs/ops/plane-ticket-conventions.md) の規約に従う:
 
@@ -177,9 +179,9 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ---
 
-## Phase 4: 成果ごとの実行票を確定
+## Phase 4: 成果ごとの実行ID対応を確認
 
-Phase 2の調査と仕様確認を反映した独立成果の一覧を一巡する。各成果に適切な既存票があれば再利用し、重複確認後に不足する子票だけを`parent`付きで作成する。単一成果なら不要な親/子票を増やさない。BE1票/FE1票という固定ペアではなく、宣言した成功単位ごとに実行IDを確定し、親AC→各実行IDと残件ownerを網羅対応する。
+独立成果の一覧を一巡し、Phase 3で再利用した既存IDと新規作成で返却されたIDを確認する。この段階で重複作成しない。集約する子票は適切な親との対応も確認する。BE1票/FE1票という固定ペアではなく、宣言した成功単位ごとに実行IDを確定し、親AC→各実行IDと残件ownerを網羅対応する。
 
 各票は[着手契約](../../../docs/ops/plane-ticket-conventions.md#scope-and-readiness-contract)に従い、実callerを含む機能成果又は明示した契約/基盤/mock成果のどちらかと、その受入/activation条件を記す。未受領の機能scopeをReadyにしない。
 
@@ -187,7 +189,7 @@ Phase 2の調査と仕様確認を反映した独立成果の一覧を一巡す�
 
 ## Phase 5: 両ID確定後の依存relation同期
 
-必要subsetの受領を待つconsumerごとに、供給する既存の限定実行票/子票とconsumerの両IDが実在・確定した後、consumerの`blocked_by`を供給票へ作成/同期する。既存relationは読取照合し重複を作らない。供給範囲が親票全体なら限定成功単位の対応を先に確定し、未確定IDを捏造してrelationを作らない。
+必要subsetの受領を待つconsumerごとに、供給する既存の限定実行票/子票とconsumerの両IDが実在・確定した後、[正本のrelation操作許可](../../../docs/ops/plane-ticket-conventions.md#dependency-relation-permission)を確認する。create/update/comment/stateの許可だけで別操作のrelateを許可済みと推定しない。適用される既存許可又は本人の明示許可が確認できた対象だけ、consumerの`blocked_by`を供給票へ作成/同期する。許可不足なら両ID・必要subset・予定する関係を示して確認し、当該依存scopeだけ保留する。既存relationは読取照合し重複を作らない。供給範囲が親票全体なら限定成功単位の対応を先に確定し、未確定IDを捏造してrelationを作らない。
 
 [正本の両側整合確認](../../../docs/ops/plane-ticket-conventions.md#existing-ticket-scope-reassessment)に従い、両票本文/最新決定コメント/依存記述とrelationが同じsubset・受領条件を指すことを再読確認する。本文だけの依存や不要な全親Done待ちを残さず、関係/状態を根拠なしに一括削除しない。受領SHA等が未確定なら待ち条件として残し、relationの存在だけで受領済みとはしない。
 
@@ -200,8 +202,8 @@ Phase 2の調査と仕様確認を反映した独立成果の一覧を一巡す�
 ```
 ## タスク分解完了
 
-### 起票済み（N件）
-- EMR-NNN: タイトル — state / labels
+### 新規作成（N件、全て再利用なら0件）/ 再利用（M件）
+- EMR-NNN: タイトル — 新規又は再利用 / state / labels
 
 ### 実装順序
 1. EMR-NNN — 宣言した契約/基盤又は機能の成功単位・共有owner

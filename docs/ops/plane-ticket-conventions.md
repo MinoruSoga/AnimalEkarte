@@ -291,8 +291,13 @@
 
 - 1票に収まらない変更は **親票 + 子票**（`parent` に親の UUID）で表現する。旧 `-BE` / `-FE` テキスト分割は Plane では使わない。Plane の Epic type・intake（下書き取込）も使わない — 集約は `kind:case-hub` + parent 関係、intake/draft は起票前の仮置きであり正式起票時に本規約を適用する
 - 子票は親票の `source:*`・`lane:*` を継承し、本文の【出典】節に親票 `EMR-N` を記す
-- 子票の依存は[必要subset4状態](#adopted-baseline-and-dependency-subsets)と供給/受領SHAで記す。待つconsumerと必要subsetを供給する限定実行票/子票の両IDが実在・確定した後、consumerの`blocked_by`を供給票へ作成/同期し、両票本文/決定コメントと同じ受領単位か確認する。既存relationを照合して重複を避け、存在しないIDや機械的な全親待ちで代用しない。受領が必要なscopeは依存待ちとして扱い、独立した限定成果はその完了条件で判断する。BE親票全体のDone待ちを一律条件にしない
+- 子票の依存は[必要subset4状態](#adopted-baseline-and-dependency-subsets)と供給/受領SHAで記す。待つconsumerと必要subsetを供給する限定実行票/子票の両IDが実在・確定した後、作成/同期前に両票本文の依存記述/最新決定コメントが同じ受領単位を指すことを照合し、下記の操作許可を確認したうえでconsumerの`blocked_by`を供給票へ作成/同期する。実行後もrelationと両側記述の一致を読戻す。既存relationを照合して重複を避け、存在しないIDや機械的な全親待ちで代用しない。受領が必要なscopeは依存待ちとして扱い、独立した限定成果はその完了条件で判断する。BE親票全体のDone待ちを一律条件にしない
 - `task-create` の単一責務・自己完結・コード参照という観点を使い、[本規約の成功単位/1PR完了条件](#scope-and-readiness-contract)で粒度を判断する。時間見積りは補助で、時間や票数だけで共有契約/安全性を切り離さない。個人Skillや権限の変更は本改訂に含めない
+
+<a id="dependency-relation-permission"></a>
+### relation操作の許可確認
+
+relationの作成/同期（relate）はcreate/update/comment/stateとは別操作として、適用される既存許可又は本人の明示許可を確認してから実施する。本規約はAGENTS等の承認範囲を拡大しない。許可不足なら供給/consumerの実在ID・必要subset・作成/変更する関係を示して確認し、当該依存scopeだけ保留する。本文だけで同期完了や受領済みとは報告せず、依存しない許可済み作業は続行できる。
 
 <a id="claim-and-work-start"></a>
 ## claim / 作業開始時
