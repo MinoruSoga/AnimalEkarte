@@ -328,6 +328,8 @@ ADR003のENUMとsystem_key／医院master IDの整合は維持する。固定4�
 
 2026-10-22選定の[限定認可・参加・互換境界§4.1](../../../work/emr/emr-540-308-462-506-selected-handoff-20261022.md#posthumous-selected-participation)を併読する。lookupは認証医院・同一actor・保存済み元対象anchorから解決した対象への現在`accounting:view`を検査し、request/URLへ元対象をfallbackせず、失権/解決失敗時は結果非開示。mutationの既存write grantを維持し、勤務consumerの元write grant要件を金融lookupへ自動移植しない。462 completeの初回201/再送200・Billing wireは維持。一般506 route/DTO/HTTP等は同追補§4.2の未選定残であり、共通化だけで既存wireを変更したり実装/受入完了としない。
 
+一般506の受領/複数請求配賦・方法/日時誤記訂正については[設計候補・未採択の整理](../../../work/emr/emr-506-fund-wire-design-candidates-20261022.md)を参照。候補route/新wire/CAS tokenを実在APIやclosed contractとして扱わず、既決のlookup認可・元owner・原子receiptと462 Completeの整数wire/201・200は維持する。
+
 <a id="accounting-document-completion"></a>
 ## D10文書完成条件と判定外
 

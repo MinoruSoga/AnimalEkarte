@@ -16,21 +16,22 @@ import (
 )
 
 type mockTreatmentPackageRepo struct {
-	findAllFn      func(ctx context.Context, clinicID uint64) ([]model.TreatmentPackage, error)
-	findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPackage, error)
-	liveItemsFn    func(ctx context.Context, clinicID uint64, ids []uint64) ([]model.TreatmentPackageItem, error)
-	allItemsFn     func(ctx context.Context, clinicID, packageID uint64) ([]model.TreatmentPackageItem, error)
-	lockClinicFn   func(ctx context.Context, clinicID uint64) error
-	lockCatalogFn  func(ctx context.Context, clinicID uint64) (int64, error)
-	catalogRevFn   func(ctx context.Context, clinicID uint64) (int64, error)
-	incCatalogFn   func(ctx context.Context, clinicID uint64, expected int64) error
-	lockPkgsFn     func(ctx context.Context, clinicID uint64, ids []uint64) ([]model.TreatmentPackage, error)
-	maxSortFn      func(ctx context.Context, clinicID uint64) (int, error)
-	createFn       func(ctx context.Context, pkg *model.TreatmentPackage, items []model.TreatmentPackageItem) error
-	updateFn       func(ctx context.Context, clinicID, id uint64, expected int64, fields map[string]any) (*model.TreatmentPackage, error)
-	replaceItemsFn func(ctx context.Context, clinicID, packageID uint64, keep []model.TreatmentPackageItem, removeIDs []uint64, now time.Time) error
-	softDeleteFn   func(ctx context.Context, clinicID, id uint64, expected int64, actorID uint64, now time.Time) error
-	reorderFn      func(ctx context.Context, clinicID, id uint64, sortOrder int, actorID uint64) error
+	findAllFn           func(ctx context.Context, clinicID uint64) ([]model.TreatmentPackage, error)
+	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPackage, error)
+	liveItemsFn         func(ctx context.Context, clinicID uint64, ids []uint64) ([]model.TreatmentPackageItem, error)
+	allItemsFn          func(ctx context.Context, clinicID, packageID uint64) ([]model.TreatmentPackageItem, error)
+	lockClinicFn        func(ctx context.Context, clinicID uint64) error
+	lockCatalogFn       func(ctx context.Context, clinicID uint64) (int64, error)
+	catalogRevFn        func(ctx context.Context, clinicID uint64) (int64, error)
+	incCatalogFn        func(ctx context.Context, clinicID uint64, expected int64) error
+	lockPkgsFn          func(ctx context.Context, clinicID uint64, ids []uint64) ([]model.TreatmentPackage, error)
+	lockAllForReorderFn func(ctx context.Context, clinicID uint64) ([]model.TreatmentPackage, error)
+	maxSortFn           func(ctx context.Context, clinicID uint64) (int, error)
+	createFn            func(ctx context.Context, pkg *model.TreatmentPackage, items []model.TreatmentPackageItem) error
+	updateFn            func(ctx context.Context, clinicID, id uint64, expected int64, fields map[string]any) (*model.TreatmentPackage, error)
+	replaceItemsFn      func(ctx context.Context, clinicID, packageID uint64, keep []model.TreatmentPackageItem, removeIDs []uint64, now time.Time) error
+	softDeleteFn        func(ctx context.Context, clinicID, id uint64, expected int64, actorID uint64, now time.Time) error
+	reorderFn           func(ctx context.Context, clinicID, id uint64, sortOrder int, actorID uint64) error
 }
 
 func (m *mockTreatmentPackageRepo) FindAll(ctx context.Context, c uint64) ([]model.TreatmentPackage, error) {
@@ -59,6 +60,9 @@ func (m *mockTreatmentPackageRepo) IncrementCatalogRevision(ctx context.Context,
 }
 func (m *mockTreatmentPackageRepo) LockPackagesByIDAsc(ctx context.Context, c uint64, ids []uint64) ([]model.TreatmentPackage, error) {
 	return m.lockPkgsFn(ctx, c, ids)
+}
+func (m *mockTreatmentPackageRepo) LockAllPackagesForReorder(ctx context.Context, c uint64) ([]model.TreatmentPackage, error) {
+	return m.lockAllForReorderFn(ctx, c)
 }
 func (m *mockTreatmentPackageRepo) MaxSortOrder(ctx context.Context, c uint64) (int, error) {
 	return m.maxSortFn(ctx, c)
@@ -244,12 +248,10 @@ func TestTreatmentPackageService_Reorder_NoOpKeepsVersions(t *testing.T) {
 	repo := &mockTreatmentPackageRepo{
 		lockClinicFn:  func(context.Context, uint64) error { return nil },
 		lockCatalogFn: func(context.Context, uint64) (int64, error) { return 7, nil },
-		findAllFn: func(context.Context, uint64) ([]model.TreatmentPackage, error) {
+		lockAllForReorderFn: func(context.Context, uint64) ([]model.TreatmentPackage, error) {
 			return []model.TreatmentPackage{{ID: 201, SortOrder: 0}, {ID: 202, SortOrder: 1}}, nil
 		},
-		lockPkgsFn: func(_ context.Context, _ uint64, ids []uint64) ([]model.TreatmentPackage, error) {
-			return []model.TreatmentPackage{{ID: 201, SortOrder: 0}, {ID: 202, SortOrder: 1}}, nil
-		},
+		liveItemsFn:  func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) { return nil, nil },
 		incCatalogFn: func(context.Context, uint64, int64) error { catalogBumped = true; return nil },
 		reorderFn:    func(context.Context, uint64, uint64, int, uint64) error { moved = true; return nil },
 	}
@@ -263,16 +265,175 @@ func TestTreatmentPackageService_Reorder_MembershipMismatchRejected(t *testing.T
 	repo := &mockTreatmentPackageRepo{
 		lockClinicFn:  func(context.Context, uint64) error { return nil },
 		lockCatalogFn: func(context.Context, uint64) (int64, error) { return 7, nil },
-		findAllFn: func(context.Context, uint64) ([]model.TreatmentPackage, error) {
+		lockAllForReorderFn: func(context.Context, uint64) ([]model.TreatmentPackage, error) {
 			return []model.TreatmentPackage{{ID: 201, SortOrder: 0}, {ID: 202, SortOrder: 1, IsActive: false}}, nil
 		},
-		lockPkgsFn: func(context.Context, uint64, []uint64) ([]model.TreatmentPackage, error) {
-			return []model.TreatmentPackage{{ID: 201, SortOrder: 0}, {ID: 202, SortOrder: 1}}, nil
-		},
+		liveItemsFn: func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) { return nil, nil },
 	}
 	svc, _ := newPackageService(repo, nil)
 	assert.ErrorIs(t, svc.Reorder(context.Background(), 7, 7, []uint64{201}, 9), apperrors.ErrInvalidInput)      // incomplete set
 	assert.ErrorIs(t, svc.Reorder(context.Background(), 7, 7, []uint64{201, 999}, 9), apperrors.ErrInvalidInput) // foreign id; inactive 202 still required
+}
+
+// S06: 一覧表示の FindAll cap（MaxMasterListRows=10000）を超える医院でも、
+// reorder は cap 無しの全件ロックで照合する。10,001件（inactive 混在・非連番
+// sort_order）の完全 permutation を受理し、catalog revision は1回だけ上がる。
+func reorderFixturePackages(total int) []model.TreatmentPackage {
+	pkgs := make([]model.TreatmentPackage, 0, total)
+	for i := 0; i < total; i++ {
+		pkgs = append(pkgs, model.TreatmentPackage{
+			ID:        uint64(i + 1),
+			ClinicID:  7,
+			IsActive:  i%2 == 0,
+			SortOrder: (i*7)%total + 1, // 非連番の一意 sort 値。
+		})
+	}
+	return pkgs
+}
+
+func reorderAllIDs(total int) []uint64 {
+	ids := make([]uint64, 0, total)
+	for i := 1; i <= total; i++ {
+		ids = append(ids, uint64(i))
+	}
+	return ids
+}
+
+func TestTreatmentPackageService_Reorder_FullSetBeyondListCapAccepted(t *testing.T) {
+	const total = 10001
+	pkgs := reorderFixturePackages(total)
+	// 全件の完全 permutation（反転）。部分集合ではなく真の全件列。
+	ids := reorderAllIDs(total)
+	for i, j := 0, len(ids)-1; i < j; i, j = i+1, j-1 {
+		ids[i], ids[j] = ids[j], ids[i]
+	}
+	incCalls := 0
+	repo := &mockTreatmentPackageRepo{
+		lockClinicFn:  func(context.Context, uint64) error { return nil },
+		lockCatalogFn: func(context.Context, uint64) (int64, error) { return 9, nil },
+		lockAllForReorderFn: func(context.Context, uint64) ([]model.TreatmentPackage, error) {
+			return pkgs, nil
+		},
+		liveItemsFn: func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) { return nil, nil },
+		reorderFn:   func(context.Context, uint64, uint64, int, uint64) error { return nil },
+		incCatalogFn: func(_ context.Context, _ uint64, expected int64) error {
+			incCalls++
+			assert.Equal(t, int64(9), expected)
+			return nil
+		},
+	}
+	svc, audit := newPackageService(repo, nil)
+	require.NoError(t, svc.Reorder(context.Background(), 7, 9, ids, 5))
+	assert.Equal(t, 1, incCalls) // 全件受理で revision は1回だけ。
+	assert.Len(t, audit.entries, 1)
+}
+
+// S06: cap 境界の部分集合・重複・foreign id・stale order_version はすべて
+// zero-write で拒否（UpdateSortOrderBumpVersion / IncrementCatalogRevision / audit なし）。
+func TestTreatmentPackageService_Reorder_RejectedBeyondListCapZeroWrite(t *testing.T) {
+	const total = 10001
+	mkRepo := func(reorderCalled, incCalled *bool) *mockTreatmentPackageRepo {
+		return &mockTreatmentPackageRepo{
+			lockClinicFn:  func(context.Context, uint64) error { return nil },
+			lockCatalogFn: func(context.Context, uint64) (int64, error) { return 9, nil },
+			lockAllForReorderFn: func(context.Context, uint64) ([]model.TreatmentPackage, error) {
+				return reorderFixturePackages(total), nil
+			},
+			liveItemsFn:  func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) { return nil, nil },
+			reorderFn:    func(context.Context, uint64, uint64, int, uint64) error { *reorderCalled = true; return nil },
+			incCatalogFn: func(context.Context, uint64, int64) error { *incCalled = true; return nil },
+		}
+	}
+	run := func(t *testing.T, orderVersion int64, ids []uint64) (error, *mockPackageAudit, bool, bool) {
+		reorderCalled := false
+		incCalled := false
+		repo := mkRepo(&reorderCalled, &incCalled)
+		svc, audit := newPackageService(repo, nil)
+		err := svc.Reorder(context.Background(), 7, orderVersion, ids, 5)
+		return err, audit, reorderCalled, incCalled
+	}
+	assertZeroWrite := func(t *testing.T, audit *mockPackageAudit, reorderCalled, incCalled bool) {
+		assert.False(t, reorderCalled, "UpdateSortOrderBumpVersion must not run")
+		assert.False(t, incCalled, "IncrementCatalogRevision must not run")
+		assert.Empty(t, audit.entries, "audit must not run")
+	}
+
+	t.Run("10,000-id subset", func(t *testing.T) {
+		err, audit, reorderCalled, incCalled := run(t, 9, reorderAllIDs(total)[:total-1])
+		assert.ErrorIs(t, err, apperrors.ErrInvalidInput)
+		assertZeroWrite(t, audit, reorderCalled, incCalled)
+	})
+	t.Run("duplicated id", func(t *testing.T) {
+		ids := reorderAllIDs(total)
+		ids[total-1] = ids[0] // 末尾を先頭と同じ id にして重複させる（1件欠落）。
+		err, audit, reorderCalled, incCalled := run(t, 9, ids)
+		assert.ErrorIs(t, err, apperrors.ErrInvalidInput)
+		assertZeroWrite(t, audit, reorderCalled, incCalled)
+	})
+	t.Run("foreign id", func(t *testing.T) {
+		ids := reorderAllIDs(total)
+		ids[total-1] = uint64(total) + 1 // 他院・存在しない id。
+		err, audit, reorderCalled, incCalled := run(t, 9, ids)
+		assert.ErrorIs(t, err, apperrors.ErrInvalidInput)
+		assertZeroWrite(t, audit, reorderCalled, incCalled)
+	})
+	t.Run("stale order_version", func(t *testing.T) {
+		err, audit, reorderCalled, incCalled := run(t, 8, reorderAllIDs(total))
+		assert.ErrorIs(t, err, apperrors.ErrConflict)
+		assertZeroWrite(t, audit, reorderCalled, incCalled)
+	})
+}
+
+// B3-01: 取得後に一覧が変わった（増減した）旧リクエストは zero-write で拒否する。
+// クライアントが取得時の N 件の完全 permutation を送っても、lock 時点の全件と
+// 件数が一致しなければ受理しない。
+func TestTreatmentPackageService_Reorder_ChangedAfterFetchZeroWrite(t *testing.T) {
+	mkRepo := func(locked []model.TreatmentPackage, reorderCalled, incCalled *bool) *mockTreatmentPackageRepo {
+		return &mockTreatmentPackageRepo{
+			lockClinicFn:  func(context.Context, uint64) error { return nil },
+			lockCatalogFn: func(context.Context, uint64) (int64, error) { return 9, nil },
+			lockAllForReorderFn: func(context.Context, uint64) ([]model.TreatmentPackage, error) {
+				return locked, nil
+			},
+			liveItemsFn:  func(context.Context, uint64, []uint64) ([]model.TreatmentPackageItem, error) { return nil, nil },
+			reorderFn:    func(context.Context, uint64, uint64, int, uint64) error { *reorderCalled = true; return nil },
+			incCatalogFn: func(context.Context, uint64, int64) error { *incCalled = true; return nil },
+		}
+	}
+	run := func(t *testing.T, locked []model.TreatmentPackage, ids []uint64) (error, *mockPackageAudit, bool, bool) {
+		reorderCalled := false
+		incCalled := false
+		repo := mkRepo(locked, &reorderCalled, &incCalled)
+		svc, audit := newPackageService(repo, nil)
+		err := svc.Reorder(context.Background(), 7, 9, ids, 5)
+		return err, audit, reorderCalled, incCalled
+	}
+	assertZeroWrite := func(t *testing.T, audit *mockPackageAudit, reorderCalled, incCalled bool) {
+		assert.False(t, reorderCalled, "UpdateSortOrderBumpVersion must not run")
+		assert.False(t, incCalled, "IncrementCatalogRevision must not run")
+		assert.Empty(t, audit.entries, "audit must not run")
+	}
+
+	t.Run("added after fetch", func(t *testing.T) {
+		locked := []model.TreatmentPackage{
+			{ID: 1, ClinicID: 7, IsActive: true, SortOrder: 1},
+			{ID: 2, ClinicID: 7, IsActive: true, SortOrder: 2},
+			{ID: 3, ClinicID: 7, IsActive: true, SortOrder: 3},
+			{ID: 4, ClinicID: 7, IsActive: true, SortOrder: 4}, // 取得後に追加された1件
+		}
+		err, audit, reorderCalled, incCalled := run(t, locked, []uint64{1, 2, 3})
+		assert.ErrorIs(t, err, apperrors.ErrInvalidInput)
+		assertZeroWrite(t, audit, reorderCalled, incCalled)
+	})
+	t.Run("removed after fetch", func(t *testing.T) {
+		locked := []model.TreatmentPackage{
+			{ID: 1, ClinicID: 7, IsActive: true, SortOrder: 1},
+			{ID: 2, ClinicID: 7, IsActive: true, SortOrder: 2}, // id 3 は取得後に削除済み
+		}
+		err, audit, reorderCalled, incCalled := run(t, locked, []uint64{1, 2, 3})
+		assert.ErrorIs(t, err, apperrors.ErrInvalidInput)
+		assertZeroWrite(t, audit, reorderCalled, incCalled)
+	})
 }
 
 // F1: components 未指定の update でも lock 済み package の live items を書込み前に検査する。

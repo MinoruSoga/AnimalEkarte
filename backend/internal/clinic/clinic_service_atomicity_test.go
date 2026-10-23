@@ -23,7 +23,9 @@ func (t *recordingClinicTransactor) WithTx(ctx context.Context, fn func(context.
 }
 
 type atomicClinicStore struct {
-	createdInTx bool
+	createdInTx        bool
+	catalogCreatedInTx bool
+	catalogErr         error
 }
 
 func (r *atomicClinicStore) FindAll(context.Context) ([]model.Clinic, error) {
@@ -57,6 +59,15 @@ func (r *atomicClinicStore) FindCompany(context.Context) (*model.Company, error)
 func (r *atomicClinicStore) Create(ctx context.Context, clinic *model.Clinic) error {
 	r.createdInTx, _ = ctx.Value(clinicTxMarker{}).(bool)
 	clinic.ID = 42
+	return nil
+}
+
+func (r *atomicClinicStore) CreateTreatmentPackageCatalogVersion(ctx context.Context, _ uint64) error {
+	r.catalogCreatedInTx, _ = ctx.Value(clinicTxMarker{}).(bool)
+	return r.catalogErr
+}
+
+func (r *atomicClinicStore) DeleteTreatmentPackageCatalogVersion(context.Context, uint64) error {
 	return nil
 }
 
@@ -124,6 +135,7 @@ func TestService_CreateClinic_UsesOneTransactionForClinicAndDefaultPermissions(t
 	assert.Equal(t, uint64(42), created.ID)
 	assert.True(t, tx.called)
 	assert.True(t, store.createdInTx)
+	assert.True(t, store.catalogCreatedInTx) // catalog 初期化も同一 tx 内。
 	assert.Equal(t, []bool{true, true}, writer.createInTx)
 	assert.Equal(t, []bool{true, true}, writer.updateRulesInTx)
 }
@@ -142,6 +154,28 @@ func TestService_CreateClinic_PropagatesPermissionRuleFailure(t *testing.T) {
 	assert.ErrorIs(t, err, ruleErr)
 	assert.True(t, tx.called)
 	assert.True(t, store.createdInTx)
+	assert.True(t, store.catalogCreatedInTx)
 	assert.Equal(t, []bool{true}, writer.createInTx)
 	assert.Equal(t, []bool{true}, writer.updateRulesInTx)
+}
+
+// catalog 初期化の失敗は呼び出し側へ伝播し、後続の permission group 書込みへ進まない。
+// fake では実 DB の rollback を観測できない。実 rollback は transactor の責務であり、
+// ここでは「失敗が伝播し後続 write を呼ばない」ことだけを固定する。
+func TestService_CreateClinic_PropagatesCatalogFailure(t *testing.T) {
+	catalogErr := errors.New("catalog init failed")
+	store := &atomicClinicStore{catalogErr: catalogErr}
+	writer := &atomicPermissionGroupWriter{}
+	tx := &recordingClinicTransactor{}
+	svc := NewService(store, writer, tx)
+
+	created, err := svc.CreateClinic(context.Background(), &CreateClinicInput{Name: "新医院"})
+
+	assert.Nil(t, created)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, catalogErr)
+	assert.True(t, tx.called)
+	assert.True(t, store.catalogCreatedInTx)
+	assert.Empty(t, writer.createInTx)
+	assert.Empty(t, writer.updateRulesInTx)
 }

@@ -250,6 +250,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// so service write+reload stays atomic under Transactor.WithTx.
 	"medicalrecord/treatment_plan_repository.go|treatmentPlanRepository.Create":           {},
 	"medicalrecord/treatment_plan_repository.go|treatmentPlanRepository.clinicScopeQuery": {},
+	// EMR-532/S06: reorder verifies membership against the uncapped full set under
+	// FOR UPDATE inside the catalog-write transaction (clinic -> catalog -> packages).
+	"medicalrecord/treatment_package_repository.go|treatmentPackageRepositoryImpl.LockAllPackagesForReorder": {},
 	// care_plan_item / hospitalization (BE9-2D ⑤: DischargeWithBilling の repos.Transaction→
 	// Transactor.WithTx 化。FOR UPDATE 直列化・退院status更新・care plan read を billing 書込と
 	// 同一 ambient tx に参加させる＝二重会計防止。BE9-2E-0ではCreate/Updateのclinic/master

@@ -58,12 +58,26 @@ export const useGetTreatmentPackage = (packageId: string | null) =>
 const invalidateAll = (qc: ReturnType<typeof useQueryClient>) =>
   qc.invalidateQueries({ queryKey: listKey() });
 
+/** R3: 明示選択（最新採用 / 入力保持で再基準化）後の一覧再取得。
+ * editor の baseline/draft は置き換えない（背景の版差替え・blind rebase 禁止）。 */
+export const useInvalidateTreatmentPackageList = () => {
+  const qc = useQueryClient();
+  return useCallback(() => {
+    void invalidateAll(qc);
+  }, [qc]);
+};
+
 export const useCreateTreatmentPackage = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (req: TreatmentPackageCreate) => createTreatmentPackage(req),
     onSuccess: () => invalidateAll(qc),
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => {
+      // R4: 403 は画面側（失権表示）で処理するため汎用 toast を出さない。
+      // create 409 は画面側で扱わない（比較対象がない）ので汎用 toast を維持する。
+      if (isForbiddenError(error)) return;
+      handleApiError(error, "操作");
+    },
   });
 };
 
@@ -71,7 +85,9 @@ export const useUpdateTreatmentPackage = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: TreatmentPackagePatch }) => {
-      // 編集開始時捕捉版のみを CAS に使う（後の refetch 版で送らない）。
+      // CAS 基準版は編集開始時の捕捉版が既定。409 後の再基準化は利用者の明示選択
+      // （「入力を保持して最新版を基準に編集を続ける」）だけが行い、refetch 版を
+      // 自動では混入させない。
       requireEditingVersion(req.version);
       return updateTreatmentPackage(id, req);
     },
@@ -80,7 +96,11 @@ export const useUpdateTreatmentPackage = () => {
       qc.setQueryData(detailKey(data.id), data);
       return invalidateAll(qc);
     },
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => {
+      // R4: 409（比較 UI）と 403（失権表示）は画面側で処理するため汎用 toast を出さない。
+      if (isConflictError(error) || isForbiddenError(error)) return;
+      handleApiError(error, "操作");
+    },
   });
 };
 
@@ -90,7 +110,11 @@ export const useDeleteTreatmentPackage = () => {
     mutationFn: ({ id, version }: { id: string; version: string }) =>
       deleteTreatmentPackage(id, requireEditingVersion(version)),
     onSuccess: () => invalidateAll(qc),
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => {
+      // R4: 403（失権表示）と 409（画面側の版競合メッセージ）は画面側で処理する。
+      if (isConflictError(error) || isForbiddenError(error)) return;
+      handleApiError(error, "操作");
+    },
   });
 };
 
@@ -102,12 +126,26 @@ export const useReorderTreatmentPackages = () => {
       return reorderTreatmentPackages(req);
     },
     onSuccess: () => invalidateAll(qc),
-    onError: (error) => handleApiError(error, "操作"),
+    onError: (error) => {
+      // R4: 403（失権表示）と 409（画面側の版競合メッセージ）は画面側で処理する。
+      if (isConflictError(error) || isForbiddenError(error)) return;
+      handleApiError(error, "操作");
+    },
   });
 };
 
 export function isConflictError(error: unknown): boolean {
   return isAxiosError(error) && error.response?.status === 409;
+}
+
+/** 403 = 型別 view 失権（認可不能）。5xx・通信失敗とは区別する。 */
+export function isForbiddenError(error: unknown): boolean {
+  return isAxiosError(error) && error.response?.status === 403;
+}
+
+/** 404 = 対象は削除済み。fetch 失敗の一形として明示的に扱う。 */
+export function isNotFoundError(error: unknown): boolean {
+  return isAxiosError(error) && error.response?.status === 404;
 }
 
 export type EditorTarget = TreatmentPackage | "new" | null;
@@ -119,11 +157,15 @@ export type SaveOutcome =
   | { kind: "invalid" }
   | { kind: "create-unknown"; error: unknown }
   | { kind: "create-unknown-blocked" }
-  | { kind: "error"; error: unknown };
+  | { kind: "error"; error: unknown }
+  /** A1-01: 保存中に編集 session（対象）が変わった。状態へ反映せず破棄。 */
+  | { kind: "discarded" };
 
 /**
  * 編集セッション。draft はユーザー入力保持が最優先で、競合・失敗でも破棄しない。
  * 409 は「再読込・比較」へ誘導するだけで、無断上書きや false/0 補完をしない。
+ * baseline（CAS 基準版）は編集開始時の捕捉版が既定で、409 後の明示選択
+ * （最新採用 / 保持して再基準化）でのみ取り直される。
  */
 export function useTreatmentPackageEditor(target: EditorTarget) {
   const baseline = useMemo<TreatmentPackage | null>(
@@ -153,10 +195,13 @@ export function useTreatmentPackageEditor(target: EditorTarget) {
   }, []);
 
   const save = useCallback(
-    async (ops: {
-      create: (body: TreatmentPackageCreate) => Promise<TreatmentPackage>;
-      update: (id: string, body: TreatmentPackagePatch) => Promise<TreatmentPackage>;
-    }): Promise<SaveOutcome> => {
+    async (
+      ops: {
+        create: (body: TreatmentPackageCreate) => Promise<TreatmentPackage>;
+        update: (id: string, body: TreatmentPackagePatch) => Promise<TreatmentPackage>;
+      },
+      isStale?: () => boolean,
+    ): Promise<SaveOutcome> => {
       if (draft === null) return { kind: "invalid" };
       const base = baselineRef.current;
       // create 結果不明の未解決がある限り同じ POST を再送しない（盲目再送禁止）。
@@ -167,6 +212,7 @@ export function useTreatmentPackageEditor(target: EditorTarget) {
           const body = toCreateBody(draft);
           if (body === null) return { kind: "invalid" };
           const pkg = await ops.create(body);
+          if (isStale?.()) return { kind: "discarded" };
           setCreateUnknown(false);
           return { kind: "saved", pkg };
         }
@@ -177,15 +223,18 @@ export function useTreatmentPackageEditor(target: EditorTarget) {
           return { kind: "noop" };
         }
         const pkg = await ops.update(base.id, body);
+        if (isStale?.()) return { kind: "discarded" };
         setConflict(false);
         return { kind: "saved", pkg };
       } catch (error) {
         if (isConflictError(error)) {
+          if (isStale?.()) return { kind: "discarded" };
           setConflict(true);
           return { kind: "conflict" };
         }
         if (base === null) {
           // create 応答不明: 盲目再送・同名検索で推定しない。入力保持したまま結果不明を示す。
+          if (isStale?.()) return { kind: "discarded" };
           setCreateUnknown(true);
           return { kind: "create-unknown", error };
         }
