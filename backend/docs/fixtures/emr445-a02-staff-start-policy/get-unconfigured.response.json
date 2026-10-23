@@ -1,0 +1,11 @@
+{
+  "schema_version": "trimming-registered-starts/v1",
+  "clinic_id": "7",
+  "reservation_type_id": "12",
+  "staff_id": "5",
+  "assignment_id": "31",
+  "state": "unconfigured",
+  "version": null,
+  "policy": null,
+  "deleted_at": null
+}

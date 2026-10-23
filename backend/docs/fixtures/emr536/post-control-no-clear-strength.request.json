@@ -1,0 +1,12 @@
+{
+  "name": "監査用ダミー薬剤",
+  "price": 100,
+  "is_active": true,
+  "description": "",
+  "dosage_form": "tablet",
+  "medicine_unit": "per_tablet",
+  "default_quantity": "1",
+  "sort_order": 0,
+  "tax_type": "included",
+  "tax_rate": "0.08"
+}

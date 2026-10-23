@@ -763,3 +763,70 @@ func TestMerchandiseItemService_Delete_NotFoundDistinctFromConflict_RealDB(t *te
 	assert.True(t, apperrors.IsNotFound(err))
 	assert.False(t, apperrors.IsConflict(err))
 }
+
+// EMR-537 B-1: POST omitted/null → service default 0.10, asserted by value.
+func TestMerchandiseItemService_Create_DefaultTaxRateValue(t *testing.T) {
+	nullWireDTO := func(t *testing.T) merchandiseTaxRateDTO {
+		t.Helper()
+		var dto merchandiseTaxRateDTO
+		require.NoError(t, dto.UnmarshalJSON([]byte("null")))
+		return dto
+	}
+	zeroWireDTO := func(t *testing.T) merchandiseTaxRateDTO {
+		t.Helper()
+		var dto merchandiseTaxRateDTO
+		require.NoError(t, dto.UnmarshalJSON([]byte(`"0"`)))
+		return dto
+	}
+	cases := []struct {
+		name string
+		dto  merchandiseTaxRateDTO
+	}{
+		{name: "omitted falls back to default 0.10", dto: merchandiseTaxRateDTO{}},
+		{name: "null falls back to default 0.10", dto: nullWireDTO(t)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := createMerchandiseItemRequest{
+				Name: "既定税率商品", Category: "food", UnitPrice: 500,
+				// tax_type も省略 → service 既定 TaxTypeExcluded（merchandise_item_service.go:141）
+				TaxRate: tc.dto,
+			}
+			var created *model.MerchandiseItem
+			repo := &mockMerchandiseItemRepository{
+				createFn: func(_ context.Context, item *model.MerchandiseItem) error {
+					created = item
+					return nil
+				},
+			}
+			svc := newTestMerchandiseItemService(repo)
+			item, err := svc.Create(context.Background(), 1, req.toServiceInput())
+			require.NoError(t, err)
+			require.NotNil(t, item)
+			require.NotNil(t, created)
+			assert.True(t, equalTaxRate(mustTaxRate(t, "0.10"), created.TaxRate),
+				"omitted/null tax_rate must create the item with the default 0.10")
+			assert.Equal(t, model.TaxTypeExcluded, created.TaxType,
+				"omitted tax_type must get the service default")
+		})
+	}
+	t.Run("explicit \"0\" stays 0, not the default", func(t *testing.T) {
+		req := createMerchandiseItemRequest{
+			Name: "明示ゼロ商品", Category: "food", UnitPrice: 500,
+			TaxType: "excluded", TaxRate: zeroWireDTO(t),
+		}
+		var created *model.MerchandiseItem
+		repo := &mockMerchandiseItemRepository{
+			createFn: func(_ context.Context, item *model.MerchandiseItem) error {
+				created = item
+				return nil
+			},
+		}
+		svc := newTestMerchandiseItemService(repo)
+		_, err := svc.Create(context.Background(), 1, req.toServiceInput())
+		require.NoError(t, err)
+		require.NotNil(t, created)
+		assert.True(t, equalTaxRate(mustTaxRate(t, "0"), created.TaxRate),
+			"explicit \"0\" must stay 0, not fall back to the default 0.10")
+	})
+}

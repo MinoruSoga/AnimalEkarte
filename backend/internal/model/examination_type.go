@@ -6,6 +6,7 @@ import (
 )
 
 type ExaminationType struct {
+	Version        int64           `gorm:"column:version;type:bigint;not null;default:1" json:"-"`
 	ID             uint64          `gorm:"column:id;type:bigint;primaryKey;autoIncrement:true;not null" json:"id"`
 	ClinicID       uint64          `gorm:"column:clinic_id;type:bigint;not null" json:"clinic_id"`
 	Name           string          `gorm:"column:name;type:text;not null" json:"name"`
@@ -19,6 +20,8 @@ type ExaminationType struct {
 	UpdatedAt      time.Time       `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
 	DeletedAt      gorm.DeletedAt  `gorm:"column:deleted_at;type:timestamptz" json:"-"`
 	Items          []ExamTypeField `gorm:"foreignKey:ExamTypeID,ClinicID;references:ID,ClinicID" json:"items,omitempty"`
+
+	IsBillDiscountExcluded *bool `gorm:"column:is_bill_discount_excluded;type:boolean" json:"-"`
 }
 
 func (ExaminationType) TableName() string { return "exam_types" }

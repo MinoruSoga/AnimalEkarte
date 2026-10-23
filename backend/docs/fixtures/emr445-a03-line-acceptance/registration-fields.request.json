@@ -1,0 +1,9 @@
+{
+  "additional_fields": [
+    {
+      "key": "pet_name",
+      "label": "ペット名",
+      "required": true
+    }
+  ]
+}

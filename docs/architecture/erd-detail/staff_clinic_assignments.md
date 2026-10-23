@@ -11,7 +11,7 @@
 
 | カラム | 型（DDL） | NULL | DEFAULT（DDL） | キー構成列 | 定義元 |
 |:---|:---|:---|:---|:---|:---|
-| `id` | `BIGSERIAL` | NOT NULL | — | PK | [001_init.sql:1188](../../../backend/migrations/001_init.sql#L1188) |
+| `id` | `BIGSERIAL` | NOT NULL | — | PK, UK | [001_init.sql:1188](../../../backend/migrations/001_init.sql#L1188) |
 | `staff_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1189](../../../backend/migrations/001_init.sql#L1189) |
 | `clinic_id` | `bigint` | NOT NULL | — | FK, UK | [001_init.sql:1190](../../../backend/migrations/001_init.sql#L1190) |
 | `is_main` | `boolean` | NOT NULL | `false` | — | [001_init.sql:1191](../../../backend/migrations/001_init.sql#L1191) |
@@ -32,7 +32,7 @@ PK/FK/UKはキーの構成列を示します。複合キーの各列が単独で
 ```mermaid
 erDiagram
     staff_clinic_assignments {
-        BIGSERIAL id PK
+        BIGSERIAL id PK,UK
         bigint staff_id FK,UK
         bigint clinic_id FK,UK
         boolean is_main
@@ -70,6 +70,7 @@ erDiagram
 |:---|:---|:---|:---|
 | `staff_clinic_assignments_pkey` | primary | `PRIMARY KEY` | [001_init.sql:1188](../../../backend/migrations/001_init.sql#L1188) |
 | `uk_staff_clinic` | unique | `CONSTRAINT uk_staff_clinic UNIQUE (staff_id, clinic_id)` | [001_init.sql:1195](../../../backend/migrations/001_init.sql#L1195) |
+| `uq_staff_clinic_assignments_id_staff_clinic` | unique | `CONSTRAINT uq_staff_clinic_assignments_id_staff_clinic UNIQUE (id, staff_id, clinic_id)` | [010_line_staff_start_policy_and_reservation_anchor.sql:12](../../../backend/migrations/010_line_staff_start_policy_and_reservation_anchor.sql#L12) |
 
 ## インデックス
 

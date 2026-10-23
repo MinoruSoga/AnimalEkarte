@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { formatMerchandiseTaxRate, isMerchandiseTaxRate } from "./merchandise-side-panel-model";
+import {
+  formatMerchandiseTaxRate,
+  isMerchandiseTaxRate,
+  merchandiseToFormData,
+} from "./merchandise-side-panel-model";
 
 // EMR-530: preset 判定と表示は十進文字列の exact 処理（float の桁落ち・誤一致をしない）。
 describe("isMerchandiseTaxRate", () => {
@@ -39,5 +43,31 @@ describe("formatMerchandiseTaxRate", () => {
 
   it("falls back to the raw token for out-of-contract input", () => {
     expect(formatMerchandiseTaxRate("invalid")).toBe("invalid");
+  });
+});
+
+// EMR-537 AC4: GET の decimal 文字列が form 値へ丸めずに通ること（master api の
+// transform は tax_rate を string のまま透過するため、form 変換の透過をここで固定）。
+describe("merchandiseToFormData (EMR-537 AC4)", () => {
+  const item = {
+    id: "merch-1",
+    name: "既存品目",
+    category: "goods",
+    unitPrice: 1200,
+    taxType: "excluded" as const,
+    taxRate: "0.1",
+    isActive: true,
+    sortOrder: 1,
+  };
+
+  it.each(["0", "0.10", "0.08333", "0.10000000000000001"])(
+    "keeps GET tax_rate %s unrounded in the form value",
+    (taxRate) => {
+      expect(merchandiseToFormData({ ...item, taxRate }).taxRate).toBe(taxRate);
+    },
+  );
+
+  it("new panel defaults to the exact string 0.1", () => {
+    expect(merchandiseToFormData(null).taxRate).toBe("0.1");
   });
 });
