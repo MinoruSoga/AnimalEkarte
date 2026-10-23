@@ -288,25 +288,25 @@ func TestUpdateMedicalRecordRequest_ToServiceInput(t *testing.T) {
 	}
 }
 
-// EMR-495 Q7: update の status も finalized は固定エラー、draft / 空 / 未指定は無視。
-func TestUpdateMedicalRecordRequest_ToServiceInput_StatusTolerance(t *testing.T) {
-	finalized := "finalized"
-	draft := "draft"
-	empty := ""
-
-	if _, err := (updateMedicalRecordRequest{Status: &finalized}).toServiceInput(9); !errors.Is(err, apperrors.ErrUnprocessable) {
-		t.Fatalf("finalized: error = %v, want 422 class", err)
-	}
-	for _, status := range []*string{&draft, &empty, nil} {
-		if _, err := (updateMedicalRecordRequest{Status: status}).toServiceInput(9); err != nil {
-			t.Fatalf("status %v must be accepted and ignored, got %v", status, err)
+// SPEC-02: 更新では status キーが存在した時点で（draft / finalized / 空 / その他）固定エラー。未指定のみ受理。
+func TestUpdateMedicalRecordRequest_ToServiceInput_StatusIsAlwaysRetired(t *testing.T) {
+	for _, status := range []string{"finalized", "draft", "", "archived"} {
+		s := status
+		_, err := (updateMedicalRecordRequest{Status: &s}).toServiceInput(9)
+		if !errors.Is(err, apperrors.ErrUnprocessable) {
+			t.Fatalf("status %q: error = %v, want 422 class", status, err)
 		}
+		var appErr *apperrors.AppError
+		if !errors.As(err, &appErr) || appErr.Code != apperrors.CodeMedicalRecordStatusRetired {
+			t.Fatalf("status %q: error = %v, want code %q", status, err, apperrors.CodeMedicalRecordStatusRetired)
+		}
+	}
+	if _, err := (updateMedicalRecordRequest{}).toServiceInput(9); err != nil {
+		t.Fatalf("absent status must be accepted, got %v", err)
 	}
 }
 
 func TestUpdateMedicalRecordRequest_ToServiceInput_InvalidEnumDoesNotLeakEnumError(t *testing.T) {
-	invalidStatus := "archived"
-	mixedStatus := "draft "
 	invalidVisitType := "walkin"
 	emptyVisitType := ""
 	mixedVisitType := "First"
@@ -316,16 +316,6 @@ func TestUpdateMedicalRecordRequest_ToServiceInput_InvalidEnumDoesNotLeakEnumErr
 		req     updateMedicalRecordRequest
 		wantMsg string
 	}{
-		{
-			name:    "unknown status",
-			req:     updateMedicalRecordRequest{Status: &invalidStatus},
-			wantMsg: "ステータスの値が不正です",
-		},
-		{
-			name:    "status with trailing space",
-			req:     updateMedicalRecordRequest{Status: &mixedStatus},
-			wantMsg: "ステータスの値が不正です",
-		},
 		{
 			name:    "unknown visit_type",
 			req:     updateMedicalRecordRequest{VisitType: &invalidVisitType},

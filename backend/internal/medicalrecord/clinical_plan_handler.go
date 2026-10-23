@@ -5,7 +5,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -62,8 +61,8 @@ func (h *ClinicalPlanHandler) UpdateClinicalPlan(c *gin.Context) {
 		return
 	}
 	var req updateClinicalPlanRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	if err := bindJSONRejectingLegacyDiagnosis(c, &req); err != nil {
+		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}
 	input, err := req.toServiceInput()

@@ -152,7 +152,10 @@ func (q *listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, e
 // 再開の入口として案内する POST /api/v1/reservations/{id}/end-consultation はこの PR では実装されない（B 契約 §2）。
 const medicalRecordFinalizeRetiredMessage = "旧 finalize/unfinalize は未提供です。再開は予約の終了操作（POST /api/v1/reservations/{id}/end-consultation）で行ってください。"
 
-// rejectRetiredMedicalRecordStatus は request の status を検査する。
+// medicalRecordStatusFieldRetiredMessage は更新 request に status が含まれていた場合の固定文言（SPEC-02）。
+const medicalRecordStatusFieldRetiredMessage = "カルテの status は廃止されました。更新リクエストに status を含めないでください。診療終了は予約の終了操作（POST /api/v1/reservations/{id}/end-consultation）で記録します。"
+
+// rejectRetiredMedicalRecordStatus は作成 request の status を検査する（更新は SPEC-02 で常に固定エラー）。
 // finalized は固定エラー（422 medical_record_status_retired）、draft と未指定は無視（FE 移行期の許容）、
 // それ以外の値は従来どおり 400。
 func rejectRetiredMedicalRecordStatus(status string) error {
@@ -309,17 +312,18 @@ type updateMedicalRecordRequest struct {
 	PetID         *uint64    `json:"pet_id"`
 	DoctorID      *uint64    `json:"doctor_id"`
 	AppointmentID *uint64    `json:"appointment_id"`
-	Status        *string    `json:"status"      binding:"omitempty,oneof=draft finalized"`
-	Version       *int       `json:"version"`    // 楽観的ロック用
-	VisitType     *string    `json:"visit_type"` // "first" | "revisit"
+	// Status: 更新で変更できる status はもう無いため、キーが存在すれば値に関わらず固定 422（SPEC-02）。
+	// 値の enum 検証はしない（バインド時の 400 ではなく固定エラーに統一する）。
+	Status    *string `json:"status"`
+	Version   *int    `json:"version"`    // 楽観的ロック用
+	VisitType *string `json:"visit_type"` // "first" | "revisit"
 }
 
 func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (UpdateMedicalRecordInput, error) {
-	// EMR-495: 旧 finalize（status=finalized）は未提供。draft / 未指定は無視する（FE 移行期の許容）。
+	// SPEC-02: 更新では変更できる status が存在しない。draft / finalized / その他、status キーが
+	// 送られた時点で固定エラー（422 medical_record_status_retired）を返し、何も書かない。
 	if r.Status != nil {
-		if err := rejectRetiredMedicalRecordStatus(*r.Status); err != nil {
-			return UpdateMedicalRecordInput{}, err
-		}
+		return UpdateMedicalRecordInput{}, apperrors.WrapMedicalRecordStatusRetired(medicalRecordStatusFieldRetiredMessage)
 	}
 
 	var visitType *model.VisitType

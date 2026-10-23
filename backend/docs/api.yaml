@@ -4311,9 +4311,11 @@ components:
       type: object
       description: |
         EMR-495: `status`（draft / finalized）は廃止した。medical_records.status 列は 001 で廃止され、
-        レスポンスにも含まれない。旧 FE との移行期の許容として、リクエストの `status` は
-        未指定または `"draft"` なら無視して受理し、`"finalized"` は 422（code `medical_record_status_retired`、
-        旧 finalize / unfinalize は未提供）を返す。FE の追随は EMR-549 で追跡する。
+        レスポンスにも含まれない。リクエストの `status` の扱い（旧 FE との移行期の許容は作成のみ）:
+        作成（POST）は未指定 / `"draft"` / 空なら無視して受理し、`"finalized"` は 422
+        （code `medical_record_status_retired`、旧 finalize / unfinalize は未提供）。
+        更新（PATCH）は変更できる status が無いため、`status` キーが存在すれば値（draft / finalized / その他）に関わらず
+        同じ 422 を返し、何も書かない。FE の追随は EMR-549 で追跡する。
         診療終了は予約の終了操作（EMR-495 B。このスキーマ変更には含まない）で記録する。
       required: [date, record_no, weight_measurements]
       properties:
@@ -20582,7 +20584,13 @@ paths:
         EMR-495: リクエストの `status` は無視される（`"finalized"` は 422 `medical_record_status_retired`）。
         診断は `diagnoses[]`（診断行。`diagnosis_slot` 1 または 2 必須、`diagnosis_type_id` / `diagnosis_name_id` /
         `diagnosis_name_snapshot` / `category_name_snapshot` は任意で送信値のまま保存、`sort_order` 省略は 0、最大 50 行）で送る。
-        旧 `diagnosis_1_category_id` / `diagnosis_1_name_id` / `diagnosis_2_type_id` / `diagnosis_2_name_id` は廃止した。
+        `diagnoses` は未送信 / null なら診断を変更しない（既存カルテへの再送 POST でも既存の診断行は消えない）。
+        空配列 `[]` を明示した場合だけ全行クリアとなる。diagnosis_slot が 1/2 以外・51 行以上・slot 欠落などの形の不正は
+        親カルテを作成する前に 400 で返す（マスタ参照の所有権・type と name の整合はカルテ作成後に検証される）。
+        旧単一診断フィールド（`diagnosis_category_id` / `diagnosis_type_id` / `diagnosis_name_id` /
+        `diagnosis_1_category_id` / `diagnosis_1_name_id` / `diagnosis2_type_id` / `diagnosis2_name_id` /
+        `diagnosis_2_type_id` / `diagnosis_2_name_id` など）は廃止した。1 つでも送ると（値が null でも）
+        400 で拒否し、何も作成しない。診断は `diagnoses[]` で送ること。
       tags: [MedicalRecords]
       requestBody:
         required: true
@@ -20651,9 +20659,10 @@ paths:
       operationId: updateMedicalRecord
       summary: カルテ更新
       description: |
-        EMR-495: 旧 finalize は未提供。`status` は未指定 / `"draft"` / 空なら無視、`"finalized"` は 422
-        `medical_record_status_retired`（書込なし）。旧 finalized だけを理由とした更新拒否は廃止した
-        （版 CAS・目的別規則・監査は維持）。
+        EMR-495: 更新では変更できる status が存在しない。`status` キーが存在すれば値（draft / finalized / その他）に
+        関わらず 422 `medical_record_status_retired`（書込なし）。旧 finalized だけを理由とした更新拒否は廃止した
+        （版 CAS・目的別規則・監査は維持）。旧単一診断フィールド（`diagnosis_type_id` / `diagnosis_name_id` など）を
+        送ると 400 で拒否する（診断は clinical-plan の `diagnoses[]` で更新する）。
       tags: [MedicalRecords]
       parameters:
         - name: id
@@ -30570,6 +30579,12 @@ paths:
     patch:
       operationId: updateClinicalPlan
       summary: 診療計画更新
+      description: |
+        EMR-495 A: 診断は `diagnoses[]` で更新する（未送信 / null = 変更なし、`[]` = 全行クリア）。
+        旧単一診断フィールド（`diagnosis_category_id` / `diagnosis_type_id` / `diagnosis_name_id` /
+        `diagnosis_2_type_id` / `diagnosis_2_name_id` / `diagnosis2_type_id` / `diagnosis2_name_id`）は廃止した。
+        1 つでも送ると（値が null でも）400 で拒否し、何も書かない（保存されないまま成功扱いにしないため）。
+        形の不正（diagnosis_slot が 1/2 以外・51 行以上・slot 欠落）も 400。
       tags: [MedicalRecords]
       parameters:
         - name: id

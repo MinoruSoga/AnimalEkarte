@@ -107,8 +107,8 @@ func (h *MedicalRecordHandler) CreateMedicalRecord(c *gin.Context) {
 		return
 	}
 	var input createMedicalRecordRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	if err := bindJSONRejectingLegacyDiagnosis(c, &input); err != nil {
+		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}
 	svcInput, err := input.toServiceInput(staffID)
@@ -151,8 +151,8 @@ func (h *MedicalRecordHandler) UpdateMedicalRecord(c *gin.Context) {
 		return
 	}
 	var input updateMedicalRecordRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	if err := bindJSONRejectingLegacyDiagnosis(c, &input); err != nil {
+		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}
 

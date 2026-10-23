@@ -1,6 +1,8 @@
 package medicalrecord
 
 import (
+	"fmt"
+
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
@@ -17,7 +19,17 @@ type clinicalPlanDiagnosisRequest struct {
 }
 
 // toDiagnosisInputs は診断行の request を service 入力へ変換する。slot の欠落は 400。
+//
+// nil（キー未送信 / JSON null）は nil のまま返し「診断行を変更しない」を表す。非 nil の空配列（明示 `[]`）は
+// 空の非 nil スライスで「全行クリア」を表す。両者を取り違えると、診断を送らない再送 POST が既存行を消す（EMR-495 A-1）。
+// 形（件数・slot の値域・slot 必須）はここで検査し、親カルテ作成前に 400 で返す（EMR-495 A-2）。
 func toDiagnosisInputs(rows []clinicalPlanDiagnosisRequest) ([]ClinicalPlanDiagnosisInput, error) {
+	if rows == nil {
+		return nil, nil
+	}
+	if len(rows) > maxClinicalPlanDiagnosisRows {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("diagnoses must be %d rows or fewer", maxClinicalPlanDiagnosisRows))
+	}
 	out := make([]ClinicalPlanDiagnosisInput, 0, len(rows))
 	for _, row := range rows {
 		if row.DiagnosisSlot == nil {
@@ -35,6 +47,9 @@ func toDiagnosisInputs(rows []clinicalPlanDiagnosisRequest) ([]ClinicalPlanDiagn
 			CategoryNameSnapshot:  row.CategoryNameSnapshot,
 			SortOrder:             sortOrder,
 		})
+	}
+	if err := validateDiagnosisRowShape(out); err != nil {
+		return nil, err
 	}
 	return out, nil
 }
