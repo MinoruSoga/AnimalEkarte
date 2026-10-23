@@ -70,6 +70,32 @@
    "scenario": "operation の 409 応答 schema 全体（oneOf）に対する対照。component_ref は使わず method/path/http_status で operation 応答全体を指す。code が contract_upgrade_required 以外の誤 code",
    "semantic_expectation": "不適合。code ありの本文は「ErrorResponse かつ code なし」分岐に入らず、upgrade 分岐も code が enum 外で外れる（どちらにも一致しない）",
    "verification": "NOT_RUN"
+  },
+  {
+   "file": "shifts-post-duplicate-date.response.json",
+   "operationId": null,
+   "method": "POST",
+   "path": "/clinic-holidays",
+   "body_kind": "response",
+   "component_ref": null,
+   "http_status": 409,
+   "expected_schema": "valid",
+   "scenario": "operation の 409 応答 schema 全体（oneOf）に対する正例。component_ref は使わず method/path/http_status で operation 応答全体を指す。重複日付 409（code なし ErrorResponse 本文）",
+   "semantic_expectation": "適合。code なしの本文は「ErrorResponse かつ code なし」分岐だけに一致し、upgrade 分岐には一致しない（oneOf の排他）",
+   "verification": "NOT_RUN"
+  },
+  {
+   "file": "shifts-post-upgrade-required.response.json",
+   "operationId": null,
+   "method": "POST",
+   "path": "/clinic-holidays",
+   "body_kind": "response",
+   "component_ref": null,
+   "http_status": 409,
+   "expected_schema": "valid",
+   "scenario": "operation の 409 応答 schema 全体（oneOf）に対する正例。component_ref は使わず method/path/http_status で operation 応答全体を指す。code が contract_upgrade_required の upgrade 409",
+   "semantic_expectation": "適合。upgrade 分岐だけに一致し、「ErrorResponse かつ code なし」分岐には code ありのため一致しない（oneOf の排他）",
+   "verification": "NOT_RUN"
   }
  ],
  "operation_ref_note": "旧 shifts 休日 operation は api.yaml に operationId が無い（追加すると生成 client 名が変わるため付けない）。operationId は null とし method/path で参照する。"
