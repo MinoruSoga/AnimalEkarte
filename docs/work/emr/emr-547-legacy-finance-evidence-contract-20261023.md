@@ -6,4 +6,4 @@
 
 設計未完・実装未着手。docs整備/報告受領は実コード/実DB/bundle独立検証や正式import許可ではない。tests/build/codegen/DB/import/Docker/browserはNOT_RUN。
 
-2026-10-23返却設計を[同じ技術正本](../../design/domains/accounting/legacy-finance-evidence.md#legacy-evidence-open-nested-types)へ統合。共通構造・保存制約・readonly API・合成fixture条件は選定済み。6入れ子型、実型/原値表現/profile、manifest/snapshot/artifact bindingと集約元全入力は未閉鎖。正式移行HOLD、19 CSV維持、通常finalize/allocate生成なし。製品保存/read/UI・DDL/API/生成/試験/利用開始は未完、今回NOT_RUN。
+2026-10-23返却設計を[同じ技術正本](../../design/domains/accounting/legacy-finance-evidence.md#legacy-evidence-open-nested-types)へ統合。共通構造・保存tableの役割・関係制約（chunk/field/payload上限は未選定）・readonly API・合成fixture条件は選定済み。6入れ子型、実型/原値表現/profile、manifest/snapshot/artifact bindingと集約元全入力は未閉鎖。正式移行HOLD、19 CSV維持、通常finalize/allocate生成なし。製品保存/read/UI・DDL/API/生成/試験/利用開始は未完、今回NOT_RUN。

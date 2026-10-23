@@ -3,7 +3,7 @@
 | 管理項目 | 記載 |
 |---|---|
 | 文書ID・種別 | design.accounting.legacy-finance-evidence／移行保存・閲覧の技術契約 |
-| 決定状態 | 業務保全原則を継承。2026-10-23に共通構造・保存制約・readonly API・合成fixture条件を選定。6入れ子型と実データprofile/bindingは未閉鎖 |
+| 決定状態 | 業務保全原則を継承。2026-10-23に共通構造・保存tableの役割・関係制約（chunk/field/payload上限は未選定）・readonly API・合成fixture条件を選定。6入れ子型と実データprofile/bindingは未閉鎖 |
 | 実装状態 | 保存/reader/API/UI未実装。実DDL・schema/APIファイル・供給/実装受領は未完 |
 | 実機検証状態 | tests/build/codegen/DB/import/Docker/browser NOT_RUN |
 | 文書確認日 | 2026-10-23（静的反映。実行受入ではない） |
@@ -12,7 +12,7 @@
 
 Library `libfile_222be047bc548191805d491f522e4b55` の `EMR-547-storage-read-contract-response.md`（36,790 bytes、SHA-256 `4cb55a764532fa238315af01acf1739b290a4a88004c56b054e6b64f6deda158`）をconsumer側で取得・可読/hash確認し本正本へ統合した。返却原稿の複製文書は作らない。以下の「確定」は設計選定で、既存mainにDDL/API/producerが存在する、検証済みという意味ではない。
 
-**実装へ渡せるのは選定済みの共通構造・保存制約・readonly API・合成fixture条件の範囲。6入れ子型、実データのsource profile、manifest結合、集約元全行の列挙は未受領で、sidecarの実データ生成・consumer正式受入はまだ開始できない。** 正式移行HOLD、19 CSV維持、通常finalize/allocate/診察終了eventを生成しない境界を保つ。21表時代のreceiptを現行19表の適合証拠に転用しない。
+**実装へ渡せるのは選定済みの共通構造・保存tableの役割・関係制約（chunk/field/payload上限は未選定）・readonly API・合成fixture条件の範囲。6入れ子型、実データのsource profile、manifest結合、集約元全行の列挙は未受領で、sidecarの実データ生成・consumer正式受入はまだ開始できない。** 正式移行HOLD、19 CSV維持、通常finalize/allocate/診察終了eventを生成しない境界を保つ。21表時代のreceiptを現行19表の適合証拠に転用しない。
 
 producer `a38e71f904460ba3d33194e817bafcbb78886d0c` の静的mapping報告は受領済み。本consumerによるold_db実コード/実DB/既出bundle/実artifact manifestとcode/digestの独立検証ではない。同じ6項目の再調査を依頼せず、既存報告から設計へ転記できる範囲と未受領根拠を分ける。
 
