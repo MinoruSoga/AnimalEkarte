@@ -135,8 +135,6 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
         no_staff_mode: merged.no_staff_mode,
         show_no_staff_option: merged.show_no_staff_option,
         additional_fields: merged.additional_fields,
-        line_channel_id: merged.line_channel_id,
-        liff_id: merged.liff_id,
       });
       toast.success("ページ内容を保存しました");
     } catch (err) {

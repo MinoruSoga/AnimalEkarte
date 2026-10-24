@@ -10823,7 +10823,7 @@ components:
       description: >-
         line_reservation_settings schema。EMR-504: LINE 資格情報（line_channel_id / line_channel_secret /
         liff_id / line_access_token）はこのテーブルから削除済みで、clinic_integrations（/lstep-settings）だけに保存する。
-        応答には含めない。PUT でこれらのキーに空でない値（前後空白を除く）が送られた場合は 400。省略・null・空文字は受理し、何も保存しない。
+        応答には含めない。PUT でこれらのキーが存在した場合は値（空文字・null・空白のみを含む）に関わらず 400。キーを省略した場合だけ受理し、何も保存しない。
       properties:
         id:
           type: integer
@@ -32248,8 +32248,8 @@ paths:
         acceptance API（P）・PATCH presentation（N）・PATCH registration-fields（additional_fields）へ移す。未切替医院と旧 read は一律停止しない。
         停止の runtime（活性化判定・writer 閉包）は EMR-448/492（D）・EMR-446/466（B）で未接続（x-contract-status: selected は 409 の追記部分だけ）。
         EMR-504: line_channel_id / line_channel_secret / liff_id / line_access_token は本 API では保存せず、
-        空でない値（前後空白を除く）が含まれていれば 400（値は応答に含めない）。省略・null・空文字は受理して何も保存しない
-        （管理画面フォームは line_channel_id / liff_id を空文字で常に送る）。LINE 資格情報は LINE連携設定（/lstep-settings）で設定する。
+        キーが存在すれば値（空文字・null・空白のみを含む）に関わらず 400（値は応答に含めない）。キーを省略した場合だけ受理して何も保存しない
+        （管理画面フォームはこれらのキーを送らない）。LINE 資格情報は LINE連携設定（/lstep-settings）で設定する。
       tags: [LINE予約設定]
       parameters:
         - name: clinic_id

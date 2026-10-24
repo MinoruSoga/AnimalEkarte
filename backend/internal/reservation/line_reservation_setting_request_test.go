@@ -43,72 +43,75 @@ func TestUpsertLineReservationSettingRequest_ToServiceInput(t *testing.T) {
 	}
 }
 
-// EMR-504 Q8: the four dropped LINE credential fields are not part of the reservation setting any more
-// (clinic_integrations is their only store). A non-empty value (after trimming whitespace) is rejected
-// with 400 instead of being silently dropped. The admin form always sends line_channel_id and liff_id,
-// so absent, null, empty and whitespace-only values are accepted and nothing is stored.
+// EMR-549 Q-U5-1: the four dropped LINE credential keys are not part of the reservation setting any more
+// (clinic_integrations is their only store). The key being present with any value is rejected with 400
+// (non-empty, empty string, whitespace-only, null) instead of being silently dropped; only a request that
+// omits the keys is accepted. The admin form no longer sends them.
 func TestUpsertLineReservationSettingRequest_RejectsLegacyLineCredentials(t *testing.T) {
 	const base = `"status":"running","booking_window_max_days":30,"booking_window_min_days":0,"calendar_months":2,` +
 		`"time_slot_mode":"minimize_gaps","time_slot_interval_minutes":15,"no_staff_mode":"first_available"`
 
-	tests := []struct {
-		name      string
-		extra     string
-		wantField string
-	}{
-		{name: "line_channel_id", extra: `,"line_channel_id":"123"`, wantField: "line_channel_id"},
-		{name: "line_channel_secret", extra: `,"line_channel_secret":"s"`, wantField: "line_channel_secret"},
-		{name: "liff_id", extra: `,"liff_id":"1234567890-abc"`, wantField: "liff_id"},
-		{name: "line_access_token", extra: `,"line_access_token":"t"`, wantField: "line_access_token"},
-		{name: "non-empty value with surrounding whitespace", extra: `,"liff_id":"  1234567890-abc  "`, wantField: "liff_id"},
-		{name: "every non-empty field is named", extra: `,"line_channel_id":"123","liff_id":"1234567890-abc"`, wantField: "line_channel_id, liff_id"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var req upsertLineReservationSettingRequest
-			if err := binding.JSON.BindBody([]byte(`{`+base+tt.extra+`}`), &req); err != nil {
-				t.Fatalf("bind: %v", err)
-			}
-			err := req.rejectLegacyLineCredentials()
-			if err == nil {
-				t.Fatal("expected a 400 for a non-empty legacy LINE credential field")
-			}
-			if !apperrors.IsInvalidInput(err) {
-				t.Errorf("error = %v, want invalid input (400)", err)
-			}
-			if !strings.Contains(err.Error(), tt.wantField) {
-				t.Errorf("error %q does not name %q", err.Error(), tt.wantField)
-			}
-		})
-	}
-
-	accepted := []struct {
-		name  string
-		extra string
-	}{
-		{name: "absent", extra: ``},
-		{name: "null", extra: `,"line_channel_id":null,"line_channel_secret":null,"liff_id":null,"line_access_token":null`},
-		{name: "empty string", extra: `,"line_channel_id":"","line_channel_secret":"","liff_id":"","line_access_token":""`},
-		{name: "whitespace only", extra: `,"line_channel_id":"   ","liff_id":"\t"`},
-	}
-	for _, tt := range accepted {
-		t.Run("accepted: "+tt.name, func(t *testing.T) {
-			var req upsertLineReservationSettingRequest
-			if err := binding.JSON.BindBody([]byte(`{`+base+tt.extra+`}`), &req); err != nil {
-				t.Fatalf("bind: %v", err)
-			}
-			if err := req.rejectLegacyLineCredentials(); err != nil {
-				t.Errorf("unexpected error for an empty legacy field: %v", err)
-			}
-		})
-	}
-
-	t.Run("the error never echoes the submitted value", func(t *testing.T) {
+	bind := func(t *testing.T, extra string) *upsertLineReservationSettingRequest {
+		t.Helper()
 		var req upsertLineReservationSettingRequest
-		if err := binding.JSON.BindBody([]byte(`{`+base+`,"line_access_token":"super-secret-token"}`), &req); err != nil {
+		if err := binding.JSON.BindBody([]byte(`{`+base+extra+`}`), &req); err != nil {
 			t.Fatalf("bind: %v", err)
 		}
-		err := req.rejectLegacyLineCredentials()
+		return &req
+	}
+
+	fieldNames := []string{"line_channel_id", "line_channel_secret", "liff_id", "line_access_token"}
+	values := []struct {
+		name    string
+		literal string
+	}{
+		{name: "non-empty", literal: `"1234567890-abc"`},
+		{name: "empty string", literal: `""`},
+		{name: "whitespace only", literal: `"   "`},
+		{name: "tab only", literal: `"\t"`},
+		{name: "null", literal: `null`},
+	}
+	for _, field := range fieldNames {
+		for _, v := range values {
+			t.Run(field+" "+v.name, func(t *testing.T) {
+				err := bind(t, `,"`+field+`":`+v.literal).rejectLegacyLineCredentials()
+				if err == nil {
+					t.Fatal("expected a 400 when the legacy LINE credential key is present")
+				}
+				if !apperrors.IsInvalidInput(err) {
+					t.Errorf("error = %v, want invalid input (400)", err)
+				}
+				for _, name := range fieldNames {
+					if got := strings.Contains(err.Error(), name); got != (name == field) {
+						t.Errorf("error %q: names %q = %v, want %v", err.Error(), name, got, name == field)
+					}
+				}
+			})
+		}
+	}
+
+	t.Run("every present key is named", func(t *testing.T) {
+		err := bind(t, `,"line_channel_id":"","liff_id":null`).rejectLegacyLineCredentials()
+		if err == nil || !strings.Contains(err.Error(), "line_channel_id, liff_id") {
+			t.Fatalf("error = %v, want both present keys named", err)
+		}
+	})
+
+	t.Run("key matching is case-insensitive like encoding/json", func(t *testing.T) {
+		err := bind(t, `,"LIFF_ID":"x"`).rejectLegacyLineCredentials()
+		if err == nil || !strings.Contains(err.Error(), "liff_id") {
+			t.Fatalf("error = %v, want liff_id rejected", err)
+		}
+	})
+
+	t.Run("accepted: all four keys absent", func(t *testing.T) {
+		if err := bind(t, ``).rejectLegacyLineCredentials(); err != nil {
+			t.Errorf("unexpected error when every legacy key is absent: %v", err)
+		}
+	})
+
+	t.Run("the error never echoes the submitted value", func(t *testing.T) {
+		err := bind(t, `,"line_access_token":"super-secret-token"`).rejectLegacyLineCredentials()
 		if err == nil || strings.Contains(err.Error(), "super-secret-token") {
 			t.Fatalf("error must exist and not echo the value, got %v", err)
 		}

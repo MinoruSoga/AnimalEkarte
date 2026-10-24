@@ -39,31 +39,42 @@ type upsertLineReservationSettingRequest struct {
 	AdditionalFields  jsonRawOrEmpty `json:"additional_fields"`
 	// EMR-504: LINE credentials (channel ID / channel secret / LIFF ID / access token) are not part of
 	// the reservation setting; their only store is clinic_integrations (lstep-settings API).
-	// The pointers exist only to detect that a client still sends a value: a non-empty value (after
-	// trimming whitespace) is rejected with 400 (rejectLegacyLineCredentials) instead of being silently
-	// dropped. Absent, null and empty string are accepted and nothing is stored, because the admin form
-	// always sends line_channel_id and liff_id.
-	LineChannelID     *string `json:"line_channel_id"`
-	LineChannelSecret *string `json:"line_channel_secret"`
-	LiffID            *string `json:"liff_id"`
-	LineAccessToken   *string `json:"line_access_token"`
+	// The fields exist only to detect that a client still sends the key: the key being present with any
+	// value (non-empty, empty string, whitespace, null) is rejected with 400 (rejectLegacyLineCredentials)
+	// instead of being silently dropped (EMR-549 Q-U5-1). Only a request that omits the keys is accepted;
+	// the admin form no longer sends them.
+	LineChannelID     jsonKeyPresence `json:"line_channel_id"`
+	LineChannelSecret jsonKeyPresence `json:"line_channel_secret"`
+	LiffID            jsonKeyPresence `json:"liff_id"`
+	LineAccessToken   jsonKeyPresence `json:"line_access_token"`
 }
 
-// rejectLegacyLineCredentials は dropped 済みの LINE 資格情報フィールドに空でない値（前後の空白を除く）が
-// 送られた場合に 400 を返す。省略・null・空文字は受理し、何も保存しない（管理画面フォームが
-// line_channel_id / liff_id を常に送るため）。値そのものはエラーに含めない。
+// jsonKeyPresence は JSON キーが body に存在したことだけを記録する。値は読まず保持しない
+// （資格情報を struct・ログ・エラーに残さない）。pointer と違い null リテラルでも UnmarshalJSON が
+// 呼ばれるため、「省略」と「null」を区別できる。キー名の照合は encoding/json に従い大文字小文字を区別しない。
+type jsonKeyPresence bool
+
+// UnmarshalJSON はキーが存在したことを記録する。
+func (p *jsonKeyPresence) UnmarshalJSON([]byte) error {
+	*p = true
+	return nil
+}
+
+// rejectLegacyLineCredentials は dropped 済みの LINE 資格情報キーが 1 つでも送られた場合に 400 を返す。
+// 値は問わない（空文字・空白のみ・null も拒否）。存在判定は UnmarshalJSON が呼ばれたか（= キーが body にあるか）で行い、
+// 値の型には依存しない。値そのものはエラーに含めない。
 func (r *upsertLineReservationSettingRequest) rejectLegacyLineCredentials() error {
 	var fields []string
 	for _, f := range []struct {
-		name  string
-		value *string
+		name    string
+		present jsonKeyPresence
 	}{
 		{"line_channel_id", r.LineChannelID},
 		{"line_channel_secret", r.LineChannelSecret},
 		{"liff_id", r.LiffID},
 		{"line_access_token", r.LineAccessToken},
 	} {
-		if f.value != nil && strings.TrimSpace(*f.value) != "" {
+		if f.present {
 			fields = append(fields, f.name)
 		}
 	}

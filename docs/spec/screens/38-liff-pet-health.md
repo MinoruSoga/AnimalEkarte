@@ -189,7 +189,7 @@ LINE顧客行の作成、院内飼主へのLINEアカウント紐付け、D19の
 - health-cardは選択医院の認証済LINE customerからowner同期/解決する。未連携はcustomer表示名（なければreal name）と空pets、連携済みはowner名。任意owner ID指定の公開閲覧へ拡張しない。
 - pet ID/名前/種/犬種/last_visit、接種名/日付/次回日という限定DTO。最終来院日はpet.last_visitであり、最新draftカルテ日を新たに算出する契約ではない。
 - 接種は同医院ownerの保存済みvaccinationsをpet IDで振り分ける。現行health-card service自身には親カルテfinalized条件がない。承認方針も保存済み実績を単位とし、新しい単体finalizedや親カルテ確定条件を追加しない。
-- linkはID token検証→token/owner row lock→既存LINE ID拒否→owner更新＋単回token CAS＋必須監査＋reloadを同一txで実施。失敗時は全rollback。検証先channel IDは設定LineChannelID。
+- linkはID token検証→token/owner row lock→既存LINE ID拒否→owner更新＋単回token CAS＋必須監査＋reloadを同一txで実施。失敗時は全rollback。検証先のLINE LoginチャネルIDは、`clinic_integrations` のLIFF IDの接頭辞（`-` より前）から導出する。
 - 既使用tokenによる再送エラーは初回未成功の証明ではない。新token発行や別ownerへの再紐付けへ飛ばず現在の連携状態を確認する。
 
 | 条件ID | 前提・操作 | 期待結果 | 根拠 |
