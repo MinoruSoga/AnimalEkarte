@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -34,14 +35,15 @@ type OwnerSummaryResponse struct {
 	OwnerName string `json:"name"`
 }
 
-// toOwnerSummary returns nil when o is nil.
+// toOwnerSummary returns nil when o is nil. 固定シグネチャの変換関数のため R-NIL（EMR-491）に従い MustOwnerBasic を使う。
+// 取得経路（medicalrecord の feeding repository）が hydrate すること。未 hydrate は panic（500）で、空値にはしない。
 func toOwnerSummary(o *model.Owner) *OwnerSummaryResponse {
 	if o == nil {
 		return nil
 	}
 	return &OwnerSummaryResponse{
 		ID:        o.ID,
-		OwnerName: o.Name,
+		OwnerName: commonbasic.MustOwnerBasic(o).Name,
 	}
 }
 
@@ -53,48 +55,51 @@ type AnimalSpeciesSummaryResponse struct {
 
 // PetSummaryResponse is the nested pet JSON for vaccination/checkup lists.
 type PetSummaryResponse struct {
-	ID        uint64   `json:"id"`
-	Name      string   `json:"name"`
-	PetNumber string   `json:"pet_number"`
-	Weight    *float64 `json:"weight,omitempty"`
-	Status    string   `json:"status,omitempty"`
-	Breed     string   `json:"breed,omitempty"`
+	ID        uint64              `json:"id"`
+	Name      string              `json:"name"`
+	PetNumber string              `json:"pet_number"`
+	Weight    *model.ExactNumeric `json:"weight"`
+	Status    *string             `json:"status"`
+	Breed     *string             `json:"breed"`
 
-	Gender         string                        `json:"gender,omitempty"`
-	BirthDate      *string                       `json:"birth_date,omitempty"`
-	DeceasedAt     *time.Time                    `json:"deceased_at,omitempty"`
-	NeuteredDate   *string                       `json:"neutered_date,omitempty"`
+	Gender         *string                       `json:"gender"`
+	BirthDate      *string                       `json:"birth_date"`
+	DeceasedAt     *time.Time                    `json:"deceased_at"`
+	NeuteredDate   *string                       `json:"neutered_date"`
 	NeuteredStatus string                        `json:"neutered_status,omitempty"`
 	AnimalSpecies  *AnimalSpeciesSummaryResponse `json:"animal_species,omitempty"`
 	Owner          *OwnerSummaryResponse         `json:"owner,omitempty"`
 }
 
 // toPetSummary returns nil when p is nil.
+// 固定シグネチャの変換関数のため R-NIL（EMR-491）に従い MustPetBasic を使う。取得経路（medicalrecord の feeding repository）が
+// hydrate すること。未 hydrate は panic（500）で、空値にはしない。
 func toPetSummary(p *model.Pet) *PetSummaryResponse {
 	if p == nil {
 		return nil
 	}
+	basic := commonbasic.MustPetBasic(p)
 	resp := &PetSummaryResponse{
 		ID:        p.ID,
-		Name:      p.Name,
+		Name:      basic.Name,
 		PetNumber: p.PetNumber,
-		Weight:    p.Weight,
-		Status:    string(p.Status),
-		Breed:     p.Breed,
-		Gender:    string(p.Gender),
+		Weight:    copyBasicWeight(basic.RegistrationWeight),
+		Status:    nullableEnumString(basic.Status),
+		Breed:     basic.Breed,
+		Gender:    nullableEnumString(basic.Gender),
 		Owner:     toOwnerSummary(p.Owner),
 	}
-	if p.BirthDate != nil {
-		d := p.BirthDate.Format("2006-01-02")
+	if basic.BirthDate != nil {
+		d := basic.BirthDate.Format("2006-01-02")
 		resp.BirthDate = &d
 	}
-	resp.DeceasedAt = httpapi.LocalTimePtr(p.DeceasedAt)
-	if p.NeuteredDate != nil {
-		d := p.NeuteredDate.Format("2006-01-02")
+	resp.DeceasedAt = httpapi.LocalTimePtr(basic.DeceasedAt)
+	if basic.NeuteredDate != nil {
+		d := basic.NeuteredDate.Format("2006-01-02")
 		resp.NeuteredDate = &d
 	}
-	if p.NeuteredStatus != "" {
-		resp.NeuteredStatus = string(p.NeuteredStatus)
+	if basic.NeuteredStatus != "" {
+		resp.NeuteredStatus = string(basic.NeuteredStatus)
 	}
 	if p.AnimalSpecies != nil {
 		resp.AnimalSpecies = &AnimalSpeciesSummaryResponse{
@@ -103,4 +108,22 @@ func toPetSummary(p *model.Pet) *PetSummaryResponse {
 		}
 	}
 	return resp
+}
+
+// nullableEnumString は名前付き文字列型の nullable 値を *string へ写す。nil は nil のまま返し、空文字へは置換しない。
+func nullableEnumString[T ~string](value *T) *string {
+	if value == nil {
+		return nil
+	}
+	text := string(*value)
+	return &text
+}
+
+// copyBasicWeight は登録時体重（nullable）を別インスタンスとして返す。nil は nil のまま（JSON null）。
+func copyBasicWeight(value *model.ExactNumeric) *model.ExactNumeric {
+	if value == nil {
+		return nil
+	}
+	copied := *value
+	return &copied
 }

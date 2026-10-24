@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
@@ -121,7 +122,6 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 	if err := q.
 		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet.Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
 		Preload("TrimmingDetail", "clinic_id = ?", clinicID).
@@ -131,6 +131,9 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 		Order("appointments.start_time DESC").
 		Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "appointment", "")
+	}
+	if err := hydrateReservationBasics(ctx, r.db, []uint64{clinicID}, commonbasic.Ptrs(reservations)); err != nil {
+		return nil, 0, err
 	}
 	return reservations, total, nil
 }

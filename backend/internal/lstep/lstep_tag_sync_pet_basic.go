@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -26,7 +27,11 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 		return apperrors.Wrap(err, "failed to find living pets")
 	}
 
-	newTags := buildPetBasicInfoTags(pets)
+	newTags, err := buildPetBasicInfoTags(pets)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to build pet basic info tags", "error", err)
+		return apperrors.Wrap(err, "failed to build pet basic info tags")
+	}
 
 	cachedTags, err := s.tagCacheRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
@@ -91,13 +96,18 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 	return nil
 }
 
-// buildPetBasicInfoTags は生存ペット一覧から基本情報タグ一覧を生成する。
-func buildPetBasicInfoTags(pets []model.Pet) []string {
+// buildPetBasicInfoTags は生存ペット一覧から基本情報タグ一覧を生成する。品種・性別・誕生日・去勢は hydrate 済みの
+// 現行 basic revision から読む。未 hydrate は unresolved の error で返し（空値や旧 pets 列への代替はしない）、同期しない。
+func buildPetBasicInfoTags(pets []model.Pet) ([]string, error) {
 	tagSet := make(map[string]struct{})
 	var hasNeutered, hasIntact bool
 
 	for i := range pets {
 		p := &pets[i]
+		basic, err := commonbasic.PetOf(p)
+		if err != nil {
+			return nil, err
+		}
 		fallback := "breed_mix_other"
 		if p.AnimalSpecies != nil {
 			if isDogSpeciesName(p.AnimalSpecies.Name) {
@@ -106,28 +116,34 @@ func buildPetBasicInfoTags(pets []model.Pet) []string {
 				fallback = "breed_mix_cat"
 			}
 		}
-		tagSet[lstep.BreedTagName(p.Breed, fallback)] = struct{}{}
+		// 品種が未設定（NULL）のペットは空の品種名の入力（= BreedTagName の fallback タグ）として扱う。
+		breed := ""
+		if basic.Breed != nil {
+			breed = *basic.Breed
+		}
+		tagSet[lstep.BreedTagName(breed, fallback)] = struct{}{}
 
-		switch p.Gender {
-		case model.PetGenderMale:
+		// 性別が未設定（NULL）のペットは default 分岐（sex_unknown）になる。
+		switch {
+		case basic.Gender != nil && *basic.Gender == model.PetGenderMale:
 			tagSet["sex_male"] = struct{}{}
-		case model.PetGenderFemale:
+		case basic.Gender != nil && *basic.Gender == model.PetGenderFemale:
 			tagSet["sex_female"] = struct{}{}
 		default:
 			tagSet["sex_unknown"] = struct{}{}
 		}
 
-		if p.BirthDate != nil {
-			tagSet["pet_birthday_"+p.BirthDate.Format("01-02")] = struct{}{}
-			tagSet["birth_year_"+p.BirthDate.Format("2006")] = struct{}{}
+		if basic.BirthDate != nil {
+			tagSet["pet_birthday_"+basic.BirthDate.Format("01-02")] = struct{}{}
+			tagSet["birth_year_"+basic.BirthDate.Format("2006")] = struct{}{}
 		}
 
 		switch {
-		case p.NeuteredStatus == model.PetNeuteredStatusDone:
+		case basic.NeuteredStatus == model.PetNeuteredStatusDone:
 			hasNeutered = true
-		case p.NeuteredStatus == model.PetNeuteredStatusNotDone:
+		case basic.NeuteredStatus == model.PetNeuteredStatusNotDone:
 			hasIntact = true
-		case p.NeuteredDate != nil:
+		case basic.NeuteredDate != nil:
 			hasNeutered = true
 		default:
 			hasIntact = true
@@ -145,7 +161,7 @@ func buildPetBasicInfoTags(pets []model.Pet) []string {
 	for t := range tagSet {
 		tags = append(tags, t)
 	}
-	return tags
+	return tags, nil
 }
 
 // isPetBasicInfoTagWithPrefixes は BE-005 ペット基本情報カテゴリ (C1) のタグかを判定する（純粋関数）。

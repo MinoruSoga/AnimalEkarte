@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -100,10 +101,11 @@ func toCheckupGlobalResponse(c *model.Checkup) checkupGlobalResponse {
 	}
 	r.Doctor = toStaffSummary(c.Doctor)
 	// Pet/Owner from MedicalRecord relation
+	// 固定シグネチャの変換関数のため R-NIL（EMR-491）に従う。取得経路 checkupReadPreloads は hydrateCheckupBasics で basic を載せる。
 	if c.MedicalRecord != nil && c.MedicalRecord.Pet != nil {
-		r.PetName = c.MedicalRecord.Pet.Name
+		r.PetName = commonbasic.MustPetBasic(c.MedicalRecord.Pet).Name
 		if c.MedicalRecord.Pet.Owner != nil {
-			r.OwnerName = c.MedicalRecord.Pet.Owner.Name
+			r.OwnerName = commonbasic.MustOwnerBasic(c.MedicalRecord.Pet.Owner).Name
 			s := strconv.FormatUint(c.MedicalRecord.Pet.Owner.ID, 10)
 			r.OwnerID = &s
 		}

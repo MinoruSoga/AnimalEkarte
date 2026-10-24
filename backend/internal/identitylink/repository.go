@@ -10,9 +10,16 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/textsearch"
+)
+
+// 検索 SQL が現行 basic revision を引く JOIN の別名。owners / pets / binding の列名と衝突しない固定名。
+const (
+	searchOwnerRevisionAlias = "owner_rev"
+	searchPetRevisionAlias   = "pet_rev"
 )
 
 type repository struct {
@@ -50,21 +57,25 @@ func (r *repository) SearchOwners(ctx context.Context, clinicIDs []uint64, query
 	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(q)) + "%"
 
 	var owners []model.Owner
-	err := r.conn(ctx).
-		Scopes(persistence.ClinicScopeIn(clinicIDs)).
+	err := commonbasic.JoinCurrentOwnerBasic(r.conn(ctx).Model(&model.Owner{}), "owners", searchOwnerRevisionAlias, true).
+		Where("owners.clinic_id IN ?", clinicIDs).
 		Where(
-			`(`+textsearch.FoldedExpr("name")+` ILIKE ? ESCAPE '\'
-			  OR phone ILIKE ? ESCAPE '\'
-			  OR `+textsearch.FoldedExpr("name_kana")+` ILIKE ? ESCAPE '\')`,
+			`(`+textsearch.FoldedExpr(searchOwnerRevisionAlias+".name")+` ILIKE ? ESCAPE '\'
+			  OR `+searchOwnerRevisionAlias+`.phone ILIKE ? ESCAPE '\'
+			  OR `+textsearch.FoldedExpr(searchOwnerRevisionAlias+".name_kana")+` ILIKE ? ESCAPE '\')`,
 			normalizedPattern,
 			normalizedPattern,
 			normalizedPattern,
 		).
-		Order("clinic_id ASC, id ASC").
+		Order("owners.clinic_id ASC, owners.id ASC").
 		Limit(limit).
 		Find(&owners).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", q)
+	}
+	// 現行 basic revision を確定する（R-1: 1 件でも解決できなければ全体を 422 で拒否する）。
+	if hydrateErr := commonbasic.HydrateOwners(ctx, r.db, clinicIDs, commonbasic.Ptrs(owners)); hydrateErr != nil {
+		return nil, hydrateErr
 	}
 	return owners, nil
 }
@@ -84,21 +95,25 @@ func (r *repository) SearchPets(ctx context.Context, clinicIDs []uint64, query s
 	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(q)) + "%"
 
 	var pets []model.Pet
-	err := r.conn(ctx).
-		Scopes(persistence.ClinicScopeIn(clinicIDs)).
+	err := commonbasic.JoinCurrentPetBasic(r.conn(ctx).Model(&model.Pet{}), "pets", searchPetRevisionAlias, true).
+		Where("pets.clinic_id IN ?", clinicIDs).
 		Where(
-			`(`+textsearch.FoldedExpr("name")+` ILIKE ? ESCAPE '\'
-			  OR pet_number ILIKE ? ESCAPE '\'
-			  OR `+textsearch.FoldedExpr("name_kana")+` ILIKE ? ESCAPE '\')`,
+			`(`+textsearch.FoldedExpr(searchPetRevisionAlias+".name")+` ILIKE ? ESCAPE '\'
+			  OR pets.pet_number ILIKE ? ESCAPE '\'
+			  OR `+textsearch.FoldedExpr(searchPetRevisionAlias+".name_kana")+` ILIKE ? ESCAPE '\')`,
 			normalizedPattern,
 			normalizedPattern,
 			normalizedPattern,
 		).
-		Order("clinic_id ASC, id ASC").
+		Order("pets.clinic_id ASC, pets.id ASC").
 		Limit(limit).
 		Find(&pets).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", q)
+	}
+	// 現行 basic revision と動物種を確定する（R-1: 1 件でも解決できなければ全体を 422 で拒否する）。
+	if hydrateErr := commonbasic.HydratePets(ctx, r.db, clinicIDs, commonbasic.Ptrs(pets)); hydrateErr != nil {
+		return nil, hydrateErr
 	}
 	return pets, nil
 }

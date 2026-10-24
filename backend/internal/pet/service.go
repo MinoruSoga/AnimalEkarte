@@ -322,49 +322,19 @@ func (s *petService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, 
 	return pet, nil
 }
 
-func (s *petService) Create(ctx context.Context, clinicID uint64, input *CreatePetInput) (*model.Pet, error) {
-	if err := validateCreatePetInput(input); err != nil {
-		return nil, err
-	}
-	normalizedReason, err := normalizeDangerReason(
-		model.DangerLevel(input.DangerLevel),
-		input.DangerReason,
-	)
-	if err != nil {
-		return nil, err
-	}
-	input.DangerReason = normalizedReason
-
-	// owner_id の clinic 所属確認
-	if _, err := s.ownerRepo.FindByID(ctx, clinicID, input.OwnerID); err != nil {
-		return nil, apperrors.WrapInvalidInput("owner not found in this clinic")
-	}
-
-	// insurance_id の clinic 所属確認（指定された場合のみ）
-	if input.InsuranceID != nil {
-		if _, err := s.insuranceRepo.FindByID(ctx, clinicID, *input.InsuranceID); err != nil {
-			return nil, apperrors.WrapInvalidInput("insurance not found in this clinic")
-		}
-	}
-
-	// 採番は pet-owned repository capability が owner row lock と同一
-	// transaction 内で行う。service で count-before-create しない。
-	pet := buildPetModel(clinicID, "", input)
-
-	if err := s.repo.Create(ctx, pet); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create pet")
-	}
-
-	slog.InfoContext(ctx, "pet created",
-		slog.Uint64("pet_id", pet.ID),
-		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("owner_id", input.OwnerID))
-	s.syncLstepTags(ctx, clinicID, pet.OwnerID)
-
-	return pet, nil
+// Create は既存飼主へのペット直接登録の writer が未接続の間、検証・owner 参照・書き込みの前に固定 422（F6）で拒否する。
+// ペットの基本情報は pets の列ではなく共通 basic revision に書くため、subject・binding・revision・operation receipt を
+// 伴う writer を接続するまで pets 行も作らない（孤児 pet は以降の読み取りをすべて unresolved にする）。
+func (s *petService) Create(_ context.Context, _ uint64, _ *CreatePetInput) (*model.Pet, error) {
+	return nil, errPetRegistrationPending()
 }
 
 func (s *petService) Update(ctx context.Context, clinicID, id uint64, input *UpdatePetInput) (*model.Pet, error) {
+	// 基本情報の指定は pets から廃止された列への書き込みになる。revision の writer が接続されるまで、
+	// 行の読み取りや検証より前に固定 422（F4）で拒否する（HTTP 境界の key 判定に対する二重防御）。
+	if updateInputTouchesBasic(input) {
+		return nil, errPetBasicRevisionPending()
+	}
 	currentPet, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find pet")

@@ -60,6 +60,11 @@ type Pet struct {
 	Owner         *Owner         `gorm:"foreignKey:ClinicID,OwnerID;references:ClinicID,ID"          json:"owner,omitempty"`
 	Insurance     *Insurance     `gorm:"foreignKey:InsuranceID;references:ID"      json:"insurance,omitempty"`
 	AnimalSpecies *AnimalSpecies `gorm:"-"  json:"animal_species,omitempty"`
+
+	// Basic / BasicSubject は commonbasic が現行 basic revision から埋める読み取り専用の一時フィールド。
+	// DB 列ではなく、nil の間は基本情報が未解決（旧 pets 列へのフォールバックはしない）。
+	Basic        *CommonPetBasicRevision `gorm:"-" json:"-"`
+	BasicSubject *CommonSubjectRef       `gorm:"-" json:"-"`
 }
 
 func (Pet) TableName() string { return "pets" }

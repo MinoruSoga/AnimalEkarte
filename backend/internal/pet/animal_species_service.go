@@ -122,10 +122,11 @@ func (s *animalSpeciesService) Create(ctx context.Context, input *CreateAnimalSp
 	if err := sharedkernel.ValidateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	sortOrder := input.SortOrder
 	species := &model.AnimalSpecies{
 		Name:      input.Name,
 		IsActive:  input.IsActive,
-		SortOrder: input.SortOrder,
+		SortOrder: &sortOrder,
 	}
 	err := s.withOptionalAuditTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, species); err != nil {

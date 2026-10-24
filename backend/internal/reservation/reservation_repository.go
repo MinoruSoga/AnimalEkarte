@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/pet"
@@ -309,6 +310,9 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 		Scopes(persistence.Paginate(page, limit)).Order("start_time ASC").Order("id ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
+	if err := hydrateReservationBasics(ctx, r.db, clinicIDs, commonbasic.Ptrs(reservations)); err != nil {
+		return nil, 0, err
+	}
 	return reservations, total, nil
 }
 
@@ -364,6 +368,9 @@ func (r *reservationRepository) findReservationByID(ctx context.Context, clinicI
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}
+	if err := hydrateReservationBasics(ctx, r.db, clinicIDs, []*model.Reservation{&reservation}); err != nil {
+		return nil, err
+	}
 	return &reservation, nil
 }
 
@@ -375,7 +382,6 @@ func reservationListPreloads(q *gorm.DB, clinicIDs []uint64, withCreatedByStaff 
 	q = q.Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet.Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("ReservationType.Group", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Doctor", staffAssignedToClinicsCond, clinicIDs)

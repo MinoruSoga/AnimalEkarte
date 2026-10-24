@@ -1,24 +1,28 @@
 package identitylink
 
-import "github.com/animal-ekarte/backend/internal/model"
+import (
+	"github.com/animal-ekarte/backend/internal/commonbasic"
+	"github.com/animal-ekarte/backend/internal/model"
+)
 
 // OwnerSearchItem is a non-PHI-minimized search hit (name/phone needed for manual link UI).
+// name_kana / phone は現行 basic revision の nullable 列で、未登録は JSON null（空文字にしない）。
 type OwnerSearchItem struct {
-	ClinicID uint64 `json:"clinic_id"`
-	OwnerID  uint64 `json:"owner_id"`
-	Name     string `json:"name"`
-	NameKana string `json:"name_kana"`
-	Phone    string `json:"phone"`
+	ClinicID uint64  `json:"clinic_id"`
+	OwnerID  uint64  `json:"owner_id"`
+	Name     string  `json:"name"`
+	NameKana *string `json:"name_kana"`
+	Phone    *string `json:"phone"`
 }
 
 // PetSearchItem is a search hit for manual pet linking.
 type PetSearchItem struct {
-	ClinicID  uint64 `json:"clinic_id"`
-	PetID     uint64 `json:"pet_id"`
-	OwnerID   uint64 `json:"owner_id"`
-	Name      string `json:"name"`
-	NameKana  string `json:"name_kana"`
-	PetNumber string `json:"pet_number"`
+	ClinicID  uint64  `json:"clinic_id"`
+	PetID     uint64  `json:"pet_id"`
+	OwnerID   uint64  `json:"owner_id"`
+	Name      string  `json:"name"`
+	NameKana  *string `json:"name_kana"`
+	PetNumber string  `json:"pet_number"`
 }
 
 // OwnerGroupMemberResponse is a visible owner identity member.
@@ -74,33 +78,47 @@ type LinkedTreatmentHistoryResponse struct {
 	Limit int                          `json:"limit"`
 }
 
-func toOwnerSearchItems(owners []model.Owner) []OwnerSearchItem {
+// toOwnerSearchItems は repository が hydrate 済みの owners を wire DTO へ変換する。
+// 未 hydrate は R-1 の unresolved（422）で、空値にはしない。
+func toOwnerSearchItems(owners []model.Owner) ([]OwnerSearchItem, error) {
 	out := make([]OwnerSearchItem, 0, len(owners))
-	for _, o := range owners {
+	for i := range owners {
+		o := &owners[i]
+		basic, err := commonbasic.OwnerOf(o)
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, OwnerSearchItem{
 			ClinicID: o.ClinicID,
 			OwnerID:  o.ID,
-			Name:     o.Name,
-			NameKana: o.NameKana,
-			Phone:    o.Phone,
+			Name:     basic.Name,
+			NameKana: basic.NameKana,
+			Phone:    basic.Phone,
 		})
 	}
-	return out
+	return out, nil
 }
 
-func toPetSearchItems(pets []model.Pet) []PetSearchItem {
+// toPetSearchItems は repository が hydrate 済みの pets を wire DTO へ変換する。
+// 未 hydrate は R-1 の unresolved（422）で、空値にはしない。
+func toPetSearchItems(pets []model.Pet) ([]PetSearchItem, error) {
 	out := make([]PetSearchItem, 0, len(pets))
-	for _, p := range pets {
+	for i := range pets {
+		p := &pets[i]
+		basic, err := commonbasic.PetOf(p)
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, PetSearchItem{
 			ClinicID:  p.ClinicID,
 			PetID:     p.ID,
 			OwnerID:   p.OwnerID,
-			Name:      p.Name,
-			NameKana:  p.NameKana,
+			Name:      basic.Name,
+			NameKana:  basic.NameKana,
 			PetNumber: p.PetNumber,
 		})
 	}
-	return out
+	return out, nil
 }
 
 func toOwnerGroupResponse(group *model.OwnerIdentityGroup, members []model.OwnerIdentityGroupMember) OwnerGroupResponse {

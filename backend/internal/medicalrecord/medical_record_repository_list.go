@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -106,7 +107,6 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		Scopes(paginate(page, limit)).Order(medicalRecordOrderClause(filters.Sort, filters.Order)).
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Pet.AnimalSpecies").
 		Preload("Doctor", medicalRecordStaffPreload(clinicIDs, true)).
 		Preload("EnteredByStaff", medicalRecordEnteredByStaffPreload()).
 		Preload("Inquiry").
@@ -116,6 +116,9 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		Preload("Vitals", medicalRecordWeightMeasurementsPreload).
 		Find(&records).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
+	}
+	if err := hydrateMedicalRecordBasics(ctx, r.db, clinicIDs, commonbasic.Ptrs(records)); err != nil {
+		return nil, 0, err
 	}
 	return records, total, nil
 }

@@ -8,8 +8,10 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type labDeviceReceiveService struct {
@@ -20,9 +22,19 @@ type labDeviceReceiveService struct {
 	persister LabDeviceExamPersister
 	visits    LabDeviceTodayVisitFinder
 	now       func() time.Time
+	petLife   sharedkernel.PetLifeStateReader
 }
 
 var errDuplicateLabDeviceFrame = errors.New("duplicate lab device frame")
+
+// LabDeviceReceiveOption は NewLabDeviceReceiveService の任意依存。
+type LabDeviceReceiveOption func(*labDeviceReceiveService)
+
+// WithLabDevicePetLifeStateReader は PutWait / Attach が紐付け先ペットの生存を確認する死亡 reader（EMR-491 D6）を注入する。
+// 未注入（nil）のときは生存を確認できないため、PutWait / Attach は fail-closed で拒否する。
+func WithLabDevicePetLifeStateReader(reader sharedkernel.PetLifeStateReader) LabDeviceReceiveOption {
+	return func(s *labDeviceReceiveService) { s.petLife = reader }
+}
 
 // NewLabDeviceReceiveService initializes a LabDeviceReceiveService.
 func NewLabDeviceReceiveService(
@@ -32,8 +44,9 @@ func NewLabDeviceReceiveService(
 	tx Transactor,
 	persister LabDeviceExamPersister,
 	visits LabDeviceTodayVisitFinder,
+	opts ...LabDeviceReceiveOption,
 ) LabDeviceReceiveService {
-	return &labDeviceReceiveService{
+	svc := &labDeviceReceiveService{
 		repo:      repo,
 		masters:   masters,
 		pets:      pets,
@@ -42,6 +55,10 @@ func NewLabDeviceReceiveService(
 		visits:    visits,
 		now:       time.Now,
 	}
+	for _, opt := range opts {
+		opt(svc)
+	}
+	return svc
 }
 
 func (s *labDeviceReceiveService) withTx(ctx context.Context, fn func(context.Context) error) error {
@@ -268,12 +285,20 @@ func (s *labDeviceReceiveService) PutWait(
 	if staffID == 0 {
 		return nil, apperrors.WrapInvalidInput("staff_id is required")
 	}
-	pet, err := s.requireAlivePet(ctx, clinicID, petID)
+	pet, err := s.requireClinicPet(ctx, clinicID, petID)
 	if err != nil {
 		return nil, err
 	}
+	petBasic, basicErr := commonbasic.PetOf(pet)
+	if basicErr != nil {
+		return nil, basicErr
+	}
 	var view LabDeviceWaitView
 	err = s.withTx(ctx, func(txCtx context.Context) error {
+		// 死亡 reader は ambient transaction 内で subject を FOR SHARE する。生存確認のロックを書込（InsertWait）まで保持する。
+		if aliveErr := s.requirePetAlive(txCtx, clinicID, pet.ID); aliveErr != nil {
+			return aliveErr
+		}
 		station, stationErr := s.ensureStation(txCtx, clinicID)
 		if stationErr != nil {
 			return stationErr
@@ -299,7 +324,7 @@ func (s *labDeviceReceiveService) PutWait(
 		}
 		view = LabDeviceWaitView{
 			PetID:     pet.ID,
-			PetName:   pet.Name,
+			PetName:   petBasic.Name,
 			StaffID:   staffID,
 			ExpiresAt: wait.ExpiresAt,
 		}
@@ -397,7 +422,7 @@ func (s *labDeviceReceiveService) Attach(
 	jobID uuid.UUID,
 	petID uint64,
 ) (*LabDeviceJobCard, error) {
-	pet, err := s.requireAlivePet(ctx, clinicID, petID)
+	pet, err := s.requireClinicPet(ctx, clinicID, petID)
 	if err != nil {
 		return nil, err
 	}
@@ -412,6 +437,10 @@ func (s *labDeviceReceiveService) Attach(
 		}
 		if job.PetID != nil && *job.PetID != pet.ID {
 			return apperrors.WrapConflict("この検査受信は別の患者に紐付いています")
+		}
+		// 死亡 reader は ambient transaction 内で subject を FOR SHARE する。生存確認のロックを書込（AttachJobPetID）まで保持する。
+		if aliveErr := s.requirePetAlive(txCtx, clinicID, pet.ID); aliveErr != nil {
+			return aliveErr
 		}
 		if _, updErr := s.repo.AttachJobPetID(txCtx, clinicID, jobID, pet.ID); updErr != nil {
 			return updErr
@@ -546,8 +575,17 @@ func (s *labDeviceReceiveService) activeWaitView(ctx context.Context, clinicID u
 	}
 	name := ""
 	if s.pets != nil {
-		if pet, petErr := s.pets.FindByID(ctx, clinicID, wait.PetID); petErr == nil && pet != nil {
-			name = pet.Name
+		pet, petErr := s.pets.FindByID(ctx, clinicID, wait.PetID)
+		// 基本情報を解決できないペットは空の名前にせずエラーにする。それ以外の取得失敗は従来どおり名前なしで返す。
+		if petErr != nil && apperrors.HasCode(petErr, apperrors.CodeCommonBasicUnresolved) {
+			return nil, petErr
+		}
+		if petErr == nil && pet != nil {
+			petBasic, basicErr := commonbasic.PetOf(pet)
+			if basicErr != nil {
+				return nil, basicErr
+			}
+			name = petBasic.Name
 		}
 	}
 	return &LabDeviceWaitView{
@@ -558,7 +596,9 @@ func (s *labDeviceReceiveService) activeWaitView(ctx context.Context, clinicID u
 	}, nil
 }
 
-func (s *labDeviceReceiveService) requireAlivePet(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
+// requireClinicPet は clinic に属する未削除のペットを返す。生死は pets の列ではなく共通 basic revision にあるため、
+// ここでは判定しない（ambient transaction 内で requirePetAlive が確認する）。
+func (s *labDeviceReceiveService) requireClinicPet(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
 	if petID == 0 || s.pets == nil {
 		return nil, apperrors.WrapInvalidInput("pet_id is required")
 	}
@@ -572,10 +612,17 @@ func (s *labDeviceReceiveService) requireAlivePet(ctx context.Context, clinicID,
 	if pet == nil || pet.ClinicID != clinicID {
 		return nil, apperrors.WrapInvalidInput("pet_id is not in this clinic")
 	}
-	if pet.DeletedAt.Valid || pet.Status != model.PetStatusAlive || pet.DeceasedAt != nil {
+	if pet.DeletedAt.Valid {
 		return nil, apperrors.WrapInvalidInput("pet is not alive")
 	}
 	return pet, nil
+}
+
+// requirePetAlive は死亡 reader（EMR-491 D6）で生存を確認する。reader は ambient transaction を要求し、
+// subject を FOR SHARE する。死亡は InvalidInput、生存を確認できない（unresolved）・reader 失敗・
+// reader 未注入はそのままエラーにする（unknown を生存扱いにしない）。
+func (s *labDeviceReceiveService) requirePetAlive(ctx context.Context, clinicID, petID uint64) error {
+	return sharedkernel.ValidatePetNotDeceased(ctx, s.petLife, clinicID, petID, "pet is not alive")
 }
 
 func (s *labDeviceReceiveService) requireDeviceJob(
@@ -610,8 +657,16 @@ func (s *labDeviceReceiveService) cardsForJobs(
 	for i := range jobs {
 		card := jobToCard(&jobs[i], items[jobs[i].ID])
 		if jobs[i].PetID != nil && s.pets != nil {
-			if pet, petErr := s.pets.FindByID(ctx, clinicID, *jobs[i].PetID); petErr == nil && pet != nil {
-				card.PetName = pet.Name
+			pet, petErr := s.pets.FindByID(ctx, clinicID, *jobs[i].PetID)
+			if petErr != nil && apperrors.HasCode(petErr, apperrors.CodeCommonBasicUnresolved) {
+				return nil, petErr
+			}
+			if petErr == nil && pet != nil {
+				petBasic, basicErr := commonbasic.PetOf(pet)
+				if basicErr != nil {
+					return nil, basicErr
+				}
+				card.PetName = petBasic.Name
 			}
 		}
 		cards = append(cards, card)

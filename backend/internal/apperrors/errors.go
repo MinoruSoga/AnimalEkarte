@@ -188,6 +188,35 @@ const (
 	CodeLineWebhookRoutingPending = "line_webhook_routing_pending"
 )
 
+// EMR-491: 共通基本情報（owner / pet の basic revision）を提供できない操作を fail-closed で拒否する
+// 422 の安定コード。成功を装わず、空値や廃止列へのフォールバックもしない。
+const (
+	// CodeCommonBasicUnresolved は binding・subject・現行 revision・同一 subject の確認のいずれかに失敗し、
+	// owner / pet の基本情報を確定できない読み取り（F1）。
+	CodeCommonBasicUnresolved = "common_basic_unresolved"
+	// CodeOwnerBasicRevisionPending は owner basic revision の writer が未接続の保存（F2）。
+	CodeOwnerBasicRevisionPending = "owner_basic_revision_pending"
+	// CodeOwnerRegistrationPending は owner 新規登録の writer が未接続の操作（F3）。
+	CodeOwnerRegistrationPending = "owner_registration_pending"
+	// CodePetBasicRevisionPending は pet basic revision の writer が未接続の保存（F4）。
+	CodePetBasicRevisionPending = "pet_basic_revision_pending"
+	// CodePetLifecycleWritePending は pet の死亡記録・復帰など生死 revision の writer が未接続の操作（F5）。
+	CodePetLifecycleWritePending = "pet_lifecycle_write_pending"
+	// CodePetRegistrationPending は既存 owner への pet 直接登録の writer が未接続の操作（F6）。
+	CodePetRegistrationPending = "pet_registration_pending"
+)
+
+// WrapCommonBasicUnresolved は CodeCommonBasicUnresolved の 422 を返す。応答 message は固定文言で、
+// detail（ローカル ID など患者データを含まない識別子）は Err にだけ載せてサーバーログ用に残す。
+// Err は ErrUnprocessable を単一 %w で包む（他のセンチネルを合成しない）。
+func WrapCommonBasicUnresolved(detail string) error {
+	return &AppError{
+		Code:    CodeCommonBasicUnresolved,
+		Message: "飼い主またはペットの基本情報を確認できないため、この操作はできません",
+		Err:     fmt.Errorf("%s: %w", detail, ErrUnprocessable),
+	}
+}
+
 // HasCode は err の連鎖に AppError があり、その Code が code と一致するかを返す。
 func HasCode(err error, code string) bool {
 	var appErr *AppError

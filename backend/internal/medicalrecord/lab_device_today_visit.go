@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
@@ -42,14 +43,24 @@ func (f labDeviceTodayVisitFinder) ListTodayDraft(
 			PetID:    *record.PetID,
 		}
 		if record.Pet != nil {
-			visit.PetName = record.Pet.Name
-			visit.PetIsDeceased = sharedkernel.IsPetDeceased(record.Pet)
+			petBasic, petErr := commonbasic.PetOf(record.Pet)
+			if petErr != nil {
+				return nil, petErr
+			}
+			visit.PetName = petBasic.Name
+			// EMR-491 D6: 生存と確認できないペット（status 未記録を含む）は alive にせず、死亡と同じく選択できない扱いにする。
+			state, stateErr := sharedkernel.ClassifyPetLifeState(petBasic.Status, petBasic.DeceasedAt)
+			visit.PetIsDeceased = stateErr != nil || state != sharedkernel.PetLifeStateAlive
 			if record.Pet.AnimalSpecies != nil {
 				visit.Species = record.Pet.AnimalSpecies.Name
 			}
 		}
 		if record.Owner != nil {
-			visit.OwnerName = record.Owner.Name
+			ownerBasic, ownerErr := commonbasic.OwnerOf(record.Owner)
+			if ownerErr != nil {
+				return nil, ownerErr
+			}
+			visit.OwnerName = ownerBasic.Name
 		}
 		if record.Doctor != nil {
 			visit.DoctorName = record.Doctor.Name

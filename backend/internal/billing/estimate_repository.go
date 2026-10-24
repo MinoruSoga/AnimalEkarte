@@ -85,6 +85,9 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 		Scopes(persistence.Paginate(page, limit)).Order("created_at DESC").Find(&estimates).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "estimate", "")
 	}
+	if err := hydrateEstimateBasics(ctx, r.db, []uint64{clinicID}, estimates); err != nil {
+		return nil, 0, err
+	}
 	return estimates, total, nil
 }
 
@@ -103,6 +106,9 @@ func (r *estimateRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&estimate).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "estimate", fmt.Sprintf("%d", id))
+	}
+	if err := hydrateEstimateBasics(ctx, r.db, []uint64{clinicID}, []model.Estimate{estimate}); err != nil {
+		return nil, err
 	}
 	return &estimate, nil
 }

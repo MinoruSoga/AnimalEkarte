@@ -99,6 +99,11 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 }
 
 func (s *ownerService) Update(ctx context.Context, clinicID, id uint64, input *UpdateOwnerInput) (*model.Owner, error) {
+	// EMR-491: 基本情報の項目は共通 basic revision の改訂でしか保存できない。writer 未接続の間は読み取りも
+	// 書き込みもせず固定 422（F2）で拒否する（HTTP 境界を通らない呼び出しでも廃止列へ書かせない）。
+	if updateInputTouchesBasic(input) {
+		return nil, errOwnerBasicRevisionPending()
+	}
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}

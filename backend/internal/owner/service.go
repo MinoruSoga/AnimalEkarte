@@ -12,19 +12,6 @@ import (
 const (
 	ownerDeliveryReasonMaxLength = 100
 
-	colOwnerName              = "name"
-	colOwnerNameKana          = "name_kana"
-	colBirthDate              = "birth_date"
-	colCompany                = "company"
-	colPostalCode             = "postal_code"
-	colAddress1               = "address1"
-	colAddress2               = "address2"
-	colHomePostalCode         = "home_postal_code"
-	colHomeAddress1           = "home_address1"
-	colHomeAddress2           = "home_address2"
-	colPhone                  = "phone"
-	colCompanyPhone           = "company_phone"
-	colEmail                  = "email"
 	colRemarks                = "remarks"
 	colIsDangerous            = "is_dangerous"
 	colDiscountRate           = "discount_rate"

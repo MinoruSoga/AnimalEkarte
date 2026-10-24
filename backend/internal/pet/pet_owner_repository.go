@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
@@ -27,15 +28,15 @@ type SharedPet struct {
 	ID                uint64
 	PetNumber         string
 	Name              string
-	Status            model.PetStatus
+	Status            *model.PetStatus
 	AnimalSpeciesName string
-	Gender            model.PetGender
+	Gender            *model.PetGender
 	BirthDate         *time.Time
 	DeceasedAt        *time.Time
-	Color             string
-	Weight            *float64
-	Environment       string
-	Remarks           string
+	Color             *string
+	Weight            *model.ExactNumeric
+	Environment       *string
+	Remarks           *string
 	Relationship      string
 }
 
@@ -65,31 +66,78 @@ func (r *petOwnerRepository) FindByPetID(
 	return links, nil
 }
 
+// sharedPetLink は pet_owners 経由で共有された pet のローカル行と続柄。基本情報は含めず、現行 basic revision から読む。
+type sharedPetLink struct {
+	ID           uint64 `gorm:"column:id"`
+	ClinicID     uint64 `gorm:"column:clinic_id"`
+	PetNumber    string `gorm:"column:pet_number"`
+	Relationship string `gorm:"column:relationship"`
+}
+
 func (r *petOwnerRepository) FindSharedPetsByOwnerID(
 	ctx context.Context,
 	clinicID, ownerID uint64,
 ) ([]SharedPet, error) {
-	sharedPets := make([]SharedPet, 0)
+	var links []sharedPetLink
 	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Pet{}).
-		Select(
-			"pets.id, pets.pet_number, pets.name, pets.status, "+
-				"animal_species.name AS animal_species_name, pets.gender, "+
-				"pets.birth_date, pets.deceased_at, pets.color, pets.weight, pets.environment, "+
-				"pets.remarks, pet_owners.relationship",
-		).
+		Select("pets.id AS id, pets.clinic_id AS clinic_id, pets.pet_number AS pet_number, pet_owners.relationship AS relationship").
 		Joins("JOIN pet_owners ON pet_owners.pet_id = pets.id AND pet_owners.clinic_id = pets.clinic_id").
-		Joins("JOIN animal_species ON animal_species.id = pets.animal_species_id").
 		Where("pet_owners.clinic_id = ? AND pet_owners.owner_id = ?", clinicID, ownerID).
 		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = pet_owners.pet_id AND p.clinic_id = pet_owners.clinic_id)").
 		Where("EXISTS (SELECT 1 FROM owners o WHERE o.id = pet_owners.owner_id AND o.clinic_id = pet_owners.clinic_id)").
 		Where("pets.owner_id <> pet_owners.owner_id").
 		Order("pet_owners.id ASC").
-		Find(&sharedPets).Error
+		Find(&links).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet_owner", "")
 	}
+
+	// 名前・動物種・生死などは pets の列ではなく現行 basic revision にある。1 件でも未解決なら F1（422）で失敗させ、
+	// 行を黙って落とさない。
+	pets := make([]model.Pet, len(links))
+	for i, link := range links {
+		pets[i] = model.Pet{ID: link.ID, ClinicID: link.ClinicID, PetNumber: link.PetNumber}
+	}
+	if err := commonbasic.HydratePets(ctx, r.db, []uint64{clinicID}, commonbasic.Ptrs(pets)); err != nil {
+		return nil, err
+	}
+	sharedPets := make([]SharedPet, 0, len(links))
+	for i := range pets {
+		sharedPet, buildErr := newSharedPet(&pets[i], links[i].Relationship)
+		if buildErr != nil {
+			return nil, buildErr
+		}
+		sharedPets = append(sharedPets, sharedPet)
+	}
 	return sharedPets, nil
+}
+
+// newSharedPet は hydrate 済みの pet を共有 pet の表示用射影へ写す。基本情報や動物種が未解決なら F1（422）。
+func newSharedPet(pet *model.Pet, relationship string) (SharedPet, error) {
+	basic, err := commonbasic.PetOf(pet)
+	if err != nil {
+		return SharedPet{}, err
+	}
+	if pet.AnimalSpecies == nil {
+		return SharedPet{}, apperrors.WrapCommonBasicUnresolved(
+			fmt.Sprintf("pet %d/%d: animal species is not hydrated", pet.ClinicID, pet.ID))
+	}
+	return SharedPet{
+		ID:                pet.ID,
+		PetNumber:         pet.PetNumber,
+		Name:              basic.Name,
+		Status:            basic.Status,
+		AnimalSpeciesName: pet.AnimalSpecies.Name,
+		Gender:            basic.Gender,
+		BirthDate:         basic.BirthDate,
+		DeceasedAt:        basic.DeceasedAt,
+		Color:             basic.Color,
+		Weight:            copyExactNumeric(basic.RegistrationWeight),
+		Environment:       basic.Environment,
+		Remarks:           basic.Remarks,
+		Relationship:      relationship,
+	}, nil
 }
 
 func (r *petOwnerRepository) ReplaceForPet(

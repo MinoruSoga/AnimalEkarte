@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/pet"
@@ -98,6 +99,9 @@ func (r *reservationAdminRepository) FindAllByDay(ctx context.Context, clinicID 
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "appointment", "")
 	}
+	if err := hydrateReservationBasics(ctx, r.db, []uint64{clinicID}, commonbasic.Ptrs(items)); err != nil {
+		return nil, err
+	}
 	return items, nil
 }
 
@@ -157,6 +161,9 @@ func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clin
 		Scopes(persistence.ClinicScope(clinicID), reservationRelationsMatchParentClinic).Where("id = ?", id).First(&appt).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", id))
+	}
+	if err := hydrateReservationBasics(ctx, r.db, []uint64{clinicID}, []*model.Reservation{&appt}); err != nil {
+		return nil, err
 	}
 	return &appt, nil
 }

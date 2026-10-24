@@ -94,7 +94,12 @@ func (h *Handler) SearchOwners(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": toOwnerSearchItems(owners)})
+	items, err := toOwnerSearchItems(owners)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
 }
 
 // SearchPets GET /identity-links/pets/search?q=
@@ -114,7 +119,12 @@ func (h *Handler) SearchPets(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": toPetSearchItems(pets)})
+	items, err := toPetSearchItems(pets)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
 }
 
 // GetOwnerGroup GET /identity-links/owner-groups/:id

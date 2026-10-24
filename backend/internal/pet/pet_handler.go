@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -24,24 +25,24 @@ type ownerReportInsuranceResponse struct {
 type ownerReportResponse struct {
 	ID          uint64     `json:"id"`
 	Name        string     `json:"name"`
-	PetNameKana string     `json:"pet_name_kana"`
-	Gender      string     `json:"gender"`
-	Status      string     `json:"status"`
+	PetNameKana *string    `json:"pet_name_kana"`
+	Gender      *string    `json:"gender"`
+	Status      *string    `json:"status"`
 	BirthDate   *time.Time `json:"birth_date"`
-	// 死亡OR契約（status=deceased または deceased_at 非null）用に FE へ伝播する。
+	// 生存判定（status と deceased_at）用に FE へ伝播する。
 	DeceasedAt      *time.Time                        `json:"deceased_at"`
-	Breed           string                            `json:"breed"`
-	Color           string                            `json:"color"`
+	Breed           *string                           `json:"breed"`
+	Color           *string                           `json:"color"`
 	BloodType       *string                           `json:"blood_type"`
 	MicrochipNumber *string                           `json:"microchip_number"`
-	Weight          *float64                          `json:"weight"`
+	Weight          *model.ExactNumeric               `json:"weight"`
 	NeuteredDate    *time.Time                        `json:"neutered_date"`
 	NeuteredStatus  string                            `json:"neutered_status"`
 	AcquisitionType *string                           `json:"acquisition_type"`
-	Food            string                            `json:"food"`
-	Environment     string                            `json:"environment"`
+	Food            *string                           `json:"food"`
+	Environment     *string                           `json:"environment"`
 	LastVisit       *time.Time                        `json:"last_visit"`
-	Remarks         string                            `json:"remarks"`
+	Remarks         *string                           `json:"remarks"`
 	AnimalSpecies   *ownerReportAnimalSpeciesResponse `json:"animal_species"`
 	Insurance       *ownerReportInsuranceResponse     `json:"insurance"`
 }
@@ -50,33 +51,33 @@ type ownerReportPetsResponse struct {
 	Data []ownerReportResponse `json:"data"`
 }
 
-func toOwnerReportResponse(p *model.Pet) ownerReportResponse {
-	var acquisitionType *string
-	if p.AcquisitionType != nil {
-		value := string(*p.AcquisitionType)
-		acquisitionType = &value
+// toOwnerReportResponse は hydrate 済みの pet を飼主レポート用 DTO へ写す。基本情報が未解決なら空値で返さず
+// unresolved（F1）の error を返す。last_visit は pets.last_visit の廃止後に取得元が無く、導出もしないため常に null。
+func toOwnerReportResponse(p *model.Pet) (ownerReportResponse, error) {
+	basic, err := commonbasic.PetOf(p)
+	if err != nil {
+		return ownerReportResponse{}, err
 	}
 
 	response := ownerReportResponse{
 		ID:              p.ID,
-		Name:            p.Name,
-		PetNameKana:     p.NameKana,
-		Gender:          string(p.Gender),
-		Status:          string(p.Status),
-		BirthDate:       httpapi.LocalTimePtr(p.BirthDate),
-		DeceasedAt:      httpapi.LocalTimePtr(p.DeceasedAt),
-		Breed:           p.Breed,
-		Color:           p.Color,
-		BloodType:       p.BloodType,
-		MicrochipNumber: p.MicrochipNumber,
-		Weight:          p.Weight,
-		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
-		NeuteredStatus:  string(p.NeuteredStatus),
-		AcquisitionType: acquisitionType,
-		Food:            p.Food,
-		Environment:     p.Environment,
-		LastVisit:       httpapi.LocalTimePtr(p.LastVisit),
-		Remarks:         p.Remarks,
+		Name:            basic.Name,
+		PetNameKana:     basic.NameKana,
+		Gender:          enumPtr(basic.Gender),
+		Status:          enumPtr(basic.Status),
+		BirthDate:       httpapi.LocalTimePtr(basic.BirthDate),
+		DeceasedAt:      httpapi.LocalTimePtr(basic.DeceasedAt),
+		Breed:           basic.Breed,
+		Color:           basic.Color,
+		BloodType:       basic.BloodType,
+		MicrochipNumber: basic.MicrochipNumber,
+		Weight:          copyExactNumeric(basic.RegistrationWeight),
+		NeuteredDate:    httpapi.LocalTimePtr(basic.NeuteredDate),
+		NeuteredStatus:  string(basic.NeuteredStatus),
+		AcquisitionType: enumPtr(basic.AcquisitionType),
+		Food:            basic.Food,
+		Environment:     basic.Environment,
+		Remarks:         basic.Remarks,
 	}
 	if p.AnimalSpecies != nil {
 		response.AnimalSpecies = &ownerReportAnimalSpeciesResponse{Name: p.AnimalSpecies.Name}
@@ -87,7 +88,20 @@ func toOwnerReportResponse(p *model.Pet) ownerReportResponse {
 			CoverageRate: p.Insurance.CoverageRate,
 		}
 	}
-	return response
+	return response, nil
+}
+
+// toOwnerReportResponses は一覧を応答 DTO へ変換する。1 件でも未解決なら全体を失敗させる（行を黙って落とさない）。
+func toOwnerReportResponses(pets []model.Pet) ([]ownerReportResponse, error) {
+	items := make([]ownerReportResponse, 0, len(pets))
+	for i := range pets {
+		item, err := toOwnerReportResponse(&pets[i])
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
 // ListPets godoc
@@ -115,11 +129,16 @@ func (h *Handler) ListPets(c *gin.Context) {
 
 	pets, total, err := h.pets.List(c.Request.Context(), clinicIDs, filters, page, limit)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondPetError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(httpapi.MapSlice(pets, toPetListResponse), total, page, limit))
+	items, err := toPetListResponses(pets)
+	if err != nil {
+		respondPetError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(items, total, page, limit))
 }
 
 // ListOwnerReportPets godoc
@@ -138,12 +157,15 @@ func (h *Handler) ListOwnerReportPets(c *gin.Context) {
 	}
 	pets, err := h.pets.ListOwnerReportPets(c.Request.Context(), clinicIDs, ownerID)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondPetError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, ownerReportPetsResponse{
-		Data: httpapi.MapSlice(pets, toOwnerReportResponse),
-	})
+	data, err := toOwnerReportResponses(pets)
+	if err != nil {
+		respondPetError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, ownerReportPetsResponse{Data: data})
 }
 
 // GetPet godoc
@@ -163,10 +185,15 @@ func (h *Handler) GetPet(c *gin.Context) {
 	}
 	pet, err := h.pets.GetByIDForClinics(c.Request.Context(), clinicIDs, id)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondPetError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toResponse(pet))
+	resp, err := toResponse(pet)
+	if err != nil {
+		respondPetError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // GetPetFirstVisit godoc
@@ -208,11 +235,16 @@ func (h *Handler) CreatePet(c *gin.Context) {
 	input := req.toServiceInput()
 	pet, err := h.pets.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondPetError(c, err)
+		return
+	}
+	resp, err := toResponse(pet)
+	if err != nil {
+		respondPetError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/pets/%d", pet.ID))
-	c.JSON(http.StatusCreated, toResponse(pet))
+	c.JSON(http.StatusCreated, resp)
 }
 
 // UpdatePet godoc
@@ -226,8 +258,8 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 		return
 	}
 	var req updatePetRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	if err := bindUpdatePetRequest(c, &req); err != nil {
+		respondPetError(c, err)
 		return
 	}
 
@@ -241,10 +273,15 @@ func (h *Handler) UpdatePet(c *gin.Context) {
 	}
 	pet, err := h.pets.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondPetError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toResponse(pet))
+	resp, err := toResponse(pet)
+	if err != nil {
+		respondPetError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // DeletePet godoc

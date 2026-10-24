@@ -144,6 +144,9 @@ func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID
 		Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
+	if err := hydrateBillingBasics(ctx, r.db, []uint64{clinicID}, billings); err != nil {
+		return nil, 0, err
+	}
 	attachOutstandingAmounts(billings)
 	return billings, total, nil
 }

@@ -486,6 +486,10 @@ func (r *accountingRepository) findBillingByIDWithScope(q *gorm.DB, clinicIDs []
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
 	}
 	sanitizeBillingRelations(&billing)
+	// EMR-491: Owner / Pet の名前は現行 basic revision にある。q は ctx 付き（ambient tx を含む）で作られているため、その ctx で読む。
+	if err := hydrateBillingBasics(q.Statement.Context, r.db, clinicIDs, []model.Billing{billing}); err != nil {
+		return nil, err
+	}
 	var total int64
 	for i := range billing.Refunds {
 		total += billing.Refunds[i].Amount
@@ -590,6 +594,9 @@ func (r *accountingRepository) update(ctx context.Context, clinicID, billingID u
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
 	}
 	sanitizeBillingRelations(&billing)
+	if err := hydrateBillingBasics(ctx, r.db, []uint64{clinicID}, []model.Billing{billing}); err != nil {
+		return nil, err
+	}
 	for i := range billing.Refunds {
 		billing.TotalRefundedAmount += billing.Refunds[i].Amount
 	}
