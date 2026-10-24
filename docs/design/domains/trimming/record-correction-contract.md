@@ -1,0 +1,110 @@
+# D06 / EMR-574 専用訂正・生前分後日入力：閉じた技術契約（未実装）
+
+基準 dc1f2747dad1790f1e88bae55df06397e660cbc8。assignees=[]。mainへのマージを設計契約の採用とし、製品実装・受入の完了とは区別する。進行状態はPlaneを正本とする。旧4本文field案を本稿で置換する。DBはcanonical再作成、old_db mappingも正本へ合わせ、旧稼働行救済・旧列復活・GET backfillはしない。
+
+## 1. 受領範囲と根拠
+D06 lifecycle FR-trimming-special-correction は完了後の施術記録・完了誤りを理由付き専用訂正、FR-trimming-safety-and-status は死亡後も生前の記録後日入力・誤記訂正を許可する。technical-spec §死亡登録後の生前分記録は元事実/実施時点・入力時刻・actor/確認者・理由・前後差分を要求する。C03 FR-common-safety-patient と AC-common-safety-posthumous-history は原記録、元飼主の請求帰属、既存認可、unknown非推定を要求する。D06には医師限定も別人確認必須もない。現在 trimming:view＋edit の認証actorが専用確認を行い、actor_id=confirmed_byをserverが保存する。doctor_id/client confirmed_byを受けず、D03/vitalの医師条件を移植しない。
+本票が既存施術本文全schema2と実施source集合の訂正、死亡後の同じ既存施術に対する訂正/後日入力を所有。168は旧成果のまま、541はstart/end、561は実績ゼロ中止、482は単一T4 writer/price型、331は共通life snapshotのみ。331 P4は日次でありD06の残受け手ではない。541文書の「494 completion correction」は本票番号へ訂正する。
+
+## 2. Field closure（同じ root command、本文の第二writerなし）
+T4 schema2全keyを以下で分類する。変更patchは省略=保持、未知key拒否。価格wireは482のexact decimal/整数文字列とvalidationをそのまま使う。
+- style_request,used_shampoo,used_ribbon,remarks：string、空文字clear、null拒否。
+- body_weight,bw_unit,body_temperature：既存nullable exact値/単位enum。明示null=不明への訂正を許可し理由・前値保持、0へ補完しない。既存値域/単位整合を維持し新しい医学閾値を作らない。
+- actual_performer_staff_id：明示IDまたはnull、当該医院の実在staffを検証。actor/予約doctorの自動転記なし。null訂正を拒否して虚偽担当を残すのでなく、訂正後の実担当不明として表示し新たなendの既存必須条件だけを保持する。
+- style_image,completed_image：省略保持、空文字論理clear、同院canonical object key。300の参照lock/tombstone規則を共用。旧参照とblobを履歴として保持し物理cleanup禁止。署名URL保存なし。
+- 新規保存するschema_version=2、appointment_id、owner_id、pet_id：server由来・immutable。既存不変revisionのschema_versionは保存済み1又は2のまま読取り、書換えない。患者/飼主/予約IDの付替えは本commandで拒否し元帰属を保持。ID訂正は別の目的別identity workflowで、本票の本文訂正で迂回しない。
+- lines：省略保持、指定時は482 POST price-revisions と同じ全量closed line DTO（source_line_id,master,adoption,adopted_master,input,tax_adoption,tax_input）。stable source identity保持、既存master削除再採番なし、retain/adopt_current規則・税unknown保存・全量revisionを共用。空配列は「実施内容の記録が誤り」の訂正として履歴化し、終了済badgeだけから実績ありと推定しない。空集合を561の実績ゼロ中止や自動返金へ変換しない。
+価格/税の未選定算定subsetは保存可能な原入力と算定/請求可否を分離する。未選定の内税混在算定を本票で捏造しない。本文訂正を会計算定の全体完成待ちにしない。
+- actual_performance_basis：下記専用履歴の実施時点情報でありT4既存列とは主張しない。予約予定日時/終了event recorded_atを実施日時へ転記しない。予定枠変更は本票から書かない。
+
+## 3. 閉じたwireとcommand
+GET /api/v1/trimmings/{appointment_id}/correction-context
+POST /api/v1/trimmings/{appointment_id}/corrections
+GET /api/v1/trimmings/{appointment_id}/corrections?after_id=&limit=20（max50）
+GET /api/v1/trimmings/correction-operations/{operation_key}
+GET /api/v1/trimmings/correction-operations/{operation_key}/details
+静的routeを/:idより先に登録。path IDはappointment ID、detail IDに意味変更しない。
+context = {appointment_id,appointment_version,record_ref,current_values,lines,source_digest,effective_end_ref,life_basis,performance_basis,capabilities}。record_ref={owner:"trimming",kind:"appointment_trimming_detail",id,revision}。effective_end_ref=null又は{event_id,resulting_appointment_version,operation_key}、468 current-effective readが供給する。古いreceiptをcurrentとして返さない。
+life_basis={local_pet_id,clinic_binding_id,common_pet_id,subject_version,basic_revision_id,basic_revision,life_state,deceased_at}。491/331採用ReadPetLifeSnapshotから読み、unknownはerror。common_pet_subjects/common_pet_clinic_bindings/common_pet_basic_revisionsだけをauthorityとし旧group fallbackなし。deceased_atの正確な精度が不明なら比較可能としない。
+POST={mode,record_ref,effective_end_ref,confirmed_life_basis,reason,changes,performance_confirmation,preconditions}。mode=completed_correction|ante_mortem_correction|ante_mortem_late_entry。changes={detail?,lines?}で上記allowlistのみ。reasonはtrim後非空max2000 Unicode文字。no-opは本文だけでなく全保存意味（全T4 projection/lines、実施時点、performance_confirmation/source_ref/statement、確認由来・life根拠）を正規化して比較する。初回の実施事実確認、生前根拠確認、由来変更、理由付き事実訂正、初版late-entryは本文同値でもchanged=trueで履歴と必須auditを保存する。単なる同一操作再送は既存receiptを返す。新keyで全保存意味が同値かつ新たな確認/訂正事実を追加しない場合だけchanged=false、元の固定revisionと既存basisをreceiptへ束縛し業務history/auditを増やさない。C06 receiptとimmutable operation detailsは保存する。life/appointmentのCAS-only期待版だけをfingerprintから除外。
+preconditions={appointment_version,detail_revision,source_digest,subject_version}。confirmed_life_basisはlife_basisと同じclosed形状をPOSTに明示し、local_pet_id/clinic_binding_id/common_pet_id/basic_revision_id/basic_revision/life_state/deceased_atを確認した業務根拠としてroot Content hashへ全量含める。subject_versionも確認snapshotの一部としてContentに保持し、preconditions.subject_versionは実行時CAS値として別に扱う。同subjectで無関係の基本項目だけが更新されても、確認済basisの参照を最新へ黙って差替えず、新basisを表示・再確認して新内容/新keyにする。lock後の現在life snapshotとconfirmed_life_basisのidentity・版・状態・死亡時点を完全照合し、不一致はdependency-changed。CAS値だけ変えて確認済死亡事実をすり替えない。completed_correctionは現在aliveかつ有効終了あり。ante_mortem各modeは現在deceasedかつ確認済生前根拠、現在終了の有無を条件にせず死亡後の後日入力を一般死亡guardで拒否しない。保存はend/start/会計確定を発火しない。
+performance_confirmationは通常生存訂正ならnull可。死亡後は必須で {basis_kind,source_ref,performed_time,statement}。basis_kind=existing_actual_fact|actor_verified_actual_fact。source_refは前者のみ{owner:"trimming",appointment_id,detail_id,revision,correction_id?}で、実際の実施時点を保存した過去訂正/実績根拠のみ参照できる。予定や保存時刻しかないT4 revisionをactual factと偽らない。後者は既存元施術を開いた認証actorが実際の生前施術を確認し今回明示入力する技術表現であり、新しい医師証明制度ではない。statementは確認根拠説明、trim非空。POST画面には患者/原記録/実施時点/死亡時点/変更差分/理由を出し、確認操作をroot command内容へ束縛する。booleanだけで対象照合を省略しない。
+performed_timeはclosed tagged union：{precision:"instant",at:offset付きRFC3339} 又は {precision:"date",date:YYYY-MM-DD,time_zone:当該医院の既存IANA zone}。dateの全日区間の上端が既知死亡instant以前なら明らかに生前、instantは死亡instantより厳密に前。死亡日同日でdateしか分からない場合は情報不足のまま入力保持、正確な実施時点を確認してから送信。死亡instant自体がunknownなら死亡ownerの事実確認/訂正へ渡し、now()や終業時刻で補完しない。元根拠と訂正後根拠を両方保持し、元が予定値だけならactor_verifiedとして新たに確認した事実を保存し「以前から既知」としない。
+このactor_verifiedはD06の「実施時点不明なら確認する」を満たす対象固定の明示確認。D03の確認医師や495の3資源documented_contentを流用しない。
+root immutable command schema="trimming.record-correction.v1"、mode/appointment_id/record_ref/effective_end_ref/confirmed_life_basis/reason/changes/performance_confirmation。C06 owner_kind=trimming、intent=trimming.record_correction。JCS UTF-8 SHA256をContentのpayload_sha256へ、resource_kind=appointment,target_ref=path ID。表示した元record/ref/実施根拠/死亡根拠はconfirmed contentとして固定し、retry CASのみPreconditionsへ分離。Idempotency-Keyはcanonical nonzero UUID、一度生成し同scope/内容で再送照会する。
+
+## 4. detailなし後日入力を未追跡にしない
+同院同petの既存trimming appointmentが明示的に選択され、その実施が生前と上記確認で確定した場合だけ mode=ante_mortem_late_entry で既存detailへ追記、又はdetail不存在を確認して一つだけ作成する。新予約は作成しない。record_ref=nullはこのmodeでだけ許可、preconditions.detail_revision=nullとappointment lock下のdetail不存在をCASとする。同時既存detail生成は409、同key成功は元IDを返す。T4初版と明示source/本文、訂正履歴、audit、receiptを同TX。未入力値はcanonical nullable/空として保持し担当/コース/金額を補完しない。終了を兼ねないので541終了必須条件を後日途中入力へ課さない。
+対応する既存予約自体が存在しない場合は、元対象を勝手に作らず「元施術対象の確認」へ止める。正本がこの例外について新しい予約なし記録identity/直接既往作成を定めていないことを残件として明示し、別患者日付候補の先頭選択で穴埋めしない。
+
+## 5. 同TX保存とread/display
+新immutable trimming_record_corrections は clinic/app/detail、before_revision nullable（late entry初版のみ）/after_revision、mode、reason、actor/confirmed_by、server recorded_at、元/訂正後performance_confirmation、life_basis、effective_end_ref、operation_idを保存。raw入力のcanonical完全serializerを必須としnil化で成功させない。recorded_atと実施時点を別列/JSONで保持。before/afterは同院同detail、unique operation。T4 revision/source全量＋history＋必須audit＋receipt同TX。claim anchorは前稿trimming_correction_operation_targets、binding FKのみでbusiness lockをclaimに持ち込まない。
+ContextGate reservation-graph:write:v1→binding NOWAIT→現在認可付きreplay→既存billing必要subsetの順→booking→local pet SHARE→common subject SHARE→appointment→detail→source/master/image/staffの既存順（後段FKはNOWAIT）。common basic/deathのsource-local prelockとgate参加を331/491既選定規則で共用。既存ownerの順と矛盾する呼出しを並べ替えず、単一editorが参加表へ固定する。life snapshotはsubject lock後別statement再読、appointment/detail/source版も同lockで再検査。通常PATCH/price writer/direct repoは切替scopeの完了・死亡専用操作を迂回不可。
+金銭/在庫/通知/予約status/予定日時はwriteゼロ。訂正後T4を482/481 current source readerが読み、取込前は新source、取込済draftは保存snapshotとの差分、確定歴ありは元請求不変＋D10訂正導線。自動再適用/返金/在庫戻しなし。
+read/historyはtrimming:view、Applyはview+edit。さらに482§6の既存discount permission規則をfield-sensitiveに継承する。新規/変更するdiscount_rate・discount_amount・discount_stage等の割引条件は既存discount変更権限を現在Applyで要求する。既存sourceの割引値retain、単価のみ変更で派生割引額が変化する場合には追加discount grantを要求しない。新しいtrimming専用grantを作らない。新規lineへの割引条件採用と保持を同一視せず、diffをlocked beforeと照合する。lookupは元anchorの現在viewのみ、life変化で過去成功を隠して再実行しない。履歴keyset max50+1、原blob/原版から前後差分・理由・actor・確認者・実施日時/入力日時を表示。UIは既存TrimmingForm/use-trimming-formへ通常保存とは別の専用訂正dialog、死亡後は生前確認panel、source/価格/画像を同commandへまとめる。scope切替は旧cache破棄/遅延破棄、競合入力保持、結果不明は同keylookup。
+
+### 5.1 公開型の閉鎖（上記省略記法の完全定義）
+すべてclosed object、未知key拒否。ID/revisionは正signed64 canonical decimal string、common_pet_id/operation_keyはUUID、server時刻はRFC3339。nullと空/不存在を区別する。
+current_valuesは保存済みT4のschema_version判別union。Schema1=closed {schema_version:1,appointment_id,owner_id,pet_id,style_request,body_weight,bw_unit,body_temperature,used_shampoo,used_ribbon,remarks,style_image,completed_image}。Schema2=同じ全keyでschema_version:2＋actual_performer_staff_id（nullable）。型/nullは§2と482§3・541§4の保存型を共用。Schema1にactual_performer_staff_id keyを足して返さず、UIはschema判別から実担当不明を表示する。未知schema、Schema1への余剰key、Schema2必須key欠落はerror。detail不存在時だけcurrent_values=null、record_ref=null、lines=[]、source_digest=null（source未作成であり既知空revisionではない）。存在時のlinesは482 GET price-sourceのclosed {source_line_id,master,adopted_master,input,tax_input}配列、source_line_id順。schema_version以外の値をcurrent masterから補完しない。
+performance_basis=null又は {correction_id,record_ref,confirmation,confirmed_life_basis,confirmed_by,recorded_at}。confirmationは§3 performance_confirmationと同型。現在採用されている最後の明示実施根拠を不変訂正rowから解決する。T4本文だけ存在して実施時点根拠がない場合null。根拠未取得はエラーでnullにしない。
+capabilities={completed_correction,ante_mortem_correction,ante_mortem_late_entry,edit_discount_conditions,correct_wrong_completion}、各値boolean。現在grant/同一対象/状態/取得済依存から算定する案内値でありApplyの再検査を省略しない。編集grant不足ならfalse、現在状態unknown等ならcontext全体を取得失敗としfalseへ混ぜない。edit_discount_conditionsは既存discount規則により判定し、新規roleを作らない。correct_wrong_completionは§7の専用状態訂正だけに対応し、本文訂正のchangesからstatus変更を許可しない。
+history response={appointment_id,items,next_after_id,has_more}。itemsはid昇順keyset（after_idより大）、next_after_idはhas_more=trueのとき最後の返却id、それ以外null。最大limit+1候補を読む。history row={correction_id,appointment_id,detail_id,mode,reason,actor_id,confirmed_by,recorded_at,operation_key,before,after,confirmed_life_basis,effective_end_ref,performance_before,performance_after}。
+before/afterは固定 RevisionSnapshot={record_ref,source_digest,detail_values,lines}。before=nullは初版late-entryのみ、afterは非null。detail_valuesは上記Schema1|Schema2 tagged union、linesは482型。before/afterとも参照先の保存schemaそのまま。新たなT4訂正版をappendしたafterは必ずSchema2、根拠のみ訂正又はno-opでT4 appendしない場合のafterは元Schema1でもよい。performance_before/afterは上記performance_basis型でnull可。historyのsnapshotは保存したrevision IDと訂正rowだけから読む。現在T4/現在master/現在lifeを過去snapshotへ上書きしない。取得できない必要不変refはresult-unavailableで成功空にしない。
+POST成功とlookup成功は既存C06 envelope {status,operation_key,result_refs,committed_versions,recorded_at}。result_refsはstring mapで必須 {appointment_id,detail_id,after_detail_revision_id,operation_details_id}、任意before_detail_revision_id/correction_idは実在時だけ追加、null/0/空placeholder禁止。committed_versions={appointment,detail}はcommit時に観測した予約版と成功後detail revisionの正decimal string。予約版を本操作が変更した意味ではない。changed=falseならafterは元の固定保存revision、correction_idは出さずoperation_details_idは必ず作る。根拠だけの変更でT4全保存値が同じならT4新revisionは増やさず、同一before/after refに訂正rowとauditをappendする。訂正row前後同一禁止という旧4field案の制約は撤回し、changed reason/provenance/performance等の保存意味が必要条件となる。初版はbeforeなし/afterあり。
+GET /correction-operations/{operation_key}/details成功は {operation_key,operation_details_id,changed,correction_id,appointment_id,detail_id,before,after,mode,reason,actor_id,confirmed_by,recorded_at,confirmed_life_basis,effective_end_ref,performance_before,performance_after}。correction_idだけnullable（no-op時）。before/after/各basisは同じ固定型、operation_details_idはoperationごと不変。changed=falseでも成功時に観測した全固定refと意味を保存して返し、後日のcurrent GETから結果を再構成しない。
+trimming_correction_operation_detailsを最小不変metadataとして追加し、clinic_id＋operation_id unique、operation_details_id正ID、changed、command schema/hash、前後revision ref、nullable correction_id、成功時のappointment版、固定performance/life/end refs、actor/timeを同成功TX保存。返却bodyの本文は不変T4参照で解決、必要なcommand reason/confirmationはこの不変metadata又は訂正rowに保存する。C06 result_refsがこのIDへ結び付く。no-opもreceipt/metadata保存失敗は成功にしない。RLS/同院ref検査/通常role UPDATE DELETE禁止を446/466へ供給する。
+lookup/detailsはkeyから元claim anchorを先に解決し、現在trimming:viewと元医院/患者/record scopeを再検査する。成功replayは同一immutable refsを返し、現在版/life更新で成功を書換えない。現在readはcontext別呼出し。POST middlewareはedit（必要なdiscount条件変更grantもApplyで再検査）、view-only replayはGETのみ。非成功・失権・unknownは既存C06 transport/status規則を共用し、新しい成功形/404を失敗確定の意味として追加しない。非成功ではrefs/details本文を返さず、結果不明は同keyで照会し新keycreate禁止。
+
+## 6. 所有・1PR統合と未完境界
+本票1PRは上記closed producer→C06/lookup→full T4 read/history→専用UIを完結する。必要共有subsetは同PR単一editor又は固定供給SHA、全491/331/482/468 Done待ちではない。router/OpenAPI/generated typesは445/454、001/model/ERDは446/466統合owner、既存単一DB方針を維持。全assignee未設定。168/541/561の成果やscopeを変更しない。新table/APIは技術提案で既存実装とは記載しない。
+全schema2本文訂正と生前後日入力は本稿で技術選択を閉じる。D06「完了誤り」後の状態は2026-10-24 13:14:05 UTCの本人承認で施術中へ戻すと確定し、§7に専用状態訂正を定義する。本文訂正からstatusを変えない既決境界は維持する。
+(2) 既存予約もない生前実施の後日入力。既存予約対象ありの上記経路は閉鎖。無元対象は正本の対象識別確認へ保留し、新規未来予約禁止から過去予約新設の許可を推測しない。本票の残AC台帳に管理し、未完のまま消さない。
+誤完了後状態の質問は解消済み。死亡後の新施術を許可する意味にはしない。以下の歴史的記載で「誤完了後の状態は未回答・未採用」とある場合、その記述は§7の本人承認により失効する。
+
+<a id="wrong-completion-correction-574"></a>
+## 7. EMR-574：誤った施術終了の専用訂正（2026-10-24確定）
+業務根拠：13:11:39 UTCに「EMR-574：誤った施術終了は、理由付きの専用訂正で履歴を残して『施術中』に戻す。確定済み会計は自動取消せず、別の会計訂正で扱う。」と提示し、本人が13:14:05 UTCに「両方はい」（Sentinel_7cd1405309e88191b0231ba093052d43）と回答。EMR-574 id=07300d0b-45ec-4e1f-a278-9374c9bd4744、assignees=[]。これは業務承認でありruntime/試験完了ではない。
+
+### 7.1 本文訂正と別の状態操作
+通常completed_correctionは本文/source訂正のみ。本節はmode=wrong_completion_correction、C06 owner_kind=trimming、intent=trimming.correct_wrong_completion、command schema=trimming.wrong-completion-correction.v1を別登録する。本文/価格/画像/実担当changesを受けず、同じ予約・専用記録の誤終了を訂正する一操作。通常reservation undo endpointへの単純aliasにしない。通常Undoの会計確定歴停止は維持し、この本人承認された専用intentだけが確定歴を保持したまま状態訂正できる。
+対象は現在の同一appointmentに有効なtrimming終了eventがあり、その後の会計完了によるcompletedを含む終了系状態（accounting又はcompleted）。同じeffective_end_refを指定したときだけin_consultationへ戻す。既に再開/取消/実績ゼロ中止/別終了済みならdependency-changed又は状態不適合で拒否。同keyの過去成功は現在状態にかかわらず現在認可付きreceipt参照として返す。新keyで既に施術中の対象を成功no-opにしない。
+死亡状態は変えない。死亡個体であっても誤った終了という履歴事実の訂正を新規施術と混同して一律拒否しない。訂正後に施術中と表示されることは死亡後の新しい施術許可ではなく、通常create/start/body writeの死亡gateは維持し、生前記録は§3の専用経路だけを使う。診療継続資格/勤務や新担当者への自動変更を本訂正から発火しない。
+
+### 7.2 Closed context / POST / lookup
+GET /api/v1/trimmings/{appointment_id}/wrong-completion-context
+POST /api/v1/trimmings/{appointment_id}/wrong-completion-corrections
+GET /api/v1/trimmings/wrong-completion-operations/{operation_key}
+GET /api/v1/trimmings/wrong-completion-operations/{operation_key}/details
+GET /api/v1/trimmings/{appointment_id}/wrong-completion-corrections?after_id=&limit=20（max50）
+静的operations routeを/:idより先に登録する。元ID解決は541と同じappointment↔detail typed ref、clinic/pet bindingを使用する。
+context={appointment_id,appointment_version,current_status,record_ref,source_digest,effective_end_ref,life_basis,billing_history,can_correct}。record_refとlife_basisは§3、source_digestは現在完全T4、effective_end_ref={event_id,resulting_appointment_version,operation_key}で非null。billing_history={state,history_revision}、state=never|finalized、history_revisionはbilling ownerの固定根拠digest。unknown/read failureはcontext取得失敗としneverへ補完しない。請求額/他院本文は公開しない。can_correctは現在権限/対象/状態の案内値で、確定歴ありだけではfalseにしない。
+POST closed body={record_ref,effective_end_ref,confirmed_life_basis,confirmed_billing_history,reason,preconditions}。confirmed_billing_historyは表示したbilling_historyと同型。reasonはtrim非空max2000。preconditions={appointment_version,detail_revision,source_digest,subject_version}。actor/clinic/pet/owner/to_status/changes/confirmed_byをclient入力で受けない。専用確認buttonは対象、現在状態、元終了、理由、訂正後施術中、会計非変更を表示する。client booleanを認可や根拠検証の代わりにしない。
+immutable commandはschema,appointment_id,record_ref,effective_end_ref,confirmed_life_basis,confirmed_billing_history,reasonを保持し、JCS SHA256 payload_sha256へ全量束縛。C06 Content={schema_version:"1",resource_kind:"appointment",target_ref:appointment_id,payload_sha256}。CAS-only preconditionsはhash外、確認した元終了/記録/死亡/会計根拠はhash内。同keyで確認根拠を新版へ差替えない。Idempotency-Keyは送信前に一度生成するnonzero canonical UUID。
+Applyは541の既存grant合成を再利用し、trimming:view＋trimming:edit＋reservations:edit。医師role、accounting:edit、discount変更grantを追加しない（本操作は金額/割引を変更しない）。lookup/details/historyは現在trimming:viewと元scopeで認可。予約内部の会計確定歴readはgrant追加を目的とせず、billing ownerの限定projectionを使う。
+
+### 7.3 単一writer / immutable linkage / TX
+468が唯一のappointment lifecycle writer。新しい内部ambient participant CorrectTrimmingCompletionInTx(ctx,tx,verifiedCommand,lockedDependencies)を468 ownerへ追加する技術選択とし、現存symbolと主張しない。574は専用root command/理由/履歴/UIを供給し、541 current effective-end reader・T4完全reader・468予約版/event/effective-end mutationを共用する。既存trimming PATCH/DELETEからstatus SQLを実行しない。
+短metadata claimに元appointment/detail/pet/common subject・対象end event・intent/hashを不変anchorとして保存。§5のtrimming_correction_operation_targetsへintent別必要列を追加し、business FK/lockをclaimに持ち込まない。C06最外TXのContextGate reservation-graph:write:v1→binding NOWAIT→現在認可付きreplay/unknown→既存billing確定歴participantの必要lock→予約ownerのstaff/booking/pet-life/appointment/detail順へ進む。billing/closeの既存順と541§5の下位順を反転しない。必要subsetは一人の共有editorが同PR接続又は固定供給SHAを明記する。
+lock下で対象identity、現在grant、appointment CAS、T4 ref/digest、confirmed_life_basis、billing history_revision、現在有効end refを再読・照合する。会計確定historyのnever→finalized競合は確認根拠変更として再確認へ戻すが、現在finalizedを明示確認した専用commandは許可する。元終了時の古いT4版は終了event内でそのまま保持し、現在record_refと混同しない。
+468 participantがappointmentをin_consultationへ変更して版を一つ進め、appointment_change_eventをappend。eventには専用intent、before_status/after_status、before/resulting_version、元effective end event/operationと今回operation bindingの関連、actor、reason、server時刻を保持する。元end event・元成功receiptはUPDATE/DELETEせず、現在effective end projectionをnullへ更新する。新しい訂正eventから元endを参照する履歴で無効化を表現し、古い成功receiptを失敗に書換えない。
+新immutable trimming_completion_corrections={id,clinic_id,appointment_id,detail_id,operation_id,original_end_event_id,original_end_operation_key,correction_event_id,before_appointment_version,after_appointment_version,before_status,after_status,record_ref,source_digest,confirmed_life_basis,confirmed_billing_history,reason,actor_id,recorded_at}。operation単位unique、元end eventと訂正eventは同院同予約、after_status=in_consultation、版は今回eventと一致。tenant RLS、通常role UPDATE/DELETE禁止、必要DB/model/ERDは446/466単一統合owner。元T4 revision、実担当、source lines、画像は一切変更しない。
+appointment/status/version＋訂正event＋effective-end invalidation＋訂正history＋必須audit＋C06 receiptを同一最外TXでcommit。一つでも失敗なら全rollback。invoice/payment/deposit/stock/通知/予約新規生成はwriteゼロ。確定済請求/帳票/入金/残高/確定歴は不変、D10の別訂正へ手動で渡す。予約完了イベント/過去会計完了の記録も消さない。新しい会計再取込・二重請求を自動発火しない。
+
+### 7.4 固定結果と現在表示
+成功C06 envelopeは{status,operation_key,result_refs,committed_versions,recorded_at}。result_refsのclosed string map={appointment_id,detail_id,detail_revision_id,completion_correction_id,original_end_event_id,appointment_change_event_id}、committed_versions={appointment,detail}。detail版は観測した固定T4版で変更した意味ではない。receiptからcompletion_correction_idへ固定参照し、現在appointmentの版/statusを過去結果へ上書きしない。
+成功details={operation_key,completion_correction_id,appointment_id,detail_id,record_ref,source_digest,original_end_ref,correction_event_id,before_status,after_status,before_appointment_version,after_appointment_version,confirmed_life_basis,confirmed_billing_history,reason,actor_id,recorded_at}。before/afterは当時の値、after_statusはin_consultation。現在stateは別のcurrent readerで取得。lookup/detailsの非成功はC06既存status/transportに従い、unknownから別keyを生成しない。
+history envelope={appointment_id,items,next_after_id,has_more}、itemsは上記details型の履歴、correction id昇順keyset最大limit+1候補。元終了event/receiptへの認可付き参照を表示し、終了→訂正→再終了を別の不変履歴として追跡する。本文の訂正historyと状態訂正historyは別型/別routeで混同しない。
+専用TrimmingFormは「誤った終了を訂正」入口を通常本文訂正と分け、原記録/元終了/理由/会計非変更を確認後一つのcommandを送信。成功後はreceipt固定対象を確認し、同予約の現在stateを再読して診療中列へ投影する。古いend receiptだけで会計待ちへ戻さない。death時は死亡表示と新施術不可を維持する。失敗は入力保持、競合は根拠再取得/差分確認、応答不明は同keylookup。D10導線は既存認可のある利用者だけに表示し、自動会計訂正はしない。
+
+### 7.5 同1PRの完了条件
+574の専用command/anchor/history/lookup/UI→468 status/event/effective-end→541 current reader/受付boardを同PRで接続する。通常本文訂正・誤完了訂正を別intentのまま同574内に追跡し、mockだけでAC完了にしない。全468/541/331/482 Done待ちでなく上記必要subsetに限定。既存normal Undoの確定歴停止、541 begin/end、561 zero-abortの独立scopeは不変。
+受入はNOT_RUN：accounting→in_consultation、completedかつ確定歴あり→in_consultationで請求不変、同key再送/異内容、別key二重訂正、古いend/再終了との競合、会計確定との両先行順、T4/患者/life/権限変更、死亡状態保持、新施術拒否、audit/history/receipt失敗全rollback、応答断lookup、旧end receiptとcurrent stateの分離、board遅延応答破棄。旧client互換/旧DB救済/一般PATCHのstatus許可を追加しない。
+
+## 受入（すべてNOT_RUN）
+全文field省略/null/空、実担当不明訂正、stable source再追加/価格0unknown/税unknown、原画像保持、初版late-entry重複、同key異内容/応答断、別院/患者/失権、death/復活/死亡日時修正/基本版更新/終了取消/取込競合の両先行順、日付同日不明拒否、actor確認と元版束縛、history/audit/receipt失敗全rollback、fullread/page/遅延破棄。DB再作成/適用・code/tests/browser・外部writeは今回行っていない。
+
+独立レビュー4点修正：482§6 field-sensitive discount認可、確認life basisのContent束縛、根拠/由来を含むno-op比較、context/history/receipt/details完全型を反映。誤完了後状態は§7へ確定反映。追加業務質問は作らない。
+
+## Schema1判別readの根拠と新DB境界（独立再レビュー対応）
+482採用契約§3がT4の正規保存projectionをschema=1として閉鎖し、541§3.2 complete responseは保存済みschema1又はschema2全量read、§4はschema1原bytes/意味保持・actor/予約doctorからの補完禁止・明示した新revisionだけschema2へ昇格と規定している（固定head dc1f2747、docs/work/emr/emr-482-trimming-price-source-selected-20261021.md、docs/design/domains/trimming/trimming-start-end-contract.md）。したがってschema1は旧CourseID/SetOptions互換や未接続旧DB行から救済する形式ではなく、採用済みT4の不変保存schema世代である。実DBにschema1行が存在するとの主張はしていない。
+canonical新DBの新しい本文/価格/訂正writerは全てschema2を書き、schema1 writerや旧request互換を新たに維持しない。初期data/old_db mappingをschema1へ落とす経路も作らない。正規T4 schema1が参照対象に存在する場合の不変readだけを保持する。新規訂正版作成時はschema1の全保存値と全line集合を保持したschema2を明示appendし、actual_performer_staff_idは明示入力ID/null、指定がなければunknownのnull（actor/doctor推測なし）。前版bytes/schema/digestは不変。既存schema2からの新revisionは実担当値を省略で保持する。GETによる昇格/backfill、理由のない旧版UPDATE、schema1 writerの再稼働はしない。新DB内にschema1がなければ分岐は使われないだけで、旧データ救済工程を起票しない。誤完了後の状態は§7の本人承認に従い施術中へ戻す。

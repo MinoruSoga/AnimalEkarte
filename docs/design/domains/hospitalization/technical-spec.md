@@ -171,9 +171,32 @@ clientは現在割当表示と新規候補集合を分離し、自己以外の�
 
 内部 `EffectiveStay` はclinic_id、stay_case_id、stay_kind、hospitalization_id（根拠なしはnullable）、固定owner_id/pet_id、lifecycle、admission/discharge、evidenceを持つ。lifecycleはadmitted/discharged/cancelled/no_show/unknown。admittedは入院known・退院null、dischargedは両actual known、cancelled/no_showは両actual null、unknownは日時を確定値として公開しない。各事実はroot_event_id、effective_leaf_event_id、actual_at、quality（known/unknown）と未知理由を持ち、NULL＋knownは禁止。voidの値は存在しない。evidenceはstay_version、movement_head_revision、projection_contract_version=1。
 
-566の同一実装PRへ499所有の追加payload/model、専用訂正writerの必要leaf検証、純粋projectorとsnapshot readerを共同収容し、446/466は限定DDL/model/ERD供給を担当する。499全体Done待ちにしない。557はoperation receipt付きmovement-only通常退院（create_accounting=false）の別責務であり再開しない。566は保存済みcanonical source・固定fixtureから実装できるが、新たな実退院の本番操作は557停止解除まで不可。stay_caseなし旧データの退院方法は未決のまま、既知sourceの帳票を止めない。共有modelの二重writer・相反する版増加を作らない。契約・同PR供給責務の受領と、実装SHA・caller接続・実機PASSは別。全実行NOT_RUN。
+566の同一実装PRへ499所有の追加payload/model、専用訂正writerの必要leaf検証、純粋projectorとsnapshot readerを共同収容し、446/466は限定DDL/model/ERD供給を担当する。499全体Done待ちにしない。557はmovement-only通常退院（create_accounting=false）の別operation/責務であり、未供給経路を再開しない。566は保存済みcanonical source・固定fixtureから実装できるが、新たな実退院の本番操作は557停止解除まで不可。stay_caseなし旧形式行の救済は製品scope外とし、既知sourceの帳票を止めない。共有modelの二重writer・相反する版増加を作らない。契約・同PR供給責務の受領と、実装SHA・caller接続・実機PASSは別。全実行NOT_RUN。
 
 
 ### 566と既存499/461実装PRの統合順
 
-Draft #851 head `ded3c46e998337365572bd186995e7a14e65e6a6` はstay_cage_effective_state.go、hospitalization_stay_projection.go、hospitalization_discharge*.go、hospitalization_repository.go、cage_occupancy_projection.goとfixtureを変更する。これは未採用候補であり訂正replace/void供給済みとはしない。566の499 core/readerは同499 ownerの同一実装PRへ共同収容するか、その滞在projection/版・退院source subsetの固定採用SHA受領後に当該hunkを再照合する。帳票query/UIは並行準備可、coreの別コピーを作らず#851全機能Doneを抽象gateにしない。557再開と旧stayなし判断は別subsetで保持する。
+Draft #851 head `ded3c46e998337365572bd186995e7a14e65e6a6` はstay_cage_effective_state.go、hospitalization_stay_projection.go、hospitalization_discharge*.go、hospitalization_repository.go、cage_occupancy_projection.goとfixtureを変更する。これは未採用候補であり訂正replace/void供給済みとはしない。566の499 core/readerは同499 ownerの同一実装PRへ共同収容するか、その滞在projection/版・退院source subsetの固定採用SHA受領後に当該hunkを再照合する。帳票query/UIは並行準備可、coreの別コピーを作らず#851全機能Doneを抽象gateにしない。557採用まで退院停止を保持し、旧stayなし救済は製品scopeへ追加しない。
+
+
+## Q-U6-2：557通常退院の正規データ条件（2026-10-24）
+
+本人のDB再作成・old_db mappingも確定仕様へ適合する方針に従い、stay_caseなし旧行の救済案/仕様待ちを製品scopeから外す（Plane549 comment04a09055、557 commente6f23a76）。557 writerは正規schemaのstay・入院根拠・同院患者・現在版を検証し、C06操作結果を同最外TXで生成する。既存成功receiptを初回入力として要求しない。旧status/予定日からadmitを推測せず、GET backfill・旧行専用補記UIは作らない。必須関連欠落はデータ整合性/移行受入エラーであり退院成功へ補完しない。#851の退院停止は557採用まで維持。会計付きは505/506/508、566の訂正source/帳票は別責務。実DB再作成・削除・old_db改修をこの文書作業で代行しない。全実行NOT_RUN。
+
+
+### 新writerの耐久receiptと候補停止guard
+
+旧節の操作識別/関連結果IDと「現行APIへ永続receiptを仮定しない」は既存実装の観測であり、以下の新writer要件を既実装とするものではない。566の専用訂正writerと557通常退院は別operation/責務を保つ。初回は確認済みintentについて一度生成したC06 operation keyを受け、server bindingと元targetを確定する。業務event/訂正・必要audit・成功receiptを同最外TXで保存し、既存成功receiptを先行入力として要求しない。receiptは耐久的な操作結果であり、単なる関連結果ID・診察終了/会計の状態ではない。
+
+成立済み同scope/key・同Contentは現在の元対象認可後に同成功結果を返し、異Contentは既存operation-key-conflict。結果不明は同scope/keyのLookupで照会し新key再送・二重event生成なし。[採用C06](../../shared/operation-participation.md)のApply/Lookup/replay/conflict現在認可境界を維持する。現APIの供給済み宣言ではない。
+
+#851は未採用候補。2026-10-24読取head `bcc0aec3cdb3ee6b169b90fcfe7bd43dc676711c` のhospitalization_discharge.go/同_tx.goを確認した。候補service guardの停止要件は次のとおりであり、mainへ採用済みとはしない。
+
+| 候補分岐 | 結果 |
+|:---|:---|
+| create_accounting=true | 読取/write前に422 stay_discharge_billing_unavailable |
+| falseかつknown admitted、退院日等の検証通過 | 422 stay_discharge_writer_unavailable |
+| source unknown/必要admit日時不明 | 422 stay_lifecycle_unknown |
+| 既退院/取消・no_show/未入院/入院前の退院日 | 既存400を維持 |
+
+いずれも退院movement・会計・成功receiptを作らない。読取障害は既存errorへ返し、source unknownに偽装しない。未採用mainの旧write経路を停止要件へ適合済みとしない。557正規writer・現在認可/CAS・同TX receipt・caller閉包が採用されて初めて対象経路を再開し、docs又は566 projectionだけを解除根拠にしない。新feature flagや全経路一律停止は導入しない。会計付きの505/506/508責務は維持する。

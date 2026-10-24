@@ -92,6 +92,8 @@ CreateInput／UpdateInputはservice型でありHTTP schemaそのものではな�
 
 ## 会計・訂正の引継ぎ
 
+[EMR-574限定契約§7](record-correction-contract.md#wrong-completion-correction-574)により、本人承認済みの専用状態訂正intentは原終了/訂正履歴と現在根拠を固定して施術中へ戻す。本文T4訂正と予約lifecycle訂正は別intent。確定会計を自動変更せず、通常reservation Undoの存在を許可根拠にしない。
+
 billing_item_repositoryがトリミング明細を未請求明細として統合読取する。完了時pushとしない。料金マスタの表示価格、detail参照、取込済請求snapshotを区別する。現行detailのcourse/option参照だけから当時価格の保存を保証しない。
 
 D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/option、元明細、取込／請求状態。税・割引・保険・数量／価格・再請求の計算はD10正本に従う。D06側の更新で既存確定請求を上書きしない。取込後に施術内容やmasterが変わる場合の差分表示／版照合と、旧データにsnapshotがない場合の扱いは実装前にD10と照合する。現在値から過去値を架空生成しない。
@@ -147,10 +149,10 @@ D10へ渡す確認単位はclinic、owner、pet、appointment/detail、course/op
 | FR-trimming-image-lifecycle | AC-trimming-image-inflight / AC-trimming-image-failure / AC-trimming-image-clear / AC-trimming-image-race / AC-trimming-image-cross-clinic / AC-trimming-image-only-dirty / AC-trimming-image-original-retention | 正規key lock／参照・原本保持・送信済key保護 |
 | FR-trimming-billing-handoff | AC-trimming-billing-pull / AC-trimming-price-adjustment-save / AC-trimming-price-handoff-before-import / AC-trimming-price-no-double-discount / AC-trimming-price-master-unchanged / AC-trimming-price-imported-preserved / AC-trimming-price-finalized-preserved / AC-trimming-price-unknown-scope / AC-trimming-price-undecided-preserved / AC-trimming-price-zero-line-retained | 未請求pull／施術調整の保存とscope／二重適用防止／追加時snapshot・D10計算と訂正境界 |
 | FR-trimming-delete-and-atomicity | AC-trimming-atomic-write / AC-trimming-delete-dependency | 依存検査・detail/options同一tx・監査 |
-| FR-trimming-special-correction | AC-trimming-correction-history / AC-trimming-correction-no-side-effects | 原記録関連／理由actor時刻・金銭在庫別owner |
+| FR-trimming-special-correction | AC-trimming-correction-history / AC-trimming-correction-no-side-effects / AC-trimming-wrong-completion-reopen / AC-trimming-wrong-completion-finalized / AC-trimming-wrong-completion-replay / AC-trimming-wrong-completion-deceased | 原記録関連／理由actor時刻・金銭在庫別owner |
 | FR-trimming-zero-performance-abort | AC-trimming-zero-abort-record / AC-trimming-zero-abort-charge / AC-trimming-zero-abort-no-charge / AC-trimming-zero-abort-existing-money / AC-trimming-zero-abort-performed-excluded / AC-trimming-zero-abort-failure | 実施なし・中止理由／スタッフ請求判断・通常終了との分離／既存金銭・他診療保護／同一対象・版・結果照合 |
 
-AC prefixはAC-trimming-。現在はFR8件／AC55件（従来53件＋予約時間採用/相方記録2件）の追跡範囲で、既存画面・master2件、型／保存／画像・原子性・他owner境界を整理する。下記8FR／53AC一致はその追加前の検査履歴であり現在件数ではない。途中保存承認までの独立内容レビュー・限定構造検査と、会議追加2・3候補のレビュー／検査を区別する。実施なし中止の後続差分は新基準headへ統合し、独立内容・構造レビューで重大指摘0、8FR／53ACの技術trace一致を確認した。公開先本文一致は別途確認する。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
+AC prefixはAC-trimming-。現在のlifecycle正本に現れるunique IDはFR8件／AC59件（2026-10-24追加4ACを含む）。以下の8FR／53AC等は過去の検査履歴であり現在件数ではない。途中保存承認までの独立内容レビュー・限定構造検査と、会議追加2・3候補のレビュー／検査を区別する。実施なし中止の後続差分は新基準headへ統合し、独立内容・構造レビューで重大指摘0、8FR／53ACの技術trace一致を確認した。公開先本文一致は別途確認する。専用訂正の実装、全writer互換／実データsnapshot／権限・receipt実装、X03/X06、実機・運用開始は未確認。
 
 
 ## 追加承認の実装契約と保存境界
