@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type trimmingCourseTypeResponse struct {
@@ -21,7 +22,7 @@ func toTrimmingCourseTypeResponse(m *model.TrimmingCourseType) trimmingCourseTyp
 		ID:        m.ID,
 		ClinicID:  m.ClinicID,
 		Name:      m.Name,
-		SortOrder: m.SortOrder,
+		SortOrder: sharedkernel.SortOrderValue(m.SortOrder),
 		IsActive:  m.IsActive,
 		CreatedAt: localTime(m.CreatedAt),
 		UpdatedAt: localTime(m.UpdatedAt),

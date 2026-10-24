@@ -92,57 +92,18 @@ func (r *trimmingCourseRepository) update(ctx context.Context, clinicID, id uint
 	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.TrimmingCourse{}, "trimming_course", clinicID, id, fields)
 }
 
-func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		if err := tx.
-			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Scopes(persistence.ClinicScope(clinicID)).
-			Where("id = ?", id).
-			First(&model.TrimmingCourse{}).Error; err != nil {
-			return apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", id))
-		}
-		result := tx.
-			Scopes(persistence.ClinicScope(clinicID)).
-			Where("id = ?", id).
-			Where(`NOT EXISTS (
-				SELECT 1 FROM appointment_trimming_details
-				JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id
-				  AND appointments.clinic_id = ?
-				  AND appointments.deleted_at IS NULL
-				WHERE appointment_trimming_details.clinic_id = ?
-				  AND appointment_trimming_details.course_id = trimming_courses.id
-			)`, clinicID, clinicID).
-			Delete(&model.TrimmingCourse{})
-		if result.Error != nil {
-			return apperrors.FromGORM(result.Error, "trimming_course", fmt.Sprintf("%d", id))
-		}
-		if result.RowsAffected == 0 {
-			return r.normalizeTrimmingCourseDeleteMiss(persistence.WithTxValue(ctx, tx), clinicID, id)
-		}
-		return nil
-	})
+// Delete はコースの使用中判定ができないため、常に拒否する（EMR-549 C1 F3）。
+// 旧判定の appointment_trimming_details.course_id は 001_init.sql L10892 で DROP 済みで、置換先
+// （trimming_booking_revisions.course_id）の使用数 reader は EMR-480 の担当で未接続。論理削除は
+// FK RESTRICT に守られないため、使用中のコースも消えてしまう。使用数を確認できない削除は行わない。
+func (r *trimmingCourseRepository) Delete(_ context.Context, _, _ uint64) error {
+	return apperrors.WrapTrimmingMasterUsageUnverified()
 }
 
-func (r *trimmingCourseRepository) normalizeTrimmingCourseDeleteMiss(ctx context.Context, clinicID, id uint64) error {
-	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
-		return err
-	}
-	return apperrors.WrapConflict("このトリミングコースはトリミング記録で使用中のため削除できません")
-}
-
-// CountUsageByTrimmingCourseID は指定コースを使用しているトリミング詳細数を返す（BUG-111）
-// appointment_trimming_details は deleted_at を持たないため appointments を JOIN して論理削除を考慮する
-func (r *trimmingCourseRepository) CountUsageByTrimmingCourseID(ctx context.Context, clinicID, courseID uint64) (int64, error) {
-	var count int64
-	if err := persistence.DBOrTx(ctx, r.db).
-		Model(&model.AppointmentTrimmingDetail{}).
-		Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = ? AND appointments.deleted_at IS NULL", clinicID).
-		Where("appointment_trimming_details.clinic_id = ?", clinicID).
-		Where("appointment_trimming_details.course_id = ?", courseID).
-		Count(&count).Error; err != nil {
-		return 0, apperrors.FromGORM(err, "appointment_trimming_detail", "")
-	}
-	return count, nil
+// CountUsageByTrimmingCourseID は使用数を確認できないため、常に拒否エラーを返す（EMR-549 C1 F3）。
+// 旧集計の appointment_trimming_details.course_id は DROP 済みで、置換先の reader が未接続。
+func (r *trimmingCourseRepository) CountUsageByTrimmingCourseID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, apperrors.WrapTrimmingMasterUsageUnverified()
 }
 
 func (r *trimmingCourseRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

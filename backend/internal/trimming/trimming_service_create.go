@@ -6,6 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func (s *trimmingService) createTrimmingAppointmentInTx(
@@ -50,9 +51,6 @@ func (s *trimmingService) createTrimmingAppointmentInTx(
 	if err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to create trimming appointment")
 	}
-	if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
-		return nil, nil, err
-	}
 	detail, err := newTrimmingDetailFromCreateInput(clinicID, appt.ID, input, bwUnit)
 	if err != nil {
 		return nil, nil, err
@@ -62,11 +60,6 @@ func (s *trimmingService) createTrimmingAppointmentInTx(
 	}
 	if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to create trimming detail")
-	}
-	if len(input.OptionIDs) > 0 {
-		if err := s.trimmingDetail.SetOptions(txCtx, clinicID, appt.ID, input.OptionIDs); err != nil {
-			return nil, nil, apperrors.Wrap(err, "failed to set trimming options")
-		}
 	}
 	result, err := s.GetByID(txCtx, clinicID, appt.ID)
 	if err != nil {
@@ -96,7 +89,11 @@ func (s *trimmingService) createTrimmingDetailForExistingInTx(
 	status model.ReservationStatus,
 	locked *model.Reservation,
 ) (*model.Reservation, error) {
-	if err := reservation.ValidateTrimmingAppointmentMutable(locked.Status); err != nil {
+	lockedStatus, err := sharedkernel.RequireStored(locked.Status, "appointments.status")
+	if err != nil {
+		return nil, err
+	}
+	if err := reservation.ValidateTrimmingAppointmentMutable(lockedStatus); err != nil {
 		return nil, err
 	}
 	oldValue := trimmingAuditValue(locked, nil)
@@ -104,9 +101,6 @@ func (s *trimmingService) createTrimmingDetailForExistingInTx(
 		return nil, apperrors.WrapConflict("trimming detail already exists for this appointment; use PATCH to update")
 	} else if err != nil && !apperrors.IsNotFound(err) {
 		return nil, apperrors.Wrap(err, "failed to check existing trimming detail")
-	}
-	if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
-		return nil, err
 	}
 	if input.StaffID != nil {
 		if err := reservation.ValidateReservationStaffCapability(txCtx, s.reservationStaff, clinicID, input.StaffID, locked.ReservationTypeID); err != nil {
@@ -148,7 +142,7 @@ func (s *trimmingService) createTrimmingDetailForExistingInTx(
 	if input.StaffID != nil {
 		resolvedDoctorID = input.StaffID
 	}
-	resolvedStatus := locked.Status
+	resolvedStatus := lockedStatus
 	if input.Status != "" {
 		resolvedStatus = status
 	}
@@ -180,11 +174,6 @@ func (s *trimmingService) createTrimmingDetailForExistingInTx(
 	}
 	if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create trimming detail")
-	}
-	if len(input.OptionIDs) > 0 {
-		if err := s.trimmingDetail.SetOptions(txCtx, clinicID, appointmentID, input.OptionIDs); err != nil {
-			return nil, apperrors.Wrap(err, "failed to set trimming options")
-		}
 	}
 	result, err := s.GetByID(txCtx, clinicID, appointmentID)
 	if err != nil {
@@ -234,10 +223,9 @@ func newTrimmingDetailFromCreateInput(
 	return &model.AppointmentTrimmingDetail{
 		ClinicID:        clinicID,
 		AppointmentID:   appointmentID,
-		CourseID:        input.CourseID,
 		StyleRequest:    input.StyleRequest,
 		BodyWeight:      bodyWeight,
-		BWUnit:          bwUnit,
+		BWUnit:          sharedkernel.Ptr(bwUnit),
 		BodyTemperature: bodyTemperature,
 		UsedShampoo:     input.UsedShampoo,
 		UsedRibbon:      input.UsedRibbon,

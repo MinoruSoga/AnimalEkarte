@@ -38,6 +38,7 @@ func NewReservationTypeLiffRepository(db *gorm.DB) ReservationTypeLiffRepository
 func (r *reservationTypeLiffRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ReservationType, error) {
 	items := make([]model.ReservationType, 0)
 	err := r.db.WithContext(ctx).
+		Preload("Group", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Order("sort_order ASC, id ASC").
 		Find(&items).Error
@@ -48,7 +49,17 @@ func (r *reservationTypeLiffRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (r *reservationTypeLiffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
-	return persistence.FindByIDScoped[model.ReservationType](ctx, persistence.DBOrTx(ctx, r.db), "reservation_type_liff", clinicID, id)
+	// 表示色は予約区分グループの色（予約区分自身の color 列は 001_init.sql L10878 で DROP 済み）。
+	// Group も clinic で絞り、他院のグループ色を載せない。
+	var st model.ReservationType
+	if err := persistence.DBOrTx(ctx, r.db).WithContext(ctx).
+		Preload("Group", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		First(&st).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))
+	}
+	return &st, nil
 }
 
 func (r *reservationTypeLiffRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {

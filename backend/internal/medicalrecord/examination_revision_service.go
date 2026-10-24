@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const maxExaminationUnconfirmReasonRunes = 500
@@ -31,7 +32,7 @@ func examinationItemsToUpsertInputs(items []model.ExamResult) []UpsertExamItemIn
 			Result:          item.Result,
 			Unit:            item.Unit,
 			ReferenceValue:  item.ReferenceValue,
-			SortOrder:       item.SortOrder,
+			SortOrder:       sharedkernel.SortOrderValue(item.SortOrder),
 		})
 	}
 	return inputs
@@ -70,6 +71,12 @@ func (s *examinationService) confirmFirstRevisionTx(
 		return nil, apperrors.WrapConflict("revisioned examination requires the reconfirm workflow")
 	}
 
+	// CAS の期待 status が未記録（nil）なら副作用の前に拒否する（EMR-549 C3。nil を既定値で埋めない）。
+	expectedStatus, err := sharedkernel.RequireStored(current.Status, "exams.status")
+	if err != nil {
+		return nil, err
+	}
+
 	version, err := s.revisions.AppendOfficialRevision(
 		ctx,
 		clinicID,
@@ -85,7 +92,7 @@ func (s *examinationService) confirmFirstRevisionTx(
 		return nil, apperrors.Wrap(err, "failed to load confirmed examination snapshot")
 	}
 	after := *restored
-	after.Status = model.ExaminationStatusConfirmed
+	after.Status = sharedkernel.Ptr(model.ExaminationStatusConfirmed)
 	after.CurrentRevisionVersion = cloneUint64(version)
 	if err := s.logParentMutationTx(ctx, clinicID, actorID, action, operation, before, &after); err != nil {
 		return nil, err
@@ -94,7 +101,7 @@ func (s *examinationService) confirmFirstRevisionTx(
 		ctx,
 		clinicID,
 		current.ID,
-		current.Status,
+		expectedStatus,
 		version,
 	)
 	if err != nil {
@@ -131,7 +138,7 @@ func (s *examinationService) Unconfirm(
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock examination")
 		}
-		if locked.Status != model.ExaminationStatusConfirmed {
+		if !sharedkernel.PtrEquals(locked.Status, model.ExaminationStatusConfirmed) {
 			return apperrors.WrapConflict("only a confirmed examination can be unconfirmed")
 		}
 		if locked.CurrentRevisionVersion == nil {
@@ -157,7 +164,7 @@ func (s *examinationService) Unconfirm(
 			return apperrors.Wrap(err, "failed to load restored examination")
 		}
 		after := *restored
-		after.Status = model.ExaminationStatusCompleted
+		after.Status = sharedkernel.Ptr(model.ExaminationStatusCompleted)
 		after.CurrentRevisionVersion = cloneUint64(nextVersion)
 		if err := s.logParentMutationWithReasonTx(
 			txCtx,
@@ -211,6 +218,11 @@ func (s *examinationService) appendWorkingRevisionTx(
 	if before == nil || before.CurrentRevisionVersion == nil || current == nil {
 		return nil, apperrors.WrapConflict("working examination revision pointer is missing")
 	}
+	// CAS の期待 status が未記録（nil）なら副作用の前に拒否する（EMR-549 C3）。
+	expectedStatus, err := sharedkernel.RequireStored(current.Status, "exams.status")
+	if err != nil {
+		return nil, err
+	}
 	currentVersion := *before.CurrentRevisionVersion
 	nextVersion, err := s.revisionWorkflow.AppendWorkingRevisionFromCurrent(
 		ctx,
@@ -240,9 +252,9 @@ func (s *examinationService) appendWorkingRevisionTx(
 		ctx,
 		clinicID,
 		current.ID,
-		current.Status,
+		expectedStatus,
 		currentVersion,
-		current.Status,
+		expectedStatus,
 		nextVersion,
 	)
 	if err != nil {
@@ -266,6 +278,11 @@ func (s *examinationService) reconfirmRevisionTx(
 	if current == nil || current.CurrentRevisionVersion == nil {
 		return nil, apperrors.WrapConflict("working examination revision pointer is missing")
 	}
+	// CAS の期待 status が未記録（nil）なら副作用の前に拒否する（EMR-549 C3）。
+	expectedStatus, err := sharedkernel.RequireStored(current.Status, "exams.status")
+	if err != nil {
+		return nil, err
+	}
 	if err := s.lockRevisionMedicalRecordDraftTx(ctx, clinicID, current); err != nil {
 		return nil, err
 	}
@@ -286,7 +303,7 @@ func (s *examinationService) reconfirmRevisionTx(
 		return nil, apperrors.Wrap(err, "failed to load reconfirmed examination snapshot")
 	}
 	after := *restored
-	after.Status = model.ExaminationStatusConfirmed
+	after.Status = sharedkernel.Ptr(model.ExaminationStatusConfirmed)
 	after.CurrentRevisionVersion = cloneUint64(nextVersion)
 	if err := s.logParentMutationTx(
 		ctx,
@@ -303,7 +320,7 @@ func (s *examinationService) reconfirmRevisionTx(
 		ctx,
 		clinicID,
 		current.ID,
-		current.Status,
+		expectedStatus,
 		currentVersion,
 		model.ExaminationStatusConfirmed,
 		nextVersion,

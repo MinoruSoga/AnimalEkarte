@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // liffSettingsResponse はLIFF向け公開設定レスポンス（機密フィールド除外）。
@@ -53,6 +54,7 @@ type liffCourseResponse struct {
 	// Category (P1-6, PR #186 review): 予約フローが course.category === 'trimming' で
 	// トリミング詳細ステップの表示を分岐する。欠落時は FE 側が 'general' にフォールバックし
 	// トリミング予約でも詳細入力がスキップされていた。
+	// EMR-549 PR-C: category 列は DROP 済み。business_kind から導出する（trimming は "trimming"、general / inpatient / hotel は "general"、NULL=未分類は ""）。
 	Category string `json:"category"`
 }
 
@@ -77,8 +79,8 @@ func toLiffCourseResponse(st *model.ReservationType) liffCourseResponse {
 		DurationMinutes:     st.DurationMinutes,
 		ReservationComment:  st.ReservationComment,
 		ReservationImageURL: st.ReservationImageURL,
-		SortOrder:           st.SortOrder,
-		Category:            string(st.Category),
+		SortOrder:           sharedkernel.SortOrderValue(st.SortOrder),
+		Category:            string(st.DerivedCategory()),
 	}
 }
 
@@ -101,7 +103,7 @@ func toLiffStaffResponse(st *model.Staff) liffStaffResponse {
 		Name:                name,
 		ReservationComment:  st.ReservationComment,
 		ReservationImageURL: st.ReservationImageURL,
-		SortOrder:           st.SortOrder,
+		SortOrder:           sharedkernel.SortOrderValue(st.SortOrder),
 	}
 }
 
@@ -218,7 +220,7 @@ func toLiffReservationResponse(r *model.Reservation, pair *LiffPetPair) liffRese
 		EndTime:   r.EndTime.In(time.Local).Format("15:04"),
 		PetID:     petID,
 		PetName:   petName,
-		Status:    string(r.Status),
+		Status:    sharedkernel.TextOrEmpty(r.Status),
 		Notes:     r.Notes,
 		CreatedAt: r.CreatedAt.In(time.Local),
 	}
@@ -361,7 +363,7 @@ func toLiffTrimmingCourseResponse(c *model.TrimmingCourse) liffTrimmingCourseRes
 		Name:        c.Name,
 		Description: c.Description,
 		Price:       c.Price,
-		SortOrder:   c.SortOrder,
+		SortOrder:   sharedkernel.SortOrderValue(c.SortOrder),
 	}
 }
 
@@ -380,6 +382,6 @@ func toLiffTrimmingOptionResponse(o *model.TrimmingOption) liffTrimmingOptionRes
 		Name:        o.Name,
 		Description: o.Description,
 		Price:       o.Price,
-		SortOrder:   o.SortOrder,
+		SortOrder:   sharedkernel.SortOrderValue(o.SortOrder),
 	}
 }

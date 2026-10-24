@@ -9,6 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const (
@@ -26,7 +27,7 @@ type medicalRecordImageResponse struct {
 	ImageURL        string                `json:"image_url"`
 	ThumbnailURL    string                `json:"thumbnail_url"`
 	FileName        string                `json:"file_name"`
-	FileSize        int64                 `json:"file_size"`
+	FileSize        *int64                `json:"file_size"`
 	MimeType        string                `json:"mime_type"`
 	ImageType       string                `json:"image_type"`
 	Description     string                `json:"description"`
@@ -54,7 +55,7 @@ func toMedicalRecordImageResponse(img *model.MedicalRecordImage) medicalRecordIm
 		TakenAt:         httpapi.LocalTimePtr(img.TakenAt),
 		ExamID:          img.ExamID,
 		StaffID:         img.StaffID,
-		SortOrder:       img.SortOrder,
+		SortOrder:       sharedkernel.SortOrderValue(img.SortOrder),
 		CreatedAt:       httpapi.LocalTime(img.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(img.UpdatedAt),
 	}

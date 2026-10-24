@@ -47,6 +47,10 @@ func (h *ReservationTypeLiffHandler) CreateReservationTypeLiff(c *gin.Context) {
 		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
+	if err := req.retiredFieldError(); err != nil {
+		respondError(c, err)
+		return
+	}
 	st, err := h.svc.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		respondError(c, err)
@@ -69,6 +73,10 @@ func (h *ReservationTypeLiffHandler) UpdateReservationTypeLiff(c *gin.Context) {
 	var req updateReservationTypeLiffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+	if err := req.retiredFieldError(); err != nil {
+		respondError(c, err)
 		return
 	}
 	st, err := h.svc.Update(c.Request.Context(), clinicID, id, req.toServiceInput())

@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const (
@@ -93,7 +94,7 @@ func (s *chiefComplaintTypeService) Create(ctx context.Context, clinicID uint64,
 		Name:        input.Name,
 		Description: input.Description,
 		IsActive:    input.IsActive,
-		SortOrder:   input.SortOrder,
+		SortOrder:   sharedkernel.Ptr(input.SortOrder),
 	}
 	if err := s.repo.Create(ctx, category); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create chief complaint type")

@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateTrimmingCourseTypeInput はトリミングコース種別作成の入力 (#73)
@@ -84,7 +85,7 @@ func (s *trimmingCourseTypeService) Create(ctx context.Context, clinicID uint64,
 	m := &model.TrimmingCourseType{
 		ClinicID:  clinicID,
 		Name:      input.Name,
-		SortOrder: input.SortOrder,
+		SortOrder: sharedkernel.Ptr(input.SortOrder),
 	}
 	result, err := s.repo.Create(ctx, m)
 	if err != nil {

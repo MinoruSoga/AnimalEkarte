@@ -97,7 +97,7 @@ func (s *reservationTypeGroupService) Create(ctx context.Context, clinicID uint6
 		ClinicID:  clinicID,
 		Name:      input.Name,
 		Color:     color,
-		SortOrder: input.SortOrder,
+		SortOrder: sharedkernel.Ptr(input.SortOrder),
 		IsActive:  input.IsActive,
 	}
 	if err := s.repo.Create(ctx, g); err != nil {

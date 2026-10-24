@@ -7,6 +7,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // intendedDateString は tentative 行の intended_date を JST 暦日（YYYY-MM-DD）で返す。
@@ -28,7 +29,7 @@ type reservationResponse struct {
 	VisitType           string          `json:"visit_type"`
 	ReservationTypeID   uint64          `json:"reservation_type_id"`
 	DoctorID            *uint64         `json:"doctor_id,omitempty"`
-	IsDesignated        bool            `json:"is_designated"`
+	IsDesignated        *bool           `json:"is_designated"`
 	Status              string          `json:"status"`
 	Notes               string          `json:"notes"`
 	CheckedInAt         *time.Time      `json:"checked_in_at,omitempty"`
@@ -63,7 +64,7 @@ func toReservationResponse(r *model.Reservation) reservationResponse {
 	}
 	ownerID, owner := r.OwnerID, r.Owner
 	// Tentative intent follows the current pet owner; real bookings keep history.
-	if r.Status == model.ReservationStatusTentative && r.Pet != nil && r.Pet.ClinicID == r.ClinicID {
+	if sharedkernel.PtrEquals(r.Status, model.ReservationStatusTentative) && r.Pet != nil && r.Pet.ClinicID == r.ClinicID {
 		ownerID = &r.Pet.OwnerID
 		owner = r.Pet.Owner
 		if owner != nil && (owner.ID != r.Pet.OwnerID || owner.ClinicID != r.ClinicID) {
@@ -82,7 +83,7 @@ func toReservationResponse(r *model.Reservation) reservationResponse {
 		ReservationTypeID:     r.ReservationTypeID,
 		DoctorID:              r.DoctorID,
 		IsDesignated:          r.IsDesignated,
-		Status:                string(r.Status),
+		Status:                sharedkernel.TextOrEmpty(r.Status),
 		Notes:                 r.Notes,
 		CheckedInAt:           httpapi.LocalTimePtr(r.CheckedInAt),
 		Source:                string(r.Source),

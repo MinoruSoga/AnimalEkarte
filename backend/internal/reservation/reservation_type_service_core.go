@@ -50,19 +50,13 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 	if input.ReservationVisible != nil {
 		reservationVisible = *input.ReservationVisible
 	}
-	category := model.ReservationTypeCategory(input.Category)
-	if category == "" {
-		category = model.ReservationTypeCategoryGeneral
-	}
 
 	st := &model.ReservationType{
 		ClinicID:               clinicID,
 		Name:                   input.Name,
-		Color:                  input.Color,
 		IsActive:               input.IsActive,
 		Description:            input.Description,
-		SortOrder:              input.SortOrder,
-		Category:               category,
+		SortOrder:              sharedkernel.Ptr(input.SortOrder),
 		ParentID:               input.ParentID,
 		ReservationDisplayName: input.ReservationDisplayName,
 		DurationMinutes:        durationMinutes,

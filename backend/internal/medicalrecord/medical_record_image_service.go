@@ -127,14 +127,14 @@ func (s *medicalRecordImageService) Create(ctx context.Context, clinicID, medica
 		ImageURL:        input.ImageURL,
 		ThumbnailURL:    input.ThumbnailURL,
 		FileName:        input.FileName,
-		FileSize:        input.FileSize,
+		FileSize:        sharedkernel.Ptr(input.FileSize),
 		MimeType:        input.MimeType,
 		ImageType:       imageType,
 		Description:     input.Description,
 		TakenAt:         input.TakenAt,
 		ExamID:          input.ExamID,
 		StaffID:         input.StaffID,
-		SortOrder:       input.SortOrder,
+		SortOrder:       sharedkernel.Ptr(input.SortOrder),
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {

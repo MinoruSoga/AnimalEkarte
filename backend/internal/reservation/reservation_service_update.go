@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput, lockedPreviousOwnerID **uint64) (*model.Reservation, error) {
@@ -25,6 +26,11 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 		}
 		// 現在の予約を行ロックで取得（競合チェックの基準値として使用）
 		current, err := s.repo.LockAndFindByID(ctx, clinicID, id)
+		if err != nil {
+			return err
+		}
+		// status が NULL（未記録）の予約は受付以降か判定できないため、更新を拒否する（fail-closed）。
+		currentStatus, err := sharedkernel.RequireStored(current.Status, "appointments.status")
 		if err != nil {
 			return err
 		}
@@ -63,7 +69,7 @@ func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinic
 
 		startOrEndChanged := !resolvedStart.Equal(current.StartTime) || !resolvedEnd.Equal(current.EndTime)
 		if startOrEndChanged &&
-			shouldEnforceClosedDayConstraintOnUpdate(current.Status, current.ReservationRoute) {
+			shouldEnforceClosedDayConstraintOnUpdate(currentStatus, current.ReservationRoute) {
 			// Legacy test/compatibility constructors may omit LINE settings; production
 			// composition injects them and update must enforce the same closed days as create.
 			if err := s.validateCreateClosedDaysIfConfigured(ctx, clinicID, resolvedStart); err != nil {
@@ -110,13 +116,18 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	if current == nil {
 		return nil, apperrors.WrapNotFound("reservation", strconv.FormatUint(id, 10))
 	}
+	// status が NULL（未記録）の予約は遷移可否を判定できないため、更新を拒否する（fail-closed）。
+	currentStatus, err := sharedkernel.RequireStored(current.Status, "appointments.status")
+	if err != nil {
+		return nil, err
+	}
 	// EMR-308: tentative（次回予定）は sentinel 時刻（JST 00:00-00:15）を持つ日付のみの
 	// 意図行で、booking 検証（時間枠・容量・休診日）を前提としない。汎用 PATCH で
 	// pending/confirmed 等へ昇格させるとその検証を通らず sentinel のまま実予約へ混入する
 	// ため、許可する遷移は checked_in（当日受付。sentinel は実受付時刻へ置換）と
 	// cancelled（終了）のみ。確定は POST confirm-tentative 専用経路が担当し、status 以外
 	// のフィールド更新も tentative 行には適用しない。
-	if current.Status == model.ReservationStatusTentative {
+	if currentStatus == model.ReservationStatusTentative {
 		if input.Status == nil {
 			return nil, apperrors.WrapInvalidInput("仮予約（次回予定）の内容変更はできません。次回予定の設定・確定・終了の操作を使用してください")
 		}
@@ -153,7 +164,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	// 受付ヘッダー テレメトリ（change-ui.md Phase 2）: checked_in への遷移時点の時刻を記録する。
 	// UpdatedAt(autoUpdateTime) は予約編集全般でリセットされ待ち時間算出に流用できないため、
 	// 専用カラムへ遷移時刻を都度スタンプする（再受付時は最後の遷移時刻で上書き）。
-	if input.Status != nil && *input.Status == model.ReservationStatusCheckedIn && current.Status != model.ReservationStatusCheckedIn {
+	if input.Status != nil && *input.Status == model.ReservationStatusCheckedIn && currentStatus != model.ReservationStatusCheckedIn {
 		fields["checked_in_at"] = time.Now()
 	}
 	// EMR-308: tentative（record_intent）行の当日受付は sentinel 時刻（JST 00:00-00:15）を
@@ -171,7 +182,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 	// 冒頭の FindByID はロックを取らないため、汎用 repo.update（status 述語なし）で
 	// 書くと、並行 ConfirmTentative が先に pending/confirmed + 実枠時刻で commit
 	// した行を checked_in/cancelled+論理削除で上書きし得る（TOCTOU）。
-	if current.Status == model.ReservationStatusTentative {
+	if currentStatus == model.ReservationStatusTentative {
 		return s.updateTentativeStatusTransition(ctx, clinicID, id, input, fields)
 	}
 
@@ -448,7 +459,7 @@ func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) er
 	// 論理削除（ClearNextVisitIntent/汎用 cancel と同一の終端）。status CAS で
 	// 並行昇格（confirm-tentative）を fail-closed に弾く。
 	var previousOwnerID, currentPetOwnerID *uint64
-	if existing != nil && existing.Status == model.ReservationStatusTentative {
+	if existing != nil && sharedkernel.PtrEquals(existing.Status, model.ReservationStatusTentative) {
 		if s.tx == nil {
 			return apperrors.WrapInternalServerError("reservation transaction dependency is required")
 		}
@@ -489,7 +500,7 @@ func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) er
 // Tentative queries follow a transferred pet's current owner, while real bookings
 // retain their stored owner. Capture both before terminating the tentative row.
 func resolveTentativePetOwner(ctx context.Context, repo ReservationRepository, clinicID uint64, locked *model.Reservation) (*uint64, error) {
-	if locked.Status != model.ReservationStatusTentative || locked.PetID == nil {
+	if !sharedkernel.PtrEquals(locked.Status, model.ReservationStatusTentative) || locked.PetID == nil {
 		return nil, nil
 	}
 	ownerID, err := repo.FindPetOwnerInClinic(ctx, clinicID, *locked.PetID)

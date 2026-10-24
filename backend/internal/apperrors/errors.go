@@ -200,6 +200,29 @@ func WrapMedicalRecordStatusRetired(message string) error {
 	return WrapUnprocessableWithCode(CodeMedicalRecordStatusRetired, message)
 }
 
+// EMR-480 / EMR-549 C1: トリミング予約のコース・オプション（trimming_booking_revisions 系）の保存先は存在するが、
+// その writer / reader がまだ接続されていない操作を fail-closed で拒否する 422 の安定コード。成功を装わず、部分保存もしない。
+const (
+	// CodeTrimmingBookingPending は予約へコース・オプションを書く操作。旧 appointment_trimming_details.course_id と
+	// appointment_trimming_options は 001_init.sql L10892 / L10923 で DROP 済みで、置換先の writer は EMR-480。
+	CodeTrimmingBookingPending = "trimming_booking_pending"
+	// CodeTrimmingMasterUsageUnverified はコース・オプションマスタの使用中判定ができないため削除を拒否する操作。
+	// 旧参照元は DROP 済みで、置換先（trimming_booking_revisions / _options）の使用数 reader が未接続。
+	CodeTrimmingMasterUsageUnverified = "trimming_master_usage_unverified"
+)
+
+// WrapTrimmingBookingPending は course / option を含むトリミング書込を、何も書く前に拒否する固定エラー（422）を返す。
+func WrapTrimmingBookingPending() error {
+	return WrapUnprocessableWithCode(CodeTrimmingBookingPending,
+		"トリミング予約のコース・オプションの保存は現在利用できません。予約は保存されていません")
+}
+
+// WrapTrimmingMasterUsageUnverified はコース・オプションの使用状況を確認できないため、マスタ削除を拒否する固定エラー（422）を返す。
+func WrapTrimmingMasterUsageUnverified() error {
+	return WrapUnprocessableWithCode(CodeTrimmingMasterUsageUnverified,
+		"トリミングコース・オプションの使用状況を確認できないため削除できません")
+}
+
 // エラー判定ヘルパー
 func IsNotFound(err error) bool {
 	return errors.Is(err, ErrNotFound)

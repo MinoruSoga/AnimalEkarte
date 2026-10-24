@@ -52,7 +52,11 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock examination")
 		}
-		if examinationResultsLocked(locked) {
+		resultsLocked, err := examinationResultsLocked(locked)
+		if err != nil {
+			return err
+		}
+		if resultsLocked {
 			return errExaminationResultsLocked(locked)
 		}
 		before := *locked

@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -245,8 +246,8 @@ func (s *labMappingDraftService) draftOne(
 	if err != nil {
 		return model.LabDeviceMappingDraftItem{}, err
 	}
-	drafted.LLMRequest = result.RequestJSON
-	drafted.LLMResponse = result.ResponseJSON
+	drafted.LLMRequest = labMappingRawJSONPtr(result.RequestJSON)
+	drafted.LLMResponse = labMappingRawJSONPtr(result.ResponseJSON)
 	if result.ErrorCategory != "" {
 		drafted.LLMError = result.ErrorCategory
 		return drafted, nil
@@ -271,6 +272,14 @@ func labMappingCandidates(fields []model.ExamTypeField) []LabMappingFieldCandida
 		out = append(out, LabMappingFieldCandidate{ID: field.ID, Name: field.Name, Unit: field.Unit})
 	}
 	return out
+}
+
+// labMappingRawJSONPtr は LLM 本文を NULL 許容列へ写す。本文が無い（空）場合は NULL とし、空 JSON を捏造しない。
+func labMappingRawJSONPtr(raw json.RawMessage) *json.RawMessage {
+	if len(raw) == 0 {
+		return nil
+	}
+	return &raw
 }
 
 func labMappingCandidate(fields []model.ExamTypeField, id uint64) (model.ExamTypeField, bool) {

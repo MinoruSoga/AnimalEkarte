@@ -14,11 +14,17 @@ import (
 type trimmingNextVisitFacts struct {
 	ownerID, petID          uint64
 	status                  model.ReservationStatus
+	statusRecorded          bool
 	startTime, intendedDate time.Time
 }
 
 func trimmingNextVisitFactsFor(appointment *model.Reservation) trimmingNextVisitFacts {
-	facts := trimmingNextVisitFacts{status: appointment.Status, startTime: appointment.StartTime}
+	facts := trimmingNextVisitFacts{startTime: appointment.StartTime}
+	// status が NULL（未記録）の予約は statusRecorded=false のまま保持し、既定値で埋めない。
+	if appointment.Status != nil {
+		facts.status = *appointment.Status
+		facts.statusRecorded = true
+	}
 	if appointment.OwnerID != nil {
 		facts.ownerID = *appointment.OwnerID
 	}
@@ -37,7 +43,7 @@ type trimmingNextVisitTagChange struct {
 
 func trimmingNextVisitChange(before trimmingNextVisitFacts, result *model.Reservation) *trimmingNextVisitTagChange {
 	after := trimmingNextVisitFactsFor(result)
-	if before.ownerID == after.ownerID && before.petID == after.petID && before.status == after.status &&
+	if before.ownerID == after.ownerID && before.petID == after.petID && before.status == after.status && before.statusRecorded == after.statusRecorded &&
 		before.startTime.Equal(after.startTime) && before.intendedDate.Equal(after.intendedDate) {
 		return nil
 	}

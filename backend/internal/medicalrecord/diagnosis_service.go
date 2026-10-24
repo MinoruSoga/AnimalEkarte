@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ---- DiagnosisType Input DTOs ----
@@ -147,7 +148,7 @@ func (s *diagnosisTypeService) Create(ctx context.Context, clinicID uint64, inpu
 		Name:        input.Name,
 		IsActive:    input.IsActive,
 		Description: input.Description,
-		SortOrder:   input.SortOrder,
+		SortOrder:   sharedkernel.Ptr(input.SortOrder),
 	}
 	if err := s.repo.Create(ctx, diagType); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create diagnosis type")
@@ -287,7 +288,7 @@ func (s *diagnosisNameService) Create(ctx context.Context, clinicID uint64, inpu
 		DiagnosisTypeID: input.DiagnosisTypeID,
 		IsActive:        input.IsActive,
 		Description:     input.Description,
-		SortOrder:       input.SortOrder,
+		SortOrder:       sharedkernel.Ptr(input.SortOrder),
 	}
 	if err := s.repo.Create(ctx, name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create diagnosis name")

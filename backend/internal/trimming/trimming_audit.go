@@ -2,7 +2,6 @@ package trimming
 
 import (
 	"context"
-	"slices"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -83,12 +82,9 @@ func trimmingAuditValue(
 	if detail == nil {
 		return value
 	}
-	optionIDs := make([]uint64, len(detail.Options))
-	for i := range detail.Options {
-		optionIDs[i] = detail.Options[i].ID
-	}
-	slices.Sort(optionIDs)
-	value["course_id"] = trimmingAuditUint64Value(detail.CourseID)
+	// コース・オプションは booking snapshot（trimming_booking_revisions 系）にあり reader が未接続（EMR-480）のため、
+	// 監査値でも unknown（nil）で残す。空配列は「オプションなし」と断定してしまうため使わない。
+	value["course_id"] = nil
 	value["style_request"] = detail.StyleRequest
 	value["body_weight"] = trimmingAuditFloat64Value(detail.BodyWeight)
 	value["bw_unit"] = detail.BWUnit
@@ -98,7 +94,7 @@ func trimmingAuditValue(
 	value["remarks"] = detail.Remarks
 	value["style_image"] = detail.StyleImage
 	value["completed_image"] = detail.CompletedImage
-	value["option_ids"] = optionIDs
+	value["option_ids"] = nil
 	return value
 }
 
