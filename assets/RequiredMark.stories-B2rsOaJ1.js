@@ -1,0 +1,5 @@
+import{n as e}from"./rolldown-runtime-DkW27tQK.js";import{t}from"./jsx-runtime-DeHZSEgm.js";import{n,t as r}from"./RequiredMark-DcEkDYe2.js";var i,a,o,s,c;function l(){return(l=e((()=>{n(),i=t(),a={title:`Shared/RequiredMark`,component:r,tags:[`autodocs`]},o={},s={render:()=>(0,i.jsxs)(`span`,{className:`text-base`,children:[`品目名 `,(0,i.jsx)(r,{})]})},c=[`Default`,`InLabel`],o.parameters={...o.parameters,docs:{...o.parameters?.docs,source:{originalSource:`{}`,...o.parameters?.docs?.source}}},s.parameters={...s.parameters,docs:{...s.parameters?.docs,source:{originalSource:`{
+  render: () => <span className="text-base">
+      品目名 <RequiredMark />
+    </span>
+}`,...s.parameters?.docs?.source},description:{story:"フォームのラベル末尾に置く実使用イメージ（`*` は aria-hidden でラベルの読み上げに含まれない）",...s.parameters?.docs?.description}}}})))()}l();export{o as Default,s as InLabel,c as __namedExportsOrder,a as default};

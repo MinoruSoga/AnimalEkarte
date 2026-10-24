@@ -1,0 +1,5 @@
+import{n as e}from"./rolldown-runtime-DkW27tQK.js";import{f as t}from"./iframe-C6Sk8rp0.js";import{t as n}from"./jsx-runtime-DeHZSEgm.js";import{n as r,t as i}from"./CategoryChipsFilter-DiydQmzW.js";function a({chipRounded:e}){let[t,n]=(0,o.useState)(null);return(0,s.jsx)(i,{categories:[`診療`,`処置`,`ワクチン`,`検査`],activeCategory:t,onSelectCategory:n,chipRounded:e})}var o,s,c,l,u,d;function f(){return(f=e((()=>{o=t(),r(),s=n(),c={title:`Shared/CategoryChipsFilter`,component:i,tags:[`autodocs`]},l={render:()=>(0,s.jsx)(a,{})},u={render:()=>(0,s.jsx)(a,{chipRounded:`sm`})},d=[`Default`,`RoundedSm`],l.parameters={...l.parameters,docs:{...l.parameters?.docs,source:{originalSource:`{
+  render: () => <Demo />
+}`,...l.parameters?.docs?.source}}},u.parameters={...u.parameters,docs:{...u.parameters?.docs,source:{originalSource:`{
+  render: () => <Demo chipRounded="sm" />
+}`,...u.parameters?.docs?.source}}}})))()}f();export{l as Default,u as RoundedSm,d as __namedExportsOrder,c as default};

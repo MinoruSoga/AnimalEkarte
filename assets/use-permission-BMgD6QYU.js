@@ -1,0 +1,1 @@
+import{n as e}from"./rolldown-runtime-DkW27tQK.js";import{n as t,t as n}from"./use-auth-tul-QQWB.js";function r(e){let{hasPermission:n}=t();return{canView:n(e,`view`),canCreate:n(e,`create`),canEdit:n(e,`edit`),canDelete:n(e,`delete`)}}function i(){return(i=e((()=>{n()})))()}export{r as n,i as t};

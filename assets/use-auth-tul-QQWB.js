@@ -1,0 +1,1 @@
+import{n as e}from"./rolldown-runtime-DkW27tQK.js";import{f as t}from"./iframe-C6Sk8rp0.js";var n,r;function i(){return(i=e((()=>{n=t(),r=(0,n.createContext)(null)})))()}function a(){let e=(0,o.useContext)(r);if(!e)throw Error(`useAuth must be used within an AuthProvider`);return e}var o;function s(){return(s=e((()=>{o=t(),i()})))()}export{i,a as n,r,s as t};

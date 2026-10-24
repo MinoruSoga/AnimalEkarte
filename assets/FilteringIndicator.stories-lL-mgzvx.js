@@ -1,0 +1,5 @@
+import{n as e}from"./rolldown-runtime-DkW27tQK.js";import{t}from"./jsx-runtime-DeHZSEgm.js";import{n,t as r}from"./FilteringIndicator-CsQisehG.js";var i,a,o,s,c;function l(){return(l=e((()=>{n(),i=t(),a={title:`Shared/FilteringIndicator`,component:r,tags:[`autodocs`],args:{isFiltering:!1,children:(0,i.jsxs)(`div`,{className:`rounded-md border p-6`,children:[(0,i.jsx)(`p`,{children:`フィルタ対象のリスト内容`}),(0,i.jsx)(`p`,{children:`1,234 件中 20 件を表示`})]})}},o={args:{isFiltering:!0}},s={},c=[`Filtering`,`Idle`],o.parameters={...o.parameters,docs:{...o.parameters?.docs,source:{originalSource:`{
+  args: {
+    isFiltering: true
+  }
+}`,...o.parameters?.docs?.source},description:{story:`遅延レンダリング中: 内容が薄くなる（useDeferredValue 連携用）`,...o.parameters?.docs?.description}}},s.parameters={...s.parameters,docs:{...s.parameters?.docs,source:{originalSource:`{}`,...s.parameters?.docs?.source}}}})))()}l();export{o as Filtering,s as Idle,c as __namedExportsOrder,a as default};

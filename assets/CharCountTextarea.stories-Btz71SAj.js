@@ -1,0 +1,14 @@
+import{n as e}from"./rolldown-runtime-DkW27tQK.js";import{f as t}from"./iframe-C6Sk8rp0.js";import{t as n}from"./jsx-runtime-DeHZSEgm.js";import{n as r,t as i}from"./utils-DT5hf25b.js";import{d as a,n as o,s}from"./design-tokens-B-kSoC24.js";import{n as c,t as l}from"./textarea-DtK9uEEx.js";var u,d,f;function p(){return(p=e((()=>{u=t(),r(),c(),a(),d=n(),f=(0,u.memo)(function({value:e,onChange:t,maxLength:n=500,placeholder:r,className:a,textareaClassName:c,disabled:u,id:f,name:p}){let m=e.length,h=m>=n;return(0,d.jsxs)(`div`,{className:i(`flex flex-col gap-1`,a),children:[(0,d.jsx)(l,{id:f,name:p,value:e,onChange:e=>t(e.target.value),maxLength:n,placeholder:r,disabled:u,className:i(s.textarea,`flex-1`,c)}),(0,d.jsxs)(`p`,{className:i(`text-xs text-right select-none`,h?o.danger:o.text40),"aria-live":`polite`,"aria-atomic":`true`,children:[m,` / `,n,` 文字`]})]})}),f.__docgenInfo={description:`Textarea with a character count indicator shown below.
+Displays "X / maxLength 文字" and turns red when the limit is reached.`,methods:[],displayName:`CharCountTextarea`,props:{value:{required:!0,tsType:{name:`string`},description:``},onChange:{required:!0,tsType:{name:`signature`,type:`function`,raw:`(value: string) => void`,signature:{arguments:[{type:{name:`string`},name:`value`}],return:{name:`void`}}},description:``},maxLength:{required:!1,tsType:{name:`number`},description:``,defaultValue:{value:`500`,computed:!1}},placeholder:{required:!1,tsType:{name:`string`},description:``},className:{required:!1,tsType:{name:`string`},description:``},textareaClassName:{required:!1,tsType:{name:`string`},description:``},disabled:{required:!1,tsType:{name:`boolean`},description:``},id:{required:!1,tsType:{name:`string`},description:``},name:{required:!1,tsType:{name:`string`},description:``}}}})))()}var m,h,g,_,v,y;function b(){return(b=e((()=>{p(),m={title:`Shared/CharCountTextarea`,component:f,tags:[`autodocs`],args:{value:`食欲不振が3日続いている。`,onChange:()=>{},maxLength:200,placeholder:`症状を入力`}},h={},g={args:{value:`あ`.repeat(190)}},_={args:{value:`あ`.repeat(200)}},v={args:{disabled:!0}},y=[`Default`,`NearLimit`,`AtLimit`,`Disabled`],h.parameters={...h.parameters,docs:{...h.parameters?.docs,source:{originalSource:`{}`,...h.parameters?.docs?.source}}},g.parameters={...g.parameters,docs:{...g.parameters?.docs,source:{originalSource:`{
+  args: {
+    value: "あ".repeat(190)
+  }
+}`,...g.parameters?.docs?.source}}},_.parameters={..._.parameters,docs:{..._.parameters?.docs,source:{originalSource:`{
+  args: {
+    value: "あ".repeat(200)
+  }
+}`,..._.parameters?.docs?.source}}},v.parameters={...v.parameters,docs:{...v.parameters?.docs,source:{originalSource:`{
+  args: {
+    disabled: true
+  }
+}`,...v.parameters?.docs?.source}}}})))()}b();export{_ as AtLimit,h as Default,v as Disabled,g as NearLimit,y as __namedExportsOrder,m as default};

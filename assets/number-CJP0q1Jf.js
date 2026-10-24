@@ -1,0 +1,1 @@
+import{n as e}from"./rolldown-runtime-DkW27tQK.js";function t(e){return e.toLocaleString(`ja-JP`)}function n(e){return e==null?`—`:`${e<0?`-`:``}¥${Math.abs(e).toLocaleString(`ja-JP`)}`}function r(){return(r=e((()=>{})))()}export{t as n,r,n as t};
