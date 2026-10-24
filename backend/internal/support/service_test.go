@@ -16,20 +16,15 @@ import (
 // ---- mock Repository ----
 
 type mockRepository struct {
-	createFn             func(ctx context.Context, report *model.SupportBugReport) error
-	findAllFn            func(ctx context.Context) ([]BugReportWithReporter, error)
-	findByIDForClinicF   func(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
-	updateStatusFn       func(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error
-	setTicketFn          func(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error)
-	setCreationSyncErrFn func(ctx context.Context, clinicID, id uint64, syncErr string) (bool, error)
-	setSyncErrFn         func(ctx context.Context, clinicID, id uint64, syncErr string) error
-	softDeleteFn         func(ctx context.Context, clinicID, id uint64) error
-	createChatFn         func(ctx context.Context, messages []*model.SupportChatMessage) error
-	listChatFn           func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
-	listAllChatFn        func(ctx context.Context) ([]ChatMessageWithMeta, error)
-	clearChatFn          func(ctx context.Context, clinicID, staffID uint64) error
-	listOpenPlaneFn      func(ctx context.Context, limit int) ([]model.SupportBugReport, error)
-	applyStateSyncFn     func(ctx context.Context, clinicID, id uint64, completed bool) error
+	createFn           func(ctx context.Context, report *model.SupportBugReport) error
+	findAllFn          func(ctx context.Context) ([]BugReportWithReporter, error)
+	findByIDForClinicF func(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
+	updateStatusFn     func(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error
+	softDeleteFn       func(ctx context.Context, clinicID, id uint64) error
+	createChatFn       func(ctx context.Context, messages []*model.SupportChatMessage) error
+	listChatFn         func(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
+	listAllChatFn      func(ctx context.Context) ([]ChatMessageWithMeta, error)
+	clearChatFn        func(ctx context.Context, clinicID, staffID uint64) error
 }
 
 func (m *mockRepository) Create(ctx context.Context, report *model.SupportBugReport) error {
@@ -43,28 +38,6 @@ func (m *mockRepository) FindByIDForClinic(ctx context.Context, clinicID, id uin
 }
 func (m *mockRepository) UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error {
 	return m.updateStatusFn(ctx, clinicID, id, status)
-}
-func (m *mockRepository) SetPlaneTicket(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error) {
-	return m.setTicketFn(ctx, clinicID, id, issueID, issueURL)
-}
-func (m *mockRepository) SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) (bool, error) {
-	if m.setCreationSyncErrFn != nil {
-		return m.setCreationSyncErrFn(ctx, clinicID, id, syncErr)
-	}
-	return true, m.setSyncErrFn(ctx, clinicID, id, syncErr)
-}
-
-func (m *mockRepository) SetPlaneStateSyncError(ctx context.Context, clinicID, id uint64, msg string) error {
-	return m.setSyncErrFn(ctx, clinicID, id, msg)
-}
-func (m *mockRepository) ApplyPlaneStateSync(ctx context.Context, clinicID, id uint64, completed bool) error {
-	if m.applyStateSyncFn != nil {
-		return m.applyStateSyncFn(ctx, clinicID, id, completed)
-	}
-	if completed && m.updateStatusFn != nil {
-		return m.updateStatusFn(ctx, clinicID, id, model.SupportBugReportStatusResolved)
-	}
-	return nil
 }
 func (m *mockRepository) SoftDeleteBugReport(ctx context.Context, clinicID, id uint64) error {
 	return m.softDeleteFn(ctx, clinicID, id)
@@ -92,12 +65,6 @@ func (m *mockRepository) ClearChatHistory(ctx context.Context, clinicID, staffID
 		return nil
 	}
 	return m.clearChatFn(ctx, clinicID, staffID)
-}
-func (m *mockRepository) ListOpenWithPlaneTicket(ctx context.Context, limit int) ([]model.SupportBugReport, error) {
-	if m.listOpenPlaneFn == nil {
-		return nil, nil
-	}
-	return m.listOpenPlaneFn(ctx, limit)
 }
 
 // ---- mock TicketCreator ----
@@ -178,131 +145,60 @@ func TestServiceCreate_DiscordFailureStillSaves(t *testing.T) {
 	assert.Equal(t, 1, notifier.calls)
 }
 
-// ---- EnsurePlaneTicket: 手動起票/再送 ----
+// ---- Create: 配送契約の接続まで Plane へ送らない（EMR-549 C1） ----
 
-func TestServiceEnsurePlaneTicket(t *testing.T) {
-	existingID := "issue-uuid-existing"
-	tests := []struct {
-		name          string
-		report        *model.SupportBugReport
-		findErr       error
-		tickets       *mockTicketCreator
-		setTicketFn   func(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error)
-		wantCalls     int
-		wantErr       error
-		wantIssueID   bool
-		wantSyncError bool
-	}{
-		{
-			name:        "returns existing ticket idempotently without calling plane",
-			report:      &model.SupportBugReport{ID: 10, ClinicID: 1, PlaneIssueID: &existingID},
-			tickets:     &mockTicketCreator{},
-			wantCalls:   0,
-			wantIssueID: true,
-		},
-		{
-			name:    "returns not-implemented when plane is not configured",
-			report:  &model.SupportBugReport{ID: 10, ClinicID: 1},
-			tickets: nil,
-			wantErr: apperrors.ErrNotImplemented,
-		},
-		{
-			name:          "persists sync error and returns bad-gateway on upstream failure",
-			report:        &model.SupportBugReport{ID: 10, ClinicID: 1},
-			tickets:       &mockTicketCreator{err: &planeUpstreamError{status: 500}},
-			wantCalls:     1,
-			wantErr:       apperrors.ErrBadGateway,
-			wantSyncError: true,
-		},
-		{
-			name:    "claims ticket on success",
-			report:  &model.SupportBugReport{ID: 10, ClinicID: 1},
-			tickets: &mockTicketCreator{result: &PlaneIssue{ID: "new-uuid", URL: "https://app.plane.so/ws/browse/EMR-9/"}},
-			setTicketFn: func(_ context.Context, _, _ uint64, _, _ string) (bool, error) {
-				return true, nil
-			},
-			wantCalls:   1,
-			wantIssueID: true,
-		},
-		{
-			name:    "returns latest state when claim is lost",
-			report:  &model.SupportBugReport{ID: 10, ClinicID: 1},
-			tickets: &mockTicketCreator{result: &PlaneIssue{ID: "new-uuid", URL: "u"}},
-			setTicketFn: func(_ context.Context, _, _ uint64, _, _ string) (bool, error) {
-				return false, nil
-			},
-			wantCalls: 1,
-		},
-	}
+func TestServiceCreate_DoesNotSendToPlaneBeforeDeliveryContract(t *testing.T) {
+	repo := &mockRepository{}
+	savedReportMock(repo)
+	tickets := &mockTicketCreator{result: &PlaneIssue{ID: "must-not-be-created"}}
+	svc := NewService(repo, tickets, nil)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockRepository{
-				findByIDForClinicF: func(_ context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
-					assert.Equal(t, uint64(1), clinicID)
-					assert.Equal(t, uint64(10), id)
-					if tt.findErr != nil {
-						return nil, tt.findErr
-					}
-					return tt.report, nil
-				},
-				setSyncErrFn: func(_ context.Context, _, _ uint64, syncErr string) error {
-					assert.NotEmpty(t, syncErr)
-					return nil
-				},
-				setTicketFn: tt.setTicketFn,
-			}
+	report, err := svc.Create(context.Background(), 1, 5, CreateBugReportInput{Title: "件名"})
 
-			var tickets TicketCreator
-			if tt.tickets != nil {
-				tickets = tt.tickets
-			}
-			svc := NewService(repo, tickets, nil)
-
-			report, err := svc.EnsurePlaneTicket(context.Background(), 1, 10)
-			if tt.wantErr != nil {
-				require.Error(t, err)
-				assert.True(t, errors.Is(err, tt.wantErr), "want %v, got %v", tt.wantErr, err)
-				if tt.tickets != nil {
-					assert.Equal(t, tt.wantCalls, tt.tickets.calls)
-				}
-				return
-			}
-			require.NoError(t, err)
-			require.NotNil(t, report)
-			if tt.tickets != nil {
-				assert.Equal(t, tt.wantCalls, tt.tickets.calls)
-			}
-			assert.Equal(t, tt.wantIssueID, report.PlaneIssueID != nil)
-			assert.Equal(t, tt.wantSyncError, report.PlaneSyncError != nil)
-		})
-	}
+	require.NoError(t, err)
+	require.NotNil(t, report)
+	assert.Equal(t, uint64(10), report.ID)
+	assert.Equal(t, 0, tickets.calls)
 }
 
-func TestServiceEnsurePlaneTicket_RetryAfterFailedAutoSync(t *testing.T) {
-	// 自動起票失敗（plane_sync_error 記録済み・issue 未リンク）の報告を手動再送すると
-	// 起票が成功し、旧失敗理由はクリアされる。起票済み報告の再送で二重起票しない
-	// 契約は TestServiceEnsurePlaneTicket の idempotent ケースで固定済み。
-	syncErr := "plane api error (status 500)"
+// ---- EnsurePlaneTicket: 配送契約の接続まで固定の 422 で停止 ----
+
+func TestServiceEnsurePlaneTicket_StopsWithStableCode(t *testing.T) {
+	tickets := &mockTicketCreator{result: &PlaneIssue{ID: "must-not-be-created"}}
 	repo := &mockRepository{
 		findByIDForClinicF: func(_ context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
-			return &model.SupportBugReport{ID: 10, ClinicID: 1, PlaneSyncError: &syncErr}, nil
-		},
-		setTicketFn: func(_ context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error) {
 			assert.Equal(t, uint64(1), clinicID)
 			assert.Equal(t, uint64(10), id)
-			return true, nil
+			return &model.SupportBugReport{ID: 10, ClinicID: 1}, nil
 		},
 	}
-	tickets := &mockTicketCreator{result: &PlaneIssue{ID: "retry-uuid", URL: "https://app.plane.so/ws/browse/EMR-11/"}}
 	svc := NewService(repo, tickets, nil)
 
 	report, err := svc.EnsurePlaneTicket(context.Background(), 1, 10)
-	require.NoError(t, err)
-	assert.Equal(t, 1, tickets.calls)
-	require.NotNil(t, report.PlaneIssueID)
-	assert.Equal(t, "retry-uuid", *report.PlaneIssueID)
-	assert.Nil(t, report.PlaneSyncError)
+
+	require.Error(t, err)
+	assert.Nil(t, report)
+	assert.ErrorIs(t, err, apperrors.ErrUnprocessable)
+	var appErr *apperrors.AppError
+	require.True(t, errors.As(err, &appErr))
+	assert.Equal(t, codeSupportDeliveryPending, appErr.Code)
+	assert.Equal(t, 0, tickets.calls, "plane must not be called before the delivery contract is connected")
+}
+
+func TestServiceEnsurePlaneTicket_ForeignOrMissingReportIsNotFound(t *testing.T) {
+	tickets := &mockTicketCreator{}
+	repo := &mockRepository{
+		findByIDForClinicF: func(context.Context, uint64, uint64) (*model.SupportBugReport, error) {
+			return nil, apperrors.WrapNotFound("support_bug_report", "10")
+		},
+	}
+	svc := NewService(repo, tickets, nil)
+
+	_, err := svc.EnsurePlaneTicket(context.Background(), 2, 10)
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Equal(t, 0, tickets.calls)
 }
 
 // ---- Delete: 論理削除 + 削除前行の返却 ----
@@ -534,26 +430,13 @@ func (m *mockTicketReader) FetchIssueStateGroup(ctx context.Context, issueID str
 	return m.fetchFn(ctx, issueID)
 }
 
-func strPtr(s string) *string { return &s }
-
-func openReportWithTicket(id, clinicID uint64, issueID string) model.SupportBugReport {
-	return model.SupportBugReport{
-		ID:           id,
-		ClinicID:     clinicID,
-		Status:       model.SupportBugReportStatusOpen,
-		PlaneIssueID: strPtr(issueID),
-	}
-}
-
 func TestServiceSyncPlaneTicketStates_DisabledWhenNoReader(t *testing.T) {
 	// TicketCreator のみ（reader 未実装 = 旧クライアント相当）は no-op。
-	repo := &mockRepository{}
-	svc := NewService(repo, &mockTicketCreator{}, nil)
+	svc := NewService(&mockRepository{}, &mockTicketCreator{}, nil)
 
 	result := svc.SyncPlaneTicketStates(context.Background())
 
 	assert.Equal(t, PlaneSyncResult{}, result)
-	assert.Nil(t, repo.listOpenPlaneFn, "repo must not be queried")
 }
 
 func TestServiceSyncPlaneTicketStates_NilTicketsIsNoOp(t *testing.T) {
@@ -561,328 +444,17 @@ func TestServiceSyncPlaneTicketStates_NilTicketsIsNoOp(t *testing.T) {
 	assert.Equal(t, PlaneSyncResult{}, svc.SyncPlaneTicketStates(context.Background()))
 }
 
-func TestServiceSyncPlaneTicketStates_ListErrorFailsClosed(t *testing.T) {
-	repo := &mockRepository{
-		listOpenPlaneFn: func(context.Context, int) ([]model.SupportBugReport, error) {
-			return nil, errors.New("db down")
-		},
-	}
-	svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
+func TestServiceSyncPlaneTicketStates_ReaderConfiguredFailsClosed(t *testing.T) {
+	// 配送結果 reader が未接続の間は、外部 ID を持たない報告を「未送信」と推測して空振りさせず、
+	// 実行ごとに 1 件の失敗として報告する（Processed == Succeeded + Failed を維持）。
+	fetched := false
+	svc := NewService(&mockRepository{}, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
+		fetched = true
 		return "completed", nil
 	}}, nil)
 
 	result := svc.SyncPlaneTicketStates(context.Background())
 
-	// 対象一覧すら取れない = ジョブ全体失敗として 1 件の failed を報告する。
 	assert.Equal(t, PlaneSyncResult{Processed: 1, Failed: 1}, result)
-}
-
-func TestServiceSyncPlaneTicketStates_CompletedResolvesWithReportClinic(t *testing.T) {
-	var updateClinic, updateID uint64
-	var updateStatus model.SupportBugReportStatus
-	repo := &mockRepository{
-		listOpenPlaneFn: func(_ context.Context, limit int) ([]model.SupportBugReport, error) {
-			assert.Equal(t, planeStateSyncBatchLimit, limit)
-			return []model.SupportBugReport{openReportWithTicket(7, 42, "issue-uuid-1")}, nil
-		},
-		updateStatusFn: func(_ context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error {
-			updateClinic, updateID, updateStatus = clinicID, id, status
-			return nil
-		},
-	}
-	var fetchedID string
-	svc := NewService(repo, &mockTicketReader{fetchFn: func(_ context.Context, issueID string) (string, error) {
-		fetchedID = issueID
-		return "completed", nil
-	}}, nil)
-
-	result := svc.SyncPlaneTicketStates(context.Background())
-
-	assert.Equal(t, PlaneSyncResult{Processed: 1, Succeeded: 1}, result)
-	assert.Equal(t, "issue-uuid-1", fetchedID)
-	// UpdateStatus は必ず報告の clinic_id スコープで行う（cross-clinic 更新にならない）。
-	assert.Equal(t, uint64(42), updateClinic)
-	assert.Equal(t, uint64(7), updateID)
-	assert.Equal(t, model.SupportBugReportStatusResolved, updateStatus)
-}
-
-func TestServiceSyncPlaneTicketStates_NonCompletedSkipped(t *testing.T) {
-	for _, group := range []string{"started", "backlog", "cancelled", ""} {
-		t.Run("group="+group, func(t *testing.T) {
-			updateCalled := false
-			repo := &mockRepository{
-				listOpenPlaneFn: func(context.Context, int) ([]model.SupportBugReport, error) {
-					return []model.SupportBugReport{openReportWithTicket(7, 42, "issue-1")}, nil
-				},
-				updateStatusFn: func(context.Context, uint64, uint64, model.SupportBugReportStatus) error {
-					updateCalled = true
-					return nil
-				},
-			}
-			svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
-				return group, nil
-			}}, nil)
-
-			result := svc.SyncPlaneTicketStates(context.Background())
-
-			// 未完了スキップは失敗ではなく succeeded に計上（対象を正しく処理済み）。
-			assert.Equal(t, PlaneSyncResult{Processed: 1, Succeeded: 1}, result)
-			assert.False(t, updateCalled)
-		})
-	}
-}
-
-func TestServiceSyncPlaneTicketStates_FetchErrorRecordsSyncError(t *testing.T) {
-	var syncErrClinic, syncErrID uint64
-	var syncErrMsg string
-	repo := &mockRepository{
-		listOpenPlaneFn: func(context.Context, int) ([]model.SupportBugReport, error) {
-			return []model.SupportBugReport{openReportWithTicket(9, 5, "issue-gone")}, nil
-		},
-		setSyncErrFn: func(_ context.Context, clinicID, id uint64, msg string) error {
-			syncErrClinic, syncErrID, syncErrMsg = clinicID, id, msg
-			return nil
-		},
-		updateStatusFn: func(context.Context, uint64, uint64, model.SupportBugReportStatus) error {
-			t.Fatal("UpdateStatus must not run on fetch failure")
-			return nil
-		},
-		applyStateSyncFn: func(context.Context, uint64, uint64, bool) error {
-			t.Fatal("ApplyPlaneStateSync must not run on fetch failure")
-			return nil
-		},
-	}
-	svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
-		return "", &planeUpstreamError{status: 404}
-	}}, nil)
-
-	result := svc.SyncPlaneTicketStates(context.Background())
-
-	assert.Equal(t, PlaneSyncResult{Processed: 1, Failed: 1}, result)
-	// 404 も他の upstream 失敗と同じく plane_sync_error に記録（報告行から追跡可能）。
-	assert.Equal(t, uint64(5), syncErrClinic)
-	assert.Equal(t, uint64(9), syncErrID)
-	assert.Equal(t, "plane api error (status 404)", syncErrMsg)
-}
-
-func TestServiceSyncPlaneTicketStates_UpdateErrorCountsFailed(t *testing.T) {
-	repo := &mockRepository{
-		listOpenPlaneFn: func(context.Context, int) ([]model.SupportBugReport, error) {
-			return []model.SupportBugReport{openReportWithTicket(7, 42, "issue-1")}, nil
-		},
-		updateStatusFn: func(context.Context, uint64, uint64, model.SupportBugReportStatus) error {
-			return errors.New("write conflict")
-		},
-	}
-	svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
-		return "completed", nil
-	}}, nil)
-
-	result := svc.SyncPlaneTicketStates(context.Background())
-	assert.Equal(t, PlaneSyncResult{Processed: 1, Failed: 1}, result)
-}
-
-func TestServiceSyncPlaneTicketStates_MixedBatch(t *testing.T) {
-	var resolved []uint64
-	var syncErrs []uint64
-	repo := &mockRepository{
-		listOpenPlaneFn: func(context.Context, int) ([]model.SupportBugReport, error) {
-			return []model.SupportBugReport{
-				openReportWithTicket(1, 10, "done-1"),
-				openReportWithTicket(2, 20, "wip-2"),
-				openReportWithTicket(3, 30, "gone-3"),
-			}, nil
-		},
-		updateStatusFn: func(_ context.Context, _, id uint64, _ model.SupportBugReportStatus) error {
-			resolved = append(resolved, id)
-			return nil
-		},
-		setSyncErrFn: func(_ context.Context, _, id uint64, _ string) error {
-			syncErrs = append(syncErrs, id)
-			return nil
-		},
-	}
-	svc := NewService(repo, &mockTicketReader{fetchFn: func(_ context.Context, issueID string) (string, error) {
-		switch issueID {
-		case "done-1":
-			return "completed", nil
-		case "wip-2":
-			return "started", nil
-		default:
-			return "", errors.New("boom")
-		}
-	}}, nil)
-
-	result := svc.SyncPlaneTicketStates(context.Background())
-
-	assert.Equal(t, PlaneSyncResult{Processed: 3, Succeeded: 2, Failed: 1}, result)
-	assert.Equal(t, []uint64{1}, resolved)
-	assert.Equal(t, []uint64{3}, syncErrs)
-}
-
-func TestServiceSyncPlaneTicketStates_RecoveredFetchClearsStoredError(t *testing.T) {
-	for _, group := range []string{"started", "backlog", "cancelled", ""} {
-		t.Run("group="+group, func(t *testing.T) {
-			storedErr := "plane api error (status 500)"
-			row := &model.SupportBugReport{
-				ID: 7, ClinicID: 42, Status: model.SupportBugReportStatusOpen,
-				PlaneIssueID: strPtr("issue-1"), PlaneSyncError: &storedErr,
-			}
-			applyCalls := 0
-			repo := &mockRepository{
-				listOpenPlaneFn: func(context.Context, int) ([]model.SupportBugReport, error) {
-					return []model.SupportBugReport{*row}, nil
-				},
-				applyStateSyncFn: func(_ context.Context, clinicID, id uint64, completed bool) error {
-					applyCalls++
-					assert.Equal(t, uint64(42), clinicID)
-					assert.Equal(t, uint64(7), id)
-					assert.False(t, completed, "non-completed fetch must not resolve the report")
-					row.PlaneSyncError = nil
-					return nil
-				},
-			}
-			svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
-				return group, nil
-			}}, nil)
-
-			result := svc.SyncPlaneTicketStates(context.Background())
-
-			assert.Equal(t, PlaneSyncResult{Processed: 1, Succeeded: 1}, result)
-			assert.Equal(t, 1, applyCalls)
-			assert.Nil(t, row.PlaneSyncError, "recovered fetch must clear the stored sync error")
-			assert.Equal(t, model.SupportBugReportStatusOpen, row.Status, "non-completed must not change status")
-		})
-	}
-}
-
-func TestServiceSyncPlaneTicketStates_CompletedClearsAndResolvesAtomically(t *testing.T) {
-	storedErr := "plane api error (status 404)"
-	row := &model.SupportBugReport{
-		ID: 7, ClinicID: 42, Status: model.SupportBugReportStatusOpen,
-		PlaneIssueID: strPtr("issue-1"), PlaneSyncError: &storedErr,
-	}
-	applyCalls := 0
-	repo := &mockRepository{
-		listOpenPlaneFn: func(context.Context, int) ([]model.SupportBugReport, error) {
-			return []model.SupportBugReport{*row}, nil
-		},
-		applyStateSyncFn: func(_ context.Context, clinicID, id uint64, completed bool) error {
-			applyCalls++
-			assert.Equal(t, uint64(42), clinicID)
-			assert.Equal(t, uint64(7), id)
-			assert.True(t, completed)
-			row.PlaneSyncError = nil
-			row.Status = model.SupportBugReportStatusResolved
-			return nil
-		},
-		updateStatusFn: func(context.Context, uint64, uint64, model.SupportBugReportStatus) error {
-			t.Error("manual UpdateStatus must not be used by plane sync")
-			return nil
-		},
-	}
-	svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
-		return "completed", nil
-	}}, nil)
-
-	result := svc.SyncPlaneTicketStates(context.Background())
-
-	assert.Equal(t, PlaneSyncResult{Processed: 1, Succeeded: 1}, result)
-	assert.Equal(t, 1, applyCalls, "error clear + resolve must be one atomic apply call")
-	assert.Nil(t, row.PlaneSyncError)
-	assert.Equal(t, model.SupportBugReportStatusResolved, row.Status)
-}
-
-func TestServiceSyncPlaneTicketStates_ApplyFailureCountsFailed(t *testing.T) {
-	storedErr := "plane api error (status 500)"
-	row := &model.SupportBugReport{
-		ID: 7, ClinicID: 42, Status: model.SupportBugReportStatusOpen,
-		PlaneIssueID: strPtr("issue-1"), PlaneSyncError: &storedErr,
-	}
-	repo := &mockRepository{
-		listOpenPlaneFn: func(context.Context, int) ([]model.SupportBugReport, error) {
-			return []model.SupportBugReport{*row}, nil
-		},
-		applyStateSyncFn: func(context.Context, uint64, uint64, bool) error {
-			return errors.New("write conflict")
-		},
-	}
-	svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
-		return "started", nil
-	}}, nil)
-
-	result := svc.SyncPlaneTicketStates(context.Background())
-
-	assert.Equal(t, PlaneSyncResult{Processed: 1, Failed: 1}, result)
-	require.NotNil(t, row.PlaneSyncError, "failed apply must retain the old stored error")
-	assert.Equal(t, storedErr, *row.PlaneSyncError)
-	assert.Equal(t, model.SupportBugReportStatusOpen, row.Status)
-}
-
-func TestServiceSyncPlaneTicketStates_FetchFailsThenNextFetchRecovers(t *testing.T) {
-	row := &model.SupportBugReport{
-		ID: 7, ClinicID: 42, Status: model.SupportBugReportStatusOpen,
-		PlaneIssueID: strPtr("issue-1"),
-	}
-	fetchFails := true
-	repo := &mockRepository{
-		listOpenPlaneFn: func(context.Context, int) ([]model.SupportBugReport, error) {
-			return []model.SupportBugReport{*row}, nil
-		},
-		setSyncErrFn: func(_ context.Context, clinicID, id uint64, msg string) error {
-			row.PlaneSyncError = &msg
-			return nil
-		},
-		applyStateSyncFn: func(_ context.Context, clinicID, id uint64, completed bool) error {
-			row.PlaneSyncError = nil
-			return nil
-		},
-	}
-	svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
-		if fetchFails {
-			return "", &planeUpstreamError{status: 500}
-		}
-		return "started", nil
-	}}, nil)
-
-	first := svc.SyncPlaneTicketStates(context.Background())
-	assert.Equal(t, PlaneSyncResult{Processed: 1, Failed: 1}, first)
-	require.NotNil(t, row.PlaneSyncError, "failed fetch must record the sync error")
-
-	fetchFails = false
-	second := svc.SyncPlaneTicketStates(context.Background())
-	assert.Equal(t, PlaneSyncResult{Processed: 1, Succeeded: 1}, second)
-	assert.Nil(t, row.PlaneSyncError, "recovered fetch must clear the stored sync error")
-	assert.Equal(t, model.SupportBugReportStatusOpen, row.Status)
-}
-
-func TestServiceSyncPlaneTicketStates_RepeatedSyncIsIdempotent(t *testing.T) {
-	row := &model.SupportBugReport{
-		ID: 7, ClinicID: 42, Status: model.SupportBugReportStatusOpen,
-		PlaneIssueID: strPtr("issue-1"),
-	}
-	applyCalls := 0
-	repo := &mockRepository{
-		listOpenPlaneFn: func(context.Context, int) ([]model.SupportBugReport, error) {
-			return []model.SupportBugReport{*row}, nil
-		},
-		applyStateSyncFn: func(_ context.Context, clinicID, id uint64, completed bool) error {
-			applyCalls++
-			assert.False(t, completed)
-			row.PlaneSyncError = nil
-			return nil
-		},
-	}
-	svc := NewService(repo, &mockTicketReader{fetchFn: func(context.Context, string) (string, error) {
-		return "started", nil
-	}}, nil)
-
-	first := svc.SyncPlaneTicketStates(context.Background())
-	second := svc.SyncPlaneTicketStates(context.Background())
-
-	assert.Equal(t, PlaneSyncResult{Processed: 1, Succeeded: 1}, first)
-	assert.Equal(t, PlaneSyncResult{Processed: 1, Succeeded: 1}, second)
-	assert.Equal(t, 2, applyCalls, "each run applies once; cleared NULL re-apply is a safe no-op")
-	assert.Equal(t, model.SupportBugReportStatusOpen, row.Status)
-	assert.Nil(t, row.PlaneSyncError)
+	assert.False(t, fetched, "plane must not be queried without delivery results")
 }

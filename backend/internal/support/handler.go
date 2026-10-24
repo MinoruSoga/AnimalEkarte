@@ -215,8 +215,9 @@ func (h *Handler) UpdateBugReportStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, toBugReportResponse(report, "", ""))
 }
 
-// CreatePlaneTicket は報告を Plane ワークアイテムとして起票する。
-// 自動起票に失敗した報告の手動再送経路でもある。起票済みなら現行状態を返す（冪等）。
+// CreatePlaneTicket は報告を Plane ワークアイテムとして起票する入口。
+// 配送契約（送信前確認 intent・試行 claim・結果記録）の接続まで外部へは送らず、報告元医院の
+// 確認後に固定の 422（code=support_delivery_pending）で停止する（EMR-549 C1）。
 // 操作は報告元医院スコープ — 他医院の報告は共有ボードで閲覧のみ（404）。
 //
 // POST /api/v1/support/bug-reports/:id/plane-ticket
@@ -231,6 +232,11 @@ func (h *Handler) CreatePlaneTicket(c *gin.Context) {
 	}
 	report, err := h.service.EnsurePlaneTicket(c.Request.Context(), clinicID, id)
 	if err != nil {
+		// 422 は FE が機械判定できる安定 code を本文へ含める。それ以外は従来の応答形。
+		if errors.Is(err, apperrors.ErrUnprocessable) {
+			httpapi.RespondErrorWithExtras(c, err, nil)
+			return
+		}
 		httpapi.RespondError(c, err)
 		return
 	}

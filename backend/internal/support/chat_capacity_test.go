@@ -50,7 +50,7 @@ func TestHybridCapacityUsesOnlyLatestHistorySources(t *testing.T) {
 		t.Run(fmt.Sprintf("latest_empty_%t", latestEmpty), func(t *testing.T) {
 			history := []model.SupportChatMessage{{
 				Role:    model.SupportChatRoleAssistant,
-				Sources: []byte(`[{"category":"screens","slug":"current","title":"T"}]`),
+				Sources: sourcesPtr([]byte(`[{"category":"screens","slug":"current","title":"T"}]`)),
 			}}
 			if latestEmpty {
 				history = append(history, model.SupportChatMessage{Role: model.SupportChatRoleAssistant})

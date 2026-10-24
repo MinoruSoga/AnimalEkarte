@@ -158,7 +158,7 @@ func TestHybridHistoryCancellation503NoCalls(t *testing.T) {
 			cancelParent()
 			return []model.SupportChatMessage{{
 				Role:    model.SupportChatRoleAssistant,
-				Sources: json.RawMessage(`[{"title":"x","category":"screens","slug":"accounting"}]`),
+				Sources: sourcesPtr(json.RawMessage(`[{"title":"x","category":"screens","slug":"accounting"}]`)),
 			}}, nil
 		},
 		recordChatFn: func(context.Context, uint64, uint64, string, string, []ChatSource) error {

@@ -14582,12 +14582,10 @@ components:
         screenshot_url:
           type: string
           description: 署名付き URL(15分 TTL)。スクショなし・署名失敗時は省略。
-        plane_issue_url:
+        plane_delivery_state:
           type: string
-          description: 起票済み Plane チケットの表示 URL(app.plane.so/<ws>/browse/<IDENT>/)。未起票なら省略。
-        plane_sync_error:
-          type: string
-          description: 直近の Plane 起票失敗理由。成功・未試行なら省略。管理画面の再送判断に使用。
+          enum: [unavailable]
+          description: Plane への配送状態。配送結果(support_delivery_results)の reader が未接続の間は常に unavailable(結果を読めない)。外部 ID・リンクの欠落を未送信の証拠にしない。旧 plane_issue_url / plane_sync_error は削除済み。
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
     # EMR-518 / EMR-516 selected contract-first schemas; runtime NOT_IMPLEMENTED.
@@ -37652,13 +37650,11 @@ paths:
       description: |
         認証済みスタッフ全員が利用可能。multipart/form-data で件名・詳細・画面文脈
         (page_url/route_path/user_agent/viewport/app_version)と任意 file "screenshot"
-        (PNG/JPEG/WebP)を受け付ける。全体 8MiB 上限。保存成功後に Plane 連携が
-        設定済みなら best-effort でワークアイテムを自動起票する。上流エラー時は
-        plane_sync_error への記録を試みる(応答には sanitize 済み理由を含む)。
-        起票結果・失敗理由の DB 書き込み自体の失敗は best-effort のログのみで、
-        行が未リンク/理由未記録のまま残りうる。いずれの場合も作成自体は 201 で
-        成功し、連携未設定ならローカル保存のみで同期エラーは付かない。
-        手動起票・再送は POST /support/bug-reports/{id}/plane-ticket。
+        (PNG/JPEG/WebP)を受け付ける。全体 8MiB 上限。保存後の Plane 自動起票は
+        停止中(送信前確認と配送記録 support_delivery_* の writer が未接続のため
+        外部へ送らない)。作成自体は 201 で成功し、応答の plane_delivery_state は
+        unavailable(未送信の証明ではない)。
+        Plane 起票は POST /support/bug-reports/{id}/plane-ticket(現在は 422)。
       tags: [Support]
       requestBody:
         required: true
@@ -37725,12 +37721,10 @@ paths:
       summary: バグ報告を Plane ワークアイテムとして起票(手動再送を兼ねる)
       description: |
         操作は報告元医院スコープ(他医院の報告は共有ボードで閲覧のみ、対象指定は404)。
-        報告作成時に Plane 連携が設定済みなら自動起票を試行済みであり、
-        この明示操作は未起票・起票失敗時の手動起票・再送に使う。既に起票済み
-        (plane_issue_id あり)なら
-        現在の状態をそのまま返す冪等操作。external_source+external_id で報告と
-        Plane 側を対応付ける。PLANE_API_KEY 未設定の環境では 501。Plane 側エラーは
-        502 で返し、失敗理由は plane_sync_error に記録される。
+        報告元医院の確認後、送信前確認(confirmed intent)・宛先ごとの試行 claim・結果記録
+        (support_delivery_intents/destinations/attempts/results)の writer が接続されるまで
+        外部へ起票せず、固定の 422(code=support_delivery_pending)で停止する。旧 plane_issue_id 等の
+        列は削除済みで復元しない。
       tags: [Support]
       parameters:
         - name: id
@@ -37746,8 +37740,7 @@ paths:
                 $ref: '#/components/schemas/SupportBugReport'
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '501': { description: Plane 連携が未設定(PLANE_API_KEY なし) }
-        '502': { description: Plane 上流エラー(詳細は返さず plane_sync_error に記録) }
+        '422': { description: 配送契約(送信前確認 intent・試行 claim・結果記録)が未接続のため停止(code=support_delivery_pending) }
         '500': { $ref: '#/components/responses/InternalError' }
   /support/bug-reports/{id}:
     delete:

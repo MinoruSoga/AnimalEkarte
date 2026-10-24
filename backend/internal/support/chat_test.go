@@ -364,7 +364,7 @@ func TestChatHistory(t *testing.T) {
 					{ID: 1, Role: model.SupportChatRoleUser, Content: "締め方は？"},
 					{
 						ID: 2, Role: model.SupportChatRoleAssistant, Content: "締めボタンから",
-						Sources: json.RawMessage(`[{"title":"画面別 会計","category":"screens","slug":"accounting"}]`),
+						Sources: sourcesPtr(json.RawMessage(`[{"title":"画面別 会計","category":"screens","slug":"accounting"}]`)),
 					},
 				}, nil
 			},
@@ -415,7 +415,7 @@ func TestListChatExchangesHandler(t *testing.T) {
 						},
 						AssistantMessage: model.SupportChatMessage{
 							ID: 11, Role: model.SupportChatRoleAssistant, Content: "締めボタンから",
-							Sources: json.RawMessage(`[{"title":"画面別 会計","category":"screens","slug":"accounting"}]`),
+							Sources: sourcesPtr(json.RawMessage(`[{"title":"画面別 会計","category":"screens","slug":"accounting"}]`)),
 						},
 					},
 				}, nil

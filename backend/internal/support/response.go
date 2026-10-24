@@ -25,13 +25,18 @@ type BugReportResponse struct {
 	// ClinicName は報告元医院名。一覧のみ付与（全医院公開のため provenance として必要）。
 	ClinicName    string `json:"clinic_name,omitempty"`
 	ScreenshotURL string `json:"screenshot_url,omitempty"`
-	// PlaneIssueURL は起票済み Plane チケットの表示 URL（未起票なら省略）
-	PlaneIssueURL string `json:"plane_issue_url,omitempty"`
-	// PlaneSyncError は直近の Plane 起票失敗理由（成功・未試行なら省略）
-	PlaneSyncError string    `json:"plane_sync_error,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	// PlaneDeliveryState は Plane への配送状態（D23 の support_delivery_results 由来）。
+	// 配送結果の reader が未接続の間は常に "unavailable"（結果を読めない）。
+	// 旧 plane_issue_url / plane_sync_error は列ごと削除済みで復元しない。
+	// リンク・失敗理由の欠落を「未送信」と解釈してはならない。
+	PlaneDeliveryState string    `json:"plane_delivery_state"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
+
+// planeDeliveryStateUnavailable は配送結果（support_delivery_results）を参照できない状態の固定値。
+// 外部 ID・リンクが無いことは未送信の証拠にならない（technical-spec.md 選定済み契約 第 7 項）。
+const planeDeliveryStateUnavailable = "unavailable"
 
 // BugReportListResponse はバグ報告一覧の HTTP レスポンス
 type BugReportListResponse struct {
@@ -56,11 +61,7 @@ func toBugReportResponse(report *model.SupportBugReport, reporterName, clinicNam
 		CreatedAt:       httpapi.LocalTime(report.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(report.UpdatedAt),
 	}
-	if report.PlaneIssueURL != nil {
-		resp.PlaneIssueURL = *report.PlaneIssueURL
-	}
-	if report.PlaneSyncError != nil {
-		resp.PlaneSyncError = *report.PlaneSyncError
-	}
+	// 配送結果 reader 未接続のため、Plane への送信有無を推測しない（外部 ID なし = 未送信ではない）。
+	resp.PlaneDeliveryState = planeDeliveryStateUnavailable
 	return resp
 }
