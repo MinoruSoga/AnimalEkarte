@@ -4,6 +4,12 @@ import (
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 )
 
 func TestNewListReservationSchedulesQuery(t *testing.T) {
@@ -44,42 +50,76 @@ func TestNewListReservationSchedulesQuery(t *testing.T) {
 }
 
 func TestUpsertReservationScheduleRequest_ToServiceInput(t *testing.T) {
-	workStart := "09:00"
-	workEnd := "18:00"
+	// Arrange
+	workStart := "2026-10-23T09:00:00+09:00"
+	workEnd := "2026-10-23T18:00:00+09:00"
 	req := upsertReservationScheduleRequest{
 		ShiftType: "full",
 		WorkStart: &workStart,
 		WorkEnd:   &workEnd,
 		Breaks: []breakInputRequest{
-			{Start: "12:00", End: "13:00"},
+			{Start: "2026-10-23T12:00:00+09:00", End: "2026-10-23T13:00:00+09:00"},
 		},
 	}
 
-	input := req.toServiceInput()
+	// Act
+	input, err := req.toServiceInput()
 
-	if input.ShiftType != req.ShiftType {
-		t.Errorf("ShiftType = %q, want %q", input.ShiftType, req.ShiftType)
-	}
-	if input.WorkStart == nil || *input.WorkStart != workStart {
-		t.Errorf("WorkStart = %v, want %q", input.WorkStart, workStart)
-	}
-	if len(input.Breaks) != 1 {
-		t.Fatalf("len(Breaks) = %d, want 1", len(input.Breaks))
-	}
-	if input.Breaks[0].Start != "12:00" || input.Breaks[0].End != "13:00" {
-		t.Errorf("Breaks[0] = %+v, want 12:00-13:00", input.Breaks[0])
-	}
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, req.ShiftType, input.ShiftType)
+	require.NotNil(t, input.StartsAt)
+	require.NotNil(t, input.EndsAt)
+	assert.True(t, input.StartsAt.Equal(time.Date(2026, 10, 23, 9, 0, 0, 0, config.JST)))
+	assert.True(t, input.EndsAt.Equal(time.Date(2026, 10, 23, 18, 0, 0, 0, config.JST)))
+	require.Len(t, input.Breaks, 1)
+	assert.True(t, input.Breaks[0].StartsAt.Equal(time.Date(2026, 10, 23, 12, 0, 0, 0, config.JST)))
+	assert.True(t, input.Breaks[0].EndsAt.Equal(time.Date(2026, 10, 23, 13, 0, 0, 0, config.JST)))
 }
 
 func TestUpsertReservationScheduleRequest_ToServiceInput_NilBreaks(t *testing.T) {
 	req := upsertReservationScheduleRequest{ShiftType: "off"}
 
-	input := req.toServiceInput()
+	input, err := req.toServiceInput()
 
-	if len(input.Breaks) != 0 {
-		t.Errorf("len(Breaks) = %d, want 0", len(input.Breaks))
+	require.NoError(t, err)
+	assert.Nil(t, input.StartsAt)
+	assert.Nil(t, input.EndsAt)
+	assert.NotNil(t, input.Breaks, "Breaks = nil, want empty slice")
+	assert.Empty(t, input.Breaks)
+}
+
+func TestUpsertReservationScheduleRequest_ToServiceInput_KeepsOvernightNextDay(t *testing.T) {
+	// 日跨ぎ勤務: ends_at は翌日の明示日時のまま保持する。
+	workStart := "2026-10-23T22:00:00+09:00"
+	workEnd := "2026-10-24T07:00:00+09:00"
+	req := upsertReservationScheduleRequest{ShiftType: "full", WorkStart: &workStart, WorkEnd: &workEnd}
+
+	input, err := req.toServiceInput()
+
+	require.NoError(t, err)
+	assert.Equal(t, "2026-10-24", input.EndsAt.In(config.JST).Format(time.DateOnly))
+}
+
+func TestUpsertReservationScheduleRequest_ToServiceInput_RejectsInvalidTimestamps(t *testing.T) {
+	legacyClock := "09:00"
+	noOffset := "2026-10-23T09:00:00"
+	tests := []struct {
+		name string
+		req  upsertReservationScheduleRequest
+	}{
+		{name: "legacy HH:MM work_start", req: upsertReservationScheduleRequest{ShiftType: "full", WorkStart: &legacyClock}},
+		{name: "work_end without an offset", req: upsertReservationScheduleRequest{ShiftType: "full", WorkEnd: &noOffset}},
+		{name: "legacy HH:MM break", req: upsertReservationScheduleRequest{ShiftType: "full", Breaks: []breakInputRequest{{Start: "12:00", End: "13:00"}}}},
+		{name: "break end that is not a timestamp", req: upsertReservationScheduleRequest{ShiftType: "full", Breaks: []breakInputRequest{{Start: "2026-10-23T12:00:00+09:00", End: "ab:cd"}}}},
 	}
-	if input.Breaks == nil {
-		t.Error("Breaks = nil, want empty slice")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input, err := tt.req.toServiceInput()
+
+			require.Error(t, err)
+			assert.Nil(t, input)
+			assert.True(t, apperrors.IsInvalidInput(err))
+		})
 	}
 }

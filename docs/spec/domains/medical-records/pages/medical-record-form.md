@@ -204,9 +204,11 @@
 <a id="requirement-fr-medical-records-manual-template-insertion"></a>
 ### 2. 問診テンプレートの挿入・追記／置換
 
+2026-10-24 05:02:53 UTCの本人「ok」（Sentinel_b88574b3f9a08191b8e3bbe8941124b8）により、その医院のカルテ編集権限で有効テンプレートを限定read/適用できる。master管理CRUDの権限は増やさない。対象欄・選択reader・draft/保存境界は[限定技術契約](../../../../design/domains/medical-records/technical-spec.md#manual-inquiry-template-contract-20261024)へ。実装/供給/試験は未完。
+
 カルテで登録済みテンプレートを手動選択し、問診欄へ挿入できる。基本は追記、置き換える場合だけ確認する。置換確認の取消は既存入力を保持する。適用した内容は問診の未保存入力として扱い、テンプレート選択だけでサーバー保存しない。問診の既存保存・離脱警告・編集権限・保存履歴を継承し、旧finalizedだけで挿入を拒否しない。
 
-自動挿入・動的サジェスト、別の診断／処方欄への自動適用は追加しない。テンプレートマスタCRUDとカルテ内の適用を別操作にし、挿入で元テンプレートを書き換えない。具体的問診欄・カテゴリ対応と連続適用の表示はUI／型設計で詰め、今回未指定の必須入力や固定カテゴリを追加しない。
+自動挿入・動的サジェスト、別の診断／処方欄への自動適用は追加しない。テンプレートマスタCRUDとカルテ内の適用を別操作にし、挿入で元テンプレートを書き換えない。具体的問診欄・categoryの表示責務と連続適用は[手動適用技術契約](../../../../design/domains/medical-records/technical-spec.md#manual-inquiry-template-contract-20261024)で具体化する。未指定の必須入力や固定カテゴリを追加しない。
 
 <a id="requirement-fr-medical-records-master-history-snapshots"></a>
 ### 3. 診療マスタの権限編集・無効化・当時内容保持

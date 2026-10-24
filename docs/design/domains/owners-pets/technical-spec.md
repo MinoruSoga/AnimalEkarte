@@ -1,5 +1,10 @@
 # 飼主・ペットの技術契約
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（463）
+
+463のGetMe専用DTO・現在grantの選定は維持する。463-BE表のbuilder互換保持は当時の実装記録であり、旧clientへの追加field互換や旧builder署名保持を後続置換の必須条件にしない。login/refresh等の必要callerも確定仕様へ同じ完結単位で整合させる。 詳細根拠は[全票監査の採用是正方針](../../../work/emr/backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 | 項目 | 内容 |
 |:---|:---|
 | 文書ID・種別 | D04-TECH / 技術設計・現行差分 |
@@ -136,7 +141,7 @@ login/logout、user/clinic切替、`ME_QUERY_KEY`更新では、進行中のscop
 | 引渡し | 完了条件 | 今回の状態 |
 |:---|:---|:---|
 | 463-C 契約公開 | api.yamlとこの処理境界の採用SHAを公開 | 文書PRでレビュー対象。runtime未変更 |
-| 463-BE 最小DTO | GetMe専用wrapper・交差・三値順次評価。login/refreshとbuilder互換を保持 | 実装済み／試験作成済み・NOT_RUN |
+| 463-BE 最小DTO | GetMe専用wrapper・交差・三値順次評価と必要caller整合。旧login/refresh・builder署名の互換保持は当時の実装記録で、現在の必須受入条件ではない | 実装済み／試験作成済み・NOT_RUN |
 | 463-FE 専有adapter | 必須parse・scope先行loader・選択保持・要求無効化 | 実装済み・activation接続済み／NOT_RUN |
 | 実API結合 | BE/FEが同じ採用SHAを参照し、現在認可・失敗・切替を実APIで確認 | 契約mock合格と別。未実施／NOT_RUN |
 

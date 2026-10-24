@@ -419,6 +419,8 @@ FR-crm-notification-unknown: 通知送信結果不明は照合まで再送保留
 <a id="crm-shared-file-retention"></a>
 ## 共有ファイルの原本保持・削除操作の選定契約
 
+実現方式は[EMR-567限定技術契約](../../design/domains/crm/shared-file-retention-contract.md)。任意Uploadのunclassified保持、server配送専用コピーの用途証拠、C06 hideとDB外cleanupの分離を具体化し、業務廃棄許可を拡張しない。
+
 [共通C05](../shared/retention-audit.md)の2026-10-15承認 Sentinel_7a67fd30e47c819192cd36d416f0a2bf（保存・削除の確認項目6）を手動deleteと自動143時間cleanupの両方へ適用する。現行のstorage先行delete・一律経過時間cleanupは上記の実装事実で、この選定契約へ適合済みとはしない。
 
 - LSTEPのshared-file ownerが医院・file ID・対象版、業務記録／送信参照、分類と根拠、別原本がある場合はその安定参照・保持確認を照合する。分類は業務原本／必要履歴、確認済み一時コピー、未確認を区別。拡張子・purpose=other・upload入口・時間経過だけで一時コピーへ落とさない。旧値に分類／所在がなければ未確認として保護し、推測補完しない。

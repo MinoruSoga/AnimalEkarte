@@ -154,7 +154,7 @@ func TestRepository_SaveByStaffDate_UpsertsWithinClinic(t *testing.T) {
 
 	staff := makeShiftEntryDoctor(t, db, 1, "医師")
 	date := time.Date(2026, 7, 23, 0, 0, 0, 0, time.UTC)
-	existing := makeShiftEntryWithType(t, db, 1, staff.ID, date, model.ShiftTypeFull)
+	existing := makeKnownWorkingShiftEntry(t, db, 1, staff.ID, date)
 
 	updated := &model.ShiftEntry{
 		ClinicID:  1,

@@ -59,6 +59,7 @@ flowchart TB
 | [plane-ready-triage-20260927/](plane/plane-ready-triage-20260927) | 2026-09-27 Plane Needs Human/Blocked 65 件の ready 判定 verdicts（ready=0、verdicts.json あり） |
 | [linear-f1-f6-mapping.md](plane/linear-f1-f6-mapping.md) | repo の実装履歴と旧 Linear の対応案（2026-09-11 時点の記録。Linear は閉鎖済みで F1–F6 対応は未特定のまま） |
 | **emr/** | Plane `EMR-*` チケットの調査・設計・証跡票 |
+| [限定監査43票とReady後続](emr/emr-audit-ready-handoff-index-20261023.md#audit-ready-scope) | 2026-10-23、固定main77c28fbの先行15票＋追加28票の限定観測と既存535/作成済み553・554の受領記録。前PR846の20票とは別。製品実装・全AC受入ではなく実行NOT_RUN |
 | [EMR-547文書整備記録](emr/emr-547-legacy-finance-evidence-contract-20261023.md) | producer静的報告の受領/設計移設の短い記録。本文は[会計技術設計候補](../design/domains/accounting/legacy-finance-evidence.md)。実装/試験NOT_RUN |
 | [emr-444-frontend-start-plan-20261020.md](emr/emr-444-frontend-start-plan-20261020.md) | EMR-444 配下フロント寄り票（463/474/475/477/487）の着手プラン・実装進捗・Dots 判断事項。状態正本はPlane |
 | [emr-445-plan-handoff-20261020.md](emr/emr-445-plan-handoff-20261020.md) | 全512票点検・非終端229票の入口、必要subset／owner／未実装依存、PR736への文書整合引渡し。状態正本はPlane |

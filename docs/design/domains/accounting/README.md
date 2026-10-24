@@ -4,6 +4,8 @@
 
 読む順：業務正本と[語彙](../../../spec/ontology/accounting.md) → [技術仕様](technical-spec.md) → 現行API／コード。確定した業務と提案する実現方式、未決業務を分ける。[ADR003](../../../architecture/adr/003-payment-method-identity-and-consistency.md)・[write-owner](../../../architecture/model-write-owner-catalog.md)を再定義しない。
 
+[医師確認集合の非活性内部契約](doctor-review-internal-projection.md#review-internal-scope)は2026-10-23選定。承認済みidentity/数量/record集合だけの失効signature/digestと純粋世代参加、確認時限定signature不変保存の論理方向、T03/T06共用医師reader再利用方向だけを扱う。metadata/技術link-onlyでは失効させず、新current列の自動採用は撤回。既存481 snapshotは現在採用identityを証明できる場合のみ再利用する。実DB known provider・確認時signatureの物理保存・HTTP・確認/Return/Complete・全writer閉包・試験/activationは未供給で、製品Readyではない。
+
 [預り金の初回受領・同口座再読込](owner-deposit-initial-receipt.md)は2026-10-23選定済みの限定技術契約。予約指定なし・新実受領1件全額のbackend単位だけを扱い、共有供給/実装/試験/利用開始は未完。506一般公開wire／全fund CASと509締め設計の採択ではない。
 
 予約・受付・カルテの確定済み境界、保存§2、通常Undo停止を維持する。締め内部はD12、見積はD11、在庫はD13、税・端数の計算方針は[第五群の計算契約](../../../spec/domains/accounting/lifecycle.md#accounting-calculation-order)へ従い、品目の税務分類・税務適合全体の確認は医院へ残す。保険の資格／残限度・負担額はスタッフ確認・記録とし、会社／商品別の自動給付算式は将来の別スコープ。正本索引への掲載は実装や運用開始の承認ではない。
@@ -31,3 +33,10 @@
 [legacy-finance-evidence.md](legacy-finance-evidence.md#legacy-evidence-purpose-and-ownership)に原本occurrence/派生版の多対多lineage、identity、関連検証、選定read契約、producer報告の受領と設計残を置く。[会計FR/6AC](../../../spec/domains/accounting/lifecycle.md#requirement-fr-accounting-legacy-evidence-preservation)と[見積FR/1AC](../../../spec/domains/estimates/business-rules.md#requirement-fr-estimates-legacy-evidence-preservation)を実現する共通構造・保存tableの役割・関係制約（chunk/field/payload上限は未選定）・readonly APIは2026-10-23選定。6入れ子型・verification_ref検証記録/供給binding・配送local→stable UUID耐久対応と実データprofile/manifest/集約元列挙は未閉鎖で、全wire完成ではない。実DDL/API/UIの実装・試験NOT_RUN。旧work pathは実施記録の索引のみ。
 
 [A1/A2区分締めの限定契約](../finance-operations/cash-closing-contract.md#cash-closing-source-completeness)は464初回受領の2sourceを消費する別の後発選定。預り受領契約自体が509締め全体や非R1 producer/B grantを採択したという意味ではない。実装/供給/利用開始は未完。
+
+<a id="doctor-review-confirm-return-entry"></a>
+## 既存会計の医師確認・差戻し
+
+[Confirm/Return契約](doctor-review-confirm-return-contract.md#review-actions-scope)は2026-10-24に限定技術選定。先行の[内部signature](doctor-review-internal-projection.md#review-internal-scope)を変えず、既存billingの現在集合read・明示確認・理由付き差戻し・保存signature/履歴・C06/元target read・旧writer迂回排除を閉じる。billing参照の版更新はstorage guard一回で手動加算なし。共通gate/医師predicate/current provider/writer閉包/API・DDL・model供給/実装・受入は未完。準備billing・Complete・金銭/在庫・生前分C・退院Dは別packetで、全体Ready/実装完了とはしない。
+
+[EMR-573 他ペット未納ヘッダー](other-pet-unpaid-contract.md)は金額を公開しない三値read、全期間候補、元請求の既存精算入口までの限定契約。新金銭writerや独自pet配賦を追加しない。

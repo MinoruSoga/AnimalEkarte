@@ -116,7 +116,7 @@ func TestShiftEntryServiceUpdate_RollsBackParentAndBreaksDatabase(t *testing.T) 
 	}
 	service := NewShiftEntryService(repo, nil, nil, persistence.NewTransactor(db))
 	notes := "更新後"
-	breaks := []ShiftBreakInput{{BreakStart: "14:00", BreakEnd: "14:30"}}
+	breaks := []ShiftBreakInput{{StartsAt: *shiftTS(t, entry.Date, "14:00"), EndsAt: *shiftTS(t, entry.Date, "14:30")}}
 
 	updated, err := service.Update(context.Background(), clinic.ID, entry.ID, &UpdateShiftEntryInput{
 		Notes: &notes, Breaks: &breaks,
@@ -188,19 +188,19 @@ func TestShiftEntryServiceUpdate_SerializesEffectiveTimeValidationDatabase(t *te
 	service := NewShiftEntryService(repo, nil, nil, persistence.NewTransactor(db))
 	firstResult := make(chan error, 1)
 	secondResult := make(chan error, 1)
-	endTime := "19:00"
-	startTime := "20:00"
+	endsAt := shiftTS(t, entry.Date, "19:00")
+	startsAt := shiftTS(t, entry.Date, "20:00")
 
 	go func() {
 		_, err := service.Update(context.Background(), clinic.ID, entry.ID, &UpdateShiftEntryInput{
-			EndTime: &endTime,
+			EndsAt: OptionalShiftTime{Set: true, Value: endsAt},
 		})
 		firstResult <- err
 	}()
 	awaitStaffTestSignal(t, repo.locked, "first shift-entry row lock")
 	go func() {
 		_, err := service.Update(context.Background(), clinic.ID, entry.ID, &UpdateShiftEntryInput{
-			StartTime: &startTime,
+			StartsAt: OptionalShiftTime{Set: true, Value: startsAt},
 		})
 		secondResult <- err
 	}()

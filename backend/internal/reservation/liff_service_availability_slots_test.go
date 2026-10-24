@@ -80,7 +80,7 @@ func TestBuildStaffSlotInputsForDate(t *testing.T) {
 		schedule := &mockLiffScheduleRepository{
 			findAllByStaffIDsAndDateRangeFn: func(_ context.Context, _ uint64, _ []uint64, _, _ time.Time) ([]model.ShiftEntry, error) {
 				return []model.ShiftEntry{
-					{ID: 99, StaffID: 1, Date: date, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, rsvShiftDate, start), EndsAt: rsvTS(t, rsvShiftDate, end)},
+					{ID: 99, StaffID: 1, Date: date, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, date, start), EndsAt: rsvTS(t, date, end)},
 				}, nil
 			},
 		}
@@ -129,12 +129,12 @@ func TestBuildStaffSlotInputsForDate(t *testing.T) {
 		schedule := &mockLiffScheduleRepository{
 			findAllByStaffIDsAndDateRangeFn: func(_ context.Context, _ uint64, _ []uint64, _, _ time.Time) ([]model.ShiftEntry, error) {
 				return []model.ShiftEntry{
-					{ID: 7, StaffID: 1, Date: date, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, rsvShiftDate, start), EndsAt: rsvTS(t, rsvShiftDate, end)},
+					{ID: 7, StaffID: 1, Date: date, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, date, start), EndsAt: rsvTS(t, date, end)},
 				}, nil
 			},
 			findAllBreaksByEntryIDsFn: func(_ context.Context, _ uint64, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 				return map[uint64][]model.ShiftEntryBreak{
-					7: {{StartsAt: rsvTS(t, rsvShiftDate, "12:00:00"), EndsAt: rsvTS(t, rsvShiftDate, "13:00:00")}},
+					7: {{StartsAt: rsvTS(t, date, "12:00:00"), EndsAt: rsvTS(t, date, "13:00:00")}},
 				}, nil
 			},
 		}

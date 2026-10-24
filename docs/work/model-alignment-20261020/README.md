@@ -1,5 +1,10 @@
 # EMR-445：仕様回答と最終migrationへのモデル整合
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（268 / 527）
+
+consumer影響表のRawMessage→旧string DTOや旧HTTP型への変換は当時の型差分記録であり、その互換adapterの先行実装を必須にしない。268は確定仕様がstringを要求する場合はその根拠を使用し、そうでなければ単一JSON契約へPut/Get/Boardと必要callerを揃える（最終shapeの追加選定ではない）。配列検証・null/空/不正・医院/TTLを維持する。527の正規生成・単一DTO所有・精度とnull/省略/0意味は維持し、旧保存型/numberを復活させない。 詳細根拠は[全票監査の採用是正方針](../emr/backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 基準SHA `7f164f8a71baf5bfb23207ddce5b3049939e81a3`。PR #727はmerge済み（merge SHA `81b9f076f6d592b6003a1b8589bbc06843bde65d`）で、未mergeを作業条件にしていない。専用branch `docs-models/emr445-followup-20261020`、専用worktreeを使用。共有mainと他の既存作業は変更しない。本書はローカル修正・静的確認の記録で、公開状態は[PR #729](https://github.com/MinoruSoga/AnimalEkarte/pull/729)で追跡する。公開を利用開始・実機合格の証拠にはしない。
 
 ## レビューする成果物

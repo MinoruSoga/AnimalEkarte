@@ -147,10 +147,56 @@ clientは現在割当表示と新規候補集合を分離し、自己以外の�
 
 [EMR-499](https://app.plane.so/baritechllc/browse/EMR-499/)がstay_cases／stay_movement_eventsのwriterと、訂正・取消チェーンを織り込む有効ライフサイクルcoreを単一所有する。[EMR-461](https://app.plane.so/baritechllc/browse/EMR-461/)はその結果から同院／未削除／自己除外／連結を扱う占有ケージID adapter、候補reader、create/update/swap保存再検査と必要subset統合を所有し、同種projectorを二重実装しない。EMR-452はstay入力・訂正関係の設計根拠を提供する。
 
-先行引渡しは医院付きStayCaseID、有効状態と根拠版、訂正／無効化／欠損／actual_at NULLの判定表、unknownと非占有の区別、同TXで再検査可能なreader／lock契約と固定fixture。予定終了だけで実退院とせず、解釈不能を空きへ倒さない。占有・訂正chain・unknown・同時割当／交換を同じ根拠で検査する。具体DTO／lock手段・未確定の判定条件は499と461で明示して公開し、契約公開と実DB／実機受入を区別する。
+先行引渡しは医院付きStayCaseID、有効状態と根拠版、訂正／無効化／欠損／actual_at NULLの判定表、unknownと非占有の区別、同TXで再検査可能なreader／lock契約と固定fixture。予定終了だけで実退院とせず、解釈不能を空きへ倒さない。占有・訂正chain・unknown・同時割当／交換を同じ根拠で検査する。以下の566向け訂正契約を共用し、461の占有adapter固有DTO／lock接続は499と461で照合する。契約公開と実DB／実機受入を区別する。
 
 499全体（ホテル定員・料金合意・全画面）のDoneは461着手条件ではない。候補UI・既存承認範囲のID限定read・fixture準備は先行でき、未確定coreに依存する占有接続／受入だけを保留する。共有pathは単一編集owner、必要DDLは446／466へ限定依頼する。[全件引渡し索引](../../../work/emr/emr-445-plan-handoff-20261020.md)を参照。
 
 ## 10/19横断検索・同種操作の設計接続
 
 [共通adapter](../../shared/integration-contracts.md#cross-ui-search-adapter-20261019)を本領域の[適用台帳](../../../spec/shared/interaction-scope.md)L/M/H/S consumerへ接続する。draft/applied・独立filter・取得scope/世代・復帰/失敗状態を分離し、検索ボタンだけでキーワードを適用。既存API検索と取得済み内絞込みの責務、ページング/上限、認可・保存方式を維持する。E/N操作へ部品単位で一括適用しない。実装/全caller/実機未確認。
+
+
+<a id="effective-stay-correction-566-20261024"></a>
+## EMR-566への499訂正・実効滞在source契約（2026-10-24）
+
+基準mainは `c0ee0914e723791c59cfa971cbb1ad84cff171db`。以下は技術選定であり物理供給済みではない。現 `stay_cage_effective_state.go` はcorrected_event_idのある列をunknownにするため、訂正対応readerの完成証拠にならない。[帳票consumer](../finance-operations/technical-spec.md#discharge-report-projection-proposal)と461は499の単一coreを共用し、別resolverを作らない。
+
+既存append-only `stay_movement_events` に `correction_effect`（nullable text、replace/void）と `replacement_event_kind`（nullable text、admit/discharge）を追加する。新correctionはeffect必須、replaceは対象rootと同種のreplacement kindと既存actual_at非NULLを必須、voidは両者NULL。normal admit/dischargeは追加列NULL。既存意味不明correctionだけNULLを保持しunknownへ渡し、自動backfillしない。全関係は同医院・同stayを検証する。
+
+499専用訂正writerはstay rootをlockし、expected stay.version・movement head・現在有効leafを照合する。corrected_event_idはそのleafを指し、revision=head+1、stay.version増加、非空reason、認証actor・recorded_at・operation_id、必須audit・成功receiptを同一TXへ保存する。同leafからの分岐と原行上書きを拒否する。cancel/no_showをvoidへ流用しない。
+
+`ProjectEffectiveStay(stay,movements)` は全履歴のrevision順、同scope、過去参照、同種rootを検証し、各rootの最終leafからreplace/voidを解決した後に入退院順序を検査する。MAX(event_kind)、MAX(actual_at)、最新行だけの判定は禁止。replaceは実日時を置換し元時刻とchainを保持、voidは対象rootのみ実効列から除く。退院voidは有効入院だけで帳票行なし、入院void後に退院が残る不整合はunknownとし退院まで消さない。訂正の訂正は現在leafとroot kindを引継ぐ。void後の復元writerは新設せず、契約のない復元payloadはunknown。
+
+参照欠落／跨院／重複revision／分岐／循環／未来参照／payload欠落／必要actual_at NULL／退院＜入院はunknownで、古い原行へfallbackしない。予定終了・予約取消・未来院から退院を作らない。既存coreの証明済み一admit→一dischargeを基本とし、複数組の契約がなければunknown。複数組を新業務規則で禁止したり恣意的に組み合わせたりしない。
+
+内部 `EffectiveStay` はclinic_id、stay_case_id、stay_kind、hospitalization_id（根拠なしはnullable）、固定owner_id/pet_id、lifecycle、admission/discharge、evidenceを持つ。lifecycleはadmitted/discharged/cancelled/no_show/unknown。admittedは入院known・退院null、dischargedは両actual known、cancelled/no_showは両actual null、unknownは日時を確定値として公開しない。各事実はroot_event_id、effective_leaf_event_id、actual_at、quality（known/unknown）と未知理由を持ち、NULL＋knownは禁止。voidの値は存在しない。evidenceはstay_version、movement_head_revision、projection_contract_version=1。
+
+566の同一実装PRへ499所有の追加payload/model、専用訂正writerの必要leaf検証、純粋projectorとsnapshot readerを共同収容し、446/466は限定DDL/model/ERD供給を担当する。499全体Done待ちにしない。557はmovement-only通常退院（create_accounting=false）の別operation/責務であり、未供給経路を再開しない。566は保存済みcanonical source・固定fixtureから実装できるが、新たな実退院の本番操作は557停止解除まで不可。stay_caseなし旧形式行の救済は製品scope外とし、既知sourceの帳票を止めない。共有modelの二重writer・相反する版増加を作らない。契約・同PR供給責務の受領と、実装SHA・caller接続・実機PASSは別。全実行NOT_RUN。
+
+
+### 566と既存499/461実装PRの統合順
+
+Draft #851 head `ded3c46e998337365572bd186995e7a14e65e6a6` はstay_cage_effective_state.go、hospitalization_stay_projection.go、hospitalization_discharge*.go、hospitalization_repository.go、cage_occupancy_projection.goとfixtureを変更する。これは未採用候補であり訂正replace/void供給済みとはしない。566の499 core/readerは同499 ownerの同一実装PRへ共同収容するか、その滞在projection/版・退院source subsetの固定採用SHA受領後に当該hunkを再照合する。帳票query/UIは並行準備可、coreの別コピーを作らず#851全機能Doneを抽象gateにしない。557採用まで退院停止を保持し、旧stayなし救済は製品scopeへ追加しない。
+
+
+## Q-U6-2：557通常退院の正規データ条件（2026-10-24）
+
+本人のDB再作成・old_db mappingも確定仕様へ適合する方針に従い、stay_caseなし旧行の救済案/仕様待ちを製品scopeから外す（Plane549 comment04a09055、557 commente6f23a76）。557 writerは正規schemaのstay・入院根拠・同院患者・現在版を検証し、C06操作結果を同最外TXで生成する。既存成功receiptを初回入力として要求しない。旧status/予定日からadmitを推測せず、GET backfill・旧行専用補記UIは作らない。必須関連欠落はデータ整合性/移行受入エラーであり退院成功へ補完しない。#851の退院停止は557採用まで維持。会計付きは505/506/508、566の訂正source/帳票は別責務。実DB再作成・削除・old_db改修をこの文書作業で代行しない。全実行NOT_RUN。
+
+
+### 新writerの耐久receiptと候補停止guard
+
+旧節の操作識別/関連結果IDと「現行APIへ永続receiptを仮定しない」は既存実装の観測であり、以下の新writer要件を既実装とするものではない。566の専用訂正writerと557通常退院は別operation/責務を保つ。初回は確認済みintentについて一度生成したC06 operation keyを受け、server bindingと元targetを確定する。業務event/訂正・必要audit・成功receiptを同最外TXで保存し、既存成功receiptを先行入力として要求しない。receiptは耐久的な操作結果であり、単なる関連結果ID・診察終了/会計の状態ではない。
+
+成立済み同scope/key・同Contentは現在の元対象認可後に同成功結果を返し、異Contentは既存operation-key-conflict。結果不明は同scope/keyのLookupで照会し新key再送・二重event生成なし。[採用C06](../../shared/operation-participation.md)のApply/Lookup/replay/conflict現在認可境界を維持する。現APIの供給済み宣言ではない。
+
+#851は未採用候補。2026-10-24読取head `bcc0aec3cdb3ee6b169b90fcfe7bd43dc676711c` のhospitalization_discharge.go/同_tx.goを確認した。候補service guardの停止要件は次のとおりであり、mainへ採用済みとはしない。
+
+| 候補分岐 | 結果 |
+|:---|:---|
+| create_accounting=true | 読取/write前に422 stay_discharge_billing_unavailable |
+| falseかつknown admitted、退院日等の検証通過 | 422 stay_discharge_writer_unavailable |
+| source unknown/必要admit日時不明 | 422 stay_lifecycle_unknown |
+| 既退院/取消・no_show/未入院/入院前の退院日 | 既存400を維持 |
+
+いずれも退院movement・会計・成功receiptを作らない。読取障害は既存errorへ返し、source unknownに偽装しない。未採用mainの旧write経路を停止要件へ適合済みとしない。557正規writer・現在認可/CAS・同TX receipt・caller閉包が採用されて初めて対象経路を再開し、docs又は566 projectionだけを解除根拠にしない。新feature flagや全経路一律停止は導入しない。会計付きの505/506/508責務は維持する。

@@ -46,7 +46,7 @@
 | D12 | [レジ締め](cash-register/business-rules.md) | [技術契約](../../design/domains/finance-operations/technical-spec.md) | 営業日／実査・実授受／開始残／補充回収・原締め保持と差分 |
 | D13 | [在庫](inventory/business-rules.md) | [技術契約](../../design/domains/finance-operations/technical-spec.md) | 実物の入出庫・返却／棚卸と履歴・小数臨床量と整数在庫の境界 |
 | D14 | [職員・シフト](staff-workforce/README.md) | [技術契約](../../design/domains/staff-workforce/technical-spec.md) | 職員／職種／勤務・休憩／template、未来・未終了予約の保護 |
-| D15 | [CRM・Lステップ](../line/lstep-integration.md) | [技術契約](../line/lstep-integration.md) | 17トリガー・Webhook／タグ・対象同期／CSV・配信・結果不明・送信用ファイル |
+| D15 | [CRM・Lステップ](../line/lstep-integration.md) | [既存技術契約](../line/lstep-integration.md)・[共有ファイル保持](../../design/domains/crm/README.md) | 17トリガー・Webhook／タグ・対象同期／CSV・配信・結果不明・送信用ファイル |
 | D16 | [経営・顧客集計](analytics/business-rules.md) | [技術契約](../../design/domains/finance-operations/technical-spec.md) | 請求と実金銭・期間／母数／記録日数・配信分析と相関の意味 |
 | D17 | [医院・設定入口](clinic-settings/README.md) | [技術契約](../../design/domains/clinic-settings/technical-spec.md) | 医院設定・所属scope／法人設定・設定入口と個別master責務 |
 | D18 | [LINE予約チャネル](../screens/28-line-reservation.md) | [技術契約](../screens/28-line-reservation.md) | 院内設定／editor／枠と飼主appの予約・変更／取消・本人認証／通知 |

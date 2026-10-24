@@ -167,7 +167,7 @@ guardの取得経路をFE推測にしない。既存 `GET /examinations/{id}` �
 
 臨床stateは518のpending→not_performed、performed/deferred/cancelled同値、commercial→selectedを維持。result_stateは既存schemaを維持し、link_readinessで置換しない。結果ありかつnot_performed、performedかつ結果待ち、旧officialと作業版、意味不明／取得失敗は別表示。結果があるだけで実施や正常を断定しない。deferred/cancelledのプランにも過去事実の関連は保持できるが、実施へ復帰させない。removedプランへの新規linkは拒否し、既存関連訂正／unlinkの履歴経路は保持する。
 
-warning receiptを新規承認トークンとして要求しない。関連訂正理由と現在版確認は本文・Contentに結び、診療終了warning_receiptは495/Bの別契約のまま。後日予定レポートは終了済みnormal recordを対象とし再開中を除外する既決条件を守る。
+warning receiptを新規承認トークンとして要求しない。関連訂正理由と現在版確認は本文・Contentに結び、診療終了warning_receiptは495/Bの別契約のまま。後日予定レポートはD03/D21の別参照表示であり、前回診療/診療履歴の終了済み条件を適用しない。再開中・過去入力を除外せず、現在clinical/deferred/未removedと現在read/scopeを検査する。具体readerと有界paginationは[限定技術契約](../../design/domains/medical-records/deferred-plan-report-contract.md)へ。495終了resolverを本report依存にしない。
 
 ## 9. 必要subset別PRと未実装境界
 
