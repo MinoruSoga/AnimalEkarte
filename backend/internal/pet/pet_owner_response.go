@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -17,15 +18,15 @@ type ownerSharedPetResponse struct {
 	ID            uint64                              `json:"id"`
 	PetNumber     string                              `json:"pet_number"`
 	Name          string                              `json:"name"`
-	Status        string                              `json:"status"`
+	Status        *string                             `json:"status"`
 	AnimalSpecies ownerSharedPetAnimalSpeciesResponse `json:"animal_species"`
-	Gender        string                              `json:"gender"`
+	Gender        *string                             `json:"gender"`
 	BirthDate     *string                             `json:"birth_date"`
 	DeceasedAt    *time.Time                          `json:"deceased_at"`
-	Color         string                              `json:"color"`
-	Weight        *float64                            `json:"weight"`
-	Environment   string                              `json:"environment"`
-	Remarks       string                              `json:"remarks"`
+	Color         *string                             `json:"color"`
+	Weight        *model.ExactNumeric                 `json:"weight"`
+	Environment   *string                             `json:"environment"`
+	Remarks       *string                             `json:"remarks"`
 	Relationship  string                              `json:"relationship"`
 }
 
@@ -45,11 +46,11 @@ func newOwnerSharedPetsResponse(sharedPets []SharedPet) ownerSharedPetsResponse 
 			ID:        sharedPet.ID,
 			PetNumber: sharedPet.PetNumber,
 			Name:      sharedPet.Name,
-			Status:    string(sharedPet.Status),
+			Status:    enumPtr(sharedPet.Status),
 			AnimalSpecies: ownerSharedPetAnimalSpeciesResponse{
 				Name: sharedPet.AnimalSpeciesName,
 			},
-			Gender:       string(sharedPet.Gender),
+			Gender:       enumPtr(sharedPet.Gender),
 			BirthDate:    birthDate,
 			DeceasedAt:   httpapi.LocalTimePtr(sharedPet.DeceasedAt),
 			Color:        sharedPet.Color,
@@ -63,10 +64,10 @@ func newOwnerSharedPetsResponse(sharedPets []SharedPet) ownerSharedPetsResponse 
 }
 
 type petOwnerResponse struct {
-	OwnerID      uint64 `json:"owner_id"`
-	Name         string `json:"name"`
-	NameKana     string `json:"name_kana"`
-	Relationship string `json:"relationship"`
+	OwnerID      uint64  `json:"owner_id"`
+	Name         string  `json:"name"`
+	NameKana     *string `json:"name_kana"`
+	Relationship string  `json:"relationship"`
 }
 
 type petOwnersResponse struct {
@@ -112,10 +113,14 @@ func mapPetOwnersResponse(
 				fmt.Sprintf("%d", link.OwnerID),
 			)
 		}
+		basic, err := commonbasic.OwnerOf(owner)
+		if err != nil {
+			return petOwnersResponse{}, err
+		}
 		subOwners[i] = petOwnerResponse{
 			OwnerID:      link.OwnerID,
-			Name:         owner.Name,
-			NameKana:     owner.NameKana,
+			Name:         basic.Name,
+			NameKana:     basic.NameKana,
 			Relationship: link.Relationship,
 		}
 	}

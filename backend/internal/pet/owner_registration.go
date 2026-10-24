@@ -15,7 +15,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 const dangerReasonMaxRunes = 500
@@ -99,115 +98,17 @@ func NewOwnerRegistrationWriter() OwnerRegistrationWriter {
 	return &writer{}
 }
 
-// CreatePetDraftFromModel copies the caller-owned model into a write draft and
-// intentionally drops identity, tenant, numbering and GORM associations.
-func CreatePetDraftFromModel(pet model.Pet) CreatePetDraft {
-	return CreatePetDraft{
-		AnimalSpeciesID: pet.AnimalSpeciesID,
-		Name:            pet.Name,
-		NameKana:        pet.NameKana,
-		Gender:          pet.Gender,
-		Status:          pet.Status,
-		BirthDate:       pet.BirthDate,
-		Breed:           pet.Breed,
-		Color:           pet.Color,
-		BloodType:       pet.BloodType,
-		MicrochipNumber: pet.MicrochipNumber,
-		Weight:          pet.Weight,
-		NeuteredDate:    pet.NeuteredDate,
-		NeuteredStatus:  pet.NeuteredStatus,
-		AcquisitionType: pet.AcquisitionType,
-		DangerLevel:     pet.DangerLevel,
-		DangerReason:    pet.DangerReason,
-		Food:            pet.Food,
-		Environment:     pet.Environment,
-		Phone:           pet.Phone,
-		InsuranceID:     pet.InsuranceID,
-		Remarks:         pet.Remarks,
-		NameOrigin:      pet.NameOrigin,
-		MeetingStory:    pet.MeetingStory,
-	}
+// Create は既存飼主へのペット直接登録の writer が未接続の間、書き込みの前に固定 422（F6）で拒否する。
+// 基本情報は pets の列ではなく共通 basic revision に書くため、subject・binding・revision・operation receipt を
+// 伴う writer を接続するまで pets 行も作らない（孤児 pet は以降の読み取りをすべて unresolved にする）。
+func (*writer) Create(_ context.Context, _ CreateIntent) (*model.Pet, error) {
+	return nil, errPetRegistrationPending()
 }
 
-func (w *writer) Create(ctx context.Context, intent CreateIntent) (*model.Pet, error) {
-	if w.db == nil {
-		return nil, apperrors.WrapInternalServerError("pet writer database is not configured")
-	}
-
-	var loaded *model.Pet
-	err := persistence.DBOrTx(ctx, w.db).Transaction(func(tx *gorm.DB) error {
-		txCtx := persistence.WithTxValue(ctx, tx)
-		created, err := createPetsInTransaction(txCtx, tx, OwnerRegistrationIntent{
-			ClinicID: intent.ClinicID,
-			OwnerID:  intent.OwnerID,
-			Pets:     []CreatePetDraft{intent.Pet},
-		})
-		if err != nil {
-			return err
-		}
-		loaded, err = loadPetGraph(txCtx, tx, intent.ClinicID, created[0].ID)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	return loaded, nil
-}
-
-func (w *writer) CreateForOwnerRegistration(
-	ctx context.Context,
-	intent OwnerRegistrationIntent,
-) ([]model.Pet, error) {
-	tx := persistence.TxFromContext(ctx)
-	if tx == nil {
-		return nil, apperrors.WrapInternalServerError("owner registration pet write requires an ambient transaction")
-	}
-	return createPetsInTransaction(ctx, tx, intent)
-}
-
-func createPetsInTransaction(
-	ctx context.Context,
-	tx *gorm.DB,
-	intent OwnerRegistrationIntent,
-) ([]model.Pet, error) {
-	if intent.ClinicID == 0 || intent.OwnerID == 0 {
-		return nil, apperrors.WrapInvalidInput("owner not found in this clinic")
-	}
-	if len(intent.Pets) == 0 {
-		return []model.Pet{}, nil
-	}
-
-	normalizedPets, err := normalizeCreatePetDrafts(intent.Pets)
-	if err != nil {
-		return nil, err
-	}
-	intent.Pets = normalizedPets
-
-	db := tx.WithContext(ctx)
-	if err := lockOwnerForRegistration(db, intent.ClinicID, intent.OwnerID); err != nil {
-		return nil, err
-	}
-	if err := lockOwnerRegistrationMasters(db, intent.ClinicID, intent.Pets); err != nil {
-		return nil, err
-	}
-
-	var existingCount int64
-	if err := db.Model(&model.Pet{}).
-		Where("clinic_id = ? AND owner_id = ? AND deleted_at IS NULL", intent.ClinicID, intent.OwnerID).
-		Count(&existingCount).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "pet", "")
-	}
-
-	created := make([]model.Pet, 0, len(intent.Pets))
-	for i := range intent.Pets {
-		petNumber := fmt.Sprintf("%d-%d", intent.OwnerID, existingCount+int64(i)+1)
-		pet := intent.Pets[i].model(intent.ClinicID, intent.OwnerID, petNumber)
-		if err := db.Omit(clause.Associations).Create(&pet).Error; err != nil {
-			return nil, apperrors.FromGORM(err, "pet", "")
-		}
-		created = append(created, pet)
-	}
-	return created, nil
+// CreateForOwnerRegistration は飼主とペットの同時登録の pet 側 writer。owner 側の登録 writer が未接続で
+// owner.CreateWithPets が先に固定 422（F3）を返すため通常は到達しないが、到達しても書き込まず F6 で拒否する。
+func (*writer) CreateForOwnerRegistration(_ context.Context, _ OwnerRegistrationIntent) ([]model.Pet, error) {
+	return nil, errPetRegistrationPending()
 }
 
 func normalizeCreatePetDrafts(pets []CreatePetDraft) ([]CreatePetDraft, error) {
@@ -255,37 +156,6 @@ func normalizeDangerReason(level model.DangerLevel, reason *string) (*string, er
 	return &trimmed, nil
 }
 
-func (p CreatePetDraft) model(clinicID, ownerID uint64, petNumber string) model.Pet {
-	return model.Pet{
-		ClinicID:        clinicID,
-		OwnerID:         ownerID,
-		AnimalSpeciesID: p.AnimalSpeciesID,
-		PetNumber:       petNumber,
-		Name:            p.Name,
-		NameKana:        p.NameKana,
-		Gender:          p.Gender,
-		Status:          p.Status,
-		BirthDate:       p.BirthDate,
-		Breed:           p.Breed,
-		Color:           p.Color,
-		BloodType:       p.BloodType,
-		MicrochipNumber: p.MicrochipNumber,
-		Weight:          p.Weight,
-		NeuteredDate:    p.NeuteredDate,
-		NeuteredStatus:  p.NeuteredStatus,
-		AcquisitionType: p.AcquisitionType,
-		DangerLevel:     p.DangerLevel,
-		DangerReason:    p.DangerReason,
-		Food:            p.Food,
-		Environment:     p.Environment,
-		Phone:           p.Phone,
-		InsuranceID:     p.InsuranceID,
-		Remarks:         p.Remarks,
-		NameOrigin:      p.NameOrigin,
-		MeetingStory:    p.MeetingStory,
-	}
-}
-
 func loadPetGraph(
 	ctx context.Context,
 	tx *gorm.DB,
@@ -294,12 +164,15 @@ func loadPetGraph(
 	var pet model.Pet
 	err := tx.WithContext(ctx).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("AnimalSpecies").
 		Preload("Insurance", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", petID, clinicID).
 		First(&pet).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", petID))
+	}
+	// 現行 basic revision（pet・動物種・nested owner）を載せる。未解決なら F1（422）で、空値は返さない。
+	if err := hydratePetBasics(ctx, tx, []uint64{clinicID}, []*model.Pet{&pet}); err != nil {
+		return nil, err
 	}
 	return &pet, nil
 }

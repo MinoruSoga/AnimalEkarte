@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/textsearch"
@@ -27,7 +28,7 @@ type PetListFilters struct {
 	OwnerID         *uint64
 	Search          string
 	AnimalSpeciesID *uint64
-	// IncludeDeceased: false（既定）は deceased_at IS NULL かつ status <> 'deceased'（生存のみ）に絞る。
+	// IncludeDeceased: false（既定）は現行 basic revision が status='alive' かつ deceased_at IS NULL の pet（生存のみ）に絞る。
 	IncludeDeceased bool
 	// CheckupHistory: EMR-197-01 健診受診履歴の列挙フィルタ。空文字はフィルタ無し。
 	CheckupHistory CheckupHistoryFilter
@@ -35,14 +36,14 @@ type PetListFilters struct {
 
 type Repository interface {
 	// FindAll は指定した複数医院 (#86 拠点横断) のペットを検索する。clinicIDs はハンドラ層で所属検証済みであること。
-	// 順序は owners.name_kana ASC, pets.id ASC で安定（#266: ページ送りでの重複/欠落防止）。
+	// 順序は owner の現行 basic revision の name_kana ASC（NULL は空文字扱い）, pets.id ASC で安定（#266: ページ送りでの重複/欠落防止）。
 	FindAll(ctx context.Context, clinicIDs []uint64, filters PetListFilters, page, limit int) ([]model.Pet, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	// FindByIDForClinics は複数医院スコープでペットを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
 	FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
 	CountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	// CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL かつ status <> 'deceased'）を返す。
+	// CountLivingByOwner は指定オーナーの生存ペット数（現行 basic revision が status='alive' かつ deceased_at IS NULL）を返す。
 	// ISSUE-007: CreateCheckupSync のサーバ側二重防御で誤配信を防ぐ。
 	CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	// CountLivingByOwnerIDs は複数オーナーの生存ペット数を一括取得する（N+1 解消用）。
@@ -135,12 +136,12 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 	if err := r.petListQuery(ctx, clinicIDs, filters, now).
 		Select("pets.*").
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("AnimalSpecies").
 		Preload("Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Scopes(persistence.Paginate(page, limit)).
-		// 順序の安定性: owners.name_kana ASC を主キーに、pets.id ASC を一意タイブレーカとする
+		// 順序の安定性: owner の現行 basic revision の name_kana ASC を主キーに、pets.id ASC を一意タイブレーカとする
 		// （#266: 同一 kana でもページ送りで行の重複/欠落が起きないようにする）。
-		Order("owners.name_kana ASC, pets.id ASC").
+		// name_kana が NULL の飼主は、廃止前の空文字と同じ位置（先頭）に並べる。
+		Order("COALESCE("+ownerBasicAlias+".name_kana, '') ASC, pets.id ASC").
 		Find(&pets).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
@@ -149,51 +150,60 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 	for i := range pets {
 		sanitizePetOwnerRelation(&pets[i])
 	}
+	// 現行 basic revision（pet・動物種・nested owner）を載せる。1 件でも未解決なら一覧全体を F1（422）で失敗させ、
+	// 行を黙って落とさない。
+	if err := hydratePetBasics(ctx, r.db, clinicIDs, commonbasic.Ptrs(pets)); err != nil {
+		return nil, 0, err
+	}
 	return pets, total, nil
 }
 
 func (r *repository) petCountQuery(ctx context.Context, clinicIDs []uint64, filters PetListFilters, now time.Time) *gorm.DB {
-	q := r.db.WithContext(ctx).Model(&model.Pet{}).
+	q := commonbasic.JoinCurrentPetBasic(r.db.WithContext(ctx).Model(&model.Pet{}), "pets", petBasicAlias, true).
 		Where("pets.clinic_id IN ?", clinicIDs).
 		Where("pets.deleted_at IS NULL")
 	if filters.OwnerID != nil {
 		q = q.Where("pets.owner_id = ?", *filters.OwnerID)
 	}
 	if filters.AnimalSpeciesID != nil {
-		q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
+		q = q.Where(petBasicAlias+".animal_species_id = ?", *filters.AnimalSpeciesID)
 	}
 	if !filters.IncludeDeceased {
-		q = q.Where("pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased)
+		q = q.Where(petLivingPredicate(petBasicAlias), model.PetStatusAlive)
 	}
 	q = applyPetCheckupHistoryFilter(q, filters.CheckupHistory, now)
-	// 検索は applyPetListSearch 内の相関 EXISTS で完結するため、
-	// count 側に owners JOIN は不要（petListQuery 側は name_kana ソートのため常時 JOIN）。
+	// 検索の飼主側は applyPetListSearch 内の副問い合わせで完結するため、count 側に owners JOIN は不要
+	// （petListQuery 側は name_kana ソートのため owners と owner の現行 basic revision を常時 JOIN）。
+	// pet 側の basic revision は種・生死の絞り込みと検索が参照するため、count 側にも JOIN する。
 	return applyPetListSearch(q, filters.Search)
 }
 
 func (r *repository) petListQuery(ctx context.Context, clinicIDs []uint64, filters PetListFilters, now time.Time) *gorm.DB {
 	// owners への LEFT JOIN は search 有無に関わらず常に張る
-	// (owners.name_kana ASC を安定順序の主キーにするため、Order 句が常にこの JOIN を要求する)。
+	// (owner の現行 basic revision の name_kana を安定順序の主キーにするため、Order 句が常にこれらの JOIN を要求する)。
 	// clinicScopeIn は "clinic_id" を無修飾で参照し pets/owners 両方に同名列を持つため、
 	// JOIN 併用時の曖昧列エラーを避けて pets.clinic_id / owners.clinic_id を明示指定する
 	// （owners 側も同一 clinicIDs で二重にスコープし、クロステナント JOIN 汚染を防ぐ）。
 	// BUG-454: owners.clinic_id = pets.clinic_id 相関で、認可集合に両院が含まれても
 	// 破損した pet(A)->owner(B) FK を search/order の JOIN 経由で復元しない。
 	// Select("pets.*") は Find 側のみ（Count に付けると COUNT("pets".*) で 42703）。
-	q := r.db.WithContext(ctx).Model(&model.Pet{}).
+	q := commonbasic.JoinCurrentPetBasic(r.db.WithContext(ctx).Model(&model.Pet{}), "pets", petBasicAlias, true).
 		Where("pets.clinic_id IN ?", clinicIDs).
 		Where("pets.deleted_at IS NULL").
 		Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)
+	// owner の氏名カナは owners の列ではなく現行 basic revision にあるため、並び順用に LEFT JOIN で結ぶ
+	// （binding・現行 revision の無い owner も行として残し、未解決は Hydrate が F1 として検出する）。
+	q = commonbasic.JoinCurrentOwnerBasic(q, "owners", ownerBasicAlias, true)
 	if filters.OwnerID != nil {
 		q = q.Where("pets.owner_id = ?", *filters.OwnerID)
 	}
 	if filters.AnimalSpeciesID != nil {
-		q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
+		q = q.Where(petBasicAlias+".animal_species_id = ?", *filters.AnimalSpeciesID)
 	}
 	if !filters.IncludeDeceased {
-		// deceased_at と status の両方で除外する。seed/旧データは status=deceased でも
-		// deceased_at が NULL のことがあり、列片方だけ見ると死亡個体が検索に混入する（BUG-001）。
-		q = q.Where("pets.deceased_at IS NULL AND pets.status <> ?", model.PetStatusDeceased)
+		// 生存は現行 basic revision の status='alive' かつ deceased_at IS NULL の両方で判定する（BUG-001 の OR 契約の後継）。
+		// status が NULL・revision の無い pet は生存として扱わない（既定の一覧から外れる側＝過小側に倒す）。
+		q = q.Where(petLivingPredicate(petBasicAlias), model.PetStatusAlive)
 	}
 	q = applyPetCheckupHistoryFilter(q, filters.CheckupHistory, now)
 	return applyPetListSearch(q, filters.Search)
@@ -237,29 +247,38 @@ func applyPetListSearchToken(q *gorm.DB, token string) *gorm.DB {
 	// owners の trgm インデックスで駆動し一致集合を先に計算する。
 	// ペア一致は LEFT JOIN ON の id/clinic_id/deleted_at 相関と同義で、
 	// BUG-454 のクロステナント FK 復元防止を維持する。
+	// EMR-491: 飼主の氏名・電話は owners の列ではなく現行 basic revision にあるため、副問い合わせで
+	// owners を現行 revision へ LEFT JOIN して述語を当てる（飼主No は owners.id のまま）。
+	// binding・現行 revision の無い飼主は氏名・電話の腕に一致しない。
+	searchedOwners := commonbasic.JoinCurrentOwnerBasic(
+		q.Session(&gorm.Session{NewDB: true}).Table("owners AS searched_owner"),
+		"searched_owner", searchedOwnerBasicAlias, true,
+	).
+		Select("searched_owner.id", "searched_owner.clinic_id").
+		Where("searched_owner.deleted_at IS NULL").
+		Where(
+			`(`+textsearch.FoldedExpr(searchedOwnerBasicAlias+".name")+` ILIKE ? ESCAPE '\'`+
+				` OR `+textsearch.FoldedExpr(searchedOwnerBasicAlias+".name_kana")+` ILIKE ? ESCAPE '\'`+
+				` OR `+searchedOwnerBasicAlias+`.phone ILIKE ? ESCAPE '\'`+
+				// POSIX [[:space:]] is ASCII-only; include ideographic space U+3000 so
+				// stored full-width spaces match Go compactSearchText (unicode.IsSpace).
+				` OR regexp_replace(`+textsearch.FoldedExpr(searchedOwnerBasicAlias+".name")+`, '`+textsearch.SpaceStripRegexp+`', '', 'g') ILIKE ? ESCAPE '\'`+
+				` OR CAST(searched_owner.id AS text) = ?)`,
+			normalizedPattern,
+			normalizedPattern,
+			normalizedPattern,
+			compactNormalizedPattern,
+			trimmedSearch,
+		)
 	return q.Where(
-		`(`+textsearch.FoldedExpr("pets.name")+` ILIKE ? ESCAPE '\'`+
-			` OR `+textsearch.FoldedExpr("pets.name_kana")+` ILIKE ? ESCAPE '\'`+
+		`(`+textsearch.FoldedExpr(petBasicAlias+".name")+` ILIKE ? ESCAPE '\'`+
+			` OR `+textsearch.FoldedExpr(petBasicAlias+".name_kana")+` ILIKE ? ESCAPE '\'`+
 			` OR pets.pet_number ILIKE ? ESCAPE '\'`+
-			` OR (pets.owner_id, pets.clinic_id) IN (`+
-			`SELECT searched_owner.id, searched_owner.clinic_id FROM owners searched_owner`+
-			` WHERE searched_owner.deleted_at IS NULL`+
-			` AND (`+
-			textsearch.FoldedExpr("searched_owner.name")+` ILIKE ? ESCAPE '\'`+
-			` OR `+textsearch.FoldedExpr("searched_owner.name_kana")+` ILIKE ? ESCAPE '\'`+
-			` OR searched_owner.phone ILIKE ? ESCAPE '\'`+
-			// POSIX [[:space:]] is ASCII-only; include ideographic space U+3000 so
-			// stored full-width spaces match Go compactSearchText (unicode.IsSpace).
-			` OR regexp_replace(`+textsearch.FoldedExpr("searched_owner.name")+`, '`+textsearch.SpaceStripRegexp+`', '', 'g') ILIKE ? ESCAPE '\'`+
-			` OR CAST(searched_owner.id AS text) = ?)))`,
+			` OR (pets.owner_id, pets.clinic_id) IN (?))`,
 		normalizedPattern,
 		normalizedPattern,
 		"%"+textsearch.EscapeLike(trimmedSearch)+"%",
-		normalizedPattern,
-		normalizedPattern,
-		normalizedPattern,
-		compactNormalizedPattern,
-		trimmedSearch,
+		searchedOwners,
 	)
 }
 
@@ -283,11 +302,14 @@ func (r *repository) FindOwnerReportPets(ctx context.Context, clinicIDs []uint64
 		Select("pets.*").
 		Joins("INNER JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id = pets.clinic_id AND owners.deleted_at IS NULL").
 		Where("pets.owner_id = ? AND pets.clinic_id = ? AND pets.deleted_at IS NULL", ownerID, owner.ClinicID).
-		Preload("AnimalSpecies").
 		Preload("Insurance", "clinic_id = ? AND deleted_at IS NULL", owner.ClinicID).
 		Order("pets.created_at ASC, pets.id ASC").
 		Find(&pets).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "pet", "")
+	}
+	// 現行 basic revision（名前・動物種・生死など）を載せる。1 件でも未解決なら F1（422）で、行を黙って落とさない。
+	if err := hydratePetBasics(ctx, r.db, []uint64{owner.ClinicID}, commonbasic.Ptrs(pets)); err != nil {
+		return nil, err
 	}
 	return pets, nil
 }
@@ -302,7 +324,7 @@ func (r *repository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64,
 
 // LockByIDForUpdate は FOR UPDATE でペットを行ロック取得する（RowLockingRepository）。
 // Owner/Insurance の Preload は載せない — 呼び出し側が必要とするのは行スナップショット
-// （Status/DeceasedAt 等のスカラー）だけであり、リレーション読込はロックを広げるだけ。
+// （pets 行のスカラーのみ。生死は pets の列ではなく sharedkernel.PetLifeStateReader が読む）で、リレーション読込はロックを広げるだけ。
 func (r *repository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
 	// MRB-02: FOR UPDATE is meaningless outside an ambient transaction (autocommit releases
 	// the row lock at statement end). Match hospitalizationRepository.LockByIDForUpdate fail-closed.
@@ -334,7 +356,6 @@ func (r *repository) findPetByID(ctx context.Context, clinicIDs []uint64, id uin
 	// イベントペット最終適格性チェックは第 2 接続を要求してはならない）。
 	err := persistence.DBOrTx(ctx, r.db).
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("AnimalSpecies").
 		Preload("Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Scopes(persistence.ClinicScopeIn(clinicIDs)).Where("id = ?", id).First(&pet).Error
 	if err != nil {
@@ -342,6 +363,10 @@ func (r *repository) findPetByID(ctx context.Context, clinicIDs []uint64, id uin
 	}
 	// GORM batched Preload は親 pets.clinic_id を参照できないため post-sanitize で相関する。
 	sanitizePetOwnerRelation(&pet)
+	// 現行 basic revision（pet・動物種・nested owner）を載せる。未解決なら F1（422）で、空値は返さない。
+	if err := hydratePetBasics(ctx, r.db, clinicIDs, []*model.Pet{&pet}); err != nil {
+		return nil, err
+	}
 	return &pet, nil
 }
 
@@ -372,15 +397,19 @@ func compactSearchText(value string) string {
 
 func (r *repository) FindLivingByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error) {
 	var pets []model.Pet
-	// EMR-290: 生存判定は status=deceased または deceased_at 非NULL の OR 契約（BUG-001 と同じ）。
-	err := r.db.WithContext(ctx).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Preload("AnimalSpecies").
-		Where("owner_id = ? AND deceased_at IS NULL AND status <> ? AND deleted_at IS NULL", ownerID, model.PetStatusDeceased).
-		Order("created_at ASC").
+	// EMR-491: 生存判定は現行 basic revision の status='alive' かつ deceased_at IS NULL（D6）。
+	// status が NULL・binding 欠落の pet は生存として数えない。動物種は Hydrate が revision から載せる。
+	err := commonbasic.JoinCurrentPetBasic(r.db.WithContext(ctx).Model(&model.Pet{}), "pets", petBasicAlias, true).
+		Select("pets.*").
+		Where("pets.clinic_id = ? AND pets.owner_id = ? AND pets.deleted_at IS NULL", clinicID, ownerID).
+		Where(petLivingPredicate(petBasicAlias), model.PetStatusAlive).
+		Order("pets.created_at ASC").
 		Find(&pets).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", "")
+	}
+	if err := hydratePetBasics(ctx, r.db, []uint64{clinicID}, commonbasic.Ptrs(pets)); err != nil {
+		return nil, err
 	}
 	return pets, nil
 }
@@ -396,16 +425,16 @@ func (r *repository) CountByOwner(ctx context.Context, clinicID, ownerID uint64)
 	return count, nil
 }
 
-// CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL かつ status <> 'deceased'）を返す。
+// CountLivingByOwner は指定オーナーの生存ペット数（現行 basic revision が status='alive' かつ deceased_at IS NULL）を返す。
 // ISSUE-007: CreateCheckupSync のサーバ側二重防御で死亡ペットのみの飼い主を除外するために使用する。
-// EMR-290: status=deceased でも deceased_at IS NULL の旧データは生存として数えない。
+// EMR-491: status が NULL・binding 欠落の pet は生存として数えない（過小側に倒す）。
 func (r *repository) CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
 	var count int64
 	// ambient tx が存在すれば同一接続で再読する（delivery-owner lock 内の
 	// living-owner 最終適格性チェックは第 2 接続を要求してはならない）。
-	if err := persistence.DBOrTx(ctx, r.db).Model(&model.Pet{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("owner_id = ? AND deceased_at IS NULL AND status <> ? AND deleted_at IS NULL", ownerID, model.PetStatusDeceased).
+	if err := commonbasic.JoinCurrentPetBasic(persistence.DBOrTx(ctx, r.db).Model(&model.Pet{}), "pets", petBasicAlias, true).
+		Where("pets.clinic_id = ? AND pets.owner_id = ? AND pets.deleted_at IS NULL", clinicID, ownerID).
+		Where(petLivingPredicate(petBasicAlias), model.PetStatusAlive).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}
@@ -422,11 +451,11 @@ func (r *repository) CountLivingByOwnerIDs(ctx context.Context, clinicID uint64,
 		return map[uint64]int64{}, nil
 	}
 	var rows []ownerPetCount
-	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Select("owner_id, COUNT(*) AS count").
-		Where("owner_id IN ? AND deceased_at IS NULL AND status <> ? AND deleted_at IS NULL", ownerIDs, model.PetStatusDeceased).
-		Group("owner_id").
+	if err := commonbasic.JoinCurrentPetBasic(r.db.WithContext(ctx).Model(&model.Pet{}), "pets", petBasicAlias, true).
+		Select("pets.owner_id AS owner_id, COUNT(*) AS count").
+		Where("pets.clinic_id = ? AND pets.owner_id IN ? AND pets.deleted_at IS NULL", clinicID, ownerIDs).
+		Where(petLivingPredicate(petBasicAlias), model.PetStatusAlive).
+		Group("pets.owner_id").
 		Scan(&rows).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "pet", "")
 	}
@@ -437,33 +466,24 @@ func (r *repository) CountLivingByOwnerIDs(ctx context.Context, clinicID uint64,
 	return result, nil
 }
 
+// CountUsageByAnimalSpeciesID は動物種を参照する basic revision の行数を返す。使用中の判定は animal_species の
+// 削除述語（animal_species_repository.go）と同じく、現行でない revision と soft-delete 済み pet の revision も
+// 数える（履歴行が参照している限り FK で削除できないため）。
 func (r *repository) CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
-		Where("animal_species_id = ? AND deleted_at IS NULL", speciesID).
+	if err := persistence.DBOrTx(ctx, r.db).Model(&model.CommonPetBasicRevision{}).
+		Where("animal_species_id = ?", speciesID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return count, nil
 }
 
-func (r *repository) Create(ctx context.Context, pet *model.Pet) error {
-	if r.petWriter == nil {
-		return apperrors.WrapInternalServerError("pet writer is not configured")
-	}
-	created, err := r.petWriter.Create(ctx, CreateIntent{
-		ClinicID: pet.ClinicID,
-		OwnerID:  pet.OwnerID,
-		Pet:      CreatePetDraftFromModel(*pet),
-	})
-	if err != nil {
-		if apperrors.IsAlreadyExists(err) {
-			return apperrors.WrapAlreadyExists("pet", "pet number already registered")
-		}
-		return err
-	}
-	*pet = *created
-	return nil
+// Create は既存飼主へのペット直接登録の writer が未接続の間、書き込みの前に固定 422（F6）で拒否する。
+// model.Pet は基本情報の列を持たないため、pet 引数からペットの基本情報を復元して登録することもできない。
+// petWriter は writer を接続するときの差し込み口として保持する。
+func (*repository) Create(_ context.Context, _ *model.Pet) error {
+	return errPetRegistrationPending()
 }
 
 // Update は BUG-407 の fail-closed 化（lstepLifecycleService.HandlePetDeath/HandlePetRevival が
@@ -474,81 +494,18 @@ func (r *repository) Update(ctx context.Context, clinicID, id uint64, cmd Update
 }
 
 func (r *repository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	// 基本情報・生死の列は pets から廃止された。revision の writer が接続されるまで、書き込みの前に固定 422 で拒否する
+	// （生死は F5、基本情報は F4）。
+	if err := rejectRetiredPetFields(fields); err != nil {
+		return err
+	}
 	for key := range fields {
 		if isDangerFieldKey(key) || isStructuralPetFieldKey(key) {
 			return apperrors.WrapInvalidInput("protected pet fields require the typed pet update capability")
 		}
 	}
 	db := persistence.DBOrTx(ctx, r.db)
-	if deathRecord, conflictMessage, ok := legacyLifecycleTransition(fields); ok {
-		return updateLegacyLifecycleFieldsWithDB(db, clinicID, id, deathRecord, fields, conflictMessage)
-	}
 	return updatePetFieldsWithDB(db, clinicID, id, fields)
-}
-
-// legacyLifecycleTransition は旧ライフサイクル更新フォーム（deceased_at/deceased_reason/status
-// の3フィールド同時更新）の遷移方向を返す。deathRecord=true は死亡記録、false は死亡取り消し。
-// EMR-328: 前置条件は status 単独ではなく OR 契約（deceased = status='deceased' OR
-// deceased_at IS NOT NULL）と整合させるため方向を返す。
-func legacyLifecycleTransition(fields map[string]any) (deathRecord bool, conflictMessage string, ok bool) {
-	if len(fields) != 3 {
-		return false, "", false
-	}
-	if _, ok := fields["deceased_at"]; !ok {
-		return false, "", false
-	}
-	if _, ok := fields["deceased_reason"]; !ok {
-		return false, "", false
-	}
-	status, ok := fields["status"]
-	if !ok {
-		return false, "", false
-	}
-
-	switch status {
-	case model.PetStatusDeceased:
-		return true, "死亡記録は既に登録されています", true
-	case model.PetStatusAlive:
-		return false, "死亡記録が登録されていないため解除できません", true
-	default:
-		return false, "", false
-	}
-}
-
-func legacyLifecycleExpectedStatus(deathRecord bool) model.PetStatus {
-	if deathRecord {
-		return model.PetStatusAlive
-	}
-	return model.PetStatusDeceased
-}
-
-func updateLegacyLifecycleFieldsWithDB(
-	db *gorm.DB,
-	clinicID, petID uint64,
-	deathRecord bool,
-	fields map[string]any,
-	conflictMessage string,
-) error {
-	// 死亡記録側は status='alive' かつ deceased_at IS NULL のみ通す（半死亡行の二重死亡を拒否）。
-	// 取り消し側は status='deceased' または deceased_at≠NULL（半死亡行の復活を許可）。
-	precondition := "status = ? AND deceased_at IS NULL"
-	if !deathRecord {
-		precondition = "(status = ? OR deceased_at IS NOT NULL)"
-	}
-	result := db.
-		Model(&model.Pet{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ?", petID).
-		Where(precondition, legacyLifecycleExpectedStatus(deathRecord)).
-		Select("deceased_at", "deceased_reason", "status").
-		Updates(fields)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", petID))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapConflict(conflictMessage)
-	}
-	return nil
 }
 
 func isDangerFieldKey(key string) bool {
@@ -598,6 +555,14 @@ func (r *repository) UpdateAndFind(
 	clinicID, id uint64,
 	update PetUpdate,
 ) (*model.Pet, error) {
+	// 基本情報・生死の列は pets から廃止された。revision の writer が接続されるまで、行ロックや書き込みの前に
+	// 固定 422 で拒否する（danger_level / danger_reason も基本情報）。
+	if update.dangerLevel != nil || update.dangerReason != nil {
+		return nil, errPetBasicRevisionPending()
+	}
+	if err := rejectRetiredPetFields(update.fields); err != nil {
+		return nil, err
+	}
 	var loaded *model.Pet
 	err := withPetUpdateTransaction(ctx, r.db, func(txCtx context.Context, tx *gorm.DB) error {
 		var locked model.Pet
@@ -608,32 +573,7 @@ func (r *repository) UpdateAndFind(
 			return apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
 		}
 
-		effectiveLevel := locked.DangerLevel
-		if update.dangerLevel != nil {
-			effectiveLevel = *update.dangerLevel
-		}
-		effectiveReason := locked.DangerReason
-		if update.dangerReason != nil {
-			effectiveReason = *update.dangerReason
-		}
-		normalizedReason, err := normalizeDangerReason(effectiveLevel, effectiveReason)
-		if err != nil {
-			return err
-		}
-
-		fields := make(map[string]any, len(update.fields))
-		for key, value := range update.fields {
-			if isDangerFieldKey(key) {
-				continue
-			}
-			fields[key] = value
-		}
-		if update.dangerLevel != nil {
-			fields["danger_level"] = effectiveLevel
-		}
-		if update.dangerReason != nil {
-			fields["danger_reason"] = normalizedReason
-		}
+		fields := update.fields
 
 		// POC-03 / X-05: re-validate request-derived clinic FKs inside the same
 		// write transaction with SHARE locks so concurrent soft-delete cannot
@@ -736,40 +676,15 @@ func lockInsuranceForPetUpdate(db *gorm.DB, clinicID, insuranceID uint64) error 
 	return nil
 }
 
-func (r *repository) RecordDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
-	result := persistence.DBOrTx(ctx, r.db).
-		Model(&model.Pet{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND status = ? AND deceased_at IS NULL", petID, model.PetStatusAlive).
-		Select("deceased_at", "deceased_reason", "status").
-		Updates(&model.Pet{
-			DeceasedAt:     &deceasedAt,
-			DeceasedReason: &reason,
-			Status:         model.PetStatusDeceased,
-		})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", petID))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapConflict("死亡記録は既に登録されています")
-	}
-	return nil
+// RecordDeath は pet の死亡記録 writer が未接続の間、書き込みの前に固定 422（F5）で拒否する。
+// 生死は pets の列ではなく共通 basic revision の status / deceased_at で、その改訂は revision の writer の担当。
+func (*repository) RecordDeath(_ context.Context, _, _ uint64, _ time.Time, _ string) error {
+	return errPetLifecycleWritePending()
 }
 
-func (r *repository) ClearDeath(ctx context.Context, clinicID, petID uint64) error {
-	result := persistence.DBOrTx(ctx, r.db).
-		Model(&model.Pet{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND (status = ? OR deceased_at IS NOT NULL)", petID, model.PetStatusDeceased).
-		Select("deceased_at", "deceased_reason", "status").
-		Updates(&model.Pet{Status: model.PetStatusAlive})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", petID))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapConflict("死亡記録が登録されていないため解除できません")
-	}
-	return nil
+// ClearDeath は RecordDeath と同じ理由で固定 422（F5）。
+func (*repository) ClearDeath(_ context.Context, _, _ uint64) error {
+	return errPetLifecycleWritePending()
 }
 
 func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -784,15 +699,20 @@ func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
 }
 
 // FindOwnersByPetBirthday は指定月日と一致する誕生日の生存ペットを持つ飼い主IDリストを返す（FEAT-383）。
-// EMR-290: 生存判定は deceased_at IS NULL かつ status <> 'deceased' の両方を見る。
+// EMR-491: 生存と誕生日は現行 basic revision の status='alive' かつ deceased_at IS NULL と birth_date で判定する。
+// binding・現行 revision の無い pet は生存と確認できないため対象外。
 func (r *repository) FindOwnersByPetBirthday(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error) {
 	type row struct{ OwnerID uint64 }
 	var rows []row
-	err := r.db.WithContext(ctx).
-		Table("pets AS p").
-		Joins("JOIN owners AS o ON o.id = p.owner_id AND o.clinic_id = p.clinic_id AND o.deleted_at IS NULL").
-		Where("p.clinic_id = ? AND p.deceased_at IS NULL AND p.status <> ? AND p.deleted_at IS NULL", clinicID, model.PetStatusDeceased).
-		Where("EXTRACT(month FROM p.birth_date) = ? AND EXTRACT(day FROM p.birth_date) = ?", month, day).
+	err := commonbasic.JoinCurrentPetBasic(
+		r.db.WithContext(ctx).
+			Table("pets AS p").
+			Joins("JOIN owners AS o ON o.id = p.owner_id AND o.clinic_id = p.clinic_id AND o.deleted_at IS NULL"),
+		"p", petBasicAlias, true,
+	).
+		Where("p.clinic_id = ? AND p.deleted_at IS NULL", clinicID).
+		Where(petLivingPredicate(petBasicAlias), model.PetStatusAlive).
+		Where("EXTRACT(month FROM "+petBasicAlias+".birth_date) = ? AND EXTRACT(day FROM "+petBasicAlias+".birth_date) = ?", month, day).
 		Distinct("p.owner_id").
 		Scan(&rows).Error
 	if err != nil {
@@ -813,11 +733,15 @@ func (r *repository) OwnerHasAlivePetBirthday(ctx context.Context, clinicID, own
 	var count int64
 	// ambient tx が存在すれば同一接続で再読する（delivery-owner lock 内の
 	// 誕生日最終適格性チェックは第 2 接続を要求してはならない）。
-	err := persistence.DBOrTx(ctx, r.db).
-		Table("pets AS p").
-		Joins("JOIN owners AS o ON o.id = p.owner_id AND o.clinic_id = p.clinic_id AND o.deleted_at IS NULL").
-		Where("p.clinic_id = ? AND p.owner_id = ? AND p.deceased_at IS NULL AND p.status <> ? AND p.deleted_at IS NULL", clinicID, ownerID, model.PetStatusDeceased).
-		Where("EXTRACT(month FROM p.birth_date) = ? AND EXTRACT(day FROM p.birth_date) = ?", month, day).
+	err := commonbasic.JoinCurrentPetBasic(
+		persistence.DBOrTx(ctx, r.db).
+			Table("pets AS p").
+			Joins("JOIN owners AS o ON o.id = p.owner_id AND o.clinic_id = p.clinic_id AND o.deleted_at IS NULL"),
+		"p", petBasicAlias, true,
+	).
+		Where("p.clinic_id = ? AND p.owner_id = ? AND p.deleted_at IS NULL", clinicID, ownerID).
+		Where(petLivingPredicate(petBasicAlias), model.PetStatusAlive).
+		Where("EXTRACT(month FROM "+petBasicAlias+".birth_date) = ? AND EXTRACT(day FROM "+petBasicAlias+".birth_date) = ?", month, day).
 		Count(&count).Error
 	if err != nil {
 		return false, apperrors.FromGORM(err, "pet", fmt.Sprintf("clinic=%d owner=%d birthday=%02d-%02d", clinicID, ownerID, month, day))

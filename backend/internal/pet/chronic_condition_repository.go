@@ -104,19 +104,27 @@ func (r *chronicConditionRepository) Delete(ctx context.Context, clinicID, petID
 
 func (r *chronicConditionRepository) FindActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error) {
 	var codes []string
+	// EMR-491: 生存判定は pets の列ではなく現行 basic revision（binding → subject → revision）の
+	// status='alive' かつ deceased_at IS NULL。JOIN は commonbasic.JoinCurrentPetBasic と同じ形。
+	// binding・revision の無い pet は生存として扱わず、対象外（過小側）に倒す。
 	err := r.db.WithContext(ctx).Raw(`
 SELECT DISTINCT pcc.condition_code
 FROM pet_chronic_conditions pcc
 INNER JOIN pets p ON p.id = pcc.pet_id
   AND p.clinic_id = pcc.clinic_id
   AND p.deleted_at IS NULL
+INNER JOIN common_pet_clinic_bindings pb ON pb.clinic_id = p.clinic_id
+  AND pb.local_pet_id = p.id
+INNER JOIN common_pet_subjects ps ON ps.id = pb.common_pet_id
+INNER JOIN common_pet_basic_revisions pr ON pr.id = ps.current_basic_revision_id
+  AND pr.common_pet_id = ps.id
 WHERE pcc.clinic_id = ?
   AND p.clinic_id   = ?
   AND p.owner_id    = ?
   AND pcc.is_active = TRUE
   AND pcc.deleted_at IS NULL
-  AND p.deceased_at IS NULL
-  AND p.status <> 'deceased'
+  AND pr.status = 'alive'
+  AND pr.deceased_at IS NULL
 ORDER BY pcc.condition_code
 `, clinicID, clinicID, ownerID).Scan(&codes).Error
 	if err != nil {

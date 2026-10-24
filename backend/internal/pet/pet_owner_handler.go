@@ -35,7 +35,7 @@ func (h *Handler) ListOwnerSharedPets(c *gin.Context) {
 		ownerID,
 	)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondPetError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, newOwnerSharedPetsResponse(sharedPets))
@@ -61,7 +61,7 @@ func (h *Handler) ListPetOwners(c *gin.Context) {
 
 	links, err := h.petOwners.GetByPetID(c.Request.Context(), clinicID, petID)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondPetError(c, err)
 		return
 	}
 	owners, err := h.petOwnerDetails.FindByIDs(
@@ -70,12 +70,12 @@ func (h *Handler) ListPetOwners(c *gin.Context) {
 		petOwnerIDs(links),
 	)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondPetError(c, err)
 		return
 	}
 	response, err := newPetOwnersResponse(links, owners)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondPetError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, response)

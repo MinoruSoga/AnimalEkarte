@@ -1,8 +1,11 @@
 package pet
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/owner"
@@ -11,7 +14,7 @@ import (
 type PetAnimalSpeciesNested struct {
 	ID        uint64 `json:"id"`
 	Name      string `json:"name"`
-	SortOrder int    `json:"sort_order"`
+	SortOrder *int   `json:"sort_order"`
 }
 
 type PetInsuranceNested struct {
@@ -26,64 +29,132 @@ type PetInsuranceNested struct {
 // 型を分けない）。OwnerNumber は独立した採番カラムではなく Owner.ID のエイリアス
 // （FE 既存実装が ownerNumber: owner.id として扱っていた表示上の呼称に合わせる）。
 type PetOwnerNested struct {
-	ID          uint64 `json:"id"`
-	OwnerNumber uint64 `json:"owner_number"`
-	Name        string `json:"name"`
-	NameKana    string `json:"name_kana"`
-	Phone       string `json:"phone"`
-	IsDangerous bool   `json:"is_dangerous"`
+	ID          uint64  `json:"id"`
+	OwnerNumber uint64  `json:"owner_number"`
+	Name        string  `json:"name"`
+	NameKana    *string `json:"name_kana"`
+	Phone       *string `json:"phone"`
+	IsDangerous bool    `json:"is_dangerous"`
 }
 
-func toPetOwnerNested(o *model.Owner) *PetOwnerNested {
+// toPetOwnerNested は hydrate 済みの飼主をペット行の埋め込み DTO へ写す。o が nil（飼主を読み込んでいない）は nil。
+// 非 nil で基本情報が未解決なら、空値で返さず unresolved（F1）の error を返す。
+func toPetOwnerNested(o *model.Owner) (*PetOwnerNested, error) {
 	if o == nil {
-		return nil
+		return nil, nil
+	}
+	basic, err := commonbasic.OwnerOf(o)
+	if err != nil {
+		return nil, err
 	}
 	return &PetOwnerNested{
 		ID:          o.ID,
 		OwnerNumber: o.ID,
-		Name:        o.Name,
-		NameKana:    o.NameKana,
-		Phone:       o.Phone,
+		Name:        basic.Name,
+		NameKana:    basic.NameKana,
+		Phone:       basic.Phone,
 		IsDangerous: o.IsDangerous,
+	}, nil
+}
+
+// enumPtr は名前付き文字列型の nullable 値を *string へ写す。nil は nil のまま返し、空文字へは置換しない。
+func enumPtr[T ~string](value *T) *string {
+	if value == nil {
+		return nil
+	}
+	text := string(*value)
+	return &text
+}
+
+// copyExactNumeric は revision の数値を応答用に複製する（revision の値を共有しない）。nil は nil のまま返す。
+func copyExactNumeric(value *model.ExactNumeric) *model.ExactNumeric {
+	if value == nil {
+		return nil
+	}
+	copied := *value
+	return &copied
+}
+
+// requirePetBasic は hydrate 済みの pet から現行 basic revision を返す。未 hydrate、または subject
+// （pet_version / pet_basic_revision_id の元）が無いときは unresolved（F1）の error で、空値は返さない。
+func requirePetBasic(p *model.Pet) (*model.CommonPetBasicRevision, error) {
+	basic, err := commonbasic.PetOf(p)
+	if err != nil {
+		return nil, err
+	}
+	if p.BasicSubject == nil {
+		return nil, apperrors.WrapCommonBasicUnresolved(
+			fmt.Sprintf("pet %d/%d: basic subject is not hydrated", p.ClinicID, p.ID))
+	}
+	return basic, nil
+}
+
+// toPetAnimalSpeciesNested は hydrate 済みの動物種を埋め込み DTO へ写す。nil は nil。
+func toPetAnimalSpeciesNested(species *model.AnimalSpecies) *PetAnimalSpeciesNested {
+	if species == nil {
+		return nil
+	}
+	return &PetAnimalSpeciesNested{
+		ID:        species.ID,
+		Name:      species.Name,
+		SortOrder: species.SortOrder,
+	}
+}
+
+// toPetInsuranceNested は保険マスタを埋め込み DTO へ写す。nil は nil。
+func toPetInsuranceNested(insurance *model.Insurance) *PetInsuranceNested {
+	if insurance == nil {
+		return nil
+	}
+	return &PetInsuranceNested{
+		ID:           insurance.ID,
+		Name:         insurance.Name,
+		CoverageRate: insurance.CoverageRate,
+		ContactPhone: insurance.ContactPhone,
 	}
 }
 
 type PetResponse struct {
-	ID              uint64     `json:"id"`
-	Version         int        `json:"version"`
-	ClinicID        uint64     `json:"clinic_id"`
-	OwnerID         uint64     `json:"owner_id"`
-	AnimalSpeciesID uint64     `json:"animal_species_id"`
-	PetNumber       string     `json:"pet_number"`
-	Name            string     `json:"name"`
-	PetNameKana     string     `json:"pet_name_kana"`
-	Gender          string     `json:"gender"`
-	Status          string     `json:"status"`
-	BirthDate       *time.Time `json:"birth_date,omitempty"`
-	Breed           string     `json:"breed"`
-	Color           string     `json:"color"`
-	BloodType       *string    `json:"blood_type,omitempty"`
-	MicrochipNumber *string    `json:"microchip_number,omitempty"`
-	Weight          *float64   `json:"weight,omitempty"`
-	NeuteredDate    *time.Time `json:"neutered_date,omitempty"`
-	NeuteredStatus  string     `json:"neutered_status"`
-	AcquisitionType *string    `json:"acquisition_type,omitempty"`
-	DangerLevel     string     `json:"danger_level"`
-	DangerReason    *string    `json:"danger_reason,omitempty"`
-	Food            string     `json:"food"`
-	Environment     string     `json:"environment"`
-	Phone           string     `json:"phone"`
-	LastVisit       *time.Time `json:"last_visit,omitempty"`
-	InsuranceID     *uint64    `json:"insurance_id,omitempty"`
-	Remarks         string     `json:"remarks"`
+	ID      uint64 `json:"id"`
+	Version int    `json:"version"`
+	// PetVersion は pet の共通 subject の版、PetBasicRevisionID は現行 basic revision の ID
+	// （基本情報を更新するときの照合元）。ローカル行の Version とは別物。
+	PetVersion         int64  `json:"pet_version"`
+	PetBasicRevisionID uint64 `json:"pet_basic_revision_id"`
+	// 以下の基本情報は pet の現行 basic revision 由来。nullable な列は JSON null で返し、空文字へは置換しない。
+	ClinicID        uint64              `json:"clinic_id"`
+	OwnerID         uint64              `json:"owner_id"`
+	AnimalSpeciesID uint64              `json:"animal_species_id"`
+	PetNumber       string              `json:"pet_number"`
+	Name            string              `json:"name"`
+	PetNameKana     *string             `json:"pet_name_kana"`
+	Gender          *string             `json:"gender"`
+	Status          *string             `json:"status"`
+	BirthDate       *time.Time          `json:"birth_date"`
+	Breed           *string             `json:"breed"`
+	Color           *string             `json:"color"`
+	BloodType       *string             `json:"blood_type"`
+	MicrochipNumber *string             `json:"microchip_number"`
+	Weight          *model.ExactNumeric `json:"weight"`
+	NeuteredDate    *time.Time          `json:"neutered_date"`
+	NeuteredStatus  string              `json:"neutered_status"`
+	AcquisitionType *string             `json:"acquisition_type"`
+	DangerLevel     *string             `json:"danger_level"`
+	DangerReason    *string             `json:"danger_reason"`
+	Food            *string             `json:"food"`
+	Environment     *string             `json:"environment"`
+	Phone           *string             `json:"phone"`
+	LastVisit       *time.Time          `json:"last_visit"`
+	InsuranceID     *uint64             `json:"insurance_id,omitempty"`
+	Remarks         *string             `json:"remarks"`
 	// DeceasedReason は staff 向け GET /pets/{id} (本 DTO) のみに載せる（BUG-003）。
 	// owner.PetInOwnerResponse / LIFF 向け DTO には載せない（飼主経路への死因漏洩防止）。
-	// omitempty: 生存ペットや未記録時は JSON から物理的に欠落させる。
-	DeceasedReason *string    `json:"deceased_reason,omitempty"`
-	DeceasedAt     *time.Time `json:"deceased_at,omitempty"`
+	// 生存ペットや未記録時は null（EMR-491: 欠落ではなく null で返す）。
+	DeceasedReason *string    `json:"deceased_reason"`
+	DeceasedAt     *time.Time `json:"deceased_at"`
 	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録（staff/飼主どちらの詳細も参照可）。
-	NameOrigin    *string                 `json:"name_origin,omitempty"`
-	MeetingStory  *string                 `json:"meeting_story,omitempty"`
+	NameOrigin    *string                 `json:"name_origin"`
+	MeetingStory  *string                 `json:"meeting_story"`
 	CreatedAt     time.Time               `json:"created_at"`
 	UpdatedAt     time.Time               `json:"updated_at"`
 	Owner         *PetOwnerNested         `json:"owner,omitempty"`
@@ -112,43 +183,47 @@ func toPetFirstVisitResponse(date *time.Time) petFirstVisitResponse {
 // tygo 生成対象とするため exported にする（生成型 PetListResponse が FE 側の正本）。
 type PetListResponse struct {
 	ID uint64 `json:"id"`
+	// PetVersion は pet の共通 subject の版、PetBasicRevisionID は現行 basic revision の ID
+	// （基本情報を更新するときの照合元）。
+	PetVersion         int64  `json:"pet_version"`
+	PetBasicRevisionID uint64 `json:"pet_basic_revision_id"`
 	// ClinicID: #266/#86 拠点横断一覧で FE (OwnersList.tsx) が「別医院の行は編集・削除を抑止」
 	// 判定に使う。PetResponse(詳細) には既にあるが PetListResponse は最小限フィールド構成のため
 	// 欠けていた（#266 pets 一覧のペット行粒度化で FE がこの一覧に依存するようになり露見）。
-	ClinicID        uint64     `json:"clinic_id"`
-	OwnerID         uint64     `json:"owner_id"`
-	AnimalSpeciesID uint64     `json:"animal_species_id"`
-	PetNumber       string     `json:"pet_number"`
-	Name            string     `json:"name"`
-	PetNameKana     string     `json:"pet_name_kana"`
-	Gender          string     `json:"gender"`
-	Status          string     `json:"status"`
-	BirthDate       *time.Time `json:"birth_date,omitempty"`
-	Breed           string     `json:"breed"`
-	Color           string     `json:"color"`
-	BloodType       *string    `json:"blood_type,omitempty"`
-	MicrochipNumber *string    `json:"microchip_number,omitempty"`
-	Weight          *float64   `json:"weight,omitempty"`
-	NeuteredDate    *time.Time `json:"neutered_date,omitempty"`
-	NeuteredStatus  string     `json:"neutered_status"`
-	AcquisitionType *string    `json:"acquisition_type,omitempty"`
-	DangerLevel     string     `json:"danger_level"`
-	DangerReason    *string    `json:"danger_reason,omitempty"`
-	Food            string     `json:"food"`
-	Environment     string     `json:"environment"`
+	ClinicID        uint64              `json:"clinic_id"`
+	OwnerID         uint64              `json:"owner_id"`
+	AnimalSpeciesID uint64              `json:"animal_species_id"`
+	PetNumber       string              `json:"pet_number"`
+	Name            string              `json:"name"`
+	PetNameKana     *string             `json:"pet_name_kana"`
+	Gender          *string             `json:"gender"`
+	Status          *string             `json:"status"`
+	BirthDate       *time.Time          `json:"birth_date"`
+	Breed           *string             `json:"breed"`
+	Color           *string             `json:"color"`
+	BloodType       *string             `json:"blood_type"`
+	MicrochipNumber *string             `json:"microchip_number"`
+	Weight          *model.ExactNumeric `json:"weight"`
+	NeuteredDate    *time.Time          `json:"neutered_date"`
+	NeuteredStatus  string              `json:"neutered_status"`
+	AcquisitionType *string             `json:"acquisition_type"`
+	DangerLevel     *string             `json:"danger_level"`
+	DangerReason    *string             `json:"danger_reason"`
+	Food            *string             `json:"food"`
+	Environment     *string             `json:"environment"`
 	// Phone は PetResponse（詳細）と同じペット個体の電話番号。FE は
 	// owner.phone 空時の fallback として p.phone を使う（detail/list で契約を揃える）。
-	Phone       string     `json:"phone"`
-	LastVisit   *time.Time `json:"last_visit,omitempty"`
+	Phone       *string    `json:"phone"`
+	LastVisit   *time.Time `json:"last_visit"`
 	InsuranceID *uint64    `json:"insurance_id,omitempty"`
-	Remarks     string     `json:"remarks"`
+	Remarks     *string    `json:"remarks"`
 	// DeceasedReason / DeceasedAt は staff 向け GET /v1/pets 専用（PetResponse 同様）。
-	// omitempty: 生存ペットや未記録時は JSON から物理的に欠落させる。
-	DeceasedReason *string    `json:"deceased_reason,omitempty"`
-	DeceasedAt     *time.Time `json:"deceased_at,omitempty"`
+	// 生存ペットや未記録時は null（EMR-491: 欠落ではなく null で返す）。
+	DeceasedReason *string    `json:"deceased_reason"`
+	DeceasedAt     *time.Time `json:"deceased_at"`
 	// EMR-174: 名前の由来 / 出逢いのストーリーは任意記録。
-	NameOrigin    *string                 `json:"name_origin,omitempty"`
-	MeetingStory  *string                 `json:"meeting_story,omitempty"`
+	NameOrigin    *string                 `json:"name_origin"`
+	MeetingStory  *string                 `json:"meeting_story"`
 	Owner         *PetOwnerNested         `json:"owner,omitempty"`
 	AnimalSpecies *PetAnimalSpeciesNested `json:"animal_species,omitempty"`
 	Insurance     *PetInsuranceNested     `json:"insurance,omitempty"`
@@ -159,64 +234,69 @@ type PetListResponse struct {
 // 新規コードは PetListResponse を使う。
 type petListResponse = PetListResponse
 
-func toPetListResponse(p *model.Pet) PetListResponse {
-	var acquisitionType *string
-	if p.AcquisitionType != nil {
-		s := string(*p.AcquisitionType)
-		acquisitionType = &s
+func toPetListResponse(p *model.Pet) (PetListResponse, error) {
+	basic, err := requirePetBasic(p)
+	if err != nil {
+		return PetListResponse{}, err
+	}
+	ownerNested, err := toPetOwnerNested(p.Owner)
+	if err != nil {
+		return PetListResponse{}, err
 	}
 	resp := PetListResponse{
 		ID:              p.ID,
 		ClinicID:        p.ClinicID,
 		OwnerID:         p.OwnerID,
-		AnimalSpeciesID: p.AnimalSpeciesID,
+		AnimalSpeciesID: basic.AnimalSpeciesID,
 		PetNumber:       p.PetNumber,
-		Name:            p.Name,
-		PetNameKana:     p.NameKana,
-		Gender:          string(p.Gender),
-		Status:          string(p.Status),
+		Name:            basic.Name,
+		PetNameKana:     basic.NameKana,
+		Gender:          enumPtr(basic.Gender),
+		Status:          enumPtr(basic.Status),
 		// 日付フィールドは canonical 規約に従い localTimePtr で time.Local へ変換する
 		// (格納は date.go の ParseInLocation(time.Local) によるローカル暦日。
 		// owner 経路と byte 一致させ、pgx の深夜 UTC 表現の漏れを防ぐ)。
-		BirthDate:       httpapi.LocalTimePtr(p.BirthDate),
-		Breed:           p.Breed,
-		Color:           p.Color,
-		BloodType:       p.BloodType,
-		MicrochipNumber: p.MicrochipNumber,
-		Weight:          p.Weight,
-		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
-		NeuteredStatus:  string(p.NeuteredStatus),
-		AcquisitionType: acquisitionType,
-		DangerLevel:     string(p.DangerLevel),
-		DangerReason:    p.DangerReason,
-		Food:            p.Food,
-		Environment:     p.Environment,
-		Phone:           p.Phone,
-		LastVisit:       httpapi.LocalTimePtr(p.LastVisit),
+		BirthDate:       httpapi.LocalTimePtr(basic.BirthDate),
+		Breed:           basic.Breed,
+		Color:           basic.Color,
+		BloodType:       basic.BloodType,
+		MicrochipNumber: basic.MicrochipNumber,
+		Weight:          copyExactNumeric(basic.RegistrationWeight),
+		NeuteredDate:    httpapi.LocalTimePtr(basic.NeuteredDate),
+		NeuteredStatus:  string(basic.NeuteredStatus),
+		AcquisitionType: enumPtr(basic.AcquisitionType),
+		DangerLevel:     enumPtr(basic.DangerLevel),
+		DangerReason:    basic.DangerReason,
+		Food:            basic.Food,
+		Environment:     basic.Environment,
+		Phone:           basic.Phone,
 		InsuranceID:     p.InsuranceID,
-		Remarks:         p.Remarks,
-		DeceasedReason:  p.DeceasedReason,
-		DeceasedAt:      httpapi.LocalTimePtr(p.DeceasedAt),
-		NameOrigin:      p.NameOrigin,
-		MeetingStory:    p.MeetingStory,
+		Remarks:         basic.Remarks,
+		DeceasedReason:  basic.DeceasedReason,
+		DeceasedAt:      httpapi.LocalTimePtr(basic.DeceasedAt),
+		NameOrigin:      basic.NameOrigin,
+		MeetingStory:    basic.MeetingStory,
 	}
-	resp.Owner = toPetOwnerNested(p.Owner)
-	if p.AnimalSpecies != nil {
-		resp.AnimalSpecies = &PetAnimalSpeciesNested{
-			ID:        p.AnimalSpecies.ID,
-			Name:      p.AnimalSpecies.Name,
-			SortOrder: p.AnimalSpecies.SortOrder,
+	// last_visit は pets.last_visit の廃止後に取得元が無く、導出もしないため常に null。
+	resp.PetVersion = p.BasicSubject.Version
+	resp.PetBasicRevisionID = p.BasicSubject.CurrentRevisionID
+	resp.Owner = ownerNested
+	resp.AnimalSpecies = toPetAnimalSpeciesNested(p.AnimalSpecies)
+	resp.Insurance = toPetInsuranceNested(p.Insurance)
+	return resp, nil
+}
+
+// toPetListResponses は一覧を応答 DTO へ変換する。1 件でも未解決なら一覧全体を失敗させる（行を黙って落とさない）。
+func toPetListResponses(pets []model.Pet) ([]PetListResponse, error) {
+	items := make([]PetListResponse, 0, len(pets))
+	for i := range pets {
+		item, err := toPetListResponse(&pets[i])
+		if err != nil {
+			return nil, err
 		}
+		items = append(items, item)
 	}
-	if p.Insurance != nil {
-		resp.Insurance = &PetInsuranceNested{
-			ID:           p.Insurance.ID,
-			Name:         p.Insurance.Name,
-			CoverageRate: p.Insurance.CoverageRate,
-			ContactPhone: p.Insurance.ContactPhone,
-		}
-	}
-	return resp
+	return items, nil
 }
 
 // SummaryResponse is the nested pet carrier retained for trimming and other
@@ -243,64 +323,56 @@ type AnimalSpeciesSummaryResponse struct {
 	Name string `json:"name"`
 }
 
-func toResponse(p *model.Pet) PetResponse {
-	var acquisitionType *string
-	if p.AcquisitionType != nil {
-		s := string(*p.AcquisitionType)
-		acquisitionType = &s
+func toResponse(p *model.Pet) (PetResponse, error) {
+	basic, err := requirePetBasic(p)
+	if err != nil {
+		return PetResponse{}, err
+	}
+	ownerNested, err := toPetOwnerNested(p.Owner)
+	if err != nil {
+		return PetResponse{}, err
 	}
 	resp := PetResponse{
 		ID:              p.ID,
 		Version:         p.Version,
 		ClinicID:        p.ClinicID,
 		OwnerID:         p.OwnerID,
-		AnimalSpeciesID: p.AnimalSpeciesID,
+		AnimalSpeciesID: basic.AnimalSpeciesID,
 		PetNumber:       p.PetNumber,
-		Name:            p.Name,
-		PetNameKana:     p.NameKana,
-		Gender:          string(p.Gender),
-		Status:          string(p.Status),
+		Name:            basic.Name,
+		PetNameKana:     basic.NameKana,
+		Gender:          enumPtr(basic.Gender),
+		Status:          enumPtr(basic.Status),
 		// 日付フィールドは canonical 規約に従い localTimePtr で time.Local へ変換する
 		// (CreatedAt/UpdatedAt と同様に同関数内でローカル化を統一)。
-		BirthDate:       httpapi.LocalTimePtr(p.BirthDate),
-		Breed:           p.Breed,
-		Color:           p.Color,
-		BloodType:       p.BloodType,
-		MicrochipNumber: p.MicrochipNumber,
-		Weight:          p.Weight,
-		NeuteredDate:    httpapi.LocalTimePtr(p.NeuteredDate),
-		NeuteredStatus:  string(p.NeuteredStatus),
-		AcquisitionType: acquisitionType,
-		DangerLevel:     string(p.DangerLevel),
-		DangerReason:    p.DangerReason,
-		Food:            p.Food,
-		Environment:     p.Environment,
-		Phone:           p.Phone,
-		LastVisit:       httpapi.LocalTimePtr(p.LastVisit),
+		BirthDate:       httpapi.LocalTimePtr(basic.BirthDate),
+		Breed:           basic.Breed,
+		Color:           basic.Color,
+		BloodType:       basic.BloodType,
+		MicrochipNumber: basic.MicrochipNumber,
+		Weight:          copyExactNumeric(basic.RegistrationWeight),
+		NeuteredDate:    httpapi.LocalTimePtr(basic.NeuteredDate),
+		NeuteredStatus:  string(basic.NeuteredStatus),
+		AcquisitionType: enumPtr(basic.AcquisitionType),
+		DangerLevel:     enumPtr(basic.DangerLevel),
+		DangerReason:    basic.DangerReason,
+		Food:            basic.Food,
+		Environment:     basic.Environment,
+		Phone:           basic.Phone,
 		InsuranceID:     p.InsuranceID,
-		Remarks:         p.Remarks,
-		DeceasedReason:  p.DeceasedReason,
-		DeceasedAt:      httpapi.LocalTimePtr(p.DeceasedAt),
-		NameOrigin:      p.NameOrigin,
-		MeetingStory:    p.MeetingStory,
+		Remarks:         basic.Remarks,
+		DeceasedReason:  basic.DeceasedReason,
+		DeceasedAt:      httpapi.LocalTimePtr(basic.DeceasedAt),
+		NameOrigin:      basic.NameOrigin,
+		MeetingStory:    basic.MeetingStory,
 		CreatedAt:       httpapi.LocalTime(p.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(p.UpdatedAt),
 	}
-	resp.Owner = toPetOwnerNested(p.Owner)
-	if p.AnimalSpecies != nil {
-		resp.AnimalSpecies = &PetAnimalSpeciesNested{
-			ID:        p.AnimalSpecies.ID,
-			Name:      p.AnimalSpecies.Name,
-			SortOrder: p.AnimalSpecies.SortOrder,
-		}
-	}
-	if p.Insurance != nil {
-		resp.Insurance = &PetInsuranceNested{
-			ID:           p.Insurance.ID,
-			Name:         p.Insurance.Name,
-			CoverageRate: p.Insurance.CoverageRate,
-			ContactPhone: p.Insurance.ContactPhone,
-		}
-	}
-	return resp
+	// last_visit は pets.last_visit の廃止後に取得元が無く、導出もしないため常に null。
+	resp.PetVersion = p.BasicSubject.Version
+	resp.PetBasicRevisionID = p.BasicSubject.CurrentRevisionID
+	resp.Owner = ownerNested
+	resp.AnimalSpecies = toPetAnimalSpeciesNested(p.AnimalSpecies)
+	resp.Insurance = toPetInsuranceNested(p.Insurance)
+	return resp, nil
 }
