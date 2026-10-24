@@ -6,8 +6,8 @@ package support
 // スクショキー）は患者・飼主・スタッフの個人情報やトークンを含みうるため、
 // 外部（Plane）へは転記しない。送信境界は redaction ではなく allowlist:
 // 送るのは決定論的な固定件名・固定説明文・サーバ採番の報告 ID のみ。
-// 自動起票（Create 後の best-effort）と手動再送（EnsurePlaneTicket）の両経路が
-// 同じクライアント境界を通ることも併せて固定する。
+// 自動起票（Create）と手動再送（EnsurePlaneTicket）は、配送契約の接続まで
+// 送信自体を停止する（EMR-549 C1）。
 //
 // canary にはフィールドごとに異なる機微文字列を使い、生リクエストボディに
 // 混入した時点でそのフィールドの漏洩として検出する。
@@ -153,9 +153,9 @@ func TestSafePlaneExport_NeverSendsUserControlledFields(t *testing.T) {
 	assertSafePlanePayload(t, captured.rawBody)
 }
 
-// 自動起票経路（Create → syncPlaneTicket）でも同じ境界を通る。
-// ローカル保存は全文を保持し、export だけが制限されることを併せて検証する。
-func TestSafePlaneExport_ViaAutoCreate(t *testing.T) {
+// 自動起票経路（Create）は配送契約の接続まで外部へ送らない（EMR-549 C1）。
+// ローカル保存は全文を保持し、Plane への送信だけが停止していることを検証する。
+func TestSafePlaneExport_CreateDoesNotSendBeforeDeliveryContract(t *testing.T) {
 	captured := &planeExportCapture{}
 	server := newPlaneExportServer(t, captured)
 	client := newExportPlaneClient(server)
@@ -165,9 +165,6 @@ func TestSafePlaneExport_ViaAutoCreate(t *testing.T) {
 		r.ID = 4242
 		return nil
 	}
-	repo.setTicketFn = func(context.Context, uint64, uint64, string, string) (bool, error) {
-		return true, nil
-	}
 	svc := NewService(repo, client, nil)
 
 	input := canaryCreateInput()
@@ -175,20 +172,18 @@ func TestSafePlaneExport_ViaAutoCreate(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, report)
 
-	// ローカルの report は全文を保持する（export 境界だけを絞る設計の根拠）。
+	// ローカルの report は全文を保持する（停止するのは export だけ）。
 	assert.Equal(t, input.Title, report.Title)
 	assert.Equal(t, input.Detail, report.Detail)
 	assert.Equal(t, input.PageURL, report.PageURL)
 	assert.Equal(t, input.UserAgent, report.UserAgent)
 	assert.Equal(t, input.AppVersion, report.AppVersion)
 
-	require.Equal(t, 1, captured.calls)
-	assertSafePlanePayload(t, captured.rawBody)
+	assert.Equal(t, 0, captured.calls, "plane must not be called before the delivery contract is connected")
 }
 
-// 手動再送経路（EnsurePlaneTicket）でも同じ境界を通る。
-// DB から読み出した報告の本文が Plane に流れないことを固定する。
-func TestSafePlaneExport_ViaManualEnsure(t *testing.T) {
+// 手動再送経路（EnsurePlaneTicket）も報告元医院の確認後に 422 で停止し、外部へ送らない。
+func TestSafePlaneExport_ManualEnsureDoesNotSendBeforeDeliveryContract(t *testing.T) {
 	captured := &planeExportCapture{}
 	server := newPlaneExportServer(t, captured)
 	client := newExportPlaneClient(server)
@@ -197,15 +192,11 @@ func TestSafePlaneExport_ViaManualEnsure(t *testing.T) {
 		findByIDForClinicF: func(context.Context, uint64, uint64) (*model.SupportBugReport, error) {
 			return canaryReport(), nil
 		},
-		setTicketFn: func(context.Context, uint64, uint64, string, string) (bool, error) {
-			return true, nil
-		},
 	}
 	svc := NewService(repo, client, nil)
 
 	report, err := svc.EnsurePlaneTicket(context.Background(), 7, 4242)
-	require.NoError(t, err)
-	require.NotNil(t, report)
-	require.Equal(t, 1, captured.calls)
-	assertSafePlanePayload(t, captured.rawBody)
+	require.Error(t, err)
+	assert.Nil(t, report)
+	assert.Equal(t, 0, captured.calls, "plane must not be called before the delivery contract is connected")
 }

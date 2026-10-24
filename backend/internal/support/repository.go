@@ -40,18 +40,6 @@ type Repository interface {
 	// 取り出すための取得。他医院の id は未存在と同じ NotFound を返す。
 	FindByIDForClinic(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error)
 	UpdateStatus(ctx context.Context, clinicID, id uint64, status model.SupportBugReportStatus) error
-	// ListOpenWithPlaneTicket は Plane 起票済みで status=open の報告を返す。
-	// scheduled sync（Plane 側 completed → 報告 resolved）の対象抽出用で
-	// 全医院横断 — 起票済み報告は各報告の clinic_id を保持しているため
-	// 返却後の UpdateStatus も報告元 clinic スコープで実行できる。
-	ListOpenWithPlaneTicket(ctx context.Context, limit int) ([]model.SupportBugReport, error)
-	// SetPlaneTicket は起票成功を記録し、claim 成功時（= 先に起票済みでない）に true を返す。
-	SetPlaneTicket(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error)
-	// SetPlaneSyncError returns true only when the unclaimed row was updated.
-	SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) (bool, error)
-	// SetPlaneStateSyncError は起票済み行の状態取得失敗を記録する。
-	SetPlaneStateSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error
-	ApplyPlaneStateSync(ctx context.Context, clinicID, id uint64, completed bool) error
 	SoftDeleteBugReport(ctx context.Context, clinicID, id uint64) error
 	CreateChatMessages(ctx context.Context, messages []*model.SupportChatMessage) error
 	ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error)
@@ -194,98 +182,6 @@ func (r *repository) UpdateStatus(ctx context.Context, clinicID, id uint64, stat
 		Model(&model.SupportBugReport{}).
 		Where("id = ? AND clinic_id = ?", id, clinicID).
 		Update("status", status)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("support_bug_report", uintToString(id))
-	}
-	return nil
-}
-
-func (r *repository) ListOpenWithPlaneTicket(ctx context.Context, limit int) ([]model.SupportBugReport, error) {
-	var reports []model.SupportBugReport
-	query := r.db.WithContext(ctx).
-		Where("status = ?", model.SupportBugReportStatusOpen).
-		Where("plane_issue_id IS NOT NULL").
-		Order("id ASC")
-	if limit > 0 {
-		query = query.Limit(limit)
-	}
-	if err := query.Find(&reports).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "support_bug_report", "")
-	}
-	return reports, nil
-}
-
-// SetPlaneTicket は Plane 起票成功を記録する。二重起票防止のため
-// plane_issue_id IS NULL の行にのみ書き込む（自動起票と手動再送、あるいは
-// 手動再送の二重クリックが競合した場合、後着は claim 失敗 = false を返す）。
-func (r *repository) SetPlaneTicket(ctx context.Context, clinicID, id uint64, issueID, issueURL string) (bool, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.SupportBugReport{}).
-		Where("id = ? AND clinic_id = ? AND plane_issue_id IS NULL", id, clinicID).
-		Updates(map[string]any{
-			"plane_issue_id":   issueID,
-			"plane_issue_url":  issueURL,
-			"plane_sync_error": nil,
-		})
-	if result.Error != nil {
-		return false, apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
-	}
-	return result.RowsAffected > 0, nil
-}
-
-// SetPlaneSyncError は未起票の行だけに失敗理由を記録する。
-// 並行した成功claim後に戻った失敗は成功状態を変更しない。
-func (r *repository) SetPlaneSyncError(ctx context.Context, clinicID, id uint64, syncErr string) (bool, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.SupportBugReport{}).
-		Where("id = ? AND clinic_id = ? AND plane_issue_id IS NULL", id, clinicID).
-		Update("plane_sync_error", syncErr)
-	if result.Error != nil {
-		return false, apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
-	}
-	if result.RowsAffected > 0 {
-		return true, nil
-	}
-	// 0件は他医院/不存在と、既に成功した同医院の行を区別する。
-	var count int64
-	if err := r.db.WithContext(ctx).Model(&model.SupportBugReport{}).
-		Where("id = ? AND clinic_id = ?", id, clinicID).Count(&count).Error; err != nil {
-		return false, apperrors.FromGORM(err, "support_bug_report", uintToString(id))
-	}
-	if count == 0 {
-		return false, apperrors.WrapNotFound("support_bug_report", uintToString(id))
-	}
-	return false, nil
-}
-
-// SetPlaneStateSyncError は状態取得失敗を対象チケットがある行に記録する。
-// 作成失敗の遅延書込みとは用途が異なるため、未起票限定のguardを使わない。
-func (r *repository) SetPlaneStateSyncError(ctx context.Context, clinicID, id uint64, syncErr string) error {
-	result := r.db.WithContext(ctx).Model(&model.SupportBugReport{}).
-		Where("id = ? AND clinic_id = ? AND plane_issue_id IS NOT NULL", id, clinicID).
-		Update("plane_sync_error", syncErr)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("support_bug_report", uintToString(id))
-	}
-	return nil
-}
-
-func (r *repository) ApplyPlaneStateSync(ctx context.Context, clinicID, id uint64, completed bool) error {
-	update := model.SupportBugReport{}
-	columns := []string{"plane_sync_error"}
-	if completed {
-		update.Status = model.SupportBugReportStatusResolved
-		columns = append(columns, "status")
-	}
-	result := r.db.WithContext(ctx).Model(&model.SupportBugReport{}).
-		Where("id = ? AND clinic_id = ? AND plane_issue_id IS NOT NULL", id, clinicID).
-		Select(columns).Updates(&update)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "support_bug_report", uintToString(id))
 	}

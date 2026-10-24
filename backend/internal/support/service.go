@@ -49,52 +49,37 @@ type Service interface {
 	SyncPlaneTicketStates(ctx context.Context) PlaneSyncResult
 }
 
-const (
-	// planeAutoAuditAction は自動起票フロー専用の監査アクション。
-	// 手動起票は handler 側の既存監査（support_bug_report.plane_ticket）で
-	// 記録されるため、本アクションは post-save 起票のみが出力する。
-	planeAutoAuditAction = "support_bug_report.plane_ticket_auto"
+// codeSupportDeliveryPending は、置換先の配送記録（support_delivery_* の intent / attempt / result）の
+// writer・reader がまだ接続されていないため停止した Plane 操作を示す 422 の安定コード（EMR-549 C1）。
+// 共有定数を apperrors へ足さず、owner である support パッケージに閉じる（medicalrecord と同じ方針）。
+const codeSupportDeliveryPending = "support_delivery_pending"
 
-	// 自動起票監査の outcome 分類（固定値のみ。任意文字列は埋め込まない）。
-	planeAutoOutcomeClaimed        = "claimed"
-	planeAutoOutcomeCreationFailed = "creation_failed"
-	planeAutoOutcomeClaimLost      = "claim_lost"
-	planeAutoOutcomeClaimError     = "claim_error"
-)
-
-const (
-	// defaultPlanePostSaveTimeout は保存後 best-effort 起票の外部呼出 budget
-	// 既定値（PLANE_TIMEOUT_MS の既定 10000ms に合わせる）。
-	defaultPlanePostSaveTimeout = 10 * time.Second
-	// planePostSaveDBTimeout / planePostSaveAuditTimeout は保存後処理の
-	// DB 操作・監査書込みそれぞれの個別 budget。外部 HTTP の deadline とは
-	// 分離する（HTTP timeout が失敗理由の永続化まで潰さないため）。
-	planePostSaveDBTimeout    = 5 * time.Second
-	planePostSaveAuditTimeout = 5 * time.Second
-)
+// defaultPlanePostSaveTimeout は Plane 外部呼出 budget の既定値（PLANE_TIMEOUT_MS の既定 10000ms に合わせる）。
+// 送信停止中は参照されないが、composition の WithPlaneTimeout 配線を壊さないため seam を残す。
+const defaultPlanePostSaveTimeout = 10 * time.Second
 
 type service struct {
 	repo     Repository
 	tickets  TicketCreator     // nil = Plane 連携無効（ローカル保存のみ）
 	notifier BugReportNotifier // nil = Discord 通知無効
-	// audit は自動 Plane 起票結果の専用監査記録先（nil = 記録しない）。
+	// audit は配送結果の監査記録先（nil = 記録しない）。Plane 送信停止中は参照されない。
 	audit AuditLogger
-	// planeTimeout は保存後 best-effort 起票の外部呼出 timeout。
+	// planeTimeout は Plane 外部呼出 timeout。送信停止中は参照されない。
 	planeTimeout time.Duration
 }
 
 // ServiceOption は NewService へのオプション依存を注入する。
 type ServiceOption func(*service)
 
-// WithAuditLogger は自動 Plane 起票結果を記録する監査ロガーを設定する。
-// 監査書込み自体も best-effort であり、失敗は ERROR ログに留めて
-// 報告作成の成功を変えない。
+// WithAuditLogger は配送結果を記録する監査ロガーを設定する。
+// 監査書込み自体は best-effort の方針を維持する。Plane 送信が停止中
+// （codeSupportDeliveryPending）の間は記録対象がなく、参照されない。
 func WithAuditLogger(logger AuditLogger) ServiceOption {
 	return func(s *service) { s.audit = logger }
 }
 
-// WithPlaneTimeout は保存後 Plane 起票の外部呼出 timeout を設定する。
-// 0 以下は無視して既定値を維持する。
+// WithPlaneTimeout は Plane 外部呼出の timeout を設定する。
+// 0 以下は無視して既定値を維持する。Plane 送信が停止中の間は参照されない。
 func WithPlaneTimeout(timeout time.Duration) ServiceOption {
 	return func(s *service) {
 		if timeout > 0 {
@@ -143,46 +128,15 @@ func (s *service) Create(ctx context.Context, clinicID, reporterStaffID uint64, 
 	if err := s.repo.Create(ctx, &report); err != nil {
 		return nil, err
 	}
-	// 保存成功後に Plane へ best-effort で自動起票する（2026-10-11 owner 指示で復帰）。
-	// 起票・記録の失敗は plane_sync_error / ログに留め、作成応答は成功のまま返す。
+	// 保存後の Plane 自動起票は停止中（EMR-549 C1）。送信前確認 intent・宛先ごとの試行 claim・
+	// 結果記録の writer が未接続のまま外部へ送ると、孤立 issue と結果不明の再送を生む
+	// （technical-spec.md#support-selected-delivery-contract 2・3・5）。報告の院内保存は成功させ、
+	// 応答の plane_delivery_state は unavailable（未送信の証明ではない）のまま返す。
 	if s.tickets != nil {
-		s.syncPlaneTicket(ctx, &report)
+		slog.WarnContext(ctx, "plane auto-ticket is not sent: delivery contract is not connected",
+			"code", codeSupportDeliveryPending, "report_id", report.ID, "clinic_id", clinicID)
 	}
 	return &report, nil
-}
-
-// syncPlaneTicket は保存済み報告の Plane 起票を best-effort で試行する。
-// request ctx のキャンセルからは切り離す（WithoutCancel — context 値は引き継ぐ）
-// が、goroutine は使わず同期的に実行する。外部 HTTP・DB 永続化・監査書込みは
-// それぞれ fresh bounded context を張り、外部呼出の deadline が失敗理由の
-// 永続化まで潰さないようにする。
-// 上流障害は recordPlaneFailure が plane_sync_error に記録する。起票自体は
-// claim 前に Plane 側へ作成済みとなるため、claim 敗退（並行起票の後着や
-// DB 書き込み失敗）では孤立 issue が残りうる既知の制限がある — 呼出側の
-// 作成成功にはいずれも影響しない。
-func (s *service) syncPlaneTicket(requestCtx context.Context, report *model.SupportBugReport) {
-	postSaveCtx := context.WithoutCancel(requestCtx)
-
-	planeCtx, cancel := context.WithTimeout(postSaveCtx, s.planeTimeout)
-	issue, err := s.tickets.CreateBugReportIssue(planeCtx, report)
-	cancel()
-	if err != nil {
-		s.recordPlaneFailure(postSaveCtx, report, err)
-		s.logPlaneAutoAudit(postSaveCtx, report, planeAutoOutcomeCreationFailed, "")
-		return
-	}
-	claimed, claimErr := s.claimPlaneTicket(postSaveCtx, report, issue)
-	switch {
-	case claimed:
-		s.logPlaneAutoAudit(postSaveCtx, report, planeAutoOutcomeClaimed, issue.ID)
-	case claimErr != nil:
-		// 外部には作成済みだがローカル claim を永続化できなかった孤立 issue。
-		s.logPlaneAutoAudit(postSaveCtx, report, planeAutoOutcomeClaimError, issue.ID)
-	default:
-		// 並行経路が先に claim した。こちら側の外部 issue も孤立しうるため
-		// 外部 ID を残して追跡可能にする。
-		s.logPlaneAutoAudit(postSaveCtx, report, planeAutoOutcomeClaimLost, issue.ID)
-	}
 }
 
 func (s *service) ListAll(ctx context.Context) ([]BugReportWithReporter, error) {
@@ -203,31 +157,19 @@ func (s *service) UpdateStatus(ctx context.Context, clinicID, id uint64, status 
 	return s.repo.FindByIDForClinic(ctx, clinicID, id)
 }
 
-// EnsurePlaneTicket は一覧からの手動起票・再送。起票済みなら現行値をそのまま返す（冪等）。
-// Plane 未設定なら 501、起票失敗は同期状態を記録した上で 502 を返す。
+// EnsurePlaneTicket は一覧からの手動起票・再送。
+// 旧実装は support_bug_reports の Plane 列（plane_issue_id / plane_issue_url / plane_sync_error）を
+// claim 先にしていたが、列は D23 の配送宛先／試行／結果（support_delivery_*）へ移され削除済み。
+// 送信前確認 intent・宛先ごとの試行 claim・結果記録の writer が未接続のまま外部へ起票すると、
+// 孤立 issue と結果不明の再送を生む（technical-spec.md#support-selected-delivery-contract 3・5・7）。
+// そのため報告元医院スコープの確認後に固定の 422 で停止する。成功を装わず、列も復元しない。
 func (s *service) EnsurePlaneTicket(ctx context.Context, clinicID, id uint64) (*model.SupportBugReport, error) {
-	report, err := s.repo.FindByIDForClinic(ctx, clinicID, id)
-	if err != nil {
+	// 他医院・不存在は従来どおり NotFound（AC-support-02: 報告元以外は操作できない）。
+	if _, err := s.repo.FindByIDForClinic(ctx, clinicID, id); err != nil {
 		return nil, err
 	}
-	if report.PlaneIssueID != nil {
-		return report, nil
-	}
-	if s.tickets == nil {
-		return nil, apperrors.WrapNotImplemented("plane integration is not configured")
-	}
-	issue, err := s.tickets.CreateBugReportIssue(ctx, report)
-	if err != nil {
-		if s.recordPlaneFailure(ctx, report, err) {
-			return report, nil
-		}
-		return nil, apperrors.WrapBadGateway("plane ticket creation failed")
-	}
-	if claimed, _ := s.claimPlaneTicket(ctx, report, issue); claimed {
-		return report, nil
-	}
-	// claim 失敗（並行起票の後着 or DB 書き込み失敗）は最新状態を返して実態に合わせる。
-	return s.repo.FindByIDForClinic(ctx, clinicID, id)
+	return nil, apperrors.WrapUnprocessableWithCode(codeSupportDeliveryPending,
+		"Plane への起票は、送信前の確認と配送記録（宛先・送信試行・結果）の接続まで利用できません")
 }
 
 // Delete は報告を論理削除する。返り値は削除前に読み取った行で、
@@ -243,93 +185,6 @@ func (s *service) Delete(ctx context.Context, clinicID, id uint64) (*model.Suppo
 	return report, nil
 }
 
-// recordPlaneFailure は起票失敗を plane_sync_error に記録し WARN を残す。
-// 並行した成功claimを再取得できた場合は true。記録・再取得失敗は ERROR ログで可視化する。
-func (s *service) recordPlaneFailure(ctx context.Context, report *model.SupportBugReport, syncErr error) bool {
-	if s.persistPlaneFailure(ctx, report, planeSyncErrorMessage(syncErr)) {
-		return true
-	}
-	slog.WarnContext(ctx, "plane ticket creation failed", "error", syncErr, "report_id", report.ID, "clinic_id", report.ClinicID)
-	return false
-}
-
-// persistPlaneFailure records a creation failure only while the report is unclaimed.
-// A guarded no-op reloads the clinic-scoped winner so responses reflect its success.
-// Persistence/reload failures remain visible in logs; automatic creation stays best-effort.
-// Each DB operation gets its own fresh bounded context so an exhausted external
-// HTTP deadline cannot poison the failure record.
-func (s *service) persistPlaneFailure(ctx context.Context, report *model.SupportBugReport, msg string) bool {
-	writeCtx, cancel := context.WithTimeout(ctx, planePostSaveDBTimeout)
-	written, err := s.repo.SetPlaneSyncError(writeCtx, report.ClinicID, report.ID, msg)
-	cancel()
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to persist plane sync error", "error", err, "report_id", report.ID)
-	} else if !written {
-		reloadCtx, reloadCancel := context.WithTimeout(ctx, planePostSaveDBTimeout)
-		latest, reloadErr := s.repo.FindByIDForClinic(reloadCtx, report.ClinicID, report.ID)
-		reloadCancel()
-		if reloadErr != nil {
-			slog.ErrorContext(ctx, "failed to reload competing plane claim", "error", reloadErr, "report_id", report.ID)
-		} else if latest != nil && latest.PlaneIssueID != nil {
-			*report = *latest
-			return true
-		}
-	}
-	report.PlaneSyncError = &msg
-	return false
-}
-
-// claimPlaneTicket は起票成功を DB に記録する。claim できた場合のみ (true, nil)。
-// (false, nil) は別経路が先に記録済み（二重起票の防止）。err 非 nil は
-// DB 書き込み失敗 — Plane 側に孤立チケットが残りうるため ERROR ログを残す。
-func (s *service) claimPlaneTicket(ctx context.Context, report *model.SupportBugReport, issue *PlaneIssue) (bool, error) {
-	claimCtx, cancel := context.WithTimeout(ctx, planePostSaveDBTimeout)
-	defer cancel()
-	claimed, err := s.repo.SetPlaneTicket(claimCtx, report.ClinicID, report.ID, issue.ID, issue.URL)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to persist plane ticket; plane-side issue may be orphaned",
-			"error", err, "report_id", report.ID, "plane_issue_id", issue.ID)
-		return false, err
-	}
-	if !claimed {
-		return false, nil
-	}
-	report.PlaneIssueID = &issue.ID
-	if issue.URL != "" {
-		report.PlaneIssueURL = &issue.URL
-	}
-	report.PlaneSyncError = nil
-	return true, nil
-}
-
-// logPlaneAutoAudit は自動起票の結果を固定 outcome で監査記録する（best-effort）。
-// 記録するのは固定分類と安全なローカル/外部 ID のみ — 報告本文や upstream の
-// エラー詳細は監査イベントにも出さない。書込み失敗は ERROR ログで可視化し、
-// 報告作成の成功は変えない（DB-atomic ではない既知の制限）。
-func (s *service) logPlaneAutoAudit(postSaveCtx context.Context, report *model.SupportBugReport, outcome, planeIssueID string) {
-	if s.audit == nil {
-		return
-	}
-	auditCtx, cancel := context.WithTimeout(postSaveCtx, planePostSaveAuditTimeout)
-	defer cancel()
-	newValue := map[string]any{"outcome": outcome}
-	if planeIssueID != "" {
-		newValue["plane_issue_id"] = planeIssueID
-	}
-	if err := s.audit.LogEntry(auditCtx, AuditEntry{
-		ClinicID:   &report.ClinicID,
-		ActorID:    &report.ReporterStaffID,
-		ActorType:  model.AuditActorTypeStaff,
-		Action:     planeAutoAuditAction,
-		Resource:   "support_bug_report",
-		ResourceID: &report.ID,
-		NewValue:   newValue,
-	}); err != nil {
-		slog.ErrorContext(auditCtx, "failed to write plane auto-ticket audit log",
-			"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
-	}
-}
-
 // ListChatHistory は指定スタッフの会話履歴を古い順で返す。
 func (s *service) ListChatHistory(ctx context.Context, clinicID, staffID uint64) ([]model.SupportChatMessage, error) {
 	return s.repo.ListChatHistory(ctx, clinicID, staffID)
@@ -338,13 +193,14 @@ func (s *service) ListChatHistory(ctx context.Context, clinicID, staffID uint64)
 // RecordChatExchange は回答が成立した「質問+回答」のペアを1回の INSERT で保存する。
 // LLM 呼び出しが失敗したやり取りは呼び出し側から渡されない前提。
 func (s *service) RecordChatExchange(ctx context.Context, clinicID, staffID uint64, userMessage, assistantReply string, sources []ChatSource) error {
-	var sourcesJSON json.RawMessage
+	var sourcesJSON *json.RawMessage // nil = sources なし（NULL を保存する）
 	if len(sources) > 0 {
 		b, err := json.Marshal(sources)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to encode chat sources")
 		}
-		sourcesJSON = b
+		raw := json.RawMessage(b)
+		sourcesJSON = &raw
 	}
 	return s.repo.CreateChatMessages(ctx, []*model.SupportChatMessage{
 		{ClinicID: clinicID, StaffID: staffID, Role: model.SupportChatRoleUser, Content: userMessage},
@@ -454,7 +310,7 @@ func (s *service) ListChatRooms(ctx context.Context) ([]ChatRoom, error) {
 			ID:        m.ID,
 			Role:      m.Role,
 			Content:   m.Content,
-			Sources:   m.Sources,
+			Sources:   storedSourcesBytes(m.Sources),
 			CreatedAt: m.CreatedAt,
 		})
 		rooms[idx].LastMessageAt = m.CreatedAt
@@ -470,64 +326,27 @@ func (s *service) ClearChatHistory(ctx context.Context, clinicID, staffID uint64
 	return s.repo.ClearChatHistory(ctx, clinicID, staffID)
 }
 
-// planeStateSyncBatchLimit は 1 実行あたりの同期対象上限（防御的上限 — 通常は数件）。
-// 上限超過分は次回 cron に繰り越される（id ASC で安定順のため取り残しはない）。
-const planeStateSyncBatchLimit = 200
-
-// planeStateCompletedGroup は Plane の「完了」状態グループ名（Done 相当）。
-// cancelled は resolved に倒さない — 起票済みのまま open で残し、人が判断する。
-const planeStateCompletedGroup = "completed"
-
 // PlaneSyncResult は scheduled plane_sync ジョブの件数サマリ。
 // scheduler.Result の契約に合わせ Processed == Succeeded + Failed を維持する
-// （fetch/update の失敗だけが Failed — 未完了スキップは Succeeded に含める）。
+// （配送結果 reader 未接続・fetch/update の失敗だけが Failed — 未完了スキップは Succeeded に含める）。
 type PlaneSyncResult struct {
 	Processed int
 	Succeeded int
 	Failed    int
 }
 
-// SyncPlaneTicketStates は Plane 側で completed になった起票済み報告を resolved に揃える。
-// Plane→ローカルの一方向のみ（ローカルの open/resolved 操作は外部へ反映しない）。
-// 連携無効（tickets が TicketStateReader を実装しない = nil 含む）は zero result で no-op。
+// SyncPlaneTicketStates は Plane 側の状態を報告へ揃える scheduled job の入口。
+// 旧実装は support_bug_reports.plane_issue_id（削除済み）を起票済みの印にしていた。置換先は
+// support_delivery_results（provider='plane' の最新 result_state='succeeded' の external_id）だが、
+// その reader と結果不明を保留する照合（technical-spec.md#support-selected-delivery-contract 5・7）が
+// 未接続のため、外部 ID の無い報告を「未送信」と推測して空振りさせず、実行ごとに 1 件の失敗として
+// 報告する（Processed == Succeeded + Failed を維持）。連携無効（tickets が TicketStateReader を
+// 実装しない = nil 含む）は対象外のため zero result で no-op。
 func (s *service) SyncPlaneTicketStates(ctx context.Context) PlaneSyncResult {
-	reader, ok := s.tickets.(TicketStateReader)
-	if !ok || reader == nil {
+	if _, ok := s.tickets.(TicketStateReader); !ok {
 		return PlaneSyncResult{}
 	}
-	reports, err := s.repo.ListOpenWithPlaneTicket(ctx, planeStateSyncBatchLimit)
-	if err != nil {
-		slog.ErrorContext(ctx, "plane sync: failed to list open reports", "error", err)
-		return PlaneSyncResult{Processed: 1, Failed: 1}
-	}
-	var result PlaneSyncResult
-	for i := range reports {
-		report := &reports[i]
-		result.Processed++
-		group, err := reader.FetchIssueStateGroup(ctx, *report.PlaneIssueID)
-		if err != nil {
-			result.Failed++
-			// 404 含む upstream 失敗は報告行に記録して一覧から追跡できるようにする。
-			// planeSyncErrorMessage は upstream body を落とした安全な文言のみ返す。
-			if persistErr := s.repo.SetPlaneStateSyncError(ctx, report.ClinicID, report.ID, planeSyncErrorMessage(err)); persistErr != nil {
-				slog.ErrorContext(ctx, "failed to persist plane state sync error", "error", persistErr, "report_id", report.ID)
-			}
-			slog.WarnContext(ctx, "plane sync: failed to fetch issue state",
-				"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
-			continue
-		}
-		completed := group == planeStateCompletedGroup
-		if err := s.repo.ApplyPlaneStateSync(ctx, report.ClinicID, report.ID, completed); err != nil {
-			result.Failed++
-			slog.WarnContext(ctx, "plane sync: failed to persist fetched state",
-				"error", err, "report_id", report.ID, "clinic_id", report.ClinicID)
-			continue
-		}
-		result.Succeeded++
-		if completed {
-			slog.InfoContext(ctx, "plane sync: report resolved via plane completed",
-				"report_id", report.ID, "clinic_id", report.ClinicID)
-		}
-	}
-	return result
+	slog.ErrorContext(ctx, "plane sync: delivery results reader is not connected; state sync skipped",
+		"code", codeSupportDeliveryPending)
+	return PlaneSyncResult{Processed: 1, Failed: 1}
 }

@@ -111,9 +111,9 @@ func toChatExchangeItem(e ChatExchange) chatExchangeItem {
 		Answer:     e.AssistantMessage.Content,
 		CreatedAt:  e.UserMessage.CreatedAt,
 	}
-	if len(e.AssistantMessage.Sources) > 0 {
+	if raw := storedSourcesBytes(e.AssistantMessage.Sources); len(raw) > 0 {
 		var sources []ChatSource
-		if err := json.Unmarshal(e.AssistantMessage.Sources, &sources); err == nil {
+		if err := json.Unmarshal(raw, &sources); err == nil {
 			item.Sources = sources
 		}
 	}
@@ -266,6 +266,15 @@ func toChatSources(items []chatContextItem) []ChatSource {
 	return sources
 }
 
+// storedSourcesBytes は保存済み sources（*json.RawMessage）の中身を返す。
+// nil は sources なし（NULL）で、デコード対象なしとして nil を返す。
+func storedSourcesBytes(raw *json.RawMessage) json.RawMessage {
+	if raw == nil {
+		return nil
+	}
+	return *raw
+}
+
 // toChatHistoryItem は保存済みメッセージをレスポンス形に変換する。
 // sources は保存時に必ず有効な JSON（jsonb）なので、壊れていた場合は空にして件名だけ返す。
 func toChatHistoryItem(m model.SupportChatMessage) chatHistoryItem {
@@ -276,9 +285,9 @@ func toChatHistoryItem(m model.SupportChatMessage) chatHistoryItem {
 		CreatedAt: httpapi.LocalTime(m.CreatedAt),
 	}
 
-	if len(m.Sources) > 0 {
+	if raw := storedSourcesBytes(m.Sources); len(raw) > 0 {
 		var sources []ChatSource
-		if err := json.Unmarshal(m.Sources, &sources); err == nil {
+		if err := json.Unmarshal(raw, &sources); err == nil {
 			item.Sources = sources
 		}
 	}

@@ -345,7 +345,6 @@ func TestUpdateBugReportStatus(t *testing.T) {
 // ---- CreatePlaneTicket ----
 
 func TestCreatePlaneTicket(t *testing.T) {
-	issueURL := "https://app.plane.so/baritechllc/browse/EMR-42/"
 	tests := []struct {
 		name         string
 		svcResult    *model.SupportBugReport
@@ -354,15 +353,16 @@ func TestCreatePlaneTicket(t *testing.T) {
 		wantBodyPart string
 	}{
 		{
-			name:         "returns report with plane url",
-			svcResult:    &model.SupportBugReport{ID: 10, PlaneIssueURL: &issueURL},
+			name:         "returns report with unavailable plane delivery state",
+			svcResult:    &model.SupportBugReport{ID: 10},
 			wantStatus:   http.StatusOK,
-			wantBodyPart: `"plane_issue_url":"https://app.plane.so/baritechllc/browse/EMR-42/"`,
+			wantBodyPart: `"plane_delivery_state":"unavailable"`,
 		},
 		{
-			name:       "returns 501 when plane is not configured",
-			svcErr:     apperrors.WrapNotImplemented("plane integration is not configured"),
-			wantStatus: http.StatusNotImplemented,
+			name:         "returns 422 with stable code while delivery contract is not connected",
+			svcErr:       apperrors.WrapUnprocessableWithCode(codeSupportDeliveryPending, "pending"),
+			wantStatus:   http.StatusUnprocessableEntity,
+			wantBodyPart: `"code":"support_delivery_pending"`,
 		},
 		{
 			name:       "returns 502 on upstream failure",

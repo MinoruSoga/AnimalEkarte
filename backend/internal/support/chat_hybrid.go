@@ -439,11 +439,12 @@ func (h *Handler) fallbackChunksFromHistory(ctx context.Context, clinicID, staff
 			continue
 		}
 		// 最新 assistant の sources のみ使う。sources 無し/不正でも古いターンは辿らない。
-		if len(stored[i].Sources) == 0 {
+		raw := storedSourcesBytes(stored[i].Sources)
+		if len(raw) == 0 {
 			break
 		}
 		var ss []ChatSource
-		if err := json.Unmarshal(stored[i].Sources, &ss); err != nil {
+		if err := json.Unmarshal(raw, &ss); err != nil {
 			break
 		}
 		for _, s := range ss {
