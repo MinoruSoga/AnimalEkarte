@@ -210,8 +210,13 @@ func (s *hospitalizationService) listByLifecycleState(ctx context.Context, clini
 		}
 	}
 	matchedTotal := int64(len(matched))
+	// page は上限なしで渡されるため、(page-1)*limit を先に計算すると int が溢れて start が負になり
+	// matched[start:end] で panic する。乗算の前に page-1 を len/limit と比較して範囲外を弾く。
+	if page < 1 || limit < 1 || page-1 > len(matched)/limit {
+		return []model.Hospitalization{}, matchedTotal, nil
+	}
 	start := (page - 1) * limit
-	if page < 1 || limit < 1 || start >= len(matched) {
+	if start >= len(matched) {
 		return []model.Hospitalization{}, matchedTotal, nil
 	}
 	end := min(start+limit, len(matched))

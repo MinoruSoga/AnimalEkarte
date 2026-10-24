@@ -8,6 +8,7 @@ package medicalrecord
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -181,6 +182,29 @@ func TestListByLifecycleState(t *testing.T) {
 		past, _, err := svc.List(context.Background(), clinic, nil, nil, &admitted, nil, nil, 3, 2)
 		require.NoError(t, err)
 		assert.Empty(t, past)
+	})
+	t.Run("a page beyond the data is empty with the total preserved and an overflowing page cannot panic", func(t *testing.T) {
+		// 一致 3 件 / limit 3 => 最終有効ページは 1。
+		last, total, err := svc.List(context.Background(), clinic, nil, nil, &admitted, nil, nil, 1, 3)
+		require.NoError(t, err)
+		assert.Equal(t, int64(3), total)
+		assert.Len(t, last, 3)
+		// limit 1 => 最終有効ページは 3。その次のページは start == len(matched) で空になる。
+		lastOfOne, _, err := svc.List(context.Background(), clinic, nil, nil, &admitted, nil, nil, 3, 1)
+		require.NoError(t, err)
+		require.Len(t, lastOfOne, 1)
+		assert.Equal(t, uint64(4), lastOfOne[0].ID)
+		pastOfOne, totalOfOne, err := svc.List(context.Background(), clinic, nil, nil, &admitted, nil, nil, 4, 1)
+		require.NoError(t, err)
+		assert.Empty(t, pastOfOne)
+		assert.Equal(t, int64(3), totalOfOne)
+		// (page-1)*100 が int を溢れる page でも panic せず、空ページと総数が返る。
+		for _, page := range []int{2, 3, math.MaxInt/100 + 2, math.MaxInt} {
+			got, gotTotal, err := svc.List(context.Background(), clinic, nil, nil, &admitted, nil, nil, page, 100)
+			require.NoError(t, err)
+			assert.Empty(t, got)
+			assert.Equal(t, int64(3), gotTotal)
+		}
 	})
 	t.Run("unknown rows (unresolvable history and legacy rows) match only lifecycle_state=unknown", func(t *testing.T) {
 		got, total, err := svc.List(context.Background(), clinic, nil, nil, &unknown, nil, nil, 1, 10)
