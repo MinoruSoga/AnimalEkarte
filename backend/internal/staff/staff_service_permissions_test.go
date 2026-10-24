@@ -16,7 +16,7 @@ import (
 // テスト用に repository.ReservationStaffRepository を実装する、対象メソッドのみ関数フィールドで
 // 戻り値を制御可能なモック。
 type mockResStaffRepoForStaffPermissions struct {
-	findAllExcludedFn     func(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error)
+	findAllExcludedFn     func(ctx context.Context, clinicID, staffID uint64) ([]ReservationTypeExclusion, error)
 	updateExcludedFn      func(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error
 	findAllCapabilitiesFn func(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error)
 	updateCapabilitiesFn  func(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error
@@ -46,13 +46,13 @@ func (m *mockResStaffRepoForStaffPermissions) UpdateSortOrder(_ context.Context,
 func (m *mockResStaffRepoForStaffPermissions) FindAllExcludedReservationTypes(
 	ctx context.Context,
 	clinicID, staffID uint64,
-) ([]model.StaffReservationExclusion, error) {
+) ([]ReservationTypeExclusion, error) {
 	if m.findAllExcludedFn != nil {
 		return m.findAllExcludedFn(ctx, clinicID, staffID)
 	}
 	return nil, nil
 }
-func (m *mockResStaffRepoForStaffPermissions) FindAllExcludedReservationTypesByStaffIDs(_ context.Context, _ uint64, _ []uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockResStaffRepoForStaffPermissions) FindAllExcludedReservationTypesByStaffIDs(_ context.Context, _ uint64, _ []uint64) ([]ReservationTypeExclusion, error) {
 	return nil, nil
 }
 func (m *mockResStaffRepoForStaffPermissions) UpdateExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error {
@@ -493,14 +493,14 @@ func TestService_SetClinicAssignments_FailsClosedWithoutAuditMetadataWhenLoggerC
 func TestService_GetExcludedReservationTypeIDs(t *testing.T) {
 	tests := []struct {
 		name    string
-		items   []model.StaffReservationExclusion
+		items   []ReservationTypeExclusion
 		repoErr error
 		want    []uint64
 		wantErr bool
 	}{
 		{
 			name: "正常: 除外サービス種別IDに変換される",
-			items: []model.StaffReservationExclusion{
+			items: []ReservationTypeExclusion{
 				{StaffID: 1, ReservationTypeID: 10},
 				{StaffID: 1, ReservationTypeID: 20},
 			},
@@ -520,7 +520,7 @@ func TestService_GetExcludedReservationTypeIDs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resRepo := &mockResStaffRepoForStaffPermissions{
-				findAllExcludedFn: func(_ context.Context, _, _ uint64) ([]model.StaffReservationExclusion, error) {
+				findAllExcludedFn: func(_ context.Context, _, _ uint64) ([]ReservationTypeExclusion, error) {
 					return tt.items, tt.repoErr
 				},
 			}
@@ -541,10 +541,10 @@ func TestService_GetExcludedReservationTypeIDs(t *testing.T) {
 
 func TestService_GetExcludedReservationTypeIDs_UsesAuthenticatedClinicScope(t *testing.T) {
 	resRepo := &mockResStaffRepoForStaffPermissions{
-		findAllExcludedFn: func(_ context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error) {
+		findAllExcludedFn: func(_ context.Context, clinicID, staffID uint64) ([]ReservationTypeExclusion, error) {
 			assert.Equal(t, uint64(20), clinicID)
 			assert.Equal(t, uint64(7), staffID)
-			return []model.StaffReservationExclusion{
+			return []ReservationTypeExclusion{
 				{StaffID: staffID, ReservationTypeID: 200},
 			}, nil
 		},

@@ -10,17 +10,17 @@ import (
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
-// ReservationScheduleBreakInput は休憩時間の入力データ
+// ReservationScheduleBreakInput は休憩時間の入力データ（明示日時）
 type ReservationScheduleBreakInput struct {
-	Start string
-	End   string
+	StartsAt time.Time
+	EndsAt   time.Time
 }
 
-// CreateReservationScheduleInput はスケジュール upsert の入力データ
+// CreateReservationScheduleInput はスケジュール upsert の入力データ（勤務・休憩とも明示日時）
 type CreateReservationScheduleInput struct {
 	ShiftType string
-	WorkStart *string
-	WorkEnd   *string
+	StartsAt  *time.Time
+	EndsAt    *time.Time
 	Breaks    []ReservationScheduleBreakInput
 }
 
@@ -76,9 +76,12 @@ func (s *reservationScheduleService) Save(ctx context.Context, clinicID, staffID
 		return nil, false, apperrors.WrapInvalidInput("schedule input is required")
 	}
 	shiftType := model.ShiftType(input.ShiftType)
-	startTime := sharedkernel.NormalizeTimeString(input.WorkStart)
-	endTime := sharedkernel.NormalizeTimeString(input.WorkEnd)
-	if err := sharedkernel.ValidateShiftTimes(shiftType, startTime, endTime); err != nil {
+	windows := make([]sharedkernel.ShiftWindow, 0, len(input.Breaks))
+	for _, b := range input.Breaks {
+		windows = append(windows, sharedkernel.ShiftWindow{StartsAt: b.StartsAt, EndsAt: b.EndsAt})
+	}
+	// 勤務種別・明示日時・勤務日・休憩を shift 契約（api.yaml ShiftEntry）どおり検証する。
+	if err := sharedkernel.ValidateShiftEntryShape(shiftType, date, input.StartsAt, input.EndsAt, windows); err != nil {
 		return nil, false, err
 	}
 
@@ -87,16 +90,14 @@ func (s *reservationScheduleService) Save(ctx context.Context, clinicID, staffID
 		StaffID:   staffID,
 		Date:      date,
 		ShiftType: shiftType,
-		StartTime: startTime,
-		EndTime:   endTime,
+		StartsAt:  input.StartsAt,
+		EndsAt:    input.EndsAt,
 	}
 
 	breaks := make([]model.ShiftEntryBreak, 0, len(input.Breaks))
 	for _, b := range input.Breaks {
-		breaks = append(breaks, model.ShiftEntryBreak{
-			BreakStart: b.Start,
-			BreakEnd:   b.End,
-		})
+		startsAt, endsAt := b.StartsAt, b.EndsAt
+		breaks = append(breaks, model.ShiftEntryBreak{StartsAt: &startsAt, EndsAt: &endsAt})
 	}
 
 	savedEntry, savedBreaks, created, err := s.repo.Save(ctx, clinicID, entry, breaks)

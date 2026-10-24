@@ -27,10 +27,10 @@ func setupExclusionIsolationTestDB(t *testing.T) *gorm.DB {
 	db := testdb.SetupTestDB(t)
 	require.NoError(t, testdb.EnsureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{},
-		&model.ReservationType{}, &model.StaffReservationExclusion{}, &model.StaffReservationCapability{},
+		&model.ReservationType{}, &model.StaffReservationCapability{},
 	))
 	require.NoError(t, db.Exec(
-		"TRUNCATE TABLE staff_reservation_capabilities, staff_reservation_exclusions, staff_clinic_assignments, reservation_types, staffs CASCADE",
+		"TRUNCATE TABLE staff_reservation_capabilities, staff_clinic_assignments, reservation_types, staffs CASCADE",
 	).Error)
 	seedClinicsForFK(t, db, 1, 2)
 	return db
@@ -53,12 +53,6 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolati
 	typeA := makeReservationType(t, db, clinicA)
 	typeB := makeReservationType(t, db, clinicB)
 
-	countExclusions := func(staffID uint64) int64 {
-		var n int64
-		require.NoError(t, db.Model(&model.StaffReservationExclusion{}).
-			Where("staff_id = ?", staffID).Count(&n).Error)
-		return n
-	}
 	countCapabilities := func(clinicID, staffID uint64) int64 {
 		var n int64
 		require.NoError(t, db.Model(&model.StaffReservationCapability{}).
@@ -69,7 +63,6 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolati
 	t.Run("別医院の区分IDは拒否され、行が永続化されない（clinic_id 隔離）", func(t *testing.T) {
 		err := repo.UpdateExcludedReservationTypes(ctx, clinicA, staffA.ID, []uint64{typeB.ID})
 		require.Error(t, err, "clinic A のスタッフに clinic B の予約区分を除外設定できてはならない")
-		assert.Zero(t, countExclusions(staffA.ID), "拒否時に staff_reservation_exclusions 行を残してはならない")
 		assert.Zero(t, countCapabilities(clinicA, staffA.ID), "拒否時に capabilities 行を残してはならない")
 	})
 
@@ -77,14 +70,12 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolati
 		// universe = {typeA}; excluded = {typeA} → capable = empty
 		err := repo.UpdateExcludedReservationTypes(ctx, clinicA, staffA.ID, []uint64{typeA.ID})
 		require.NoError(t, err)
-		assert.Zero(t, countExclusions(staffA.ID), "Stage B: exclusions テーブルへ書いてはならない")
 		assert.Zero(t, countCapabilities(clinicA, staffA.ID), "全除外なら capable は空")
 
 		// universe に typeA2 を追加し、typeA のみ除外 → capable = {typeA2}
 		typeA2 := makeReservationType(t, db, clinicA)
 		err = repo.UpdateExcludedReservationTypes(ctx, clinicA, staffA.ID, []uint64{typeA.ID})
 		require.NoError(t, err)
-		assert.Zero(t, countExclusions(staffA.ID))
 		assert.Equal(t, int64(1), countCapabilities(clinicA, staffA.ID))
 
 		caps, err := repo.FindAllReservationCapabilities(ctx, clinicA, staffA.ID)
@@ -98,7 +89,6 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolati
 		err := repo.UpdateExcludedReservationTypes(ctx, clinicA, staffA.ID, []uint64{typeA.ID, typeB.ID})
 		require.Error(t, err, "clinic B の区分が混在する場合は全体を拒否すべき")
 		assert.Equal(t, before, countCapabilities(clinicA, staffA.ID), "拒否時に既存 capabilities を破壊してはならない")
-		assert.Zero(t, countExclusions(staffA.ID))
 	})
 }
 
@@ -135,9 +125,4 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_DeleteScopedT
 	require.Len(t, capsB, 1)
 	assert.Equal(t, typeB.ID, capsB[0].ReservationTypeID)
 
-	// no dual-write to exclusions
-	var exclN int64
-	require.NoError(t, db.Model(&model.StaffReservationExclusion{}).
-		Where("staff_id = ?", staff.ID).Count(&exclN).Error)
-	assert.Zero(t, exclN)
 }

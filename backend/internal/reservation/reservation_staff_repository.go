@@ -25,8 +25,8 @@ type ReservationStaffRepository interface {
 	Update(ctx context.Context, clinicID, id uint64, cmd staffpkg.ReservationStaffUpdate) error
 	UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error
 	// ExcludedReservationTypes
-	FindAllExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error)
-	FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
+	FindAllExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64) ([]staffpkg.ReservationTypeExclusion, error)
+	FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]staffpkg.ReservationTypeExclusion, error)
 	UpdateExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64, courseIDs []uint64) error
 	// ReservationCapabilities
 	FindAllReservationCapabilities(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationCapability, error)
@@ -172,7 +172,7 @@ func (r *reservationStaffRepository) UpdateSortOrder(ctx context.Context, clinic
 func (r *reservationStaffRepository) FindAllExcludedReservationTypes(
 	ctx context.Context,
 	clinicID, staffID uint64,
-) ([]model.StaffReservationExclusion, error) {
+) ([]staffpkg.ReservationTypeExclusion, error) {
 	universe, err := r.listActiveReservationTypeUniverse(ctx, clinicID)
 	if err != nil {
 		return nil, err
@@ -206,7 +206,7 @@ func (r *reservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(
 	ctx context.Context,
 	clinicID uint64,
 	staffIDs []uint64,
-) ([]model.StaffReservationExclusion, error) {
+) ([]staffpkg.ReservationTypeExclusion, error) {
 	if len(staffIDs) == 0 {
 		return nil, nil
 	}
@@ -233,7 +233,7 @@ func (r *reservationStaffRepository) FindAllExcludedReservationTypesByStaffIDs(
 	for _, c := range caps {
 		byStaff[c.StaffID] = append(byStaff[c.StaffID], c.ReservationTypeID)
 	}
-	out := make([]model.StaffReservationExclusion, 0)
+	out := make([]staffpkg.ReservationTypeExclusion, 0)
 	for _, staffID := range assignedIDs {
 		out = append(out, deriveExcludedFromUniverse(staffID, universe, byStaff[staffID])...)
 	}
@@ -305,7 +305,7 @@ func deriveExcludedFromUniverse(
 	staffID uint64,
 	universe []model.ReservationType,
 	capableIDs []uint64,
-) []model.StaffReservationExclusion {
+) []staffpkg.ReservationTypeExclusion {
 	universeIDs := make([]uint64, len(universe))
 	byID := make(map[uint64]*model.ReservationType, len(universe))
 	for i := range universe {
@@ -313,9 +313,9 @@ func deriveExcludedFromUniverse(
 		byID[universe[i].ID] = &universe[i]
 	}
 	excludedIDs := excludedIDsFromCapable(universeIDs, capableIDs)
-	out := make([]model.StaffReservationExclusion, 0, len(excludedIDs))
+	out := make([]staffpkg.ReservationTypeExclusion, 0, len(excludedIDs))
 	for _, id := range excludedIDs {
-		item := model.StaffReservationExclusion{
+		item := staffpkg.ReservationTypeExclusion{
 			StaffID:           staffID,
 			ReservationTypeID: id,
 		}

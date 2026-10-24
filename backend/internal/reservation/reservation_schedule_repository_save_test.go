@@ -61,7 +61,7 @@ func TestReservationScheduleRepository_SaveReturnsWriterTransactionResult(t *tes
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			inputEntry := &model.ShiftEntry{ClinicID: 1, StaffID: 2}
-			inputBreaks := []model.ShiftEntryBreak{{BreakStart: "12:00", BreakEnd: "13:00"}}
+			inputBreaks := []model.ShiftEntryBreak{rsvBreak(t, rsvShiftDate, "12:00", "13:00")}
 			writer := &reservationScheduleWriterStub{
 				saveFn: func(
 					_ context.Context,

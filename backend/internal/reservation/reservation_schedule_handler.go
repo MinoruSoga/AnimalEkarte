@@ -66,7 +66,13 @@ func (h *ReservationScheduleHandler) UpsertReservationSchedule(c *gin.Context) {
 		return
 	}
 
-	entry, isNew, err := h.svc.Save(c.Request.Context(), clinicID, staffID, date, req.toServiceInput())
+	input, err := req.toServiceInput()
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	entry, isNew, err := h.svc.Save(c.Request.Context(), clinicID, staffID, date, input)
 	if err != nil {
 		respondError(c, err)
 		return

@@ -90,12 +90,13 @@ func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*mo
 		if err := s.lockOccupationOwnership(ctx, input.ClinicID, input.OccupationID); err != nil {
 			return err
 		}
+		sortOrder := input.SortOrder
 		staff = &model.Staff{
 			ClinicID:               input.ClinicID,
 			Name:                   input.Name,
 			LicenseNumber:          input.LicenseNumber,
 			OccupationID:           input.OccupationID,
-			SortOrder:              input.SortOrder,
+			SortOrder:              &sortOrder,
 			IsActive:               true,
 			AccountID:              input.AccountID,
 			StaffType:              staffType,

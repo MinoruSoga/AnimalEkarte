@@ -154,7 +154,7 @@ func TestRepository_SaveByStaffDate_UpsertsWithinClinic(t *testing.T) {
 
 	staff := makeShiftEntryDoctor(t, db, 1, "医師")
 	date := time.Date(2026, 7, 23, 0, 0, 0, 0, time.UTC)
-	existing := makeShiftEntryWithType(t, db, 1, staff.ID, date, model.ShiftTypeFull)
+	existing := makeKnownWorkingShiftEntry(t, db, 1, staff.ID, date)
 
 	updated := &model.ShiftEntry{
 		ClinicID:  1,
@@ -162,7 +162,7 @@ func TestRepository_SaveByStaffDate_UpsertsWithinClinic(t *testing.T) {
 		Date:      date,
 		ShiftType: model.ShiftTypeMorning,
 	}
-	breaks := []model.ShiftEntryBreak{{BreakStart: "12:00", BreakEnd: "13:00"}}
+	breaks := []model.ShiftEntryBreak{shiftBreakAt(t, date, "12:00", "13:00")}
 	saved, savedBreaks, created, err := repo.SaveByStaffDate(ctx, 1, updated, breaks)
 	require.NoError(t, err)
 
@@ -175,7 +175,7 @@ func TestRepository_SaveByStaffDate_UpsertsWithinClinic(t *testing.T) {
 	require.NoError(t, db.Preload("Breaks").First(&reloaded, existing.ID).Error)
 	assert.Equal(t, model.ShiftTypeMorning, reloaded.ShiftType)
 	require.Len(t, reloaded.Breaks, 1)
-	assert.Equal(t, "12:00:00", reloaded.Breaks[0].BreakStart) // DB の time 型で HH:MM:SS へ正規化される
+	assert.Equal(t, "12:00:00", shiftClock(reloaded.Breaks[0].StartsAt)) // starts_at を time.Local の HH:MM:SS へ戻す
 }
 
 // TestRepository_SaveByStaffDate_RejectsClinicIDMismatch は認証済み clinicID と

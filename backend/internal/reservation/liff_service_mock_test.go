@@ -84,8 +84,8 @@ func (m *mockLiffTypeRepository) UpdateSortOrder(_ context.Context, _, _ uint64,
 type mockLiffStaffRepository struct {
 	findAllFn                                func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
 	findByIDFn                               func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
-	findExcludedReservationTypesFn           func(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error)
-	findExcludedReservationTypesByStaffIDsFn func(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationExclusion, error)
+	findExcludedReservationTypesFn           func(ctx context.Context, clinicID, staffID uint64) ([]staffpkg.ReservationTypeExclusion, error)
+	findExcludedReservationTypesByStaffIDsFn func(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]staffpkg.ReservationTypeExclusion, error)
 	findCapabilitiesByStaffIDsFn             func(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationCapability, error)
 	supportsReservationTypeFn                func(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error)
 }
@@ -128,14 +128,14 @@ func (m *mockLiffStaffRepository) UpdateSortOrder(_ context.Context, _, _ uint64
 	return nil
 }
 
-func (m *mockLiffStaffRepository) FindAllExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockLiffStaffRepository) FindAllExcludedReservationTypes(ctx context.Context, clinicID, staffID uint64) ([]staffpkg.ReservationTypeExclusion, error) {
 	if m.findExcludedReservationTypesFn != nil {
 		return m.findExcludedReservationTypesFn(ctx, clinicID, staffID)
 	}
 	return nil, nil
 }
 
-func (m *mockLiffStaffRepository) FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {
+func (m *mockLiffStaffRepository) FindAllExcludedReservationTypesByStaffIDs(ctx context.Context, clinicID uint64, staffIDs []uint64) ([]staffpkg.ReservationTypeExclusion, error) {
 	if m.findExcludedReservationTypesByStaffIDsFn != nil {
 		return m.findExcludedReservationTypesByStaffIDsFn(ctx, clinicID, staffIDs)
 	}

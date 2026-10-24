@@ -400,8 +400,9 @@ func (p *StaffProvisioner) writeStaffCreateAudit(
 ) error {
 	clinicID := staff.ClinicID
 	resourceID := staff.ID
+	userAgent := staffProvisionUserAgent
 	entry := &model.AuditLog{
-		ClinicID:   &clinicID,
+		ClinicID:   clinicID,
 		Action:     model.AuditActionStaffProvisionCreate,
 		Resource:   model.AuditResourceStaff,
 		ResourceID: &resourceID,
@@ -412,7 +413,7 @@ func (p *StaffProvisioner) writeStaffCreateAudit(
 			"external_staff_id": externalStaffID,
 			"staff_id":          staff.ID,
 		}),
-		UserAgent: staffProvisionUserAgent,
+		UserAgent: &userAgent,
 	}
 	applyActor(entry, actor)
 	return p.repo.WriteAudit(ctx, entry)
@@ -426,9 +427,9 @@ func (p *StaffProvisioner) writeReceipts(
 	actor *StaffProvisionActor,
 ) error {
 	for _, clinicID := range manifest.ClinicScope {
-		clinicID := clinicID
+		userAgent := staffProvisionUserAgent
 		entry := &model.AuditLog{
-			ClinicID: &clinicID,
+			ClinicID: clinicID,
 			Action:   model.AuditActionStaffProvisionReceipt,
 			Resource: model.AuditResourceStaffProvisionBatch,
 			// PII-free receipt payload only.
@@ -437,7 +438,7 @@ func (p *StaffProvisioner) writeReceipts(
 				"digest":   digest,
 				"count":    count,
 			}),
-			UserAgent: staffProvisionUserAgent,
+			UserAgent: &userAgent,
 		}
 		applyActor(entry, actor)
 		if err := p.repo.WriteAudit(ctx, entry); err != nil {
@@ -463,10 +464,12 @@ func applyActor(entry *model.AuditLog, actor *StaffProvisionActor) {
 	entry.ActorID = nil
 }
 
-func mustJSON(v any) json.RawMessage {
+func mustJSON(v any) *json.RawMessage {
 	b, err := json.Marshal(v)
 	if err != nil {
-		return json.RawMessage(`{}`)
+		empty := json.RawMessage(`{}`)
+		return &empty
 	}
-	return b
+	raw := json.RawMessage(b)
+	return &raw
 }

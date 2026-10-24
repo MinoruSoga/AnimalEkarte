@@ -98,12 +98,13 @@ func (s *staffService) createStaffWithAccountInTx(
 	if createErr := s.accountRepo.Create(ctx, account); createErr != nil {
 		return nil, apperrors.Wrap(createErr, "failed to create account")
 	}
+	sortOrder := input.SortOrder
 	staff := &model.Staff{
 		ClinicID:               input.ClinicID,
 		Name:                   name,
 		LicenseNumber:          input.LicenseNumber,
 		OccupationID:           input.OccupationID,
-		SortOrder:              input.SortOrder,
+		SortOrder:              &sortOrder,
 		IsActive:               true,
 		AccountID:              &account.ID,
 		StaffType:              staffType,

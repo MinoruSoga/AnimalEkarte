@@ -651,20 +651,23 @@ func (m *mockProvisionRepo) WriteAudit(ctx context.Context, entry *model.AuditLo
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.writes++
-	if entry.Action == model.AuditActionStaffProvisionReceipt && entry.ClinicID != nil {
+	if entry.Action == model.AuditActionStaffProvisionReceipt && entry.ClinicID != 0 {
+		if entry.NewValue == nil {
+			return fmt.Errorf("receipt payload is missing")
+		}
 		var payload struct {
 			BatchID string `json:"batch_id"`
 			Digest  string `json:"digest"`
 			Count   int    `json:"count"`
 		}
-		_ = json.Unmarshal(entry.NewValue, &payload)
+		_ = json.Unmarshal(*entry.NewValue, &payload)
 		// Ensure no PII keys in receipt body.
-		raw := string(entry.NewValue)
+		raw := string(*entry.NewValue)
 		if strings.Contains(raw, "email") || strings.Contains(raw, "password") || strings.Contains(raw, "name") {
 			return fmt.Errorf("receipt contains forbidden fields")
 		}
 		m.receipts = append(m.receipts, StaffProvisionReceipt{
-			ClinicID: *entry.ClinicID,
+			ClinicID: entry.ClinicID,
 			BatchID:  payload.BatchID,
 			Digest:   payload.Digest,
 			Count:    payload.Count,

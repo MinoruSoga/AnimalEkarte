@@ -17,8 +17,8 @@ func TestToShiftEntryBreakResponse(t *testing.T) {
 	}{
 		{
 			name:  "maps all fields",
-			input: model.ShiftEntryBreak{ID: 5, BreakStart: "12:00", BreakEnd: "13:00"},
-			want:  shiftEntryBreakResponse{ID: 5, BreakStart: "12:00", BreakEnd: "13:00"},
+			input: model.ShiftEntryBreak{ID: 5, StartsAt: rsvTS(t, rsvShiftDate, "12:00"), EndsAt: rsvTS(t, rsvShiftDate, "13:00")},
+			want:  shiftEntryBreakResponse{ID: 5, BreakStart: "2026-08-01T12:00:00+09:00", BreakEnd: "2026-08-01T13:00:00+09:00"},
 		},
 		{
 			name:  "zero value",
@@ -40,8 +40,10 @@ func TestToScheduleEntryResponse(t *testing.T) {
 	// time.Local を JST に固定し、Date/CreatedAt/UpdatedAt のローカル変換を決定的にする。
 	withJSTLocal(t)
 
-	workStart := "09:00"
-	workEnd := "18:00"
+	workStart := "09:00:00"
+	workEnd := "18:00:00"
+	wantWorkStart := "2026-05-15T09:00:00+09:00"
+	wantWorkEnd := "2026-05-15T18:00:00+09:00"
 	date := time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)
 	createdAt := time.Date(2026, 5, 14, 10, 30, 0, 0, time.UTC)
 	updatedAt := time.Date(2026, 5, 14, 11, 0, 0, 0, time.UTC)
@@ -60,14 +62,14 @@ func TestToScheduleEntryResponse(t *testing.T) {
 					StaffID:   3,
 					Date:      date,
 					ShiftType: model.ShiftTypeFull,
-					StartTime: &workStart,
-					EndTime:   &workEnd,
+					StartsAt:  rsvTS(t, date, workStart),
+					EndsAt:    rsvTS(t, date, workEnd),
 					Notes:     "note",
 					CreatedAt: createdAt,
 					UpdatedAt: updatedAt,
 				},
 				Breaks: []model.ShiftEntryBreak{
-					{ID: 10, BreakStart: "12:00", BreakEnd: "13:00"},
+					{ID: 10, StartsAt: rsvTS(t, date, "12:00"), EndsAt: rsvTS(t, date, "13:00")},
 				},
 			},
 			check: func(t *testing.T, got scheduleEntryResponse) {
@@ -76,15 +78,15 @@ func TestToScheduleEntryResponse(t *testing.T) {
 				assert.Equal(t, uint64(3), got.StaffID)
 				assert.Equal(t, date.In(time.Local).Format("2006-01-02"), got.Date)
 				assert.Equal(t, "full", got.ShiftType)
-				assert.Equal(t, &workStart, got.WorkStart)
-				assert.Equal(t, &workEnd, got.WorkEnd)
+				assert.Equal(t, &wantWorkStart, got.WorkStart)
+				assert.Equal(t, &wantWorkEnd, got.WorkEnd)
 				assert.Equal(t, "note", got.Note)
 				assert.Equal(t, createdAt.In(time.Local).Format(time.RFC3339), got.CreatedAt)
 				assert.Equal(t, updatedAt.In(time.Local).Format(time.RFC3339), got.UpdatedAt)
 				if assert.Len(t, got.Breaks, 1) {
 					assert.Equal(t, uint64(10), got.Breaks[0].ID)
-					assert.Equal(t, "12:00", got.Breaks[0].BreakStart)
-					assert.Equal(t, "13:00", got.Breaks[0].BreakEnd)
+					assert.Equal(t, "2026-05-15T12:00:00+09:00", got.Breaks[0].BreakStart)
+					assert.Equal(t, "2026-05-15T13:00:00+09:00", got.Breaks[0].BreakEnd)
 				}
 			},
 		},

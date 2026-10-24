@@ -170,7 +170,11 @@ func (r *gormAttachRepository) LastAttachDigest(ctx context.Context, staffID uin
 		}
 		return "", apperrors.FromGORM(err, "audit_log", fmt.Sprintf("staff:%d", staffID))
 	}
-	return parseAttachDigestReceipt(entry.NewValue)
+	if entry.NewValue == nil {
+		// NULL new_value は従来の空 payload と同じく「digest なし」として扱う（model の pointer 化前と同じ挙動）。
+		return parseAttachDigestReceipt(nil)
+	}
+	return parseAttachDigestReceipt(*entry.NewValue)
 }
 
 func (r *gormAttachRepository) SaveAttachDigest(ctx context.Context, staffID uint64, digest string) error {
@@ -183,14 +187,16 @@ func (r *gormAttachRepository) SaveAttachDigest(ctx context.Context, staffID uin
 	if err != nil {
 		return apperrors.Wrap(err, "failed to marshal attach digest receipt")
 	}
+	receiptPayload := json.RawMessage(payload)
+	userAgent := attachAuditUserAgent
 	entry := &model.AuditLog{
-		ClinicID:   &clinicID,
+		ClinicID:   clinicID,
 		ActorType:  model.AuditActorTypeSystem,
 		Action:     attachAuditAction,
 		Resource:   model.AuditResourceStaff,
 		ResourceID: &staffID,
-		NewValue:   payload,
-		UserAgent:  attachAuditUserAgent,
+		NewValue:   &receiptPayload,
+		UserAgent:  &userAgent,
 	}
 	if err := persistence.DBOrTx(ctx, r.db).Create(entry).Error; err != nil {
 		return apperrors.FromGORM(err, "audit_log", fmt.Sprintf("staff:%d", staffID))
