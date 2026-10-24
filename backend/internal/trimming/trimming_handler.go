@@ -106,7 +106,7 @@ func (h *Handler) CreateTrimming(c *gin.Context) {
 	}
 	appt, err := h.svc.Trimming.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondTrimmingError(c, err)
 		return
 	}
 	// 署名失敗は unsigned echo に degrade（commit 済みレコードを 500 にしない）。
@@ -147,7 +147,7 @@ func (h *Handler) UpdateTrimming(c *gin.Context) {
 	}
 	appt, replaced, err := h.svc.Trimming.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondTrimmingError(c, err)
 		return
 	}
 	h.deleteReplacedTrimmingImages(c.Request.Context(), clinicID, actorID, replaced, appt)

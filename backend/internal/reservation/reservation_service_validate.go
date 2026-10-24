@@ -307,7 +307,8 @@ func validateGenericUpdateRejectsTrimmingInConsultation(
 	if current == nil || current.ReservationType == nil {
 		return nil
 	}
-	if current.ReservationType.Category != model.ReservationTypeCategoryTrimming {
+	// business_kind が trimming の区分だけを拒否する。NULL（未分類）は trimming と断定できないため対象外（EMR-549 Q6a）。
+	if !current.ReservationType.HasBusinessKind(model.ReservationBusinessKindTrimming) {
 		return nil
 	}
 	return apperrors.WrapInvalidInput("トリミング予約は診療中ステータスに遷移できません")

@@ -12,17 +12,16 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
-// ReservationTypeHandler は予約区分マスタ（本体+不可時間+可能枠+職種リンク）の HTTP handler。
+// ReservationTypeHandler は予約区分マスタ（本体+不可時間+可能枠）の HTTP handler。
 type ReservationTypeHandler struct {
 	core            ReservationTypeCoreService
 	unavailableTime ReservationTypeUnavailableTimeService
 	availableSlot   ReservationTypeAvailableSlotService
-	occupation      ReservationTypeOccupationService
 }
 
 // NewReservationTypeHandler は ReservationTypeHandler を構築する。
-func NewReservationTypeHandler(core ReservationTypeCoreService, unavailableTime ReservationTypeUnavailableTimeService, availableSlot ReservationTypeAvailableSlotService, occupation ReservationTypeOccupationService) *ReservationTypeHandler {
-	return &ReservationTypeHandler{core: core, unavailableTime: unavailableTime, availableSlot: availableSlot, occupation: occupation}
+func NewReservationTypeHandler(core ReservationTypeCoreService, unavailableTime ReservationTypeUnavailableTimeService, availableSlot ReservationTypeAvailableSlotService) *ReservationTypeHandler {
+	return &ReservationTypeHandler{core: core, unavailableTime: unavailableTime, availableSlot: availableSlot}
 }
 
 // ---- ReservationType ----
@@ -70,6 +69,10 @@ func (h *ReservationTypeHandler) CreateReservationType(c *gin.Context) {
 		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
+	if err := req.retiredFieldError(); err != nil {
+		respondError(c, err)
+		return
+	}
 	st, err := h.core.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		respondError(c, err)
@@ -92,6 +95,10 @@ func (h *ReservationTypeHandler) UpdateReservationType(c *gin.Context) {
 	var req updateReservationTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		return
+	}
+	if err := req.retiredFieldError(); err != nil {
+		respondError(c, err)
 		return
 	}
 	st, err := h.core.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
@@ -278,79 +285,6 @@ func (h *ReservationTypeHandler) DeleteAvailableSlot(c *gin.Context) {
 		return
 	}
 	if err := h.availableSlot.DeleteAvailableSlot(c.Request.Context(), clinicID, reservationTypeID, availableSlotID); err != nil {
-		respondError(c, err)
-		return
-	}
-	c.Status(http.StatusNoContent)
-}
-
-// ListReservationTypeOccupations godoc
-func (h *ReservationTypeHandler) ListReservationTypeOccupations(c *gin.Context) {
-	clinicID, ok := extractSelectedClinicGrant(c, string(model.ResourceMasterReservationType))
-	if !ok {
-		return
-	}
-	id, ok := httpapi.ParseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	items, err := h.occupation.ListOccupations(c.Request.Context(), clinicID, id)
-	if err != nil {
-		respondError(c, err)
-		return
-	}
-	// EMR-209 / BUG-MASTER-RESVTYPE-OCC-ENVELOPE: 標準 {data: [...]} エンベロープで返す
-	// （旧来の裸配列だと FE の data.data 参照が TypeError となりバッジが描画されない）。
-	c.JSON(http.StatusOK, gin.H{"data": httpapi.MapSlice(items, toReservationTypeOccupationResponse)})
-}
-
-// LinkOccupation godoc
-func (h *ReservationTypeHandler) LinkReservationTypeOccupation(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
-	if !ok {
-		return
-	}
-	id, ok := httpapi.ParseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	var req linkOccupationRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
-		return
-	}
-	result, err := h.occupation.LinkOccupation(c.Request.Context(), clinicID, id, req.OccupationID)
-	if err != nil {
-		// EMR-209 / BUG-MASTER-RESVTYPE-OCC-ENVELOPE: 重複紐付けは 409 の error/code に
-		// 加えて既存リンクを data に載せ、FE がリロードなしでバッジを同期できるようにする。
-		if result != nil && apperrors.IsAlreadyExists(err) {
-			respondErrorWithExtras(c, err, map[string]any{
-				"data": toReservationTypeOccupationResponse(result),
-			})
-			return
-		}
-		respondError(c, err)
-		return
-	}
-	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-types/%d/occupations/%d", id, result.ID))
-	c.JSON(http.StatusCreated, gin.H{"data": toReservationTypeOccupationResponse(result)})
-}
-
-// UnlinkOccupation godoc
-func (h *ReservationTypeHandler) UnlinkReservationTypeOccupation(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
-	if !ok {
-		return
-	}
-	id, ok := httpapi.ParseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	occupationID, ok := httpapi.ParseIDParam(c, "occupation_id")
-	if !ok {
-		return
-	}
-	if err := h.occupation.UnlinkOccupation(c.Request.Context(), clinicID, id, occupationID); err != nil {
 		respondError(c, err)
 		return
 	}

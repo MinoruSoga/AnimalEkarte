@@ -54,6 +54,7 @@ type liffCourseResponse struct {
 	// Category (P1-6, PR #186 review): 予約フローが course.category === 'trimming' で
 	// トリミング詳細ステップの表示を分岐する。欠落時は FE 側が 'general' にフォールバックし
 	// トリミング予約でも詳細入力がスキップされていた。
+	// EMR-549 PR-C: category 列は DROP 済み。business_kind から導出する（trimming は "trimming"、general / inpatient / hotel は "general"、NULL=未分類は ""）。
 	Category string `json:"category"`
 }
 
@@ -79,7 +80,7 @@ func toLiffCourseResponse(st *model.ReservationType) liffCourseResponse {
 		ReservationComment:  st.ReservationComment,
 		ReservationImageURL: st.ReservationImageURL,
 		SortOrder:           sharedkernel.SortOrderValue(st.SortOrder),
-		Category:            string(st.Category),
+		Category:            string(st.DerivedCategory()),
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
@@ -47,6 +48,16 @@ func reservationTimeConflictResponse(err error) (status int, message, code strin
 	return status, message, code, true
 }
 
+// trimmingBookingPendingResponse は course / option を含む LINE 予約の fail-closed（422 trimming_booking_pending）を
+// error + code で返す。httpapi.RespondError は code を出さないため、FE が機械判定できる安定コードをここで通す。
+func trimmingBookingPendingResponse(err error) (status int, message, code string, ok bool) {
+	if !apperrors.HasCode(err, apperrors.CodeTrimmingBookingPending) {
+		return 0, "", "", false
+	}
+	status, message, code = httpapi.ResolveErrorResponse(err)
+	return status, message, code, true
+}
+
 // respondError はエラーを適切なHTTPステータスコードとメッセージにマッピングして返す。
 func respondError(c *gin.Context, err error) {
 	if status, message, code, ok := lineReservationSettingsUnsetResponse(err); ok {
@@ -54,6 +65,10 @@ func respondError(c *gin.Context, err error) {
 		return
 	}
 	if status, message, code, ok := reservationTimeConflictResponse(err); ok {
+		c.JSON(status, gin.H{"error": message, "code": code})
+		return
+	}
+	if status, message, code, ok := trimmingBookingPendingResponse(err); ok {
 		c.JSON(status, gin.H{"error": message, "code": code})
 		return
 	}
@@ -73,6 +88,12 @@ func respondErrorWithExtras(c *gin.Context, err error, extras map[string]any) {
 		return
 	}
 	if status, message, code, ok := reservationTimeConflictResponse(err); ok {
+		response := gin.H{"error": message, "code": code}
+		maps.Copy(response, extras)
+		c.JSON(status, response)
+		return
+	}
+	if status, message, code, ok := trimmingBookingPendingResponse(err); ok {
 		response := gin.H{"error": message, "code": code}
 		maps.Copy(response, extras)
 		c.JSON(status, response)

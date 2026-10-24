@@ -102,10 +102,6 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		return nil, window, err
 	}
 
-	if err := s.applyOccupationGuard(ctx, clinicID, typeID, results); err != nil {
-		return nil, window, err
-	}
-
 	return results, window, nil
 }
 
@@ -135,46 +131,6 @@ func (s *liffService) availableDateSlotFilter(
 		return capacityFilter, nil
 	}
 	return nil, nil
-}
-
-// applyOccupationGuard は職種紐付けが1件以上ある場合のみ、対応職種のスタッフが出勤している日かを
-// チェックして results を in-place で更新する（BE-117）。0件（職種紐付けなし）は後方互換で素通り。
-// G7-1: 日毎のカウント呼出をバッチ版1クエリに集約する。
-func (s *liffService) applyOccupationGuard(ctx context.Context, clinicID, typeID uint64, results []AvailableDateResult) error {
-	occupations, err := s.occupationRepo.FindAll(ctx, clinicID, typeID)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to get occupation guard")
-	}
-	if len(occupations) == 0 {
-		return nil
-	}
-
-	availableDates := make([]time.Time, 0, len(results))
-	for _, r := range results {
-		if !r.Available {
-			continue
-		}
-		date, err := time.ParseInLocation(time.DateOnly, r.Date, config.JST)
-		if err != nil {
-			return apperrors.Wrap(err, "failed to parse date")
-		}
-		availableDates = append(availableDates, date)
-	}
-
-	workingCounts, err := s.occupationRepo.CountWorkingStaffByReservationTypeIDs(ctx, clinicID, typeID, availableDates)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to count working staff")
-	}
-	for i, r := range results {
-		if !r.Available {
-			continue
-		}
-		if workingCounts[r.Date] == 0 {
-			results[i].Available = false
-			results[i].Reason = "staff_off"
-		}
-	}
-	return nil
 }
 
 // isDateClosed は単日の休業判定(closed_weekdays/closed_dates/national_holiday_closed)を行う

@@ -210,8 +210,9 @@ func (s *reservationService) ConfirmTentative(
 				return apperrors.WrapInvalidInput("無効化された予約区分は利用できません")
 			}
 			// Codex #6: migration fallback が general 以外の placeholder を残し得るため、
-			// 区分未指定（= placeholder 維持）は stored 区分が general の場合のみ許可する。
-			if input.ReservationTypeID == nil && reservationType.Category != model.ReservationTypeCategoryGeneral {
+			// 区分未指定（= placeholder 維持）は stored の business_kind が general の場合のみ許可する
+			// （NULL=未分類も許可しない: fail-closed）。
+			if input.ReservationTypeID == nil && !reservationType.HasBusinessKind(model.ReservationBusinessKindGeneral) {
 				return apperrors.WrapInvalidInput("次回予定のプレースホルダ区分では確定できません。予約区分を指定してください")
 			}
 		}

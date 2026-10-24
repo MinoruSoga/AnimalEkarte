@@ -81,19 +81,17 @@ func (s *hospitalizationService) createNestedTreatmentPlansInTx(
 		if planInput.TreatmentContent == "" {
 			return apperrors.WrapInvalidInput("treatment_content is required")
 		}
-		subtotal := computeTreatmentPlanSubtotal(planInput.UnitPrice, planInput.Quantity, planInput.DiscountRate, planInput.DiscountAmount)
 		plan := &model.TreatmentPlan{
 			ClinicID:          clinicID,
 			HospitalizationID: &hospID,
 			TreatmentContent:  planInput.TreatmentContent,
 			Memo:              planInput.Memo,
-			IsInsurance:       planInput.IsInsurance,
-			UnitPrice:         planInput.UnitPrice,
+			IsInsurance:       sharedkernel.Ptr(planInput.IsInsurance),
+			UnitPrice:         sharedkernel.Ptr(planInput.UnitPrice),
 			Quantity:          planInput.Quantity,
 			DiscountRate:      planInput.DiscountRate,
-			DiscountAmount:    planInput.DiscountAmount,
-			Subtotal:          subtotal,
-			SortOrder:         planInput.SortOrder,
+			DiscountAmount:    sharedkernel.Ptr(planInput.DiscountAmount),
+			SortOrder:         sharedkernel.Ptr(planInput.SortOrder),
 		}
 		if err := s.treatmentPlanRepo.Create(txCtx, plan); err != nil {
 			return apperrors.Wrap(err, "failed to create nested treatment plan")
@@ -103,8 +101,8 @@ func (s *hospitalizationService) createNestedTreatmentPlansInTx(
 			Type:              model.CarePlanTypeInstruction,
 			Name:              planInput.TreatmentContent,
 			Notes:             planInput.Memo,
-			Status:            model.CarePlanStatusActive,
-			SortOrder:         planInput.SortOrder,
+			Status:            sharedkernel.Ptr(model.CarePlanStatusActive),
+			SortOrder:         sharedkernel.Ptr(planInput.SortOrder),
 		}
 		if err := s.carePlanItemRepo.Create(txCtx, careItem); err != nil {
 			return apperrors.Wrap(err, "failed to create nested care plan item")

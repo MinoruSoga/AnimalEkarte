@@ -11,7 +11,6 @@ import (
 
 const (
 	colReservationTypeLiffName                 = "name"
-	colReservationTypeLiffColor                = "color"
 	colReservationTypeLiffDescription          = "description"
 	colReservationTypeLiffSortOrder            = "sort_order"
 	colReservationTypeLiffDurationMinutes      = "duration_minutes"
@@ -29,9 +28,6 @@ func buildReservationTypeLiffUpdate(input *UpdateReservationTypeLiffInput) map[s
 	fields := make(map[string]any)
 	if input.Name != nil {
 		fields[colReservationTypeLiffName] = *input.Name
-	}
-	if input.Color != nil {
-		fields[colReservationTypeLiffColor] = *input.Color
 	}
 	if input.Description != nil {
 		fields[colReservationTypeLiffDescription] = *input.Description
@@ -74,7 +70,6 @@ func buildReservationTypeLiffUpdate(input *UpdateReservationTypeLiffInput) map[s
 // CreateReservationTypeLiffInput は予約コース作成の入力データ
 type CreateReservationTypeLiffInput struct {
 	Name                 string
-	Color                string
 	Description          string
 	SortOrder            int
 	DurationMinutes      int
@@ -90,7 +85,6 @@ type CreateReservationTypeLiffInput struct {
 // UpdateReservationTypeLiffInput は予約コース更新の入力データ（ポインタ型でゼロ値を区別）
 type UpdateReservationTypeLiffInput struct {
 	Name                 *string
-	Color                *string
 	Description          *string
 	SortOrder            *int
 	DurationMinutes      *int
@@ -145,7 +139,6 @@ func (s *reservationTypeLiffService) Create(ctx context.Context, clinicID uint64
 	st := &model.ReservationType{
 		ClinicID:             clinicID,
 		Name:                 input.Name,
-		Color:                input.Color,
 		IsActive:             true,
 		Description:          input.Description,
 		SortOrder:            sharedkernel.Ptr(input.SortOrder),

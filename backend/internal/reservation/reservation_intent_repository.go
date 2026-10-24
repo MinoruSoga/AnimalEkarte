@@ -191,7 +191,7 @@ func (r *reservationRepository) assertGeneralMedicalRecordReservationType(ctx co
 	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "SHARE"}).
 		Select("reservation_types.id").
-		Where("id = ? AND clinic_id = ? AND category = ? AND deleted_at IS NULL", id, clinicID, model.ReservationTypeCategoryGeneral).
+		Where("id = ? AND clinic_id = ? AND business_kind = ? AND deleted_at IS NULL", id, clinicID, model.ReservationBusinessKindGeneral).
 		Take(&reservationType).Error
 	if err == nil {
 		return nil
@@ -443,7 +443,7 @@ func (r *reservationRepository) assertTrimmingReservationType(ctx context.Contex
 	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "SHARE"}).
 		Select("reservation_types.id").
-		Where("id = ? AND clinic_id = ? AND category = ? AND deleted_at IS NULL", id, clinicID, model.ReservationTypeCategoryTrimming).
+		Where("id = ? AND clinic_id = ? AND business_kind = ? AND deleted_at IS NULL", id, clinicID, model.ReservationBusinessKindTrimming).
 		Take(&reservationType).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", id))
@@ -456,7 +456,7 @@ func (r *reservationRepository) assertActiveTrimmingReservationType(ctx context.
 	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "SHARE"}).
 		Select("reservation_types.id").
-		Where("id = ? AND clinic_id = ? AND category = ? AND is_active = true AND deleted_at IS NULL", id, clinicID, model.ReservationTypeCategoryTrimming).
+		Where("id = ? AND clinic_id = ? AND business_kind = ? AND is_active = true AND deleted_at IS NULL", id, clinicID, model.ReservationBusinessKindTrimming).
 		Take(&reservationType).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "reservation_type", fmt.Sprintf("%d", id))
@@ -471,7 +471,7 @@ func (r *reservationRepository) FindTrimmingByID(ctx context.Context, clinicID, 
 	if err != nil {
 		return nil, err
 	}
-	if appointment.ReservationType == nil || appointment.ReservationType.Category != model.ReservationTypeCategoryTrimming {
+	if !appointment.ReservationType.HasBusinessKind(model.ReservationBusinessKindTrimming) {
 		return nil, apperrors.WrapNotFound("trimming appointment", fmt.Sprintf("%d", id))
 	}
 	return appointment, nil
@@ -635,9 +635,9 @@ func (r *reservationRepository) UpdateForTrimming(
 			SELECT 1 FROM reservation_types rt
 			WHERE rt.id = appointments.reservation_type_id
 			  AND rt.clinic_id = ?
-			  AND rt.category = ?
+			  AND rt.business_kind = ?
 			  AND rt.deleted_at IS NULL
-		)`, clinicID, model.ReservationTypeCategoryTrimming)
+		)`, clinicID, model.ReservationBusinessKindTrimming)
 	result := query.Updates(fields)
 	if result.Error != nil {
 		// EMR-76: reschedule/update can also hit excl_appointments_doctor_timerange.
@@ -683,9 +683,9 @@ func (r *reservationRepository) DeleteForTrimming(ctx context.Context, clinicID,
 			SELECT 1 FROM reservation_types rt
 			WHERE rt.id = appointments.reservation_type_id
 			  AND rt.clinic_id = ?
-			  AND rt.category = ?
+			  AND rt.business_kind = ?
 			  AND rt.deleted_at IS NULL
-		)`, clinicID, model.ReservationTypeCategoryTrimming).
+		)`, clinicID, model.ReservationBusinessKindTrimming).
 		Delete(&model.Reservation{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", id))
@@ -870,13 +870,13 @@ func (r *reservationRepository) findActiveTentativeForUpdate(ctx context.Context
 // findGeneralReservationTypeID は tentative placeholder 用に医院の general 診療区分を解決する。
 // Codex #15: 無効化区分は新しい intent の placeholder に使えない — is_active を
 // ORDER BY の優先度ではなく必須述語にし、active な general 区分の未存在は
-// InvalidInput で fail-closed にする（列は NOT NULL）。
+// InvalidInput で fail-closed にする。business_kind が NULL（未分類）の区分は general とみなさず候補にしない。
 func (r *reservationRepository) findGeneralReservationTypeID(ctx context.Context, clinicID uint64) (uint64, error) {
 	var reservationType model.ReservationType
 	err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "SHARE"}).
 		Select("reservation_types.id").
-		Where("clinic_id = ? AND category = ? AND is_active = TRUE AND deleted_at IS NULL", clinicID, model.ReservationTypeCategoryGeneral).
+		Where("clinic_id = ? AND business_kind = ? AND is_active = TRUE AND deleted_at IS NULL", clinicID, model.ReservationBusinessKindGeneral).
 		Order("id ASC").
 		Take(&reservationType).Error
 	if err != nil {
