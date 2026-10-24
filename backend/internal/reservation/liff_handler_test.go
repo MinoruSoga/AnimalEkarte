@@ -221,6 +221,8 @@ func TestGetLiffSettings(t *testing.T) {
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
 		rawLiffID, ok := body["liff_id"]
 		assert.True(t, ok, "liff_id key must always be present")
+		// json.Unmarshal は null を無エラーで空文字として受理するため、デコード前に生の値が JSON 空文字列 "" であることを固定する
+		assert.JSONEq(t, `""`, string(rawLiffID), "liff_id must be the empty string, not null")
 		var liffID string
 		require.NoError(t, json.Unmarshal(rawLiffID, &liffID))
 		assert.Equal(t, "", liffID)
