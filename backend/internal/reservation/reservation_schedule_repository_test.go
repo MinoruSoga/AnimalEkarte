@@ -245,6 +245,8 @@ func TestReservationScheduleRepository_Save_UpdatesExistingEntry(t *testing.T) {
 		StaffID:   staffA.ID,
 		Date:      date,
 		ShiftType: model.ShiftTypeFull,
+		StartsAt:  rsvTS(t, date, "09:00"),
+		EndsAt:    rsvTS(t, date, "18:00"),
 		Notes:     "旧メモ",
 	}
 	savedFirst, savedFirstBreaks, firstCreated, err := repo.Save(ctx, clinicA, first, nil)

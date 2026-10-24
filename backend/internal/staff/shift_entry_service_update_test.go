@@ -23,6 +23,7 @@ func TestShiftEntryService_Update(t *testing.T) {
 	existingEnd := "18:00:00"
 	offType := string(model.ShiftTypeOff)
 	nextDay := testShiftDate.AddDate(0, 0, 1)
+	noBreaks := []ShiftBreakInput{}
 
 	tests := []struct {
 		name            string
@@ -100,6 +101,7 @@ func TestShiftEntryService_Update(t *testing.T) {
 				ShiftType: &offType,
 				StartsAt:  OptionalShiftTime{Set: true},
 				EndsAt:    OptionalShiftTime{Set: true},
+				Breaks:    &noBreaks,
 			},
 			repoReturnEntry: &model.ShiftEntry{
 				ID:        1,

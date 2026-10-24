@@ -331,6 +331,19 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 		if input.EndsAt.Set {
 			effectiveEnd = input.EndsAt.Value
 		}
+		// 勤務（full / morning / afternoon）から off / paid_leave への変更は、保存済みの日時・休憩を
+		// 黙って捨てない。starts_at / ends_at の明示 null と breaks の明示空配列の両方を要求する
+		// （api.yaml UpdateShiftRequest）。breaks の省略は、保存済みの休憩が既に空でも 400 とする。
+		if sharedkernel.RequiresTimeSlot(existing.ShiftType) && !sharedkernel.RequiresTimeSlot(effectiveShiftType) {
+			clearsTimes := input.StartsAt.Set && input.StartsAt.Value == nil &&
+				input.EndsAt.Set && input.EndsAt.Value == nil
+			clearsBreaks := input.Breaks != nil && len(*input.Breaks) == 0
+			if !clearsTimes || !clearsBreaks {
+				return apperrors.WrapInvalidInput(
+					"changing to off or paid_leave requires null starts_at and ends_at and breaks=[]",
+				)
+			}
+		}
 		effectiveBreaks := existingShiftBreakWindows(existing.Breaks)
 		if input.Breaks != nil {
 			effectiveBreaks = shiftBreakWindows(*input.Breaks)

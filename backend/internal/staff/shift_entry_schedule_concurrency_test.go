@@ -286,6 +286,8 @@ func TestRepository_SaveByStaffDate_SerializesConcurrentAbsentUpserts(t *testing
 			const clinicID = uint64(1)
 			staff := makeShiftEntryDoctor(t, db, clinicID, "concurrent absent upsert")
 			date := scheduleDate
+			startsAt := shiftTS(t, date, "09:00")
+			endsAt := shiftTS(t, date, "18:00")
 			start := make(chan struct{})
 			results := make(chan outcome, len(tt.requests))
 			var wg sync.WaitGroup
@@ -306,6 +308,8 @@ func TestRepository_SaveByStaffDate_SerializesConcurrentAbsentUpserts(t *testing
 							StaffID:   staff.ID,
 							Date:      date,
 							ShiftType: model.ShiftTypeFull,
+							StartsAt:  startsAt,
+							EndsAt:    endsAt,
 							Notes:     request.notes,
 						},
 						request.breaks,
