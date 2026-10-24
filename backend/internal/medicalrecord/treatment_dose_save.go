@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ─── #201 B-2: 保存時 dose 再検証 ──────────────────────────────────────────────
@@ -117,7 +118,12 @@ func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medi
 	if convErr != nil {
 		return 0, "", false, convErr
 	}
-	kg, ok := NormalizeWeightToKg(weight, chosen.WeightUnit)
+	// 体重の単位が NULL（未記録）のレコードは kg / g を推測せず、投与量の自動検証を中止して error にする（fail-closed）。
+	unit, unitErr := sharedkernel.RequireStored(chosen.WeightUnit, "vital_records.weight_unit")
+	if unitErr != nil {
+		return 0, "", false, unitErr
+	}
+	kg, ok := NormalizeWeightToKg(weight, unit)
 	if !ok {
 		return 0, "", false, nil
 	}

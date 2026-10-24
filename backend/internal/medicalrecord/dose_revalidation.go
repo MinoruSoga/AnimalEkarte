@@ -315,7 +315,7 @@ func clearedDoseColumns() map[string]any {
 
 // treatmentHasDoseSnapshot は treatment 行に dose スナップショットが付いているかを返す。
 func treatmentHasDoseSnapshot(t *model.Treatment) bool {
-	return t != nil && (t.DoseAmountMg != nil || t.DoseWeightKg != nil || len(t.DoseParamSnapshot) > 0)
+	return t != nil && (t.DoseAmountMg != nil || t.DoseWeightKg != nil || (t.DoseParamSnapshot != nil && len(*t.DoseParamSnapshot) > 0))
 }
 
 // applyDoseSnapshotToTreatment は計算根拠スナップショットを treatment struct に値で固定する（Create 経路）。
@@ -343,11 +343,13 @@ func applyDoseSnapshotToTreatment(ctx context.Context, t *model.Treatment, eval 
 		if err != nil {
 			return err
 		}
-		t.DoseParamSnapshot = snapJSON
+		snapshot := json.RawMessage(snapJSON)
+		t.DoseParamSnapshot = &snapshot
 		return nil
 	}
 	if snapJSON := marshalDoseSnapshot(ctx, eval); snapJSON != nil {
-		t.DoseParamSnapshot = snapJSON
+		snapshot := json.RawMessage(snapJSON)
+		t.DoseParamSnapshot = &snapshot
 	}
 	return nil
 }

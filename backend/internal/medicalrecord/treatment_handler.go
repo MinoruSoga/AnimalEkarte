@@ -205,7 +205,7 @@ func (h *TreatmentHandler) UpdateTreatment(c *gin.Context) {
 			httpapi.RespondError(c, err)
 			return
 		}
-		if err := h.requireDiscountEditInt(c, req.DiscountAmount, existing.DiscountAmount); err != nil {
+		if err := requireDiscountEditStoredInt(c, h.hasPermission, req.DiscountAmount, existing.DiscountAmount); err != nil {
 			httpapi.RespondError(c, err)
 			return
 		}

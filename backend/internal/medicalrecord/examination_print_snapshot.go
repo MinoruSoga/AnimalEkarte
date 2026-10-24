@@ -53,7 +53,7 @@ type ExaminationPrintSnapshot struct {
 	Status          model.ExaminationStatus
 	PrintBoundary   ExaminationPrintBoundary
 	Watermark       string
-	Date            time.Time
+	Date            *time.Time
 	ResultSummary   string
 	Machine         string
 	ExamTypeID      uint64
@@ -225,7 +225,7 @@ type examinationPrintSnapshotResponse struct {
 	Status          string                          `json:"status"`
 	PrintBoundary   string                          `json:"print_boundary"`
 	Watermark       string                          `json:"watermark,omitempty"`
-	Date            time.Time                       `json:"date"`
+	Date            *time.Time                      `json:"date"`
 	ResultSummary   string                          `json:"result_summary"`
 	Machine         string                          `json:"machine"`
 	ExamTypeID      uint64                          `json:"exam_type_id"`
@@ -268,7 +268,7 @@ func toExaminationPrintSnapshotResponse(snapshot *ExaminationPrintSnapshot) exam
 		Status:          string(snapshot.Status),
 		PrintBoundary:   string(snapshot.PrintBoundary),
 		Watermark:       snapshot.Watermark,
-		Date:            httpapi.LocalTime(snapshot.Date),
+		Date:            httpapi.LocalTimePtr(snapshot.Date),
 		ResultSummary:   snapshot.ResultSummary,
 		Machine:         snapshot.Machine,
 		ExamTypeID:      snapshot.ExamTypeID,

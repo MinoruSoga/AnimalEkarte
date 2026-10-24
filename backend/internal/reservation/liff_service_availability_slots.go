@@ -165,7 +165,8 @@ func buildStaffSlotInputsFromWindow(
 
 		// 当日の既存予約を絞り込み
 		for j := range dayResv {
-			if dayResv[j].Status == model.ReservationStatusCancelled {
+			// 予約状態が NULL（未記録）の予約は取消済みと確認できないため、枠を占有するものとして数える（fail-closed）。
+			if sharedkernel.PtrEquals(dayResv[j].Status, model.ReservationStatusCancelled) {
 				continue
 			}
 			if dayResv[j].DoctorID != nil && *dayResv[j].DoctorID == staffs[i].ID {

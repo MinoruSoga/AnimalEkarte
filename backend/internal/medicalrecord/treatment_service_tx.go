@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func (s *treatmentService) createTreatmentInTx(
@@ -39,17 +40,17 @@ func (s *treatmentService) createTreatmentInTx(
 		ProcedureID:     input.ProcedureID,
 		MedicineID:      input.MedicineID,
 		InventoryID:     input.InventoryID,
-		UnitPrice:       input.UnitPrice,
+		UnitPrice:       sharedkernel.Ptr(input.UnitPrice),
 		Quantity:        &quantity,
-		IsSelected:      input.IsSelected,
-		Status:          status,
+		IsSelected:      sharedkernel.Ptr(input.IsSelected),
+		Status:          sharedkernel.Ptr(status),
 		Content:         input.Content,
 		Memo:            input.Memo,
 		AdminRoute:      input.AdminRoute,
-		IsInsurance:     input.IsInsurance,
+		IsInsurance:     sharedkernel.Ptr(input.IsInsurance),
 		DiscountRate:    &discountRate,
-		DiscountAmount:  input.DiscountAmount,
-		SortOrder:       input.SortOrder,
+		DiscountAmount:  sharedkernel.Ptr(input.DiscountAmount),
+		SortOrder:       sharedkernel.Ptr(input.SortOrder),
 
 		// EMR-488: 薬剤3値。nil は未入力で NULL 保存（推測補完なし・0 は明示 0）。
 		AdministrationDoseAmount:   input.AdministrationDoseAmount,

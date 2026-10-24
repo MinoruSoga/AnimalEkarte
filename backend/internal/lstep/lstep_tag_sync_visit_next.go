@@ -300,7 +300,11 @@ func nextVisitDateFromAppointment(appointment *model.Reservation) *time.Time {
 	if appointment == nil {
 		return nil
 	}
-	if appointment.Status == model.ReservationStatusTentative {
+	// 予約状態が NULL（未記録）の場合は tentative か確定かを判別できないため、日付を推測せず nil（next_visit_* 除去）とする。
+	if appointment.Status == nil {
+		return nil
+	}
+	if *appointment.Status == model.ReservationStatusTentative {
 		return appointment.IntendedDate
 	}
 	return &appointment.StartTime

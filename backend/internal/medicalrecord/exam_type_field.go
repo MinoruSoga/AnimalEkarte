@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type CreateExamTypeFieldInput struct {
@@ -118,7 +119,7 @@ func (s *examTypeService) CreateField(
 			InspectionValue: command.Field.InspectionValue,
 			NormalValue:     command.Field.NormalValue,
 			Unit:            command.Field.Unit,
-			SortOrder:       command.Field.SortOrder,
+			SortOrder:       sharedkernel.Ptr(command.Field.SortOrder),
 		}
 		if err := s.repo.CreateField(txCtx, created); err != nil {
 			return err

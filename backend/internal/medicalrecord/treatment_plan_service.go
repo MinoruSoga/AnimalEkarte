@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type CreateTreatmentPlanInput struct {
@@ -17,7 +18,7 @@ type CreateTreatmentPlanInput struct {
 	Quantity         float64
 	DiscountRate     float64
 	DiscountAmount   int64
-	// Subtotal is ignored on write; server always recomputes (MRD-04).
+	// Subtotal is ignored (EMR-549: treatment_plans.subtotal column was dropped; responses derive it from stored values).
 	Subtotal  int64
 	SortOrder int
 }
@@ -30,11 +31,9 @@ type UpdateTreatmentPlanInput struct {
 	Quantity         *float64
 	DiscountRate     *float64
 	DiscountAmount   *int64
-	// Subtotal is ignored on write; server always recomputes when price fields change (MRD-04).
+	// Subtotal is ignored (EMR-549: treatment_plans.subtotal column was dropped).
 	Subtotal  *int64
 	SortOrder *int
-	// persistSubtotal is set only by service after server-side recompute. HTTP/client must not set it.
-	persistSubtotal *int64
 	// DiscountEditAllowed is set by the HTTP boundary from discount:edit RBAC.
 	// Service rechecks discount fields against the FOR UPDATE locked row (SEC-CS-F10).
 	DiscountEditAllowed bool
@@ -53,7 +52,8 @@ func applyTreatmentPlanDiscountGuard(locked *model.TreatmentPlan, input *UpdateT
 		}
 	}
 	if input.DiscountAmount != nil {
-		if *input.DiscountAmount != locked.DiscountAmount && !input.DiscountEditAllowed {
+		// 保存値が NULL（未記録）の割引額は入力と一致すると確認できないため、変更として扱う（fail-closed）。
+		if !sharedkernel.PtrEquals(locked.DiscountAmount, *input.DiscountAmount) && !input.DiscountEditAllowed {
 			return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
 		}
 	}
@@ -81,6 +81,15 @@ func validateTreatmentPlanMoney(unitPrice int64, quantity, discountRate float64,
 	return nil
 }
 
+// requiredStoredInt64 は金額検証・再計算に使う NULL 許容 int64 列の保存値を返す。
+// nil（未記録）は 0 へ補完せず 400 とする（exactNumericRequiredFloat64 と同じ契約・EMR-549 C3）。
+func requiredStoredInt64(value *int64, field string) (int64, error) {
+	if value == nil {
+		return 0, apperrors.WrapInvalidInput(field + " が未設定です。値を指定してください")
+	}
+	return *value, nil
+}
+
 func buildTreatmentPlanUpdate(input *UpdateTreatmentPlanInput) map[string]any {
 	fields := map[string]any{}
 	if input.TreatmentContent != nil {
@@ -104,10 +113,7 @@ func buildTreatmentPlanUpdate(input *UpdateTreatmentPlanInput) map[string]any {
 	if input.DiscountAmount != nil {
 		fields["discount_amount"] = *input.DiscountAmount
 	}
-	// Client Subtotal is ignored. Only service-computed persistSubtotal is written (MRD-04).
-	if input.persistSubtotal != nil {
-		fields["subtotal"] = *input.persistSubtotal
-	}
+	// Client Subtotal is ignored. treatment_plans.subtotal was dropped (EMR-549), so nothing is persisted here.
 	if input.SortOrder != nil {
 		fields["sort_order"] = *input.SortOrder
 	}
@@ -185,7 +191,6 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 	if err := validateTreatmentPlanMoney(input.UnitPrice, input.Quantity, input.DiscountRate, input.DiscountAmount); err != nil {
 		return nil, err
 	}
-	subtotal := computeTreatmentPlanSubtotal(input.UnitPrice, input.Quantity, input.DiscountRate, input.DiscountAmount)
 
 	// quantity / discount_rate は exact 列。検証済みの float64 request 値を最短10進表現で橋渡しする。
 	quantity, err := exactNumericFromFloat(input.Quantity, "quantity")
@@ -203,13 +208,12 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 		HospitalizationID: hospitalizationID,
 		TreatmentContent:  input.TreatmentContent,
 		Memo:              input.Memo,
-		IsInsurance:       input.IsInsurance,
-		UnitPrice:         input.UnitPrice,
+		IsInsurance:       sharedkernel.Ptr(input.IsInsurance),
+		UnitPrice:         sharedkernel.Ptr(input.UnitPrice),
 		Quantity:          &quantity,
 		DiscountRate:      &discountRate,
-		DiscountAmount:    input.DiscountAmount,
-		Subtotal:          subtotal,
-		SortOrder:         input.SortOrder,
+		DiscountAmount:    sharedkernel.Ptr(input.DiscountAmount),
+		SortOrder:         sharedkernel.Ptr(input.SortOrder),
 	}
 
 	// MRD-02: write + response re-fetch in one transaction (vital Update pattern).
@@ -268,20 +272,24 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 				effective.DiscountRate = nil
 			}
 		}
-		if input.DiscountAmount != nil && *input.DiscountAmount == existing.DiscountAmount && !input.DiscountEditAllowed {
+		// 保存値が NULL（未記録）なら PtrEquals は false になり、一致（no-op）とは扱わない。
+		if input.DiscountAmount != nil && sharedkernel.PtrEquals(existing.DiscountAmount, *input.DiscountAmount) && !input.DiscountEditAllowed {
 			effective.DiscountAmount = nil
 		}
 
-		// Merge money fields for validation / subtotal recompute.
-		unitPrice := existing.UnitPrice
+		// Merge money fields for validation.
+		// 単価・割引額も NULL 許容列。保存値が NULL でリクエストにも無い値を金額検証に使う場合（下の moneyTouched）は
+		// 0 へ補完せず 400 とする（EMR-549 C3）。
+		unitPrice, unitPriceErr := requiredStoredInt64(existing.UnitPrice, "unit_price")
 		// quantity / discount_rate は exact 列。既存の金額式は float64 のため境界で変換する。
 		// 保存値が NULL・非有限でも 0 へ補完せず、その値を金額計算に使う場合（下の moneyTouched）に限り error とする。
 		quantity, quantityErr := exactNumericRequiredFloat64(existing.Quantity, "quantity")
 		discountRate, discountRateErr := exactNumericRequiredFloat64(existing.DiscountRate, "discount_rate")
-		discountAmount := existing.DiscountAmount
+		discountAmount, discountAmountErr := requiredStoredInt64(existing.DiscountAmount, "discount_amount")
 		moneyTouched := false
 		if effective.UnitPrice != nil {
 			unitPrice = *effective.UnitPrice
+			unitPriceErr = nil
 			moneyTouched = true
 		}
 		if effective.Quantity != nil {
@@ -296,14 +304,21 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 		}
 		if effective.DiscountAmount != nil {
 			discountAmount = *effective.DiscountAmount
+			discountAmountErr = nil
 			moneyTouched = true
 		}
 		if moneyTouched {
+			if unitPriceErr != nil {
+				return unitPriceErr
+			}
 			if quantityErr != nil {
 				return quantityErr
 			}
 			if discountRateErr != nil {
 				return discountRateErr
+			}
+			if discountAmountErr != nil {
+				return discountAmountErr
 			}
 			if err := validateTreatmentPlanMoney(unitPrice, quantity, discountRate, discountAmount); err != nil {
 				return err
@@ -315,8 +330,6 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 			effective.Quantity = &quantity
 			effective.DiscountRate = &discountRate
 			effective.DiscountAmount = &discountAmount
-			subtotal := computeTreatmentPlanSubtotal(unitPrice, quantity, discountRate, discountAmount)
-			effective.persistSubtotal = &subtotal
 		}
 		fields := buildTreatmentPlanUpdate(&effective)
 		if len(fields) == 0 {

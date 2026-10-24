@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -177,7 +178,8 @@ func applyTreatmentDiscountAmountGuard(locked *model.Treatment, input *UpdateTre
 	if input.DiscountAmount == nil {
 		return nil
 	}
-	if *input.DiscountAmount != locked.DiscountAmount {
+	// 保存値が NULL（未記録）の割引額は入力と一致すると確認できないため、変更として扱い権限を要求する（fail-closed）。
+	if !sharedkernel.PtrEquals(locked.DiscountAmount, *input.DiscountAmount) {
 		if input.DiscountEditAllowed {
 			return nil
 		}

@@ -39,7 +39,7 @@ func (s *reservationService) guardedCheckIn(ctx context.Context, clinicID, id ui
 		if err != nil {
 			return err
 		}
-		if current == nil || current.Status != model.ReservationStatusConfirmed || !current.UpdatedAt.Equal(expected) {
+		if current == nil || current.Status == nil || *current.Status != model.ReservationStatusConfirmed || !current.UpdatedAt.Equal(expected) {
 			return apperrors.WrapConflict("予約が更新されています。再読み込みしてください")
 		}
 		now := time.Now()

@@ -6,6 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // examTypeSummaryResponse は検査要約内で使用する検査種別の要約型
@@ -16,19 +17,19 @@ type examTypeSummaryResponse struct {
 }
 
 type examinationResponse struct {
-	ID                     uint64    `json:"id"`
-	ClinicID               uint64    `json:"clinic_id"`
-	MedicalRecordID        *uint64   `json:"medical_record_id,omitempty"`
-	PetID                  *uint64   `json:"pet_id,omitempty"`
-	ExamTypeID             uint64    `json:"exam_type_id"`
-	DoctorID               *uint64   `json:"doctor_id,omitempty"`
-	Date                   time.Time `json:"date"`
-	ResultSummary          string    `json:"result_summary"`
-	Machine                string    `json:"machine"`
-	Status                 string    `json:"status"`
-	CurrentRevisionVersion *uint64   `json:"current_revision_version,omitempty"`
-	CreatedAt              time.Time `json:"created_at"`
-	UpdatedAt              time.Time `json:"updated_at"`
+	ID                     uint64     `json:"id"`
+	ClinicID               uint64     `json:"clinic_id"`
+	MedicalRecordID        *uint64    `json:"medical_record_id,omitempty"`
+	PetID                  *uint64    `json:"pet_id,omitempty"`
+	ExamTypeID             uint64     `json:"exam_type_id"`
+	DoctorID               *uint64    `json:"doctor_id,omitempty"`
+	Date                   *time.Time `json:"date"`
+	ResultSummary          string     `json:"result_summary"`
+	Machine                string     `json:"machine"`
+	Status                 *string    `json:"status"`
+	CurrentRevisionVersion *uint64    `json:"current_revision_version,omitempty"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 	// リレーション: 一覧で飼主名/ペット名/検査種別/担当医を表示するため。Preload 時のみ埋まる。
 	Pet      *PetSummaryResponse      `json:"pet,omitempty"`
 	Doctor   *StaffSummaryResponse    `json:"doctor,omitempty"`
@@ -44,10 +45,10 @@ func toExaminationResponse(exam *model.Examination) examinationResponse {
 		PetID:                  exam.PetID,
 		ExamTypeID:             exam.ExamTypeID,
 		DoctorID:               exam.DoctorID,
-		Date:                   httpapi.LocalTime(exam.Date),
+		Date:                   httpapi.LocalTimePtr(exam.Date),
 		ResultSummary:          exam.ResultSummary,
 		Machine:                exam.Machine,
-		Status:                 string(exam.Status),
+		Status:                 nullableTextFromStored(exam.Status),
 		CurrentRevisionVersion: exam.CurrentRevisionVersion,
 		CreatedAt:              httpapi.LocalTime(exam.CreatedAt),
 		UpdatedAt:              httpapi.LocalTime(exam.UpdatedAt),
@@ -87,8 +88,8 @@ type examResultResponse struct {
 	QualitativeMin  *string             `json:"qualitative_min,omitempty"`
 	QualitativeMax  *string             `json:"qualitative_max,omitempty"`
 	IsAssessed      bool                `json:"is_assessed"`
-	IsAbnormal      bool                `json:"is_abnormal"`
-	Status          string              `json:"status"`
+	IsAbnormal      *bool               `json:"is_abnormal"`
+	Status          *string             `json:"status"`
 	SortOrder       int                 `json:"sort_order"`
 	CreatedAt       time.Time           `json:"created_at"`
 	UpdatedAt       time.Time           `json:"updated_at"`
@@ -117,8 +118,8 @@ func toExamResultResponse(item *model.ExamResult) examResultResponse {
 			item.QualitativeMax,
 		),
 		IsAbnormal: item.IsAbnormal,
-		Status:     string(item.Status),
-		SortOrder:  item.SortOrder,
+		Status:     nullableTextFromStored(item.Status),
+		SortOrder:  sharedkernel.SortOrderValue(item.SortOrder),
 		CreatedAt:  httpapi.LocalTime(item.CreatedAt),
 		UpdatedAt:  httpapi.LocalTime(item.UpdatedAt),
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ListItems は検査項目一覧を返す。clinic_id 隔離は repository の JOIN 条件で保証する。
@@ -269,9 +270,9 @@ func buildExamResultsFromInputs(
 			RefMax:          refMax,
 			QualitativeMin:  qualitativeMin,
 			QualitativeMax:  qualitativeMax,
-			IsAbnormal:      assessment.isAbnormal,
-			Status:          assessment.status,
-			SortOrder:       in.SortOrder,
+			IsAbnormal:      sharedkernel.Ptr(assessment.isAbnormal),
+			Status:          sharedkernel.Ptr(assessment.status),
+			SortOrder:       sharedkernel.Ptr(in.SortOrder),
 		})
 	}
 	return items
@@ -327,7 +328,7 @@ func extractExamResultsAudit(results []model.ExamResult) []map[string]any {
 			"qualitative_max":    r.QualitativeMax,
 			"is_assessed":        assessment.isAssessed,
 			"is_abnormal":        r.IsAbnormal,
-			"status":             string(r.Status),
+			"status":             nullableTextFromStored(r.Status),
 		})
 	}
 	return out

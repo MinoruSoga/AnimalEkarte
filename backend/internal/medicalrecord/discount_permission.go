@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"github.com/gin-gonic/gin"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -33,6 +34,21 @@ func requireDiscountEditRate(c *gin.Context, hasPermission PermissionChecker, ne
 
 func requireDiscountEditInt(c *gin.Context, hasPermission PermissionChecker, newVal *int64, oldVal int64) error {
 	return httpapi.RequireDiscountEditInt(c, httpapi.PermissionChecker(hasPermission), newVal, oldVal)
+}
+
+// requireDiscountEditStoredInt は保存値が NULL 許容の discount_amount 用。
+// 保存値が NULL（未記録）の場合は新旧一致と確認できないため変更とみなし、discount:edit を要求する（fail-closed）。
+func requireDiscountEditStoredInt(c *gin.Context, hasPermission PermissionChecker, newVal, oldVal *int64) error {
+	if newVal == nil {
+		return nil
+	}
+	if oldVal != nil {
+		return requireDiscountEditInt(c, hasPermission, newVal, *oldVal)
+	}
+	if hasPermission(c, string(model.ResourceDiscount), "edit") {
+		return nil
+	}
+	return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
 }
 
 func requireDiscountCreateFloat(c *gin.Context, hasPermission PermissionChecker, val float64) error {

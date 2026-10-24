@@ -238,7 +238,7 @@ func (s *checkupTypeFieldService) CreateField(
 			Unit:          input.Unit,
 			MinValue:      minValue,
 			MaxValue:      maxValue,
-			Options:       optionsJSON,
+			Options:       json.RawMessage(optionsJSON),
 			SortOrder:     input.SortOrder,
 		}
 		if err := s.fieldRepo.CreateField(txCtx, created); err != nil {
@@ -287,7 +287,7 @@ func (s *checkupTypeFieldService) UpdateField(
 		if input.Options != nil {
 			effectiveOptions = *input.Options
 		} else {
-			effectiveOptions, err = decodeCheckupFieldOptions(existing.Options)
+			effectiveOptions, err = decodeCheckupFieldOptions(datatypes.JSON(existing.Options))
 			if err != nil {
 				return err
 			}

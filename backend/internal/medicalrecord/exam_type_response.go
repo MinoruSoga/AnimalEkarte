@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type examTypeItemResponse struct {
@@ -76,7 +77,7 @@ func toExamTypeItemResponseWithRanges(
 		InspectionValue: item.InspectionValue,
 		NormalValue:     item.NormalValue,
 		Unit:            item.Unit,
-		SortOrder:       item.SortOrder,
+		SortOrder:       sharedkernel.SortOrderValue(item.SortOrder),
 		CreatedAt:       httpapi.LocalTime(item.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(item.UpdatedAt),
 		ReferenceRanges: rangeResponses,
@@ -103,7 +104,7 @@ func toExaminationTypeResponseWithRanges(
 		IsActive:               et.IsActive,
 		Description:            et.Description,
 		ParentID:               et.ParentID,
-		SortOrder:              et.SortOrder,
+		SortOrder:              sharedkernel.SortOrderValue(et.SortOrder),
 		IsNonInsurance:         et.IsNonInsurance,
 		IsBillDiscountExcluded: et.IsBillDiscountExcluded,
 		Version:                et.Version,

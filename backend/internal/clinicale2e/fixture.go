@@ -206,14 +206,15 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 		if err := tx.Create(examType).Error; err != nil {
 			return apperrors.Wrap(err, "create synthetic exam type")
 		}
+		completedStatus := model.ExaminationStatusCompleted
 		exam := &model.Examination{
 			ClinicID:        clinicID,
 			MedicalRecordID: &firstRecord.ID,
 			PetID:           &mainPet.ID,
 			ExamTypeID:      examType.ID,
 			DoctorID:        &staff.ID,
-			Date:            day,
-			Status:          model.ExaminationStatusCompleted,
+			Date:            &day,
+			Status:          &completedStatus,
 		}
 		if err := tx.Create(exam).Error; err != nil {
 			return apperrors.Wrap(err, "create synthetic examination")
@@ -224,8 +225,8 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 			PetID:      &outsidePet.ID,
 			ExamTypeID: examType.ID,
 			DoctorID:   &staff.ID,
-			Date:       day,
-			Status:     model.ExaminationStatusCompleted,
+			Date:       &day,
+			Status:     &completedStatus,
 		}
 		if err := tx.Create(standaloneExam).Error; err != nil {
 			return apperrors.Wrap(err, "create synthetic standalone examination")

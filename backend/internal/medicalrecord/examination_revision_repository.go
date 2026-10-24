@@ -12,6 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const (
@@ -110,7 +111,12 @@ func (r *examinationRepository) AppendOfficialRevision(
 	if exam.CurrentRevisionVersion != nil {
 		return 0, apperrors.WrapConflict("revisioned examination requires the reconfirm workflow")
 	}
-	if !isFirstConfirmSourceStatus(exam.Status) {
+	// 初回確定の可否判定。status が NULL（未記録）の検査は適格と確認できないため確定させない（fail-closed）。
+	status, err := sharedkernel.RequireStored(exam.Status, "exams.status")
+	if err != nil {
+		return 0, err
+	}
+	if !isFirstConfirmSourceStatus(status) {
 		return 0, apperrors.WrapConflict("examination is not eligible for first confirmation")
 	}
 
@@ -200,7 +206,7 @@ func persistOfficialRevisionItems(
 			IsAssessed:      assessment.isAssessed,
 			IsAbnormal:      assessment.isAbnormal,
 			Status:          assessment.status,
-			SortOrder:       item.SortOrder,
+			SortOrder:       sharedkernel.SortOrderValue(item.SortOrder),
 		})
 	}
 	if len(revisionItems) > 0 {
@@ -526,7 +532,7 @@ func projectOfficialExamination(
 		Date:            revision.Date,
 		ResultSummary:   revision.ResultSummary,
 		Machine:         revision.Machine,
-		Status:          revision.Status,
+		Status:          sharedkernel.Ptr(revision.Status),
 		CreatedAt:       revision.CreatedAt,
 		UpdatedAt:       revision.CreatedAt,
 		ExaminationType: &model.ExaminationType{
@@ -582,9 +588,9 @@ func projectOfficialExamination(
 			RefMax:          cloneOptionalExactNumeric(item.RefMax),
 			QualitativeMin:  cloneOptionalString(item.QualitativeMin),
 			QualitativeMax:  cloneOptionalString(item.QualitativeMax),
-			IsAbnormal:      item.IsAbnormal,
-			Status:          item.Status,
-			SortOrder:       item.SortOrder,
+			IsAbnormal:      sharedkernel.Ptr(item.IsAbnormal),
+			Status:          sharedkernel.Ptr(item.Status),
+			SortOrder:       sharedkernel.Ptr(item.SortOrder),
 			CreatedAt:       item.CreatedAt,
 			UpdatedAt:       item.CreatedAt,
 		})

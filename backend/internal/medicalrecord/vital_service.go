@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateVitalInput はバイタル作成の入力DTO（HTTP非依存）
@@ -141,7 +142,7 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		HeartRate:       input.HeartRate,
 		RespirationRate: input.RespirationRate,
 		Weight:          weight,
-		WeightUnit:      weightUnitOrDefault(input.WeightUnit),
+		WeightUnit:      sharedkernel.Ptr(weightUnitOrDefault(input.WeightUnit)),
 		Notes:           input.Notes,
 	}
 

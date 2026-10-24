@@ -17,10 +17,10 @@ import (
 // WeightMeasurementResponse は vital_records の体重測定を表す表示投影。
 // id/value/unit/recorded_at のみ（患者本体の属性や他バイタルは含めない）。
 type WeightMeasurementResponse struct {
-	ID         uint64               `json:"id"`
-	Value      model.ExactNumeric   `json:"value"`
-	Unit       model.BodyWeightUnit `json:"unit"`
-	RecordedAt time.Time            `json:"recorded_at"`
+	ID         uint64                `json:"id"`
+	Value      model.ExactNumeric    `json:"value"`
+	Unit       *model.BodyWeightUnit `json:"unit"`
+	RecordedAt time.Time             `json:"recorded_at"`
 }
 
 // projectWeightMeasurements は親カルテの Vitals から体重投影を組み立てる。

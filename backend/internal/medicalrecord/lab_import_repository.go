@@ -457,10 +457,14 @@ func labImportExamResultsMatch(stored []model.ExamResult, input []LabExamItemInp
 	left := make([]payload, len(stored))
 	right := make([]payload, len(input))
 	for i := range stored {
+		// 並び順が NULL（未記録）の保存行は入力と同一と確認できないため不一致とする（fail-closed）。
+		if stored[i].SortOrder == nil {
+			return false
+		}
 		left[i] = payload{
 			name: stored[i].Name, inspection: stored[i].InspectionValue,
 			unit: stored[i].Unit, reference: stored[i].ReferenceValue,
-			refMin: stored[i].RefMin, refMax: stored[i].RefMax, sortOrder: stored[i].SortOrder,
+			refMin: stored[i].RefMin, refMax: stored[i].RefMax, sortOrder: *stored[i].SortOrder,
 		}
 	}
 	for i := range input {
