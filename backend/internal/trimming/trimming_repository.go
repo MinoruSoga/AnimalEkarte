@@ -142,4 +142,3 @@ func trimmingCourseImageKeyInUse(ctx context.Context, db *gorm.DB, clinicID uint
 	}
 	return trimmingCourseImageHistoryInUse(ctx, db, clinicID, key)
 }
-
