@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // delegateStaff は指名なし時に no_staff_mode に従ってスタッフを自動割当する。
@@ -47,7 +48,8 @@ func (s *liffService) delegateStaff(ctx context.Context, clinicID, typeID uint64
 // isStaffAvailable はスタッフが指定時間枠で空いているか確認する。
 func isStaffAvailable(staffID uint64, startMin, endMin int, dayResv []model.Reservation) bool {
 	for i := range dayResv {
-		if dayResv[i].Status == model.ReservationStatusCancelled {
+		// status が NULL（未記録）の予約は取消済みと断定できないため、枠を占有するものとして扱う（二重予約側へ倒さない）。
+		if sharedkernel.PtrEquals(dayResv[i].Status, model.ReservationStatusCancelled) {
 			continue
 		}
 		if dayResv[i].DoctorID == nil || *dayResv[i].DoctorID != staffID {

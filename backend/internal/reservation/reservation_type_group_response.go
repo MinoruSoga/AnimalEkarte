@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type reservationTypeGroupResponse struct {
@@ -24,7 +25,7 @@ func toReservationTypeGroupResponse(g *model.ReservationTypeGroup) reservationTy
 		ClinicID:  g.ClinicID,
 		Name:      g.Name,
 		Color:     g.Color,
-		SortOrder: g.SortOrder,
+		SortOrder: sharedkernel.SortOrderValue(g.SortOrder),
 		IsActive:  g.IsActive,
 		CreatedAt: httpapi.LocalTime(g.CreatedAt),
 		UpdatedAt: httpapi.LocalTime(g.UpdatedAt),

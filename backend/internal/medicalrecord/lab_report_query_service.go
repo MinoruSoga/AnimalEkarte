@@ -10,6 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
@@ -64,7 +65,11 @@ func (s *labReportQueryService) ListJobReportSummaries(ctx context.Context, clin
 	}
 	out := make([]model.LabExamReportSummary, 0, len(exams))
 	for _, e := range exams {
-		out = append(out, toLabExamReportSummary(e))
+		summary, convErr := toLabExamReportSummary(e)
+		if convErr != nil {
+			return nil, convErr
+		}
+		out = append(out, summary)
 	}
 	return out, nil
 }
@@ -77,26 +82,39 @@ func (s *labReportQueryService) GetExamReport(ctx context.Context, clinicID, exa
 	if err != nil {
 		return nil, apperrors.Wrap(err, fmt.Sprintf("failed to get exam report %d", examID))
 	}
+	detail, err := toLabExamReportDetail(exam)
+	if err != nil {
+		return nil, err
+	}
 	// TASK-032: record usage receipt before returning clinical payload.
 	if err := s.usage().RecordClinicalUse(ctx, clinicID, exam, model.LabImportUsageKindLabReport, nil); err != nil {
 		return nil, err
 	}
-	return toLabExamReportDetail(exam), nil
+	return detail, nil
 }
 
 // ------------------------------------
 // DTO conversion helpers
 // ------------------------------------
 
-func toLabExamReportSummary(e *model.Examination) model.LabExamReportSummary {
+func toLabExamReportSummary(e *model.Examination) (model.LabExamReportSummary, error) {
 	typeName := ""
 	if e.ExaminationType != nil {
 		typeName = e.ExaminationType.Name
 	}
+	// date / is_abnormal は NULL 許容列。未記録を空日付や正常扱いで埋めず、帳票全体を拒否する。
+	date, err := sharedkernel.RequireStored(e.Date, "exams.date")
+	if err != nil {
+		return model.LabExamReportSummary{}, err
+	}
 	resultCount := len(e.Items)
 	abnormalCount := 0
 	for i := range e.Items {
-		if e.Items[i].IsAbnormal {
+		isAbnormal, abnormalErr := sharedkernel.RequireStored(e.Items[i].IsAbnormal, "exam_results.is_abnormal")
+		if abnormalErr != nil {
+			return model.LabExamReportSummary{}, abnormalErr
+		}
+		if isAbnormal {
 			abnormalCount++
 		}
 	}
@@ -104,24 +122,33 @@ func toLabExamReportSummary(e *model.Examination) model.LabExamReportSummary {
 		ExamID:        e.ID,
 		ClinicID:      strconv.FormatUint(e.ClinicID, 10),
 		JobID:         e.JobID,
-		Date:          e.Date.Format(time.DateOnly),
+		Date:          date.Format(time.DateOnly),
 		ExamTypeName:  typeName,
-		Status:        string(e.Status),
+		Status:        sharedkernel.TextOrEmpty(e.Status),
 		ResultCount:   resultCount,
 		AbnormalCount: abnormalCount,
 		Machine:       e.Machine,
 		CreatedAt:     timeutil.LocalRFC3339(e.CreatedAt),
-	}
+	}, nil
 }
 
-func toLabExamReportDetail(e *model.Examination) *model.LabExamReportDetail {
+func toLabExamReportDetail(e *model.Examination) (*model.LabExamReportDetail, error) {
 	typeName := ""
 	if e.ExaminationType != nil {
 		typeName = e.ExaminationType.Name
 	}
+	// date / is_abnormal は NULL 許容列。未記録を空日付や正常扱いで埋めず、帳票全体を拒否する。
+	date, err := sharedkernel.RequireStored(e.Date, "exams.date")
+	if err != nil {
+		return nil, err
+	}
 	items := make([]model.LabExamResultItem, 0, len(e.Items))
 	for i := range e.Items {
 		r := &e.Items[i]
+		isAbnormal, abnormalErr := sharedkernel.RequireStored(r.IsAbnormal, "exam_results.is_abnormal")
+		if abnormalErr != nil {
+			return nil, abnormalErr
+		}
 		items = append(items, model.LabExamResultItem{
 			Name:            r.Name,
 			InspectionValue: r.InspectionValue,
@@ -132,9 +159,9 @@ func toLabExamReportDetail(e *model.Examination) *model.LabExamReportDetail {
 			RefMax:          r.RefMax,
 			QualitativeMin:  r.QualitativeMin,
 			QualitativeMax:  r.QualitativeMax,
-			IsAbnormal:      r.IsAbnormal,
-			Status:          string(r.Status),
-			SortOrder:       r.SortOrder,
+			IsAbnormal:      isAbnormal,
+			Status:          sharedkernel.TextOrEmpty(r.Status),
+			SortOrder:       sharedkernel.SortOrderValue(r.SortOrder),
 		})
 	}
 	return &model.LabExamReportDetail{
@@ -144,12 +171,12 @@ func toLabExamReportDetail(e *model.Examination) *model.LabExamReportDetail {
 		PetID:           e.PetID,
 		MedicalRecordID: e.MedicalRecordID,
 		DoctorID:        e.DoctorID,
-		Date:            e.Date.Format(time.DateOnly),
+		Date:            date.Format(time.DateOnly),
 		ExamTypeName:    typeName,
-		Status:          string(e.Status),
+		Status:          sharedkernel.TextOrEmpty(e.Status),
 		Machine:         e.Machine,
 		Items:           items,
 		CreatedAt:       timeutil.LocalRFC3339(e.CreatedAt),
 		UpdatedAt:       timeutil.LocalRFC3339(e.UpdatedAt),
-	}
+	}, nil
 }

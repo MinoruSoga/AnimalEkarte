@@ -159,7 +159,12 @@ func shouldReevaluateReservationBookingConstraintsOnUpdate(current *model.Reserv
 	if !reservationScheduleFieldsChanged(current, input) {
 		return false
 	}
-	return shouldEnforceReservationBookingConstraintsForStatus(current.Status)
+	// status が NULL（未記録）の予約は「受付以降で枠を既に占有している」と断定できないため、
+	// 検証を省略しない（enforce 側＝fail-closed に倒す。unknown を default 分岐の true と同じ扱いにするだけで値は補完しない）。
+	if current.Status == nil {
+		return true
+	}
+	return shouldEnforceReservationBookingConstraintsForStatus(*current.Status)
 }
 
 // validateTimeRange は end_time > start_time を確認する共通バリデーション
@@ -277,7 +282,8 @@ func isTransitioningToInConsultation(current *model.Reservation, input *UpdateRe
 	if input == nil || input.Status == nil || *input.Status != model.ReservationStatusInConsultation {
 		return false
 	}
-	if current != nil && current.Status == model.ReservationStatusInConsultation {
+	// status が NULL（未記録）は診療中と断定できないため、遷移扱いにしてカルテ存在検証へ進める（fail-closed）。
+	if current != nil && sharedkernel.PtrEquals(current.Status, model.ReservationStatusInConsultation) {
 		return false
 	}
 	return true

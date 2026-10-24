@@ -61,7 +61,7 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 		Color:                  input.Color,
 		IsActive:               input.IsActive,
 		Description:            input.Description,
-		SortOrder:              input.SortOrder,
+		SortOrder:              sharedkernel.Ptr(input.SortOrder),
 		Category:               category,
 		ParentID:               input.ParentID,
 		ReservationDisplayName: input.ReservationDisplayName,

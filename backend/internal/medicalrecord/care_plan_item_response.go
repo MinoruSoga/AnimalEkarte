@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type carePlanItemResponse struct {
@@ -20,7 +21,7 @@ type carePlanItemResponse struct {
 	MedicineID            *string   `json:"medicine_id,omitempty"`
 	ProcedureID           *string   `json:"procedure_id,omitempty"`
 	HospitalizationPlanID *string   `json:"hospitalization_plan_id,omitempty"`
-	UnitPrice             int64     `json:"unit_price"`
+	UnitPrice             *int64    `json:"unit_price"`
 	Category              string    `json:"category"`
 	Manual                bool      `json:"manual"`
 	OtherReason           string    `json:"other_reason"`
@@ -32,7 +33,7 @@ type carePlanItemResponse struct {
 func toCarePlanItemResponse(item *model.CarePlanItem) carePlanItemResponse {
 	timing := []string{}
 	if item.Timing != nil {
-		timing = []string(item.Timing)
+		timing = []string(*item.Timing)
 	}
 
 	r := carePlanItemResponse{
@@ -42,13 +43,13 @@ func toCarePlanItemResponse(item *model.CarePlanItem) carePlanItemResponse {
 		Name:              item.Name,
 		Description:       item.Description,
 		Timing:            timing,
-		Status:            string(item.Status),
+		Status:            sharedkernel.TextOrEmpty(item.Status),
 		Notes:             item.Notes,
 		UnitPrice:         item.UnitPrice,
 		Category:          item.Category,
 		Manual:            item.Type == model.CarePlanTypeItem && item.HospitalizationPlanID == nil,
 		OtherReason:       item.OtherReason,
-		SortOrder:         item.SortOrder,
+		SortOrder:         sharedkernel.SortOrderValue(item.SortOrder),
 		CreatedAt:         httpapi.LocalTime(item.CreatedAt),
 		UpdatedAt:         httpapi.LocalTime(item.UpdatedAt),
 	}

@@ -197,7 +197,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 			VisitType:         visitType,
 			ReservationTypeID: input.ReservationTypeID,
 			DoctorID:          doctorID,
-			IsDesignated:      input.IsDesignated,
+			IsDesignated:      sharedkernel.Ptr(input.IsDesignated),
 			Notes:             input.Notes,
 			Source:            model.ReservationSourceManual,
 			CreatedBy:         input.CreatedBy,

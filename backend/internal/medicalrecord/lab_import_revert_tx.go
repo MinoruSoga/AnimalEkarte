@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -24,7 +25,7 @@ func (s *labImportRevertService) revertLabImportInTx(
 		if existing.JobID != input.JobID || existing.RequestHash != requestHash {
 			return nil, apperrors.WrapConflict("idempotency key already used with a different payload")
 		}
-		ids, parseErr := parseRetractedExamIDs(existing.RetractedExamIDs)
+		ids, parseErr := parseRetractedExamIDs(string(existing.RetractedExamIDs))
 		if parseErr != nil {
 			return nil, apperrors.WrapInternalServerError("corrupt revert receipt")
 		}
@@ -100,7 +101,7 @@ func (s *labImportRevertService) revertLabImportInTx(
 		return nil, err
 	}
 
-	idsJSON := MustJSON(retractedIDs)
+	idsJSON := json.RawMessage(MustJSON(retractedIDs))
 	if err := s.reverts.Create(txCtx, &model.LabImportRevertReceipt{
 		ClinicID:         input.ClinicID,
 		JobID:            input.JobID,

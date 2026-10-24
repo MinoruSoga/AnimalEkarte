@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type reservationTypeLiffResponse struct {
@@ -39,7 +40,7 @@ func toReservationTypeLiffResponse(st *model.ReservationType) reservationTypeLif
 		Category:             string(st.Category),
 		IsActive:             st.IsActive,
 		Description:          st.Description,
-		SortOrder:            st.SortOrder,
+		SortOrder:            sharedkernel.SortOrderValue(st.SortOrder),
 		ParentID:             st.ParentID,
 		DurationMinutes:      st.DurationMinutes,
 		MaxConcurrent:        st.MaxConcurrent,

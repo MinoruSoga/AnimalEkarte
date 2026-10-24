@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type inquiryTemplateResponse struct {
@@ -27,7 +28,7 @@ func toInquiryTemplateResponse(it *model.InquiryTemplate) inquiryTemplateRespons
 		Title:     it.Title,
 		Content:   it.Content,
 		IsActive:  it.IsActive,
-		SortOrder: it.SortOrder,
+		SortOrder: sharedkernel.SortOrderValue(it.SortOrder),
 		CreatedAt: httpapi.LocalTime(it.CreatedAt),
 		UpdatedAt: httpapi.LocalTime(it.UpdatedAt),
 	}

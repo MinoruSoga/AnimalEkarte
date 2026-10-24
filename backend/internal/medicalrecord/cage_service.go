@@ -8,6 +8,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ---- CageService ----
@@ -149,7 +150,7 @@ func (s *cageService) Create(ctx context.Context, clinicID uint64, input *Create
 		Price:       input.Price,
 		IsActive:    input.IsActive,
 		Description: input.Description,
-		SortOrder:   input.SortOrder,
+		SortOrder:   sharedkernel.Ptr(input.SortOrder),
 	}
 	if err := s.repo.Create(ctx, cage); err != nil {
 		if conflict := apperrors.AsNameUniqueConflict(

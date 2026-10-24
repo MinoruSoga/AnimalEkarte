@@ -77,7 +77,7 @@ func buildTrimmingAppointmentUpdateFields(
 	if !resolvedEnd.Equal(locked.EndTime) {
 		update.EndTime = &resolvedEnd
 	}
-	if input.Status != "" && status != locked.Status {
+	if input.Status != "" && !sharedkernel.PtrEquals(locked.Status, status) {
 		update.Status = &status
 	}
 	return update

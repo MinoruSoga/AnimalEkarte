@@ -51,7 +51,12 @@ func (r *reservationRepository) createGuardedReception(ctx context.Context, book
 	if booking == nil {
 		return nil, nil, apperrors.WrapInvalidInput("reservation must not be nil")
 	}
-	if err := validateReceptionCreationGuard(&CreateManualReservationInput{PreventDuplicateReception: true, ReservationRoute: booking.ReservationRoute, Status: booking.Status, StartTime: booking.StartTime}); err != nil {
+	// booking.Status が nil（未指定）の場合は空のまま渡し、ガードが checked_in 以外として拒否する。
+	var bookingStatus model.ReservationStatus
+	if booking.Status != nil {
+		bookingStatus = *booking.Status
+	}
+	if err := validateReceptionCreationGuard(&CreateManualReservationInput{PreventDuplicateReception: true, ReservationRoute: booking.ReservationRoute, Status: bookingStatus, StartTime: booking.StartTime}); err != nil {
 		return nil, nil, err
 	}
 	if booking.OwnerID == nil || *booking.OwnerID == 0 || booking.PetID == nil || *booking.PetID == 0 {

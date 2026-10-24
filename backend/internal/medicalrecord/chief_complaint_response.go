@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type chiefComplaintResponse struct {
@@ -25,7 +26,7 @@ func toChiefComplaintResponse(cc *model.ChiefComplaintType) chiefComplaintRespon
 		Name:        cc.Name,
 		Description: cc.Description,
 		IsActive:    cc.IsActive,
-		SortOrder:   cc.SortOrder,
+		SortOrder:   sharedkernel.SortOrderValue(cc.SortOrder),
 		CreatedAt:   httpapi.LocalTime(cc.CreatedAt),
 		UpdatedAt:   httpapi.LocalTime(cc.UpdatedAt),
 	}
