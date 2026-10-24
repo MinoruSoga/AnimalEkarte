@@ -20,6 +20,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const maxLabImportRevertReasonRunes = 500
@@ -234,7 +235,12 @@ func (s *labImportRevertService) assertRevertSafe(
 	}
 
 	for _, exam := range exams {
-		if exam.Status == model.ExaminationStatusConfirmed {
+		// status 未記録（nil）は確定済みか判定できないため、revert を許可せずエラーにする（EMR-549 C3・臨床安全）。
+		status, err := sharedkernel.RequireStored(exam.Status, "exams.status")
+		if err != nil {
+			return err
+		}
+		if status == model.ExaminationStatusConfirmed {
 			return apperrors.WrapConflict("confirmed examination cannot be reverted via lab import compensation")
 		}
 		// Parent record presence (FOR SHARE under ambient tx). EMR-495: the old finalized refusal was
@@ -312,6 +318,12 @@ func (s *labImportRevertService) retractExam(
 	reason string,
 	exam *model.Examination,
 ) error {
+	// date は NULL 許容列。未記録（nil）はスナップショットでも null とし、空日付で補完しない（nil 参照の panic も避ける）。
+	var examDate any
+	if exam.Date != nil {
+		examDate = exam.Date.Format(time.DateOnly)
+	}
+
 	parentSnap := MustJSON(map[string]any{
 		"id":                exam.ID,
 		"clinic_id":         exam.ClinicID,
@@ -320,7 +332,7 @@ func (s *labImportRevertService) retractExam(
 		"exam_type_id":      exam.ExamTypeID,
 		"doctor_id":         exam.DoctorID,
 		"job_id":            exam.JobID,
-		"date":              exam.Date.Format(time.DateOnly),
+		"date":              examDate,
 		"machine":           exam.Machine,
 		"status":            exam.Status,
 		"result_summary":    exam.ResultSummary,
@@ -328,7 +340,7 @@ func (s *labImportRevertService) retractExam(
 	items := make([]model.LabImportExamRetractionItem, 0, len(exam.Items))
 	for i, it := range exam.Items {
 		items = append(items, model.LabImportExamRetractionItem{
-			ItemSnapshot: MustJSON(it),
+			ItemSnapshot: json.RawMessage(MustJSON(it)),
 			SortOrder:    i,
 		})
 	}
@@ -338,7 +350,7 @@ func (s *labImportRevertService) retractExam(
 		ExamID:         exam.ID,
 		ActorID:        input.ActorID,
 		Reason:         reason,
-		ParentSnapshot: parentSnap,
+		ParentSnapshot: json.RawMessage(parentSnap),
 	}
 	if err := s.retractions.CreateWithItems(ctx, retraction, items); err != nil {
 		return err
