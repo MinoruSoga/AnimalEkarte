@@ -90,18 +90,22 @@ func (s *lstepDeliveryTriggerService) demoteRemoveTarget(
 	if s.ownerRepo == nil {
 		return nil, "", nil
 	}
-	owner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
+	_, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
 	if findErr != nil {
 		return nil, "", apperrors.Wrap(findErr, "failed to find owner for demote tag remove")
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	resolved, recipientErr := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
+	if recipientErr != nil {
+		return nil, "", recipientErr
+	}
+	if resolved == "" {
 		return nil, "", nil
 	}
 	client, buildErr := s.buildClient(ctx, clinicID)
 	if buildErr != nil {
 		return nil, "", buildErr
 	}
-	return client, *owner.LineUserID, nil
+	return client, resolved, nil
 }
 
 func removeDemotedTriggerTag(ctx context.Context, client lstep.Client, lineUserID string, log *model.LstepDeliveryTriggerLog) error {

@@ -81,12 +81,17 @@ func (r *lstepTagCacheRepository) EnqueueNextVisitCleanup(ctx context.Context, c
 	var locked model.Owner
 	if err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
-		Select("id", "clinic_id", "line_user_id").
+		Select("id", "clinic_id").
 		Where("clinic_id = ? AND id = ? AND deleted_at IS NULL", clinicID, ownerID).
 		First(&locked).Error; err != nil {
 		return apperrors.FromGORM(err, "owner", fmt.Sprint(ownerID))
 	}
-	if locked.ClinicID != clinicID || locked.LineUserID == nil || *locked.LineUserID != lineUserID {
+	// EMR-504: 配信先は owner 行ではなく binding（state='linked'）から、owner 行ロック後の同一 tx で読む。
+	current, err := persistence.LinkedLineUserIDOn(persistence.DBOrTx(ctx, r.db), clinicID, ownerID)
+	if err != nil {
+		return err
+	}
+	if locked.ClinicID != clinicID || current == nil || *current != lineUserID {
 		return apperrors.WrapConflict("next visit cleanup target does not match the locked owner")
 	}
 	if err := persistence.AcquireLineRecipientLock(ctx, clinicID, lineUserID); err != nil {
@@ -127,7 +132,7 @@ func (r *lstepTagCacheRepository) FindOwnerForNextVisitCleanup(ctx context.Conte
 	var owner model.Owner
 	err := persistence.DBOrTx(ctx, r.db).
 		Unscoped().
-		Select("id", "clinic_id", "line_user_id", "lstep_opt_out", "deleted_at").
+		Select("id", "clinic_id", "lstep_opt_out", "deleted_at").
 		Where("clinic_id = ? AND id = ?", clinicID, ownerID).
 		First(&owner).Error
 	if err != nil {
@@ -142,8 +147,12 @@ func (r *lstepTagCacheRepository) CountActiveOwnersWithLineUser(ctx context.Cont
 	}
 	var count int64
 	if err := persistence.DBOrTx(ctx, r.db).
-		Model(&model.Owner{}).
-		Where("clinic_id = ? AND line_user_id = ? AND deleted_at IS NULL", clinicID, lineUserID).
+		Table("owner_line_binding_states AS lb").
+		Joins("JOIN line_customers lc ON lc.id = lb.line_customer_id AND lc.clinic_id = lb.clinic_id").
+		Joins("JOIN owners o ON o.id = lb.owner_id AND o.clinic_id = lb.clinic_id AND o.deleted_at IS NULL").
+		// 「この recipient を誰かがまだ保持しているか」の判定のため unlink_pending も含める（unique index と同じ範囲）。
+		Where("lb.clinic_id = ? AND lc.line_user_id = ? AND lb.state IN ?", clinicID, lineUserID,
+			[]string{persistence.LineBindingStateLinked, lineBindingStateUnlinkPending}).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.Wrap(err, "failed to count line recipient owners")
 	}

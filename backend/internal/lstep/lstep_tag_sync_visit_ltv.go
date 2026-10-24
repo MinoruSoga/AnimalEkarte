@@ -61,11 +61,24 @@ func (s *lstepTagSyncService) SyncLTVTopPercent(ctx context.Context, clinicID ui
 			break
 		}
 
+		// EMR-504: ページ内 owner の配信先を binding（state='linked'）から一括で読む。
+		// 読み取り失敗は未連携と区別し、ページ単位で失敗として返す。
+		pageOwnerIDs := make([]uint64, 0, len(owners))
+		for i := range owners {
+			pageOwnerIDs = append(pageOwnerIDs, owners[i].ID)
+		}
+		recipients, recipientErr := linkedLineUserIDs(ctx, s.recipients, clinicID, pageOwnerIDs)
+		if recipientErr != nil {
+			slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to read linked recipients",
+				"clinic_id", clinicID, "after_id", afterID, "error", recipientErr)
+			return count, append(errs, recipientErr)
+		}
+
 		// Page-scoped non-top owner IDs for batch tag-cache load (PERF-FOLLOWUP-08 / G2F-03).
 		nonTopOwnerIDs := make([]uint64, 0, len(owners))
 		for i := range owners {
 			owner := &owners[i]
-			if owner.LineUserID == nil || *owner.LineUserID == "" {
+			if recipients[owner.ID] == "" {
 				continue
 			}
 			if _, isTop := topOwnerIDs[owner.ID]; isTop {
@@ -84,10 +97,10 @@ func (s *lstepTagSyncService) SyncLTVTopPercent(ctx context.Context, clinicID ui
 
 		for i := range owners {
 			owner := &owners[i]
-			if owner.LineUserID == nil || *owner.LineUserID == "" {
+			lineUserID := recipients[owner.ID]
+			if lineUserID == "" {
 				continue
 			}
-			lineUserID := *owner.LineUserID
 			_, isTop := topOwnerIDs[owner.ID]
 			if isTop {
 				if tagErr := s.applyTagState(ctx, client, clinicID, owner.ID, lineUserID, ltvTop20Tag, "LTV top20", "", true); tagErr != nil {

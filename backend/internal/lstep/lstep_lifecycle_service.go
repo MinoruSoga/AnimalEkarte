@@ -40,6 +40,10 @@ type lstepLifecycleService struct {
 	// ロールバックする（#211 返金の fail-closed 先例と同型）。
 	transactor lifecycleTransactor
 	auditTx    LifecycleAuditTxLogger
+	// EMR-504: 紐付け済み LINE 配信先（owner_line_binding_states）の reader。
+	recipients lineRecipientReader
+	// EMR-491 D6: pet の生死 reader。HandlePetDeath / HandlePetRevival の WithTx 内で読む。
+	petLife sharedkernel.PetLifeStateReader
 }
 
 // NewLstepLifecycleService は LstepLifecycleService を初期化して返す。
@@ -54,6 +58,8 @@ func NewLstepLifecycleService(
 	tagConfigRepo lifecycleTagConfigRepository,
 	transactor lifecycleTransactor,
 	auditTx LifecycleAuditTxLogger,
+	recipients lineRecipientReader,
+	petLife sharedkernel.PetLifeStateReader,
 ) LstepLifecycleService {
 	return &lstepLifecycleService{
 		settingsSvc:   settingsSvc,
@@ -65,6 +71,8 @@ func NewLstepLifecycleService(
 		tagConfigRepo: tagConfigRepo,
 		transactor:    transactor,
 		auditTx:       auditTx,
+		recipients:    recipients,
+		petLife:       petLife,
 	}
 }
 
@@ -115,7 +123,11 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 		if pet == nil {
 			return apperrors.WrapInternalServerError("pet lock returned no result")
 		}
-		if sharedkernel.IsPetDeceased(pet) {
+		lifeState, lifeErr := s.readPetLifeState(txCtx, clinicID, petID)
+		if lifeErr != nil {
+			return lifeErr
+		}
+		if lifeState == sharedkernel.PetLifeStateDeceased {
 			return apperrors.WrapConflict("死亡記録は既に登録されています")
 		}
 		ownerID = pet.OwnerID
@@ -169,10 +181,12 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	}
 
 	// 死亡ペット由来のワクチン・健診タグを解除する（best-effort）
-	if cleanupOwner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID); findErr == nil &&
-		cleanupOwner != nil && cleanupOwner.LineUserID != nil && *cleanupOwner.LineUserID != "" {
+	// EMR-504: 配信先は binding（state='linked'）から読む。解決失敗は未連携にせずログへ残す。
+	if lineUserID, recipientErr := linkedLineUserID(ctx, s.recipients, clinicID, ownerID); recipientErr != nil {
+		slog.ErrorContext(ctx, "failed to resolve LINE recipient for pet-derived tag removal", "error", recipientErr, "owner_id", ownerID)
+	} else if lineUserID != "" {
 		if client, clientErr := s.buildClient(ctx, clinicID); clientErr == nil && client != nil {
-			s.removePetDerivedTagsFromLstep(ctx, client, clinicID, ownerID, *cleanupOwner.LineUserID)
+			s.removePetDerivedTagsFromLstep(ctx, client, clinicID, ownerID, lineUserID)
 		}
 	}
 
@@ -185,16 +199,16 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 }
 
 func (s *lstepLifecycleService) clearAllTagsIfLinked(ctx context.Context, clinicID, ownerID uint64) {
-	owner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
+	lineUserID, findErr := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
 	if findErr != nil {
-		slog.ErrorContext(ctx, "failed to load owner for lstep tag clear", "error", findErr, "clinic_id", clinicID, "owner_id", ownerID)
+		slog.ErrorContext(ctx, "failed to load LINE recipient for lstep tag clear", "error", findErr, "clinic_id", clinicID, "owner_id", ownerID)
 		return
 	}
-	if owner == nil || owner.LineUserID == nil || *owner.LineUserID == "" {
+	if lineUserID == "" {
 		slog.InfoContext(ctx, "lstep tag clear skipped: owner is not LINE-linked", "clinic_id", clinicID, "owner_id", ownerID)
 		return
 	}
-	if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, *owner.LineUserID); removeErr != nil {
+	if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, lineUserID); removeErr != nil {
 		slog.ErrorContext(ctx, "failed to remove lstep tags on all-pets-dead", "error", removeErr)
 	}
 }
@@ -216,7 +230,11 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 		if pet == nil {
 			return apperrors.WrapInternalServerError("pet lock returned no result")
 		}
-		if !sharedkernel.IsPetDeceased(pet) {
+		lifeState, lifeErr := s.readPetLifeState(txCtx, clinicID, petID)
+		if lifeErr != nil {
+			return lifeErr
+		}
+		if lifeState != sharedkernel.PetLifeStateDeceased {
 			return apperrors.WrapConflict("死亡記録が登録されていないため解除できません")
 		}
 		ownerID = pet.OwnerID
@@ -266,8 +284,7 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 // HandleOwnerOptOut はオプトアウトを記録し Lステップの全タグを解除する。
 func (s *lstepLifecycleService) HandleOwnerOptOut(ctx context.Context, clinicID, ownerID uint64, reason string, actorID *uint64) error {
 	// P1: FindByID before Update
-	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
-	if err != nil {
+	if _, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID); err != nil {
 		return apperrors.Wrap(err, "failed to find owner")
 	}
 
@@ -281,12 +298,19 @@ func (s *lstepLifecycleService) HandleOwnerOptOut(ctx context.Context, clinicID,
 		slog.WarnContext(ctx, "audit log failed for owner lstep opt-out", "error", auditErr, "owner_id", ownerID)
 	}
 
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	// EMR-504: 配信先は binding（state='linked'）から読む。opt-out は記録済みのため、解決失敗は
+	// ログに残してタグ解除だけを断念する（未連携と同一視しない）。
+	lineUserID, recipientErr := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
+	if recipientErr != nil {
+		slog.ErrorContext(ctx, "failed to resolve LINE recipient for lstep tag removal on opt-out", "error", recipientErr, "owner_id", ownerID)
+		return nil
+	}
+	if lineUserID == "" {
 		return nil
 	}
 
 	// タグ解除は best-effort — opt-out 記録の成否に影響させない
-	if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, *owner.LineUserID); removeErr != nil {
+	if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, lineUserID); removeErr != nil {
 		slog.ErrorContext(ctx, "failed to remove lstep tags on opt-out", "error", removeErr)
 	}
 
@@ -318,8 +342,7 @@ func (s *lstepLifecycleService) HandleOwnerOptIn(ctx context.Context, clinicID, 
 
 // HandleOwnerDeletion は飼主削除前に Lステップの全タグを解除しキャッシュを削除する。
 func (s *lstepLifecycleService) HandleOwnerDeletion(ctx context.Context, clinicID, ownerID uint64) error {
-	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
-	if err != nil {
+	if _, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID); err != nil {
 		// owner.DeleteOwner は戻り値を捨てる（best-effort）。RespondError しないので診断ログを残す。
 		slog.ErrorContext(ctx, "failed to find owner for deletion cleanup", "error", err)
 		return apperrors.Wrap(err, "failed to find owner")
@@ -330,16 +353,38 @@ func (s *lstepLifecycleService) HandleOwnerDeletion(ctx context.Context, clinicI
 		slog.WarnContext(ctx, "audit log failed for owner deletion lstep cleanup", "error", auditErr, "owner_id", ownerID)
 	}
 
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	lineUserID, recipientErr := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
+	if recipientErr != nil {
+		return apperrors.Wrap(recipientErr, "failed to resolve LINE recipient for deletion cleanup")
+	}
+	if lineUserID == "" {
 		return nil
 	}
 
-	if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, *owner.LineUserID); removeErr != nil {
+	if removeErr := s.removeAllTagsFromLstep(ctx, clinicID, ownerID, lineUserID); removeErr != nil {
 		slog.ErrorContext(ctx, "failed to remove lstep tags on owner deletion", "error", removeErr)
 		// タグ解除失敗は削除フローを止めない
 	}
 
 	return nil
+}
+
+// readPetLifeState は EMR-491 D6 の死亡 reader で pet の生死を読む。LockByIDForUpdate と同じ WithTx 内で呼ぶこと。
+// reader 未注入・not found・unresolved・I/O 失敗はいずれもエラーで返し、生存（または未死亡）として扱わない。
+func (s *lstepLifecycleService) readPetLifeState(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error) {
+	if s.petLife == nil {
+		return "", apperrors.WrapInternalServerError("pet life state reader is required")
+	}
+	state, err := s.petLife.ReadPetLifeState(ctx, clinicID, petID)
+	if err != nil {
+		return "", apperrors.Wrap(err, "failed to verify pet life state")
+	}
+	switch state {
+	case sharedkernel.PetLifeStateAlive, sharedkernel.PetLifeStateDeceased:
+		return state, nil
+	default:
+		return "", apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet life state reader returned no state")
+	}
 }
 
 // removePetDerivedTagsFromLstep は死亡ペット由来のタグ（ワクチン・健診カテゴリ）を

@@ -200,6 +200,12 @@ type PetOwnerCounter interface {
 	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 }
 
+// LineRecipientReader は owner の現行 LINE 紐付け（owner_line_binding_states.state='linked'）から
+// 配信先 LINE User ID を読む consumer-side 最小 view（EMR-504）。未連携は (nil, nil)。
+type LineRecipientReader interface {
+	LinkedLineUserID(ctx context.Context, clinicID, ownerID uint64) (*string, error)
+}
+
 // OwnerDeleteLocker serializes deletion with concurrent owner-dependent
 // writers while preserving the owner package's dependency direction.
 type OwnerDeleteLocker interface {
@@ -227,6 +233,8 @@ type ownerService struct {
 	petOwnerCounter    PetOwnerCounter
 	deleteTransactor   OwnerDeleteTransactor
 	deleteGuardEnabled bool
+	// EMR-504: 削除時の next-visit cleanup 要否を binding（state='linked'）から判定する。
+	lineRecipients LineRecipientReader
 }
 
 // NewService constructs the owner use case.
@@ -255,6 +263,7 @@ func NewServiceWithPetOwnerDeleteGuard(
 	deleteLocker OwnerDeleteLocker,
 	petOwnerCounter PetOwnerCounter,
 	deleteTransactor OwnerDeleteTransactor,
+	lineRecipients LineRecipientReader,
 ) Service {
 	return &ownerService{
 		repo:               repo,
@@ -265,5 +274,6 @@ func NewServiceWithPetOwnerDeleteGuard(
 		petOwnerCounter:    petOwnerCounter,
 		deleteTransactor:   deleteTransactor,
 		deleteGuardEnabled: true,
+		lineRecipients:     lineRecipients,
 	}
 }

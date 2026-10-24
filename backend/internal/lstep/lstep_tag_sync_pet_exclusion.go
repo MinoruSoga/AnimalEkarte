@@ -26,10 +26,15 @@ func (s *lstepTagSyncService) SyncExclusionTags(ctx context.Context, clinicID, o
 		slog.ErrorContext(ctx, "failed to find owner for exclusion tags", "error", err)
 		return apperrors.Wrap(err, "failed to find owner")
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	// EMR-504: 配信先は binding（state='linked'）から読む。解決失敗は未連携にせずエラーで返す。
+	lineUserID, recipientErr := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
+	if recipientErr != nil {
+		slog.ErrorContext(ctx, "failed to resolve LINE recipient for exclusion tags", "error", recipientErr)
+		return recipientErr
+	}
+	if lineUserID == "" {
 		return nil
 	}
-	lineUserID := *owner.LineUserID
 
 	// 全ペット死亡判定
 	totalPets, err := s.petRepo.CountByOwner(ctx, clinicID, ownerID)

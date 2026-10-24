@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
@@ -119,9 +120,31 @@ func (s *lstepDeliveryTriggerService) eventPetEligibility(clinicID, ownerID, pet
 		if err != nil {
 			return false, "", apperrors.Wrap(err, "failed to re-read welcome event pet")
 		}
-		if pet == nil || pet.OwnerID != ownerID || sharedkernel.IsPetDeceased(pet) {
+		if pet == nil || pet.OwnerID != ownerID {
 			return false, "event_pet_ineligible", nil
 		}
-		return true, "", nil
+		// 生死は EMR-491 D6 reader だけで判定する（旧 pets.status / deceased_at は読まない）。
+		// reader は ambient transaction 必須。scheduled claim 前の再読は tx を持たないため
+		// ここでは生死を判定せず、delivery owner lock 内（tx あり）の再読を権威的な fail-closed
+		// ゲートとする（claim 済みスロットは lock 内で excluded として記録される）。
+		if persistence.TxFromContext(ctx) == nil {
+			return true, "", nil
+		}
+		if s.petLife == nil {
+			return false, "", apperrors.WrapInternalServerError("pet life state reader is required")
+		}
+		state, err := s.petLife.ReadPetLifeState(ctx, clinicID, petID)
+		if err != nil {
+			// not found / unresolved / I/O 失敗は生存扱いにしない（送信せず error を返す）。
+			return false, "", apperrors.Wrap(err, "failed to verify welcome event pet life state")
+		}
+		switch state {
+		case sharedkernel.PetLifeStateAlive:
+			return true, "", nil
+		case sharedkernel.PetLifeStateDeceased:
+			return false, "event_pet_ineligible", nil
+		default:
+			return false, "", apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet life state reader returned no state")
+		}
 	}
 }

@@ -523,9 +523,20 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 			lockExcludedReason = reason
 			return nil
 		}
+		// 送信先は lock 内の同一 tx で binding（state='linked'）から読み直す。
+		// 解決できない場合は *freshOwner.LineUserID の null deref ではなく no_line_user_id で除外する。
+		lineUserID, recipientErr := linkedLineUserID(syncCtx, s.recipients, clinicID, ownerID)
+		if recipientErr != nil {
+			return recipientErr
+		}
+		if lineUserID == "" {
+			lockExcluded = true
+			lockExcludedReason = "no_line_user_id"
+			return nil
+		}
 		if revalidate != nil {
 			stillValid, staleReason, revalidateErr := revalidate(syncCtx, ownerID, func(callCtx context.Context) error {
-				return send(callCtx, *freshOwner.LineUserID)
+				return send(callCtx, lineUserID)
 			})
 			if revalidateErr != nil {
 				return revalidateErr
@@ -553,7 +564,7 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 				return nil
 			}
 		}
-		return send(syncCtx, *freshOwner.LineUserID)
+		return send(syncCtx, lineUserID)
 	})
 
 	if sendStarted {

@@ -42,12 +42,12 @@ func (s *liffService) GetHealthCard(ctx context.Context, clinicID, customerID ui
 		ownerName = customer.RealName
 	}
 
-	if customer.OwnerID == nil || customer.Owner == nil {
+	if customer.Owner == nil {
 		return &HealthCardResult{OwnerName: ownerName, Pets: []PetHealthCard{}}, nil
 	}
 	ownerName = customer.Owner.Name
 
-	vaccinations, err := s.vaccinationRepo.FindByOwner(ctx, clinicID, *customer.OwnerID)
+	vaccinations, err := s.vaccinationRepo.FindByOwner(ctx, clinicID, customer.Owner.ID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get health card")
 	}

@@ -76,6 +76,8 @@ type lstepTagService struct {
 	tagConfigRepo LstepTagConfigRepository
 	// buildClientFn is a test hook to inject a Client without the real deploy write gate.
 	buildClientFn func(ctx context.Context, clinicID uint64) (lstep.Client, error)
+	// EMR-504: 紐付け済み LINE 配信先（owner_line_binding_states）の reader。
+	recipients lineRecipientReader
 }
 
 // NewLstepTagService は LstepTagService を初期化して返す。
@@ -86,6 +88,7 @@ func NewLstepTagService(
 	tagCacheRepo LstepTagCacheRepository,
 	auditSvc lstepAuditLogger,
 	tagConfigRepo LstepTagConfigRepository,
+	recipients lineRecipientReader,
 ) LstepTagService {
 	return &lstepTagService{
 		settingsSvc:   settingsSvc,
@@ -93,6 +96,7 @@ func NewLstepTagService(
 		tagCacheRepo:  tagCacheRepo,
 		auditSvc:      auditSvc,
 		tagConfigRepo: tagConfigRepo,
+		recipients:    recipients,
 	}
 }
 
@@ -141,16 +145,26 @@ func (s *lstepTagService) GetOwnerTags(ctx context.Context, clinicID, ownerID ui
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}
 
+	// EMR-504: 配信先は binding（state='linked'）から読む。解決失敗は未連携にせずエラーで返す。
+	lineUserID, err := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	var recipient *string
+	if lineUserID != "" {
+		recipient = &lineUserID
+	}
+
 	result := &OwnerTagsResult{
-		LineUserID:  owner.LineUserID,
-		IsLinked:    owner.LineUserID != nil && *owner.LineUserID != "",
+		LineUserID:  recipient,
+		IsLinked:    lineUserID != "",
 		LstepOptOut: owner.LstepOptOut,
 		Tags:        []string{},
 		FetchedAt:   time.Now(),
 	}
 
 	// LINE User ID 未連携は空リスト（エラーではない）
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	if lineUserID == "" {
 		return result, nil
 	}
 
@@ -172,7 +186,7 @@ func (s *lstepTagService) GetOwnerTags(ctx context.Context, clinicID, ownerID ui
 		return result, nil
 	}
 
-	tags, err := client.GetUserTags(ctx, *owner.LineUserID)
+	tags, err := client.GetUserTags(ctx, lineUserID)
 	if err != nil {
 		if lstep.IsUserNotFound(err) {
 			return result, nil
@@ -202,7 +216,11 @@ func (s *lstepTagService) AddOwnerTag(ctx context.Context, clinicID, ownerID uin
 	if owner.LstepOptOut {
 		return apperrors.WrapForbidden(fmt.Sprintf("飼主 %d はLステップ配信をオプトアウトしています", ownerID))
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	lineUserID, err := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
+	if err != nil {
+		return err
+	}
+	if lineUserID == "" {
 		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d:line_user_id", ownerID))
 	}
 
@@ -214,7 +232,7 @@ func (s *lstepTagService) AddOwnerTag(ctx context.Context, clinicID, ownerID uin
 		return apperrors.WrapInvalidInput("Lステップ API が設定されていません")
 	}
 
-	if err := client.AddTag(ctx, *owner.LineUserID, tagName); err != nil {
+	if err := client.AddTag(ctx, lineUserID, tagName); err != nil {
 		return apperrors.Wrap(err, "failed to add tag")
 	}
 
@@ -238,13 +256,16 @@ func (s *lstepTagService) RemoveOwnerTag(ctx context.Context, clinicID, ownerID 
 		return apperrors.WrapInvalidInput(fmt.Sprintf("タグ %q は自動管理タグのため手動解除できません", tagName))
 	}
 
-	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
-	if err != nil {
+	if _, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID); err != nil {
 		return apperrors.Wrap(err, "failed to find owner")
 	}
 
 	// LINE 未連携は冪等に正常終了
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	lineUserID, err := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
+	if err != nil {
+		return err
+	}
+	if lineUserID == "" {
 		return nil
 	}
 
@@ -256,7 +277,7 @@ func (s *lstepTagService) RemoveOwnerTag(ctx context.Context, clinicID, ownerID 
 		return nil
 	}
 
-	if err := client.RemoveTag(ctx, *owner.LineUserID, tagName); err != nil {
+	if err := client.RemoveTag(ctx, lineUserID, tagName); err != nil {
 		if lstep.IsUserNotFound(err) {
 			return nil
 		}

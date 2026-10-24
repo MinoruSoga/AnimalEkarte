@@ -204,7 +204,7 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 	if !s.deleteGuardEnabled {
 		return s.deleteWithoutPetOwnerGuard(ctx, clinicID, id)
 	}
-	if s.deleteLocker == nil || s.petOwnerCounter == nil || s.deleteTransactor == nil {
+	if s.deleteLocker == nil || s.petOwnerCounter == nil || s.deleteTransactor == nil || s.lineRecipients == nil {
 		return apperrors.WrapInternalServerError("owner delete guard dependencies are not configured")
 	}
 
@@ -237,12 +237,17 @@ func (s *ownerService) Delete(ctx context.Context, clinicID, id uint64) error {
 			return apperrors.WrapConflict("副飼主として紐付いているため削除できません。先に紐付けを解除してください")
 		}
 
-		if lockedOwner.LineUserID != nil && *lockedOwner.LineUserID != "" {
+		// EMR-504: 配信先は owner 行ではなく binding（state='linked'）から、owner 行ロック後の同一 tx で読む。
+		lineUserID, err := s.lineRecipients.LinkedLineUserID(txCtx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to resolve LINE recipient for owner delete")
+		}
+		if lineUserID != nil && *lineUserID != "" {
 			cleanup, ok := s.tagNotifier.(OwnerDeleteTagCleanup)
 			if !ok {
 				return apperrors.WrapInternalServerError("owner delete cleanup dependency is not configured")
 			}
-			if err := cleanup.EnqueueNextVisitCleanup(txCtx, clinicID, id, *lockedOwner.LineUserID); err != nil {
+			if err := cleanup.EnqueueNextVisitCleanup(txCtx, clinicID, id, *lineUserID); err != nil {
 				return apperrors.Wrap(err, "failed to enqueue next visit cleanup")
 			}
 			cleanupNeeded = true

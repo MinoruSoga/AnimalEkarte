@@ -178,6 +178,7 @@ func newRuntimeLstepApplication(
 		OwnerLifecycle:    ownerLifecycleWriterAdapter{inner: repositories.ownerPet.Owner},
 		Pets:              repositories.ownerPet.Pet,
 		PetLifecycle:      petLifecycleWriterAdapter{inner: repositories.ownerPet.Pet},
+		PetLife:           pet.NewLifeStateReader(),
 		Vaccinations:      repositories.medicalRecord.vaccinations,
 		MedicalRecords:    repositories.medicalRecord.medicalRecords,
 		Accounting:        repositories.billing.accounting,

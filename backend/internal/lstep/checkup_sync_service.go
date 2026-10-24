@@ -121,6 +121,8 @@ type checkupSyncService struct {
 	settingsSvc   checkupSyncSettingsService
 	auditSvc      checkupSyncAuditLogger
 	buildClientFn func(ctx context.Context, clinicID uint64) (lstepapi.Client, error) // テスト注入用
+	// EMR-504: 紐付け済み LINE 配信先（owner_line_binding_states）の reader。
+	recipients lineRecipientReader
 }
 
 // NewCheckupSyncService は CheckupSyncService を初期化して返す。
@@ -132,6 +134,7 @@ func NewCheckupSyncService(
 	tagCacheRepo checkupSyncTagCacheRepo,
 	settingsSvc checkupSyncSettingsService,
 	auditSvc checkupSyncAuditLogger,
+	recipients lineRecipientReader,
 ) CheckupSyncService {
 	return &checkupSyncService{
 		repo:         repo,
@@ -140,6 +143,7 @@ func NewCheckupSyncService(
 		tagCacheRepo: tagCacheRepo,
 		settingsSvc:  settingsSvc,
 		auditSvc:     auditSvc,
+		recipients:   recipients,
 	}
 }
 

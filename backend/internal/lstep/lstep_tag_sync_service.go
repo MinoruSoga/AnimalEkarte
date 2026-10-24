@@ -215,6 +215,8 @@ type lstepTagSyncService struct {
 	tagConfigRepo LstepTagConfigRepository
 	// buildClientFn はテスト時にモック Client を注入するためのフック（FEAT-381-2）。
 	buildClientFn func(ctx context.Context, clinicID uint64) (lstep.Client, error)
+	// EMR-504: 紐付け済み LINE 配信先（owner_line_binding_states）の reader。
+	recipients lineRecipientReader
 }
 
 // NewLstepTagSyncService は LstepTagSyncService を初期化して返す。
@@ -236,6 +238,7 @@ func NewLstepTagSyncService(
 	tagCodeRepo LstepTagCodeMappingRepository,
 	billingItemRepo tagSyncBillingItemRepo,
 	tagConfigRepo LstepTagConfigRepository,
+	recipients lineRecipientReader,
 	nextVisitAppointmentRepos ...tagSyncNextVisitAppointmentRepo,
 ) LstepTagSyncService {
 	var nextVisitAppointmentRepo tagSyncNextVisitAppointmentRepo
@@ -256,6 +259,7 @@ func NewLstepTagSyncService(
 		tagCodeRepo:              tagCodeRepo,
 		billingItemRepo:          billingItemRepo,
 		tagConfigRepo:            tagConfigRepo,
+		recipients:               recipients,
 	}
 }
 

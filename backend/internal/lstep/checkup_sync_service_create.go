@@ -70,7 +70,14 @@ func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uin
 		}
 	}
 
-	targets, skipStats, failedIDs := partitionCheckupSyncTargets(ctx, owners, input.OwnerIDs, livingPetCounts)
+	// EMR-504: 配信先は owner 行ではなく binding（state='linked'）から一括で読む。
+	// 取得失敗・reader 未注入は未連携と区別し、全体を失敗させる（partial success にしない）。
+	recipients, recipientErr := linkedLineUserIDs(ctx, s.recipients, clinicID, candidateIDs)
+	if recipientErr != nil {
+		return nil, apperrors.Wrap(recipientErr, "failed to read linked LINE recipients")
+	}
+
+	targets, skipStats, failedIDs := partitionCheckupSyncTargets(ctx, owners, input.OwnerIDs, livingPetCounts, recipients)
 	result.FailedOwnerIDs = append(result.FailedOwnerIDs, failedIDs...)
 	result.FailedCount += len(failedIDs)
 	result.SkippedCount += skipStats.OptOut + skipStats.NoLivingPet + skipStats.LineUnlinked
@@ -109,7 +116,8 @@ type checkupSyncSkipStats struct {
 // であること（opt-out 済みオーナーは本関数内で先に除外されるため参照されない）。
 // 優先度: 見つからない > opt-out > 生存ペットなし > LINE未連携（preview 側の
 // deriveExclusionReason と同順、ISSUE-007）。
-func partitionCheckupSyncTargets(ctx context.Context, owners []*model.Owner, requestedIDs []uint64, livingPetCounts map[uint64]int64) (targets []checkupSyncTarget, skipStats checkupSyncSkipStats, failedIDs []uint64) {
+// recipients は binding（state='linked'）から読んだ owner ID -> LINE User ID（未連携の owner は含まれない・EMR-504）。
+func partitionCheckupSyncTargets(ctx context.Context, owners []*model.Owner, requestedIDs []uint64, livingPetCounts map[uint64]int64, recipients map[uint64]string) (targets []checkupSyncTarget, skipStats checkupSyncSkipStats, failedIDs []uint64) {
 	foundIDs := make(map[uint64]struct{}, len(owners))
 	for _, o := range owners {
 		foundIDs[o.ID] = struct{}{}
@@ -130,11 +138,12 @@ func partitionCheckupSyncTargets(ctx context.Context, owners []*model.Owner, req
 			skipStats.NoLivingPet++
 			continue
 		}
-		if owner.LineUserID == nil || *owner.LineUserID == "" {
+		lineUserID := recipients[owner.ID]
+		if lineUserID == "" {
 			skipStats.LineUnlinked++
 			continue
 		}
-		targets = append(targets, checkupSyncTarget{OwnerID: owner.ID, LineUserID: *owner.LineUserID})
+		targets = append(targets, checkupSyncTarget{OwnerID: owner.ID, LineUserID: lineUserID})
 	}
 	return targets, skipStats, failedIDs
 }

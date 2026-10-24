@@ -2,7 +2,6 @@ package lstep
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -50,8 +49,7 @@ func (s *lineCustomerService) List(ctx context.Context, clinicID uint64) (*LineC
 }
 
 func (s *lineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error) {
-	existing, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
+	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return nil, apperrors.Wrap(err, "failed to find line customer")
 	}
 	if ownerID != nil {
@@ -59,23 +57,10 @@ func (s *lineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64
 			return nil, apperrors.Wrap(err, "owner not found")
 		}
 	}
-	if err := s.repo.UpdateOwnerLink(ctx, clinicID, id, ownerID); err != nil {
-		return nil, apperrors.Wrap(err, "failed to link owner to reservation customer")
-	}
-	slog.InfoContext(ctx, "line customer owner linked",
-		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("line_customer_id", id),
+	// EMR-504 / EMR-549 C1: line_customers.owner_id は DROP 済みで、置換先 owner_line_binding_states の
+	// writer（EMR-469 W09）は未接続。成功を装わず固定 422 で拒否する（旧列へのフォールバックなし）。
+	return nil, apperrors.WrapUnprocessableWithCode(
+		apperrors.CodeLineBindingPending,
+		"LINE顧客と飼い主の紐付けは現在変更できません（紐付け機能の準備中です）",
 	)
-	result, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		// G2A-01 / CODING_RULES.md:78 — write already committed; do not invert success into failure.
-		slog.ErrorContext(ctx, "reload after line customer owner link failed; returning preloaded row with updated owner_id",
-			"error", err, "clinic_id", clinicID, "line_customer_id", id)
-		existing.OwnerID = ownerID
-		if ownerID == nil {
-			existing.Owner = nil
-		}
-		return existing, nil
-	}
-	return result, nil
 }

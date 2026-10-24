@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // OwnerRepository is the union of owner operations consumed by LSTEP use cases.
@@ -90,6 +91,7 @@ type Dependencies struct {
 	NoShowAuditTx         NoShowAuditTxLogger
 	LineLinkAuditTx       LineLinkAuditTxLogger
 	AggregationRepository OwnerAggregationRepository
+	PetLife               sharedkernel.PetLifeStateReader
 }
 
 // Application is the typed LSTEP composition result exposed to real cross-domain consumers.
@@ -122,7 +124,7 @@ func newApplication(deps *Dependencies, repos *applicationRepositories) *Applica
 	delivery := NewLstepDeliveryTriggerService(
 		deps.Owners, deps.MedicalRecords, deps.Vaccinations, deps.Pets,
 		repos.tagCache, repos.deliveryTriggerLog, core.settings, core.triggerPriority,
-		deps.Appointments,
+		deps.Appointments, core.recipients, deps.PetLife,
 	)
 	batch := NewLstepBatchService(
 		deps.Reservations, core.tagSync, deps.Clinics, deps.MedicalRecords, deps.Audit,

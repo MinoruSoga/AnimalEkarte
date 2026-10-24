@@ -44,7 +44,11 @@ func (s *lstepLifecycleService) clearTagsWithOwnerLock(ctx context.Context, clie
 		if owner == nil {
 			return apperrors.WrapInternalServerError("cleanup owner lookup returned no owner")
 		}
-		if owner.LineUserID == nil || *owner.LineUserID == "" || *owner.LineUserID != lineUserID {
+		current, err := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to revalidate cleanup recipient")
+		}
+		if current == "" || current != lineUserID {
 			return nil
 		}
 		if s.settingsSvc == nil {

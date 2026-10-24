@@ -316,11 +316,26 @@ func (r *reservationRepository) assertLineCustomerReservationOwner(ctx context.C
 	if err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "SHARE"}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Select("id", "owner_id").
+		Select("id").
 		Where("id = ?", customerID).Take(&customer).Error; err != nil {
 		return apperrors.FromGORM(err, "line_customer", fmt.Sprintf("%d", customerID))
 	}
-	return validateLineReservationCustomerOwner(resolvedOwnerID, customer.OwnerID)
+	// EMR-504: 顧客の現在の飼主は owner_line_binding_states（state='linked'）から読み、binding 行も SHARE で
+	// 保持する。binding が無い（未連携・unlink_pending・legacy_unknown）は旧 owner_id IS NULL と同じ扱い（EMR-504 Q9）。
+	var bindings []model.OwnerLineBindingState
+	if err := persistence.DBOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Where("clinic_id = ? AND line_customer_id = ? AND state = ?", clinicID, customerID, persistence.LineBindingStateLinked).
+		Limit(1).
+		Find(&bindings).Error; err != nil {
+		return apperrors.FromGORM(err, "line_customer", fmt.Sprintf("%d", customerID))
+	}
+	var currentOwnerID *uint64
+	if len(bindings) > 0 {
+		ownerID := bindings[0].OwnerID
+		currentOwnerID = &ownerID
+	}
+	return validateLineReservationCustomerOwner(resolvedOwnerID, currentOwnerID)
 }
 
 func validateLineReservationCustomerOwner(resolvedOwnerID, currentOwnerID *uint64) error {
