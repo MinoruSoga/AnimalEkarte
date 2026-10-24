@@ -87,10 +87,24 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 		return nil, apperrors.WrapInvalidInput("db is required")
 	}
 
+	// EMR-491: owner / pet の氏名・名前・動物種は owners / pets の列ではなく共通 basic revision にある。
+	// revision と binding は success receipt（operation_bindings / operation_results）を要し、binding と revision は
+	// immutable で teardown（deleteClinicScopedRows）が消せないため、fixture の writer が揃うまで fail-closed にする。
+	// 名前の無い owner / pet は作らない。
+	if err := requireFixtureBasicRevisionWriter(); err != nil {
+		return nil, err
+	}
+
 	clinicID := clinicIDBase + uint64(time.Now().UnixNano()%8000)
 	if err := RejectReservedClinicID(clinicID); err != nil {
 		return nil, apperrors.WrapInvalidInput(err.Error())
 	}
+
+	// 合成 owner / pet の氏名と名前。revision 1 の writer ができたら、この値をそのまま書く（owner の name_kana は ownerSearchToken、
+	// pad pet は padPetCount 件の "e2e-a%02d-<clinicID>"）。
+	ownerName := fmt.Sprintf("%s-%d", ownerSearchToken, clinicID)
+	mainPetName := fmt.Sprintf("e2e-pet-%d", clinicID)
+	outsidePetName := fmt.Sprintf("%s%d", outsideFirstPagePrefix, clinicID)
 
 	jst, err := time.LoadLocation("Asia/Tokyo")
 	if err != nil {
@@ -139,11 +153,7 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 			return apperrors.Wrap(err, "assign synthetic staff clinic")
 		}
 
-		owner := &model.Owner{
-			ClinicID: clinicID,
-			Name:     fmt.Sprintf("%s-%d", ownerSearchToken, clinicID),
-			NameKana: ownerSearchToken,
-		}
+		owner := &model.Owner{ClinicID: clinicID}
 		if err := tx.Create(owner).Error; err != nil {
 			return apperrors.Wrap(err, "create synthetic owner")
 		}
@@ -152,32 +162,17 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 			return apperrors.Wrap(err, "create synthetic species")
 		}
 
-		mainPet := &model.Pet{
-			ClinicID:        clinicID,
-			OwnerID:         owner.ID,
-			AnimalSpeciesID: species.ID,
-			Name:            fmt.Sprintf("e2e-pet-%d", clinicID),
-		}
+		mainPet := &model.Pet{ClinicID: clinicID, OwnerID: owner.ID}
 		if err := tx.Create(mainPet).Error; err != nil {
 			return apperrors.Wrap(err, "create synthetic pet")
 		}
 		for i := 0; i < padPetCount; i++ {
-			pad := &model.Pet{
-				ClinicID:        clinicID,
-				OwnerID:         owner.ID,
-				AnimalSpeciesID: species.ID,
-				Name:            fmt.Sprintf("e2e-a%02d-%d", i, clinicID),
-			}
+			pad := &model.Pet{ClinicID: clinicID, OwnerID: owner.ID}
 			if err := tx.Create(pad).Error; err != nil {
 				return apperrors.Wrap(err, "create pad pet")
 			}
 		}
-		outsidePet := &model.Pet{
-			ClinicID:        clinicID,
-			OwnerID:         owner.ID,
-			AnimalSpeciesID: species.ID,
-			Name:            fmt.Sprintf("%s%d", outsideFirstPagePrefix, clinicID),
-		}
+		outsidePet := &model.Pet{ClinicID: clinicID, OwnerID: owner.ID}
 		if err := tx.Create(outsidePet).Error; err != nil {
 			return apperrors.Wrap(err, "create outside-first-page pet")
 		}
@@ -322,12 +317,12 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 
 		result = &Result{
 			ClinicID:                clinicID,
-			OwnerName:               owner.Name,
+			OwnerName:               ownerName,
 			OwnerSearch:             ownerSearchToken,
 			PetID:                   mainPet.ID,
-			PetName:                 mainPet.Name,
+			PetName:                 mainPetName,
 			OutsideFirstPagePetID:   outsidePet.ID,
-			OutsideFirstPagePetName: outsidePet.Name,
+			OutsideFirstPagePetName: outsidePetName,
 			EstimateTitle:           estimateTitle,
 			MedicalRecordCount:      medicalRecordCount,
 			V04:                     v04,
@@ -338,6 +333,12 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+// requireFixtureBasicRevisionWriter は共通 basic revision（subject・binding・revision 1）の fixture writer が
+// 揃っていないことを fail-closed で返す（EMR-491）。writer ができるまで、名前の無い owner / pet は作らない。
+func requireFixtureBasicRevisionWriter() error {
+	return apperrors.WrapInternalServerError("EMR-491: fixture basic revision writer pending")
 }
 
 // createV04Fixture は V04 settings/master view-only 検証用の account・権限グループ・

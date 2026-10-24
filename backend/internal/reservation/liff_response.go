@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -153,7 +154,7 @@ type liffProfileOwnerPetResponse struct {
 
 type liffProfileOwnerResponse struct {
 	OwnerName string                        `json:"owner_name"`
-	Phone     string                        `json:"phone"`
+	Phone     *string                       `json:"phone"`
 	Pets      []liffProfileOwnerPetResponse `json:"pets,omitempty"`
 }
 
@@ -179,7 +180,7 @@ func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
 		for i := range living {
 			pet := liffProfileOwnerPetResponse{
 				ID:   living[i].ID,
-				Name: living[i].Name,
+				Name: commonbasic.MustPetBasic(&living[i]).Name,
 			}
 			if living[i].AnimalSpecies != nil {
 				pet.AnimalSpecies = &struct {
@@ -188,9 +189,10 @@ func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
 			}
 			pets = append(pets, pet)
 		}
+		ownerBasic := commonbasic.MustOwnerBasic(c.Owner)
 		resp.Owner = &liffProfileOwnerResponse{
-			OwnerName: c.Owner.Name,
-			Phone:     c.Owner.Phone,
+			OwnerName: ownerBasic.Name,
+			Phone:     ownerBasic.Phone,
 			Pets:      pets,
 		}
 	}
@@ -288,7 +290,7 @@ type liffHealthCardPetResponse struct {
 	PetID         string                          `json:"pet_id"`
 	PetName       string                          `json:"pet_name"`
 	Species       string                          `json:"species"`
-	Breed         string                          `json:"breed"`
+	Breed         *string                         `json:"breed"`
 	Vaccines      []liffHealthCardVaccineResponse `json:"vaccines"`
 	LastVisitDate *string                         `json:"last_visit_date"`
 }

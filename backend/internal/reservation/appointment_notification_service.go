@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 	"github.com/animal-ekarte/backend/internal/timeutil"
@@ -324,8 +325,8 @@ func (s *reservationNotificationService) buildCreatedEmail(
 			appendCustomerAdditionalFields(&sb, customer.AdditionalFields)
 		}
 	}
-	if appt.Owner != nil {
-		fmt.Fprintf(&sb, "■ 飼主名: %s\n", appt.Owner.Name)
+	if ownerName, ok := notificationOwnerName(appt); ok {
+		fmt.Fprintf(&sb, "■ 飼主名: %s\n", ownerName)
 	}
 	if petNames := extractPetNamesFromCustomerFields(appt); petNames != "" {
 		fmt.Fprintf(&sb, "■ ペット: %s\n", petNames)
@@ -439,11 +440,35 @@ func appendCustomerAdditionalFields(sb *strings.Builder, raw json.RawMessage) {
 	}
 }
 
+// notificationOwnerName は通知文面に載せる飼主名を返す。通知は予約確定後の best-effort のため、基本情報を解決できないときは
+// panic や空の名前で埋めず、警告を残してその行を省く（予約の成否には影響させない）。
+func notificationOwnerName(appt *model.Reservation) (string, bool) {
+	if appt.Owner == nil {
+		return "", false
+	}
+	basic, err := commonbasic.OwnerOf(appt.Owner)
+	if err != nil {
+		slog.Warn("notification omits owner name: basic information is unresolved", "reservation_id", appt.ID, "error", err)
+		return "", false
+	}
+	return basic.Name, true
+}
+
+// notificationPetName は通知文面のペット名を返す。解決できないときは空を返し（呼び出し側がその行を省く）、警告を残す。
+func notificationPetName(pet *model.Pet) string {
+	basic, err := commonbasic.PetOf(pet)
+	if err != nil {
+		slog.Warn("notification omits pet name: basic information is unresolved", "pet_id", pet.ID, "error", err)
+		return ""
+	}
+	return basic.Name
+}
+
 // extractPetNamesFromCustomerFields は customer_fields JSONB からペット名一覧を抽出する。
 // appt.Pet (電カル予約) が nil の場合に customer_fields.pets (LINE予約) をフォールバックとして使用。
 func extractPetNamesFromCustomerFields(appt *model.Reservation) string {
 	if appt.Pet != nil {
-		return appt.Pet.Name
+		return notificationPetName(appt.Pet)
 	}
 	if len(appt.CustomerFields) == 0 {
 		return ""

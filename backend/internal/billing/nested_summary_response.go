@@ -4,6 +4,7 @@ package billing
 // Smaller than medicalrecord's pet summary; do not unify the contracts.
 
 import (
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -13,14 +14,15 @@ type ownerSummaryResponse struct {
 	OwnerName string `json:"name"`
 }
 
-// toOwnerSummary returns nil when o is nil.
+// toOwnerSummary returns nil when o is nil. toOwnerSummary / toPetSummary は固定シグネチャの変換関数のため
+// R-NIL（EMR-491）に従い MustOwnerBasic / MustPetBasic を使う。取得経路が hydrate すること（未 hydrate は panic で、空値にはしない）。
 func toOwnerSummary(o *model.Owner) *ownerSummaryResponse {
 	if o == nil {
 		return nil
 	}
 	return &ownerSummaryResponse{
 		ID:        o.ID,
-		OwnerName: o.Name,
+		OwnerName: commonbasic.MustOwnerBasic(o).Name,
 	}
 }
 
@@ -35,6 +37,6 @@ func toPetSummary(p *model.Pet) *petSummaryResponse {
 	}
 	return &petSummaryResponse{
 		ID:   p.ID,
-		Name: p.Name,
+		Name: commonbasic.MustPetBasic(p).Name,
 	}
 }

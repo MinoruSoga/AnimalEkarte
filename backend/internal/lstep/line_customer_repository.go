@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
@@ -47,6 +48,9 @@ func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) (
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "line_customer", "")
 	}
+	if err := hydrateLineCustomerBasics(ctx, r.db, clinicID, commonbasic.Ptrs(items)); err != nil {
+		return nil, err
+	}
 	return items, nil
 }
 
@@ -71,10 +75,12 @@ func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint
 	err := r.db.WithContext(ctx).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Owner.Pets", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Owner.Pets.AnimalSpecies").
 		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&c).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "line_customer", fmt.Sprintf("%d", id))
+	}
+	if err := hydrateLineCustomerBasics(ctx, r.db, clinicID, []*model.LineCustomer{&c}); err != nil {
+		return nil, err
 	}
 	return &c, nil
 }

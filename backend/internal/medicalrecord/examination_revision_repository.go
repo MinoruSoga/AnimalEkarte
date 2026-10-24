@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
@@ -267,10 +268,18 @@ func (r *examinationRepository) loadOfficialRevisionSnapshot(
 			return nil, nil, err
 		}
 		pet = locked
+		petBasic, err := commonbasic.PetOf(locked)
+		if err != nil {
+			return nil, nil, err
+		}
+		ownerBasic, err := commonbasic.OwnerOf(owner)
+		if err != nil {
+			return nil, nil, err
+		}
 		snapshot.petOwnerID = cloneUint64(owner.ID)
 		snapshot.animalSpeciesID = cloneUint64(species.ID)
-		snapshot.display.PetName = locked.Name
-		snapshot.display.PetOwnerName = owner.Name
+		snapshot.display.PetName = petBasic.Name
+		snapshot.display.PetOwnerName = ownerBasic.Name
 		snapshot.display.SpeciesName = species.Name
 	}
 	if record != nil && record.PetID != nil {
@@ -320,6 +329,10 @@ func lockRevisionOwner(ctx context.Context, tx *gorm.DB, clinicID, ownerID uint6
 		First(&owner).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", ownerID))
 	}
+	// 氏名など基本情報は現行 basic revision にある（owners の列は廃止）。FOR SHARE で固定した行について同じ tx で読む。
+	if err := commonbasic.HydrateOwners(ctx, tx, []uint64{clinicID}, []*model.Owner{&owner}); err != nil {
+		return nil, err
+	}
 	return &owner, nil
 }
 
@@ -337,8 +350,12 @@ func copyRevisionRecordOwner(
 	if err != nil {
 		return apperrors.Wrap(err, "failed to verify medical record owner")
 	}
+	ownerBasic, err := commonbasic.OwnerOf(owner)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to verify medical record owner")
+	}
 	snapshot.medicalRecordOwnerID = cloneOptionalUint64(locked.OwnerID)
-	snapshot.display.MedicalRecordOwnerName = owner.Name
+	snapshot.display.MedicalRecordOwnerName = ownerBasic.Name
 	return nil
 }
 
@@ -364,6 +381,9 @@ func lockRevisionPetGraph(
 		First(&pet).Error; err != nil {
 		return nil, nil, nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", petID))
 	}
+	if err := commonbasic.HydratePets(ctx, tx, []uint64{clinicID}, []*model.Pet{&pet}); err != nil {
+		return nil, nil, nil, err
+	}
 	owner, err := lockRevisionOwner(ctx, tx, clinicID, pet.OwnerID)
 	if err != nil {
 		return nil, nil, nil, apperrors.Wrap(err, "failed to verify current pet owner")
@@ -371,9 +391,9 @@ func lockRevisionPetGraph(
 	var species model.AnimalSpecies
 	if err := tx.WithContext(ctx).
 		Clauses(clause.Locking{Strength: "SHARE"}).
-		Where("id = ?", pet.AnimalSpeciesID).
+		Where("id = ?", pet.Basic.AnimalSpeciesID).
 		First(&species).Error; err != nil {
-		return nil, nil, nil, apperrors.FromGORM(err, "animal_species", fmt.Sprintf("%d", pet.AnimalSpeciesID))
+		return nil, nil, nil, apperrors.FromGORM(err, "animal_species", fmt.Sprintf("%d", pet.Basic.AnimalSpeciesID))
 	}
 	return &pet, owner, &species, nil
 }
@@ -542,20 +562,25 @@ func projectOfficialExamination(
 			PetID:    cloneOptionalUint64(revision.PetID),
 		}
 		if revision.MedicalRecordOwnerID != nil {
+			// 公式版は確定時の表示 snapshot だけを根拠にする（現在の basic revision は読まず、廃止列にも戻らない）。
 			exam.MedicalRecord.Owner = &model.Owner{
-				ID: *revision.MedicalRecordOwnerID, ClinicID: revision.ClinicID, Name: display.MedicalRecordOwnerName,
+				ID:       *revision.MedicalRecordOwnerID,
+				ClinicID: revision.ClinicID,
+				Basic:    &model.CommonOwnerBasicRevision{Name: display.MedicalRecordOwnerName},
 			}
 		}
 	}
 	if revision.PetID != nil {
+		// 同上。名前と動物種は確定時の snapshot の値で、snapshot に無い basic 項目は nil のまま。
 		exam.Pet = &model.Pet{
-			ID:              *revision.PetID,
-			ClinicID:        revision.ClinicID,
-			OwnerID:         *revision.PetOwnerID,
-			AnimalSpeciesID: *revision.AnimalSpeciesID,
-			Name:            display.PetName,
+			ID:       *revision.PetID,
+			ClinicID: revision.ClinicID,
+			OwnerID:  *revision.PetOwnerID,
+			Basic:    &model.CommonPetBasicRevision{AnimalSpeciesID: *revision.AnimalSpeciesID, Name: display.PetName},
 			Owner: &model.Owner{
-				ID: *revision.PetOwnerID, ClinicID: revision.ClinicID, Name: display.PetOwnerName,
+				ID:       *revision.PetOwnerID,
+				ClinicID: revision.ClinicID,
+				Basic:    &model.CommonOwnerBasicRevision{Name: display.PetOwnerName},
 			},
 			AnimalSpecies: &model.AnimalSpecies{ID: *revision.AnimalSpeciesID, Name: display.SpeciesName},
 		}

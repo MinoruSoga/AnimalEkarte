@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -55,7 +56,7 @@ func toReservationSummaryResponse(ra *model.Reservation) reservationSummaryRespo
 			customerName = ra.LineCustomer.RealName
 		}
 	} else if ra.Owner != nil {
-		customerName = ra.Owner.Name
+		customerName = commonbasic.MustOwnerBasic(ra.Owner).Name
 	}
 
 	courseShortName := ""
@@ -92,7 +93,7 @@ func toReservationDetailResponse(ra *model.Reservation) reservationDetailRespons
 			customerName = ra.LineCustomer.RealName
 		}
 	} else if ra.Owner != nil {
-		customerName = ra.Owner.Name
+		customerName = commonbasic.MustOwnerBasic(ra.Owner).Name
 	}
 
 	courseShortName := ""

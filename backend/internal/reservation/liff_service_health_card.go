@@ -5,7 +5,9 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // HealthCardResult はLIFF健康手帳の集約結果（FE zod healthCardResponseSchema と対応）。
@@ -18,7 +20,7 @@ type PetHealthCard struct {
 	PetID         uint64
 	PetName       string
 	Species       string
-	Breed         string
+	Breed         *string
 	LastVisitDate *time.Time
 	Vaccines      []VaccineRecord
 }
@@ -45,7 +47,11 @@ func (s *liffService) GetHealthCard(ctx context.Context, clinicID, customerID ui
 	if customer.OwnerID == nil || customer.Owner == nil {
 		return &HealthCardResult{OwnerName: ownerName, Pets: []PetHealthCard{}}, nil
 	}
-	ownerName = customer.Owner.Name
+	ownerBasic, err := commonbasic.OwnerOf(customer.Owner)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get health card")
+	}
+	ownerName = ownerBasic.Name
 
 	vaccinations, err := s.vaccinationRepo.FindByOwner(ctx, clinicID, *customer.OwnerID)
 	if err != nil {
@@ -63,8 +69,12 @@ func (s *liffService) GetHealthCard(ctx context.Context, clinicID, customerID ui
 	pets := make([]PetHealthCard, 0, len(customer.Owner.Pets))
 	for i := range customer.Owner.Pets {
 		p := &customer.Owner.Pets[i]
-		// EMR-290: 死亡契約は status=deceased または deceased_at 非NULL（OR 契約）。
-		if p.Status == model.PetStatusDeceased || p.DeceasedAt != nil {
+		petBasic, basicErr := commonbasic.PetOf(p)
+		if basicErr != nil {
+			return nil, apperrors.Wrap(basicErr, "failed to get health card")
+		}
+		// EMR-290 / EMR-491 D6: 生存と確認できたペットだけを載せる（死亡と、status 未記録など確定できないものを除く）。
+		if state, stateErr := sharedkernel.ClassifyPetLifeState(petBasic.Status, petBasic.DeceasedAt); stateErr != nil || state != sharedkernel.PetLifeStateAlive {
 			continue
 		}
 		species := ""
@@ -85,12 +95,13 @@ func (s *liffService) GetHealthCard(ctx context.Context, clinicID, customerID ui
 				NextDueAt:    v.NextDate,
 			})
 		}
+		// last_visit は pets.last_visit の廃止後に取得元が無く、導出もしないため常に null にする（LastVisitDate は未設定）。
 		pets = append(pets, PetHealthCard{
 			PetID:         p.ID,
-			PetName:       p.Name,
+			PetName:       petBasic.Name,
 			Species:       species,
-			Breed:         p.Breed,
-			LastVisitDate: p.LastVisit,
+			Breed:         petBasic.Breed,
+			LastVisitDate: nil,
 			Vaccines:      vaccines,
 		})
 	}

@@ -9,8 +9,10 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateReservation は予約を確定する。staffID=0 の場合は no_staff_mode に従って自動割当する。
@@ -335,7 +337,7 @@ func resolveReservationPetID(customer *model.LineCustomer, customerFields []byte
 		return nil
 	}
 	for i := range living {
-		if strings.TrimSpace(living[i].Name) == wantName {
+		if strings.TrimSpace(commonbasic.MustPetBasic(&living[i]).Name) == wantName {
 			id := living[i].ID
 			return &id
 		}
@@ -343,14 +345,20 @@ func resolveReservationPetID(customer *model.LineCustomer, customerFields []byte
 	return nil
 }
 
-// livingPets は生存ペットだけを返す（#261 P0 / EMR-290）。
-// 死亡契約は status=deceased または deceased_at 非NULL（sharedkernel.ValidatePetNotDeceased と同じ
-// OR 契約）。旧データは status=deceased でも deceased_at IS NULL の行があり、deceased_at だけを
-// 見ると死亡個体が予約の pet_id 候補に混入する。
+// livingPets は生存と確認できたペットだけを返す（#261 P0 / EMR-290 / EMR-491 D6）。
+// 判定は現行 basic revision の sharedkernel.ClassifyPetLifeState（deceased_at 非NULL または status=deceased は死亡）。
+// status 未記録など生死を確定できないペットは alive にせず、警告を残して除外する。
+// 戻り値を持てない固定シグネチャのため R-NIL に従い MustPetBasic を使う（取得経路の LINE 顧客 repository が hydrate すること）。
 func livingPets(pets []model.Pet) []model.Pet {
 	out := make([]model.Pet, 0, len(pets))
 	for i := range pets {
-		if pets[i].Status == model.PetStatusDeceased || pets[i].DeceasedAt != nil {
+		basic := commonbasic.MustPetBasic(&pets[i])
+		state, err := sharedkernel.ClassifyPetLifeState(basic.Status, basic.DeceasedAt)
+		if err != nil {
+			slog.Warn("excluding pet whose life state is unresolved", "clinic_id", pets[i].ClinicID, "pet_id", pets[i].ID, "error", err)
+			continue
+		}
+		if state != sharedkernel.PetLifeStateAlive {
 			continue
 		}
 		out = append(out, pets[i])

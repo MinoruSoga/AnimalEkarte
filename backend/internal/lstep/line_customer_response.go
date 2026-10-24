@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -24,7 +25,8 @@ type lineCustomerResponse struct {
 func toLineCustomerResponse(rc *model.LineCustomer) lineCustomerResponse {
 	ownerName := ""
 	if rc.Owner != nil {
-		ownerName = rc.Owner.Name
+		// 固定シグネチャのため R-NIL（EMR-491）に従う。取得経路（LINE 顧客 repository）が hydrate すること。
+		ownerName = commonbasic.MustOwnerBasic(rc.Owner).Name
 	}
 	return lineCustomerResponse{
 		ID:               rc.ID,

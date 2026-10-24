@@ -3,6 +3,7 @@ package reservation
 import (
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -36,14 +37,15 @@ type ownerSummaryResponse struct {
 	IsDangerous bool   `json:"is_dangerous"`
 }
 
-// toOwnerSummary returns nil when o is nil.
+// toOwnerSummary returns nil when o is nil. 固定シグネチャの変換関数のため R-NIL（EMR-491）に従い MustOwnerBasic を使う。
+// 取得経路（reservation の feeding repository）が hydrate すること。未 hydrate は panic（500）で、空値にはしない。
 func toOwnerSummary(o *model.Owner) *ownerSummaryResponse {
 	if o == nil {
 		return nil
 	}
 	return &ownerSummaryResponse{
 		ID:          o.ID,
-		OwnerName:   o.Name,
+		OwnerName:   commonbasic.MustOwnerBasic(o).Name,
 		IsDangerous: o.IsDangerous,
 	}
 }
@@ -57,40 +59,43 @@ type animalSpeciesSummaryResponse struct {
 // petSummaryResponse is the staff-facing reservation pet summary. DangerLevel intentionally
 // exists only in this domain copy to support the Reception clinical-safety badge.
 type petSummaryResponse struct {
-	ID           uint64     `json:"id"`
-	Name         string     `json:"name"`
-	PetNumber    string     `json:"pet_number"`
-	Weight       *float64   `json:"weight,omitempty"`
-	Status       string     `json:"status,omitempty"`
-	BirthDate    *string    `json:"birth_date,omitempty"`
-	DeceasedAt   *time.Time `json:"deceased_at,omitempty"`
-	DangerLevel  string     `json:"danger_level,omitempty"`
-	DangerReason *string    `json:"danger_reason,omitempty"`
-	Breed        string     `json:"breed,omitempty"`
+	ID           uint64              `json:"id"`
+	Name         string              `json:"name"`
+	PetNumber    string              `json:"pet_number"`
+	Weight       *model.ExactNumeric `json:"weight"`
+	Status       *string             `json:"status"`
+	BirthDate    *string             `json:"birth_date"`
+	DeceasedAt   *time.Time          `json:"deceased_at"`
+	DangerLevel  *string             `json:"danger_level"`
+	DangerReason *string             `json:"danger_reason"`
+	Breed        *string             `json:"breed"`
 
 	AnimalSpecies *animalSpeciesSummaryResponse `json:"animal_species,omitempty"`
 	Owner         *ownerSummaryResponse         `json:"owner,omitempty"`
 }
 
 // toPetSummary maps a pet into the reservation-local summary. nil の場合は nil を返す。
+// 固定シグネチャの変換関数のため R-NIL（EMR-491）に従い MustPetBasic を使う。取得経路（reservation の feeding repository）が
+// hydrate すること。未 hydrate は panic（500）で、空値にはしない。
 func toPetSummary(p *model.Pet) *petSummaryResponse {
 	if p == nil {
 		return nil
 	}
+	basic := commonbasic.MustPetBasic(p)
 	resp := &petSummaryResponse{
 		ID:           p.ID,
-		Name:         p.Name,
+		Name:         basic.Name,
 		PetNumber:    p.PetNumber,
-		Weight:       p.Weight,
-		Status:       string(p.Status),
-		DeceasedAt:   httpapi.LocalTimePtr(p.DeceasedAt),
-		DangerLevel:  string(p.DangerLevel),
-		DangerReason: p.DangerReason,
-		Breed:        p.Breed,
+		Weight:       copyBasicWeight(basic.RegistrationWeight),
+		Status:       nullableEnumString(basic.Status),
+		DeceasedAt:   httpapi.LocalTimePtr(basic.DeceasedAt),
+		DangerLevel:  nullableEnumString(basic.DangerLevel),
+		DangerReason: basic.DangerReason,
+		Breed:        basic.Breed,
 		Owner:        toOwnerSummary(p.Owner),
 	}
-	if p.BirthDate != nil {
-		d := p.BirthDate.Format(time.DateOnly)
+	if basic.BirthDate != nil {
+		d := basic.BirthDate.Format(time.DateOnly)
 		resp.BirthDate = &d
 	}
 	if p.AnimalSpecies != nil {
@@ -100,4 +105,22 @@ func toPetSummary(p *model.Pet) *petSummaryResponse {
 		}
 	}
 	return resp
+}
+
+// nullableEnumString は名前付き文字列型の nullable 値を *string へ写す。nil は nil のまま返し、空文字へは置換しない。
+func nullableEnumString[T ~string](value *T) *string {
+	if value == nil {
+		return nil
+	}
+	text := string(*value)
+	return &text
+}
+
+// copyBasicWeight は登録時体重（nullable）を別インスタンスとして返す。nil は nil のまま（JSON null）。
+func copyBasicWeight(value *model.ExactNumeric) *model.ExactNumeric {
+	if value == nil {
+		return nil
+	}
+	copied := *value
+	return &copied
 }

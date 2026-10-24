@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
@@ -91,6 +92,9 @@ func (r *checkupRepository) FindByClinicID(ctx context.Context, clinicID uint64,
 		Find(&checkups).Error
 	if err != nil {
 		return nil, 0, apperrors.FromGORM(err, "checkup", "")
+	}
+	if err := hydrateCheckupBasics(ctx, r.db, []uint64{clinicID}, commonbasic.Ptrs(checkups)); err != nil {
+		return nil, 0, err
 	}
 	return checkups, total, nil
 }
@@ -287,6 +291,9 @@ func (r *checkupRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 		First(&checkup).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup", fmt.Sprintf("%d", id))
+	}
+	if err := hydrateCheckupBasics(ctx, r.db, []uint64{clinicID}, []*model.Checkup{&checkup}); err != nil {
+		return nil, err
 	}
 	return &checkup, nil
 }

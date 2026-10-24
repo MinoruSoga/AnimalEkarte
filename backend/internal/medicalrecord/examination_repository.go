@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
@@ -89,6 +90,9 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		Find(&exams).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "exam", "")
 	}
+	if err := hydrateExaminationBasics(ctx, r.db, []uint64{clinicID}, commonbasic.Ptrs(exams)); err != nil {
+		return nil, 0, err
+	}
 	return exams, total, nil
 }
 
@@ -103,6 +107,9 @@ func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		First(&exam).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", id))
+	}
+	if err := hydrateExaminationBasics(ctx, r.db, []uint64{clinicID}, []*model.Examination{&exam}); err != nil {
+		return nil, err
 	}
 	return &exam, nil
 }

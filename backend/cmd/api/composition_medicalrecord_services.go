@@ -215,6 +215,7 @@ func newMedicalRecordLabServices(
 				d.Transactor,
 			),
 			medicalrecord.NewLabDeviceTodayVisitFinder(r.medicalRecords),
+			medicalrecord.WithLabDevicePetLifeStateReader(d.PetLife),
 		),
 		resultImport: medicalrecord.NewLabResultImportServiceWithTx(
 			jobs,

@@ -307,13 +307,15 @@ func (r *medicalRecordRepository) findMedicalRecordByID(ctx context.Context, cli
 		Preload("EnteredByStaff", "deleted_at IS NULL").
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Pet.AnimalSpecies").
 		Preload("Inquiry").
 		Scopes(scope, medicalRecordDetailRelationsScope()).
 		Where("id = ?", id).
 		First(&record).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
+	}
+	if err := hydrateMedicalRecordBasics(ctx, r.db, clinicIDs, []*model.MedicalRecord{&record}); err != nil {
+		return nil, err
 	}
 	return &record, nil
 }

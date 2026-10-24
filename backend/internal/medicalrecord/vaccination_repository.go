@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
@@ -142,6 +143,9 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		Find(&vaccinations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "vaccination", "")
 	}
+	if err := hydrateVaccinationBasics(ctx, r.db, []uint64{clinicID}, commonbasic.Ptrs(vaccinations)); err != nil {
+		return nil, 0, err
+	}
 	return vaccinations, total, nil
 }
 
@@ -249,6 +253,9 @@ func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 		First(&vaccination).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("%d", id))
+	}
+	if err := hydrateVaccinationBasics(ctx, r.db, []uint64{clinicID}, []*model.Vaccination{&vaccination}); err != nil {
+		return nil, err
 	}
 	return &vaccination, nil
 }

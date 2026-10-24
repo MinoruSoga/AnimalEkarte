@@ -2,12 +2,14 @@ package reservation
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // guardedCheckInWriter is only needed for the owner-detail reception shortcut.
@@ -76,6 +78,8 @@ func (s *reservationService) validateGuardedCheckInPatient(ctx context.Context, 
 type guardedReceptionPatientReader interface {
 	AssertOwnerInClinic(context.Context, uint64, uint64) error
 	FindPetByIDInClinic(context.Context, uint64, uint64) (*model.Pet, error)
+	// 生死は pets の列ではなく共通 basic revision にある（EMR-491 D6）。reader は ambient transaction 内で subject を FOR SHARE する。
+	sharedkernel.PetLifeStateReader
 }
 
 func validateGuardedReceptionPatient(ctx context.Context, repo guardedReceptionPatientReader, clinicID uint64, current *model.Reservation) error {
@@ -92,7 +96,16 @@ func validateGuardedReceptionPatient(ctx context.Context, repo guardedReceptionP
 	if pet == nil || pet.ClinicID != clinicID || pet.ID != *current.PetID || pet.OwnerID != *current.OwnerID {
 		return apperrors.WrapConflict("飼主とペットの情報が更新されています。再読み込みしてください")
 	}
-	if pet.Status != model.PetStatusAlive || pet.DeceasedAt != nil {
+	// 生死は共通 basic revision の現行値で判定する（同じ tx で subject を FOR SHARE）。deceased と unresolved は同じ文言で拒否し、
+	// reader 自体の失敗（tx なし・I/O）は受付拒否に潰さずエラーのまま返す。
+	state, err := repo.ReadPetLifeState(ctx, clinicID, pet.ID)
+	if err != nil {
+		if errors.Is(err, sharedkernel.ErrPetLifeStateUnresolved) {
+			return apperrors.WrapInvalidInput("生存が確認できないペットは受付できません")
+		}
+		return apperrors.Wrap(err, "failed to verify check-in pet life state")
+	}
+	if state != sharedkernel.PetLifeStateAlive {
 		return apperrors.WrapInvalidInput("生存が確認できないペットは受付できません")
 	}
 	return nil

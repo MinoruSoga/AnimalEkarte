@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
@@ -101,7 +102,6 @@ func hospitalizationListQuery(db *gorm.DB, clinicID uint64, filters listHospital
 func hospitalizationListPreloads(q *gorm.DB, clinicID uint64) *gorm.DB {
 	return q.
 		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Pet.AnimalSpecies").
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Cage", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL")
@@ -123,6 +123,9 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 		Find(&hospitalizations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
+	if err := hydrateHospitalizationBasics(ctx, r.db, []uint64{clinicID}, commonbasic.Ptrs(hospitalizations)); err != nil {
+		return nil, 0, err
+	}
 	return hospitalizations, total, nil
 }
 
@@ -130,7 +133,6 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 	var hospitalization model.Hospitalization
 	err := persistence.DBOrTx(ctx, r.db).
 		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Pet.AnimalSpecies").
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Cage", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
@@ -141,6 +143,9 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 		Scopes(persistence.ClinicScope(clinicID)).Where("id = ?", id).First(&hospitalization).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization", fmt.Sprintf("%d", id))
+	}
+	if err := hydrateHospitalizationBasics(ctx, r.db, []uint64{clinicID}, []*model.Hospitalization{&hospitalization}); err != nil {
+		return nil, err
 	}
 	return &hospitalization, nil
 }
