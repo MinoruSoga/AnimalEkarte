@@ -39,16 +39,19 @@ type upsertLineReservationSettingRequest struct {
 	AdditionalFields  jsonRawOrEmpty `json:"additional_fields"`
 	// EMR-504: LINE credentials (channel ID / channel secret / LIFF ID / access token) are not part of
 	// the reservation setting; their only store is clinic_integrations (lstep-settings API).
-	// The pointers exist only to detect that a client still sends them: any presence (even an empty
-	// string) is rejected with 400 (rejectLegacyLineCredentials) instead of being silently dropped.
+	// The pointers exist only to detect that a client still sends a value: a non-empty value (after
+	// trimming whitespace) is rejected with 400 (rejectLegacyLineCredentials) instead of being silently
+	// dropped. Absent, null and empty string are accepted and nothing is stored, because the admin form
+	// always sends line_channel_id and liff_id.
 	LineChannelID     *string `json:"line_channel_id"`
 	LineChannelSecret *string `json:"line_channel_secret"`
 	LiffID            *string `json:"liff_id"`
 	LineAccessToken   *string `json:"line_access_token"`
 }
 
-// rejectLegacyLineCredentials は dropped 済みの LINE 資格情報フィールドが（空文字を含め）
-// 1つでも送られた場合に 400 を返す。値そのものはエラーに含めない。
+// rejectLegacyLineCredentials は dropped 済みの LINE 資格情報フィールドに空でない値（前後の空白を除く）が
+// 送られた場合に 400 を返す。省略・null・空文字は受理し、何も保存しない（管理画面フォームが
+// line_channel_id / liff_id を常に送るため）。値そのものはエラーに含めない。
 func (r *upsertLineReservationSettingRequest) rejectLegacyLineCredentials() error {
 	var fields []string
 	for _, f := range []struct {
@@ -60,7 +63,7 @@ func (r *upsertLineReservationSettingRequest) rejectLegacyLineCredentials() erro
 		{"liff_id", r.LiffID},
 		{"line_access_token", r.LineAccessToken},
 	} {
-		if f.value != nil {
+		if f.value != nil && strings.TrimSpace(*f.value) != "" {
 			fields = append(fields, f.name)
 		}
 	}

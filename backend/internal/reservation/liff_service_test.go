@@ -21,13 +21,18 @@ import (
 func TestLiffService_GetSettings(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("正常系: 設定を返す", func(t *testing.T) {
+	t.Run("正常系: 設定と clinic_integrations の liff_id を返す", func(t *testing.T) {
 		want := liffDefaultSetting()
 		svc := newLiffSvc(
 			&mockLiffSettingRepository{
 				findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
 					assert.Equal(t, uint64(3), clinicID)
 					return want, nil
+				},
+				findIntegrationValueFn: func(_ context.Context, clinicID uint64, keyName string) (string, error) {
+					assert.Equal(t, uint64(3), clinicID)
+					assert.Equal(t, model.IntegrationKeyLiffID, keyName)
+					return "1234567890-abcdefgh", nil
 				},
 			},
 			&mockLiffTypeRepository{},
@@ -41,7 +46,8 @@ func TestLiffService_GetSettings(t *testing.T) {
 
 		got, err := svc.GetSettings(ctx, 3)
 		require.NoError(t, err)
-		assert.Equal(t, want, got)
+		assert.Equal(t, want, got.Setting)
+		assert.Equal(t, "1234567890-abcdefgh", got.LiffID)
 	})
 
 	t.Run("リポジトリエラー → エラー伝播", func(t *testing.T) {
@@ -62,6 +68,53 @@ func TestLiffService_GetSettings(t *testing.T) {
 
 		_, err := svc.GetSettings(ctx, 999)
 		require.Error(t, err)
+	})
+
+	t.Run("liff_id 未設定 → 空文字（エラーにしない）", func(t *testing.T) {
+		svc := newLiffSvc(
+			&mockLiffSettingRepository{
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return liffDefaultSetting(), nil
+				},
+			},
+			&mockLiffTypeRepository{},
+			&mockLiffStaffRepository{},
+			&mockLiffScheduleRepository{},
+			&mockLiffAdminRepository{},
+			&mockLiffCustomerRepository{},
+			&mockLiffValidators{},
+			nil,
+		)
+
+		got, err := svc.GetSettings(ctx, 3)
+		require.NoError(t, err)
+		assert.Empty(t, got.LiffID)
+	})
+
+	t.Run("liff_id 読取りエラー → エラー伝播（空文字にしない）", func(t *testing.T) {
+		readErr := errors.New("clinic_integrations read failed")
+		svc := newLiffSvc(
+			&mockLiffSettingRepository{
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return liffDefaultSetting(), nil
+				},
+				findIntegrationValueFn: func(_ context.Context, _ uint64, _ string) (string, error) {
+					return "", readErr
+				},
+			},
+			&mockLiffTypeRepository{},
+			&mockLiffStaffRepository{},
+			&mockLiffScheduleRepository{},
+			&mockLiffAdminRepository{},
+			&mockLiffCustomerRepository{},
+			&mockLiffValidators{},
+			nil,
+		)
+
+		got, err := svc.GetSettings(ctx, 3)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, readErr)
+		assert.Nil(t, got)
 	})
 }
 

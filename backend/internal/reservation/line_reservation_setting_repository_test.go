@@ -99,6 +99,49 @@ func TestLineReservationSettingRepository_FindIntegrationValue(t *testing.T) {
 	})
 }
 
+// FindLineChannelAccessTokenCiphertext is the purpose-named reader behind reservation notifications:
+// it returns the stored (still encrypted) channel access token of the clinic only, and does not widen
+// FindIntegrationValue's allow-list.
+func TestLineReservationSettingRepository_FindLineChannelAccessTokenCiphertext(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ClinicIntegration{}))
+	db.Exec("TRUNCATE TABLE clinic_integrations CASCADE")
+	repo := NewLineReservationSettingRepository(db)
+	ctx := context.Background()
+
+	const (
+		clinicA = uint64(1)
+		clinicB = uint64(2)
+	)
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicIntegration{
+		ClinicID: clinicA, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLineChannelAccessToken, KeyValue: "ciphertext-aaaa",
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicIntegration{
+		ClinicID: clinicB, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLineChannelAccessToken, KeyValue: "ciphertext-bbbb",
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicIntegration{
+		ClinicID: clinicA, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLineChannelSecret, KeyValue: "ciphertext-secret",
+	}).Error)
+
+	t.Run("returns the clinic's own stored ciphertext untouched", func(t *testing.T) {
+		got, err := repo.FindLineChannelAccessTokenCiphertext(ctx, clinicA)
+		require.NoError(t, err)
+		assert.Equal(t, "ciphertext-aaaa", got)
+	})
+
+	t.Run("another clinic gets its own value, never a neighbour's", func(t *testing.T) {
+		got, err := repo.FindLineChannelAccessTokenCiphertext(ctx, clinicB)
+		require.NoError(t, err)
+		assert.Equal(t, "ciphertext-bbbb", got)
+	})
+
+	t.Run("a clinic without the row gets an empty value, not an error", func(t *testing.T) {
+		got, err := repo.FindLineChannelAccessTokenCiphertext(ctx, 3)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
+
 func TestLineReservationSettingRepository_Save(t *testing.T) {
 	db := setupLineSettingIsolationTestDB(t)
 	repo := NewLineReservationSettingRepository(db)

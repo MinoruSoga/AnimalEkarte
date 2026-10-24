@@ -23,6 +23,11 @@ type LineReservationSettingRepository interface {
 	// FindIntegrationValue は clinic_integrations(service='lstep') の許可済みキー（liff_id のみ）の保存値を返す。
 	// 行が無ければ ("", nil)。
 	FindIntegrationValue(ctx context.Context, clinicID uint64, keyName string) (string, error)
+	// FindLineChannelAccessTokenCiphertext は予約の完了・キャンセル通知（LINE Push）専用に、
+	// clinic_integrations(service='lstep') の line_channel_access_token の保存値を暗号文のまま返す。
+	// 復号は呼び出し側（composition が注入する、lstep 連携設定と同じ cipher）。行が無ければ ("", nil)。
+	// FindIntegrationValue の許可キーは広げず、秘密の読み取りはこの専用メソッドだけに閉じる。
+	FindLineChannelAccessTokenCiphertext(ctx context.Context, clinicID uint64) (string, error)
 	// FindAll は全クリニックの設定を返す（管理用途）。Webhook 署名検証では使わない。
 	FindAll(ctx context.Context) ([]model.LineReservationSetting, error)
 	Save(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error
@@ -65,6 +70,17 @@ func (r *lineReservationSettingRepository) FindIntegrationValue(ctx context.Cont
 	if _, ok := lineIntegrationReadableKeys[keyName]; !ok {
 		return "", apperrors.WrapInternalServerError("clinic integration key is not readable from reservation: " + keyName)
 	}
+	return r.findLstepIntegrationValue(ctx, clinicID, keyName)
+}
+
+// FindLineChannelAccessTokenCiphertext は通知 Push 専用の読み取り。トークンは暗号文のまま返す。
+func (r *lineReservationSettingRepository) FindLineChannelAccessTokenCiphertext(ctx context.Context, clinicID uint64) (string, error) {
+	return r.findLstepIntegrationValue(ctx, clinicID, model.IntegrationKeyLineChannelAccessToken)
+}
+
+// findLstepIntegrationValue は clinic_integrations(service='lstep') の1キーを clinic で絞って返す。
+// 行が無ければ ("", nil)。キーは呼び出し側（許可キーを固定した上記2メソッド）が決める。
+func (r *lineReservationSettingRepository) findLstepIntegrationValue(ctx context.Context, clinicID uint64, keyName string) (string, error) {
 	var records []model.ClinicIntegration
 	err := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).

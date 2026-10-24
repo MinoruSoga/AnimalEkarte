@@ -40,6 +40,12 @@ type ReservationNotificationConfig struct {
 	FrontendURL string
 }
 
+// LinePusher は LINE Push（lstep domain 実装・topo で reservation→lstep import 禁止）の最小view。
+// exported なのはcomposition boundaryがfactoryの戻り型として名指しするため。
+type LinePusher interface {
+	PushText(ctx context.Context, to, text string) error
+}
+
 // SMTPConfig は SMTP 送信設定（service/smtp_sender.go の同名 unexported struct と同形）。
 type SMTPConfig struct {
 	Host string
@@ -50,7 +56,11 @@ type SMTPConfig struct {
 
 type reservationNotificationService struct {
 	cfg         ReservationNotificationConfig
-	settingRepo lineReservationSettingFinder
+	settingRepo reservationNotificationSettingFinder
+	// decryptCredential / newLineMessenger は lstep 側実装の closure 注入（topo で reservation からの
+	// import 禁止のため。具象はcomposition rootが包んで渡す）。
+	decryptCredential func(value string) (string, error)
+	newLineMessenger  func(channelToken string) LinePusher
 	// sendMail は auth 側実装の closure 注入（topo で reservation からの import 禁止のため。
 	// 具象はcomposition rootが包んで渡す）。
 	sendMail func(ctx context.Context, cfg SMTPConfig, from, to string, msg []byte) error
@@ -65,30 +75,90 @@ func (s *reservationNotificationService) Wait() {
 
 // NewReservationNotificationService は通知サービスを初期化して返す。
 // SMTP設定が空の場合はメール送信をスキップする。
-// 通知先メールは予約のクリニック設定（DB）から都度取得する。
-// EMR-504: 予約確認・変更の LINE Push は配送記録（dispatch intent / attempt / result）と目的別の
-// 送信条件を経由する契約で、その writer が未接続の間は送らない（skipLineNotification）。
+// 通知先メールは予約のクリニック設定（DB）から、LINE チャネルアクセストークン（暗号文）は
+// clinic_integrations(service='lstep') から都度取得する。
+// EMR-504 Q5(a): トークンの出所だけを clinic_integrations に差し替え、予約本人の LINE ID 宛の
+// best-effort 直接 Push は維持する。decryptCredential は lstep 連携設定と同一の cipher による復号
+// （cipher が nil の開発環境は平文素通し）。失敗は Push だけを止め、メール通知は継続する。
 func NewReservationNotificationService(
 	cfg *ReservationNotificationConfig,
-	settingRepo lineReservationSettingFinder,
+	settingRepo reservationNotificationSettingFinder,
+	decryptCredential func(value string) (string, error),
+	newLineMessenger func(channelToken string) LinePusher,
 	sendMail func(ctx context.Context, cfg SMTPConfig, from, to string, msg []byte) error,
 ) ReservationNotifier {
 	return &reservationNotificationService{
-		cfg:         *cfg,
-		settingRepo: settingRepo,
-		sendMail:    sendMail,
+		cfg:               *cfg,
+		settingRepo:       settingRepo,
+		decryptCredential: decryptCredential,
+		newLineMessenger:  newLineMessenger,
+		sendMail:          sendMail,
 	}
 }
 
-// skipLineNotification は LINE Push を行わない（fail-closed）。直接 Push は配送記録・本人/宛先・
-// 独立停止・結果不明時の照合保留の条件を満たせないため、line_dispatch_* の writer が接続されるまで
-// 停止する（apperrors.CodeLineDispatchPending）。メール通知は別経路で継続する。
-func skipLineNotification(ctx context.Context, event string, reservationID uint64) {
-	slog.ErrorContext(ctx, "LINE notify skipped: dispatch writer not connected",
-		"event", event,
-		"reservation_id", reservationID,
-		"code", apperrors.CodeLineDispatchPending,
-	)
+// pushLine は予約本人（line_customers）自身の LINE ユーザー ID 宛に直接 Push する（best-effort）。
+// 宛先は常に customer.LineUserID で、飼主紐付け（owner）側の LINE ID は使わない。
+// トークン未設定・読取り/復号/送信の失敗はログのみで、予約もメール通知も止めない。
+// ログにトークン値・LINE ユーザー ID は出さない（CODING_RULES.md:68 / LSA-07）。
+func (s *reservationNotificationService) pushLine(
+	ctx context.Context,
+	event string,
+	appt *model.Reservation,
+	customer *model.LineCustomer,
+	text string,
+) {
+	if customer == nil || customer.LineUserID == "" {
+		slog.InfoContext(ctx, "LINE notify skipped: reserving customer has no LINE user id",
+			"event", event,
+			"reservation_id", appt.ID,
+		)
+		return
+	}
+
+	ciphertext, err := s.settingRepo.FindLineChannelAccessTokenCiphertext(ctx, appt.ClinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "LINE notify skipped: failed to load channel access token",
+			"event", event,
+			"clinic_id", appt.ClinicID,
+			"reservation_id", appt.ID,
+			"error", err.Error(),
+		)
+		return
+	}
+	if ciphertext == "" {
+		slog.WarnContext(ctx, "LINE notify skipped: channel access token is not configured",
+			"event", event,
+			"clinic_id", appt.ClinicID,
+			"reservation_id", appt.ID,
+		)
+		return
+	}
+	if s.decryptCredential == nil || s.newLineMessenger == nil {
+		slog.ErrorContext(ctx, "LINE notify skipped: LINE push dependencies are not wired",
+			"event", event,
+			"reservation_id", appt.ID,
+		)
+		return
+	}
+
+	accessToken, err := s.decryptCredential(ciphertext)
+	if err != nil {
+		slog.ErrorContext(ctx, "LINE notify skipped: failed to decrypt channel access token",
+			"event", event,
+			"clinic_id", appt.ClinicID,
+			"reservation_id", appt.ID,
+			"error", err.Error(),
+		)
+		return
+	}
+
+	if err := s.newLineMessenger(accessToken).PushText(ctx, customer.LineUserID, text); err != nil {
+		slog.ErrorContext(ctx, "LINE notify failed",
+			"event", event,
+			"reservation_id", appt.ID,
+			"error", err.Error(),
+		)
+	}
 }
 
 // ---- NotifyCreated ----
@@ -98,6 +168,7 @@ func (s *reservationNotificationService) NotifyCreated(
 	appt *model.Reservation,
 	customer *model.LineCustomer,
 ) {
+	lineText := s.buildCreatedLineMessage(appt)
 	emailSubject, emailBody := s.buildCreatedEmail(appt, customer)
 	clinicID := appt.ClinicID
 
@@ -118,7 +189,7 @@ func (s *reservationNotificationService) NotifyCreated(
 			return
 		}
 
-		skipLineNotification(bgCtx, "created", appt.ID)
+		s.pushLine(bgCtx, "created", appt, customer, lineText)
 
 		if setting.NotificationEmail != "" {
 			if err := s.sendEmail(bgCtx, setting.NotificationEmail, emailSubject, emailBody); err != nil {
@@ -138,6 +209,7 @@ func (s *reservationNotificationService) NotifyCancelled(
 	appt *model.Reservation,
 	customer *model.LineCustomer,
 ) {
+	lineText := s.buildCancelledLineMessage(appt)
 	emailSubject, emailBody := s.buildCancelledEmail(appt, customer)
 	clinicID := appt.ClinicID
 
@@ -158,7 +230,7 @@ func (s *reservationNotificationService) NotifyCancelled(
 			return
 		}
 
-		skipLineNotification(bgCtx, "cancelled", appt.ID)
+		s.pushLine(bgCtx, "cancelled", appt, customer, lineText)
 
 		if setting.NotificationEmail != "" {
 			if err := s.sendEmail(bgCtx, setting.NotificationEmail, emailSubject, emailBody); err != nil {
@@ -194,6 +266,38 @@ func staffDisplayName(s *model.Staff) string {
 		return s.ReservationDisplayName
 	}
 	return s.Name
+}
+
+// ---- LINE メッセージテンプレート ----
+
+func (s *reservationNotificationService) buildCreatedLineMessage(appt *model.Reservation) string {
+	var sb strings.Builder
+	sb.WriteString("ご予約を承りました。\n\n")
+	fmt.Fprintf(&sb, "■ 予約番号: R-%06d\n", appt.ID)
+	fmt.Fprintf(&sb, "■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime))
+	if name := reservationTypeDisplayName(appt.ReservationType); name != "" {
+		fmt.Fprintf(&sb, "■ メニュー: %s\n", name)
+	}
+	if name := staffDisplayName(appt.Doctor); name != "" {
+		fmt.Fprintf(&sb, "■ 担当: %s\n", name)
+	}
+	if petNames := extractPetNamesFromCustomerFields(appt); petNames != "" {
+		fmt.Fprintf(&sb, "■ ペット: %s\n", petNames)
+	}
+	sb.WriteString("\nキャンセルはLINEメニューの\n「予約確認・キャンセル」から行えます。")
+	return sb.String()
+}
+
+func (s *reservationNotificationService) buildCancelledLineMessage(appt *model.Reservation) string {
+	var sb strings.Builder
+	sb.WriteString("以下のご予約をキャンセルしました。\n\n")
+	fmt.Fprintf(&sb, "■ 予約番号: R-%06d\n", appt.ID)
+	fmt.Fprintf(&sb, "■ 日時: %s\n", formatDateTimeJP(appt.StartTime, appt.EndTime))
+	if name := reservationTypeDisplayName(appt.ReservationType); name != "" {
+		fmt.Fprintf(&sb, "■ メニュー: %s\n", name)
+	}
+	sb.WriteString("\n再度のご予約はLINEメニューの\n「予約する」から行えます。")
+	return sb.String()
 }
 
 // ---- メールテンプレート ----

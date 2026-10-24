@@ -81,6 +81,8 @@ type reservationServiceDependencies struct {
 	NextVisitTagSync reservation.NextVisitTagSyncer
 
 	NotificationConfig *reservation.ReservationNotificationConfig
+	DecryptCredential  func(value string) (string, error)
+	NewLineMessenger   func(channelToken string) reservation.LinePusher
 	SendMail           func(
 		ctx context.Context,
 		cfg reservation.SMTPConfig,
@@ -265,6 +267,8 @@ func newReservationNotifier(
 	return reservation.NewReservationNotificationService(
 		config,
 		settings,
+		dependencies.DecryptCredential,
+		dependencies.NewLineMessenger,
 		dependencies.SendMail,
 	)
 }

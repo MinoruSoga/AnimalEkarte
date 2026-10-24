@@ -398,9 +398,36 @@ func newRuntimeReservationComposition(
 			NotificationConfig: reservationNotificationConfig(
 				dependencies.Config,
 			),
-			SendMail: sendReservationMail,
+			// EMR-504 Q5(a): 予約の完了・キャンセル Push のトークンは clinic_integrations の暗号文。
+			// lstep 連携設定と同じ cipher で復号する（失敗は Push のみ止め、メール通知は継続する）。
+			DecryptCredential: reservationLineTokenDecryptor(
+				dependencies.IntegrationCipher,
+			),
+			NewLineMessenger: newReservationLineMessenger,
+			SendMail:         sendReservationMail,
 		},
 	)
+}
+
+// reservationLineTokenDecryptor は clinic_integrations に暗号化保存された LINE チャネルアクセストークンを、
+// lstep 連携設定（lstep_settings_credentials.go の decrypt）と同じ cipher・同じ規則で復号する。
+// cipher が nil（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定）のときは平文のまま返す。
+// 復号失敗は空文字へ置換せず error を返す（呼び出し側は Push を行わずログのみ）。
+func reservationLineTokenDecryptor(
+	cipher *appcrypto.AESGCMCipher,
+) func(string) (string, error) {
+	return func(value string) (string, error) {
+		if cipher == nil {
+			return value, nil
+		}
+		return cipher.Decrypt(value)
+	}
+}
+
+func newReservationLineMessenger(
+	channelToken string,
+) reservation.LinePusher {
+	return lstep.NewLineMessagingService(channelToken)
 }
 
 func reservationNotificationConfig(
