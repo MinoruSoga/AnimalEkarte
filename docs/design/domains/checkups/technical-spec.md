@@ -148,7 +148,7 @@ JST calendar additionを使い、対象月に同じ日がなければunknown/cal
 
 候補GET案 `/v1/masters/checkup-types/{id}/next-date-candidate?performed_date=YYYY-MM-DD`。既存master GETにもrule/versionを返す。read grantは既存ResourceCheckupsのcheckups:viewで、master-medical:viewではない。medical-records:editだけから権限を作らず、取得不可でも手入力を保持する。
 
-responseはexact9key `{schema:"checkup-next-date-candidate/v1",clinic_id,checkup_type_id,rule_version,performed_date,state,candidate_date,reason,rule_ref}`。clinic_id/checkup_type_idは既存Go uint64/保存bigint identity、rule_versionは既存checkup_types.versionのpositive int64を表す正整数十進string（1..9223372036854775807、符号/小数/指数/先頭0なし）。JS Number化禁止。
+responseはexact9key `{schema:"checkup-next-date-candidate/v1",clinic_id,checkup_type_id,rule_version,performed_date,state,candidate_date,reason,rule_ref}`。clinic_id/checkup_type_idは既存Go uint64/保存bigint identityをwire上canonical positive decimal string（1..9223372036854775807、符号/小数/指数/先頭0なし）で表す。rule_versionも既存checkup_types.versionのpositive int64を同じcanonical positive decimal stringで表す。JS Number化禁止。
 
 rule_refはexact4key `{schema:"checkup-next-rule-source/v1",clinic_id,checkup_type_id,checkup_type_version}`。ID型は上記、checkup_type_versionはrule_versionと同値string。rule又はNULLとintervalを読んだ同じmaster行/版を固定する。200のcandidate/none/unknown全てで非NULL、top-levelとrefのclinic/type IDは同値。client送信request/refの未知key/重複key/必須省略/不正整数/型不整合は400 invalid_next_date_request。server response不正はFEがfail closedとしHTTP400を捏造しない。
 
