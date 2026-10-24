@@ -19,10 +19,10 @@ func normalizeTimeString(s *string) *string {
 	return sharedkernel.NormalizeTimeString(s)
 }
 
-// ShiftBreakInput は休憩時間の入力DTO
+// ShiftBreakInput は休憩の入力DTO（明示日時。EMR-549: 時刻文字列の wire は受け付けない）
 type ShiftBreakInput struct {
-	BreakStart string
-	BreakEnd   string
+	StartsAt time.Time
+	EndsAt   time.Time
 }
 
 // CreateShiftEntryInput はシフト作成の入力DTO
@@ -30,83 +30,99 @@ type CreateShiftEntryInput struct {
 	StaffID   uint64
 	Date      time.Time
 	ShiftType string
-	StartTime *string
-	EndTime   *string
+	StartsAt  *time.Time
+	EndsAt    *time.Time
 	Notes     string
 	Breaks    []ShiftBreakInput
 }
 
-// UpdateShiftEntryInput はシフト更新の入力DTO（nil = 未変更）
+// OptionalShiftTime は PATCH の starts_at / ends_at を表す。
+// Set=false は未指定（保存値を維持）、Set=true かつ Value=nil は明示 null（終日非勤務化）。
+type OptionalShiftTime struct {
+	Set   bool
+	Value *time.Time
+}
+
+// UpdateShiftEntryInput はシフト更新の入力DTO（nil / Set=false = 未変更）
 type UpdateShiftEntryInput struct {
 	ShiftType *string
-	StartTime *string
-	EndTime   *string
+	StartsAt  OptionalShiftTime
+	EndsAt    OptionalShiftTime
 	Notes     *string
 	Breaks    *[]ShiftBreakInput
-	// WorkDate は更新対象行の勤務日。service がロック済み行から設定する（呼び出し元は設定しない）。
-	// StartTime/EndTime を timestamptz（starts_at/ends_at）へ変換するために必要。
-	WorkDate time.Time
+	// ExpectedVersion は勤務 aggregate の期待版。nil は版照合なし（HTTP 境界では必須にするため、内部呼出し専用）。
+	ExpectedVersion *int64
 }
 
 // ShiftEntryService はシフト管理のビジネスロジックインターフェース
 
 // shiftEntryUpdateIsEmpty は更新対象のスカラー項目が1つも指定されていないかを返す。
 func shiftEntryUpdateIsEmpty(input *UpdateShiftEntryInput) bool {
-	return input.ShiftType == nil && input.StartTime == nil && input.EndTime == nil && input.Notes == nil
+	return input.ShiftType == nil && !input.StartsAt.Set && !input.EndsAt.Set && input.Notes == nil
 }
 
 // buildShiftEntryUpdate は更新項目を GORM の fields マップへ変換する。
-// HTTP/DTO の start_time/end_time（時刻文字列）は勤務日 input.WorkDate と組み合わせて
-// starts_at/ends_at（timestamptz, time.Local）へ変換する。時刻指定があるのに WorkDate が
-// 未設定の場合は fail-closed でエラーにする。
-func buildShiftEntryUpdate(input *UpdateShiftEntryInput) (map[string]any, error) {
+// starts_at / ends_at は明示日時のまま保存し、明示 null は NULL として書く。
+// 時刻文字列や勤務日からの組立ては行わない（EMR-549）。
+func buildShiftEntryUpdate(input *UpdateShiftEntryInput) map[string]any {
 	fields := map[string]any{}
 	if input.ShiftType != nil {
 		fields["shift_type"] = *input.ShiftType
 	}
-	if input.StartTime != nil || input.EndTime != nil {
-		if input.WorkDate.IsZero() {
-			return nil, apperrors.WrapInternalServerError("shift entry work date is required to update times")
-		}
+	if input.StartsAt.Set {
+		fields["starts_at"] = input.StartsAt.Value
 	}
-	if input.StartTime != nil {
-		startsAt, err := sharedkernel.ShiftClockToTimestamp(input.WorkDate, normalizeTimeString(input.StartTime))
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to convert start_time")
-		}
-		fields["starts_at"] = startsAt
-	}
-	if input.EndTime != nil {
-		endsAt, err := sharedkernel.ShiftClockToTimestamp(input.WorkDate, normalizeTimeString(input.EndTime))
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to convert end_time")
-		}
-		fields["ends_at"] = endsAt
+	if input.EndsAt.Set {
+		fields["ends_at"] = input.EndsAt.Value
 	}
 	if input.Notes != nil {
 		fields["notes"] = *input.Notes
 	}
-	return fields, nil
+	return fields
 }
 
-// buildShiftEntryBreaks は休憩入力（HH:MM / HH:MM:SS）を勤務日基準の starts_at/ends_at へ変換する。
-func buildShiftEntryBreaks(workDate time.Time, inputs []ShiftBreakInput) ([]model.ShiftEntryBreak, error) {
+// buildShiftEntryBreaks は休憩入力（明示日時）を保存行へ写す。
+func buildShiftEntryBreaks(inputs []ShiftBreakInput) []model.ShiftEntryBreak {
 	breaks := make([]model.ShiftEntryBreak, 0, len(inputs))
 	for _, b := range inputs {
-		startsAt, err := sharedkernel.ShiftClockToTimestamp(workDate, &b.BreakStart)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to convert break_start")
-		}
-		endsAt, err := sharedkernel.ShiftClockToTimestamp(workDate, &b.BreakEnd)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to convert break_end")
-		}
-		if startsAt == nil || endsAt == nil {
-			return nil, apperrors.WrapInvalidInput("break_start and break_end are required")
-		}
-		breaks = append(breaks, model.ShiftEntryBreak{StartsAt: startsAt, EndsAt: endsAt})
+		startsAt, endsAt := b.StartsAt, b.EndsAt
+		breaks = append(breaks, model.ShiftEntryBreak{StartsAt: &startsAt, EndsAt: &endsAt})
 	}
-	return breaks, nil
+	return breaks
+}
+
+// shiftBreakWindows は休憩入力を検証用の区間へ写す。
+func shiftBreakWindows(inputs []ShiftBreakInput) []sharedkernel.ShiftWindow {
+	windows := make([]sharedkernel.ShiftWindow, 0, len(inputs))
+	for _, b := range inputs {
+		windows = append(windows, sharedkernel.ShiftWindow{StartsAt: b.StartsAt, EndsAt: b.EndsAt})
+	}
+	return windows
+}
+
+// existingShiftBreakWindows は保存済み休憩を検証用の区間へ写す。
+// 呼出し側で interval_state=known（全休憩の日時が非 NULL）を確認済みであること。
+func existingShiftBreakWindows(breaks []model.ShiftEntryBreak) []sharedkernel.ShiftWindow {
+	windows := make([]sharedkernel.ShiftWindow, 0, len(breaks))
+	for _, b := range breaks {
+		if b.StartsAt == nil || b.EndsAt == nil {
+			continue
+		}
+		windows = append(windows, sharedkernel.ShiftWindow{StartsAt: *b.StartsAt, EndsAt: *b.EndsAt})
+	}
+	return windows
+}
+
+// api.yaml ShiftContractError.code の固定値（409）。
+const (
+	codeShiftVersionConflict  = "version_conflict"
+	codeShiftSourceUnresolved = "source_unresolved"
+	codeShiftExists           = "shift_exists"
+)
+
+// newShiftContractConflict は固定 code を持つ 409 を返す。code は error 文字列ではなく分岐に使われる。
+func newShiftContractConflict(code, message string) error {
+	return &apperrors.AppError{Code: code, Message: message, Err: apperrors.ErrConflict}
 }
 
 type ShiftEntryService interface {
@@ -206,21 +222,12 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 	if err := validateShiftType(shiftType); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate shift type")
 	}
-	startTime := normalizeTimeString(input.StartTime)
-	endTime := normalizeTimeString(input.EndTime)
-
-	// BUG-028: 時刻バリデーション（off/paid_leave は除外）
-	if err := validateShiftTimes(shiftType, startTime, endTime); err != nil {
+	// 勤務種別・明示日時・勤務日（starts_at の JST 暦日）・休憩を契約どおり検証する（EMR-549）。
+	// 日跨ぎ勤務（ends_at が翌日以降）は許可し、時刻から翌日を推測しない。
+	if err := sharedkernel.ValidateShiftEntryShape(
+		shiftType, input.Date, input.StartsAt, input.EndsAt, shiftBreakWindows(input.Breaks),
+	); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate shift times")
-	}
-
-	startsAt, err := sharedkernel.ShiftClockToTimestamp(input.Date, startTime)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to convert start_time")
-	}
-	endsAt, err := sharedkernel.ShiftClockToTimestamp(input.Date, endTime)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to convert end_time")
 	}
 
 	entry := &model.ShiftEntry{
@@ -228,15 +235,12 @@ func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *
 		StaffID:   input.StaffID,
 		Date:      input.Date,
 		ShiftType: shiftType,
-		StartsAt:  startsAt,
-		EndsAt:    endsAt,
+		StartsAt:  input.StartsAt,
+		EndsAt:    input.EndsAt,
 		Notes:     input.Notes,
 	}
 
-	breaks, err := buildShiftEntryBreaks(input.Date, input.Breaks)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate shift breaks")
-	}
+	breaks := buildShiftEntryBreaks(input.Breaks)
 	if s.repo == nil || s.staffRepo == nil || s.staffAssignmentRepo == nil || s.tx == nil {
 		return nil, apperrors.WrapInternalServerError("shift entry dependencies are not configured")
 	}
@@ -302,6 +306,16 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 			return apperrors.Wrap(err, "failed to lock shift entry for update")
 		}
 
+		// 版照合（write 直前・行ロック下）。不一致は 409 version_conflict で、何も保存しない。
+		if input.ExpectedVersion != nil && existing.Version != *input.ExpectedVersion {
+			return newShiftContractConflict(codeShiftVersionConflict, "shift entry version does not match")
+		}
+		// 保存済みの勤務日時または休憩が unknown の行は、訂正確認まで保存を停止する。
+		// NULL を休日・勤務可能と扱わず、値を黙って補完・削除もしない（api.yaml ShiftEntry）。
+		if sharedkernel.ShiftEntryIntervalState(existing, existing.Breaks) == sharedkernel.ShiftIntervalStateUnknown {
+			return newShiftContractConflict(codeShiftSourceUnresolved, "shift entry interval is unresolved")
+		}
+
 		effectiveShiftType := existing.ShiftType
 		if input.ShiftType != nil {
 			shiftType := model.ShiftType(*input.ShiftType)
@@ -310,31 +324,30 @@ func (s *shiftEntryService) Update(ctx context.Context, clinicID, id uint64, inp
 			}
 			effectiveShiftType = shiftType
 		}
-		effectiveStart := sharedkernel.ShiftTimestampToClock(existing.StartsAt)
-		effectiveEnd := sharedkernel.ShiftTimestampToClock(existing.EndsAt)
-		if input.StartTime != nil {
-			effectiveStart = normalizeTimeString(input.StartTime)
+		effectiveStart, effectiveEnd := existing.StartsAt, existing.EndsAt
+		if input.StartsAt.Set {
+			effectiveStart = input.StartsAt.Value
 		}
-		if input.EndTime != nil {
-			effectiveEnd = normalizeTimeString(input.EndTime)
+		if input.EndsAt.Set {
+			effectiveEnd = input.EndsAt.Value
 		}
-		if err := validateShiftTimes(effectiveShiftType, effectiveStart, effectiveEnd); err != nil {
+		effectiveBreaks := existingShiftBreakWindows(existing.Breaks)
+		if input.Breaks != nil {
+			effectiveBreaks = shiftBreakWindows(*input.Breaks)
+		}
+		if err := sharedkernel.ValidateShiftEntryShape(
+			effectiveShiftType, existing.Date, effectiveStart, effectiveEnd, effectiveBreaks,
+		); err != nil {
 			return apperrors.Wrap(err, "failed to validate shift times")
 		}
 
 		if !shiftEntryUpdateIsEmpty(input) {
-			cmd := *input
-			cmd.WorkDate = existing.Date
-			if err := s.repo.Update(txCtx, clinicID, id, cmd); err != nil {
+			if err := s.repo.Update(txCtx, clinicID, id, *input); err != nil {
 				return apperrors.Wrap(err, "failed to update shift entry")
 			}
 		}
 		if input.Breaks != nil {
-			breaks, err := buildShiftEntryBreaks(existing.Date, *input.Breaks)
-			if err != nil {
-				return apperrors.Wrap(err, "failed to validate shift breaks")
-			}
-			if err := s.repo.ReplaceBreaks(txCtx, id, breaks); err != nil {
+			if err := s.repo.ReplaceBreaks(txCtx, id, buildShiftEntryBreaks(*input.Breaks)); err != nil {
 				return apperrors.Wrap(err, "failed to save shift breaks")
 			}
 		}

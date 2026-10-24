@@ -135,14 +135,26 @@ func TestListShiftEntries(t *testing.T) {
 func TestCreateShiftEntry(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	const operationKey = "11111111-1111-4111-8111-111111111111"
 	validBody := func() map[string]any {
-		return map[string]any{
-			"staff_id":   10,
-			"date":       "2026-05-28",
-			"shift_type": "full",
-			"start_time": "09:00",
-			"end_time":   "18:00",
-		}
+		body := map[string]any{}
+		body["operation_key"] = operationKey
+		body["staff_id"] = "10"
+		body["date"] = "2026-05-28"
+		body["shift_type"] = "full"
+		body["starts_at"] = "2026-05-28T22:00:00+09:00"
+		body["ends_at"] = "2026-05-29T07:00:00+09:00"
+		body["breaks"] = []any{map[string]any{
+			"starts_at": "2026-05-29T01:00:00+09:00",
+			"ends_at":   "2026-05-29T02:00:00+09:00",
+		}}
+		body["notes"] = ""
+		return body
+	}
+	withBody := func(mutate func(body map[string]any)) map[string]any {
+		body := validBody()
+		mutate(body)
+		return body
 	}
 
 	tests := []struct {
@@ -152,20 +164,28 @@ func TestCreateShiftEntry(t *testing.T) {
 		svc        *mockShiftEntryService
 		wantStatus int
 		wantHeader string
+		wantBody   []string
 	}{
 		{
-			name:     "creates shift entry successfully",
+			name:     "creates an overnight shift entry and returns the mutation receipt",
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockShiftEntryService{
 				createFn: func(_ context.Context, clinicID uint64, input *staffdomain.CreateShiftEntryInput) (*model.ShiftEntry, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), input.StaffID)
-					return &model.ShiftEntry{ID: 5, ClinicID: clinicID, StaffID: input.StaffID, ShiftType: model.ShiftType(input.ShiftType), Staff: &model.Staff{ID: input.StaffID}}, nil
+					assert.Equal(t, "2026-05-28", input.Date.Format(time.DateOnly))
+					require.NotNil(t, input.StartsAt)
+					require.NotNil(t, input.EndsAt)
+					assert.Equal(t, "2026-05-28T22:00:00+09:00", input.StartsAt.Format(time.RFC3339))
+					assert.Equal(t, "2026-05-29T07:00:00+09:00", input.EndsAt.Format(time.RFC3339))
+					require.Len(t, input.Breaks, 1)
+					return &model.ShiftEntry{ID: 5, ClinicID: clinicID, StaffID: input.StaffID, Date: input.Date, ShiftType: model.ShiftType(input.ShiftType), StartsAt: input.StartsAt, EndsAt: input.EndsAt, Version: 1}, nil
 				},
 			},
 			wantStatus: http.StatusCreated,
 			wantHeader: "/api/v1/shifts/5",
+			wantBody:   []string{`"operation_key":"` + operationKey + `"`, `"intent":"create"`, `"shift_id":"5"`, `"resulting_version":1`, `"starts_at":"2026-05-28T22:00:00+09:00"`, `"ends_at":"2026-05-29T07:00:00+09:00"`},
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
@@ -189,15 +209,46 @@ func TestCreateShiftEntry(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "returns 400 for invalid date format",
-			body: map[string]any{
-				"staff_id":   10,
-				"date":       "2026/05/28",
-				"shift_type": "full",
-			},
+			name:       "returns 400 for invalid date format",
+			body:       withBody(func(body map[string]any) { body["date"] = "2026/05/28" }),
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockShiftEntryService{},
 			wantStatus: http.StatusBadRequest,
+		},
+		{
+			// EMR-549: 旧 wire のキーは黙って無視せず 400 で拒否する
+			name:       "returns 400 when the legacy start_time key is sent",
+			body:       withBody(func(body map[string]any) { body["start_time"] = "09:00" }),
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   []string{"start_time is no longer supported"},
+		},
+		{
+			name:       "returns 400 when the operation_key is not a UUID",
+			body:       withBody(func(body map[string]any) { body["operation_key"] = "not-a-uuid" }),
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when starts_at has no offset",
+			body:       withBody(func(body map[string]any) { body["starts_at"] = "2026-05-28T22:00:00" }),
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 409 with the shift_exists code when the shift already exists",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockShiftEntryService{
+				createFn: func(_ context.Context, _ uint64, _ *staffdomain.CreateShiftEntryInput) (*model.ShiftEntry, error) {
+					return nil, &apperrors.AppError{Code: "shift_exists", Message: "shift entry already exists", Err: apperrors.ErrAlreadyExists}
+				},
+			},
+			wantStatus: http.StatusConflict,
+			wantBody:   []string{`"code":"shift_exists"`},
 		},
 		{
 			name:     "returns 500 on service error",
@@ -231,6 +282,9 @@ func TestCreateShiftEntry(t *testing.T) {
 			if tt.wantHeader != "" {
 				assert.Equal(t, tt.wantHeader, w.Header().Get("Location"))
 			}
+			for _, want := range tt.wantBody {
+				assert.Contains(t, w.Body.String(), want)
+			}
 		})
 	}
 }
@@ -240,6 +294,23 @@ func TestCreateShiftEntry(t *testing.T) {
 func TestUpdateShiftEntry(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	const operationKey = "22222222-2222-4222-8222-222222222222"
+	offBody := func() map[string]any {
+		body := map[string]any{}
+		body["operation_key"] = operationKey
+		body["expected_version"] = 3
+		body["shift_type"] = "off"
+		body["starts_at"] = nil
+		body["ends_at"] = nil
+		body["breaks"] = []any{}
+		return body
+	}
+	withBody := func(mutate func(body map[string]any)) map[string]any {
+		body := offBody()
+		mutate(body)
+		return body
+	}
+
 	tests := []struct {
 		name       string
 		paramID    string
@@ -247,25 +318,36 @@ func TestUpdateShiftEntry(t *testing.T) {
 		setupCtx   func(c *gin.Context)
 		svc        *mockShiftEntryService
 		wantStatus int
+		wantBody   []string
 	}{
 		{
-			name:     "updates shift entry successfully",
+			name:     "updates the shift entry to all-day off and returns the mutation receipt",
 			paramID:  "1",
-			body:     map[string]any{"shift_type": "off"},
+			body:     offBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockShiftEntryService{
 				updateFn: func(_ context.Context, _, _ uint64, input *staffdomain.UpdateShiftEntryInput) (*model.ShiftEntry, error) {
 					require.NotNil(t, input.ShiftType)
 					assert.Equal(t, "off", *input.ShiftType)
-					return &model.ShiftEntry{ID: 1, ShiftType: model.ShiftType(*input.ShiftType), Staff: &model.Staff{}}, nil
+					assert.True(t, input.StartsAt.Set, "明示 null は未指定と区別する")
+					assert.Nil(t, input.StartsAt.Value)
+					assert.True(t, input.EndsAt.Set)
+					assert.Nil(t, input.EndsAt.Value)
+					require.NotNil(t, input.Breaks)
+					assert.Empty(t, *input.Breaks)
+					assert.Nil(t, input.Notes)
+					require.NotNil(t, input.ExpectedVersion)
+					assert.Equal(t, int64(3), *input.ExpectedVersion)
+					return &model.ShiftEntry{ID: 1, ShiftType: model.ShiftType(*input.ShiftType), Version: 4}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
+			wantBody:   []string{`"intent":"update"`, `"resulting_version":4`, `"interval_state":"known"`},
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
 			paramID:    "1",
-			body:       map[string]any{"shift_type": "off"},
+			body:       offBody(),
 			setupCtx:   func(_ *gin.Context) {},
 			svc:        &mockShiftEntryService{},
 			wantStatus: http.StatusUnauthorized,
@@ -273,7 +355,7 @@ func TestUpdateShiftEntry(t *testing.T) {
 		{
 			name:       "returns 400 for non-numeric id",
 			paramID:    "xyz",
-			body:       map[string]any{"shift_type": "off"},
+			body:       offBody(),
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockShiftEntryService{},
 			wantStatus: http.StatusBadRequest,
@@ -289,7 +371,40 @@ func TestUpdateShiftEntry(t *testing.T) {
 		{
 			name:       "returns 400 for invalid shift_type",
 			paramID:    "1",
-			body:       map[string]any{"shift_type": "invalid"},
+			body:       withBody(func(body map[string]any) { body["shift_type"] = "invalid" }),
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when the legacy end_time key is sent",
+			paramID:    "1",
+			body:       withBody(func(body map[string]any) { body["end_time"] = "18:00" }),
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+			wantBody:   []string{"end_time is no longer supported"},
+		},
+		{
+			name:       "returns 400 when expected_version is missing",
+			paramID:    "1",
+			body:       withBody(func(body map[string]any) { delete(body, "expected_version") }),
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when no shift field is given besides operation_key and expected_version",
+			paramID:    "1",
+			body:       map[string]any{"operation_key": operationKey, "expected_version": 3},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when notes is null",
+			paramID:    "1",
+			body:       withBody(func(body map[string]any) { body["notes"] = nil }),
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockShiftEntryService{},
 			wantStatus: http.StatusBadRequest,
@@ -297,7 +412,7 @@ func TestUpdateShiftEntry(t *testing.T) {
 		{
 			name:     "returns 404 when shift not found",
 			paramID:  "999",
-			body:     map[string]any{"shift_type": "off"},
+			body:     offBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockShiftEntryService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *staffdomain.UpdateShiftEntryInput) (*model.ShiftEntry, error) {
@@ -305,6 +420,19 @@ func TestUpdateShiftEntry(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 409 with the version_conflict code when expected_version is stale",
+			paramID:  "1",
+			body:     offBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockShiftEntryService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *staffdomain.UpdateShiftEntryInput) (*model.ShiftEntry, error) {
+					return nil, &apperrors.AppError{Code: "version_conflict", Message: "shift entry version does not match", Err: apperrors.ErrConflict}
+				},
+			},
+			wantStatus: http.StatusConflict,
+			wantBody:   []string{`"code":"version_conflict"`},
 		},
 	}
 
@@ -325,6 +453,9 @@ func TestUpdateShiftEntry(t *testing.T) {
 			h.UpdateShiftEntry(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
+			for _, want := range tt.wantBody {
+				assert.Contains(t, w.Body.String(), want)
+			}
 		})
 	}
 }

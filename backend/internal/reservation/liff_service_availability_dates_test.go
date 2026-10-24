@@ -117,7 +117,7 @@ func TestGetAvailableDates_BuildAvailableDatesStaffInputsFn(t *testing.T) {
 		minDate, maxDate := BookingWindowDates(settings)
 		startStr := "09:00:00"
 		endStr := "17:00:00"
-		entry := model.ShiftEntry{ID: 55, StaffID: 1, Date: minDate, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, rsvShiftDate, startStr), EndsAt: rsvTS(t, rsvShiftDate, endStr)}
+		entry := model.ShiftEntry{ID: 55, StaffID: 1, Date: minDate, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, minDate, startStr), EndsAt: rsvTS(t, minDate, endStr)}
 
 		var capturedStaffIDs []uint64
 		var capturedFrom, capturedTo time.Time
@@ -129,7 +129,7 @@ func TestGetAvailableDates_BuildAvailableDatesStaffInputsFn(t *testing.T) {
 			},
 			findAllBreaksByEntryIDsFn: func(_ context.Context, _ uint64, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
 				require.Equal(t, []uint64{55}, entryIDs)
-				return map[uint64][]model.ShiftEntryBreak{55: {{StartsAt: rsvTS(t, rsvShiftDate, "12:00:00"), EndsAt: rsvTS(t, rsvShiftDate, "13:00:00")}}}, nil
+				return map[uint64][]model.ShiftEntryBreak{55: {{StartsAt: rsvTS(t, minDate, "12:00:00"), EndsAt: rsvTS(t, minDate, "13:00:00")}}}, nil
 			},
 		}
 		doctorID1 := uint64(1)

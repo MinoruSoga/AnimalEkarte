@@ -149,6 +149,8 @@ func TestReservationScheduleService_Save(t *testing.T) {
 	date := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	start := "09:00:00"
 	end := "18:00:00"
+	startsAt := rsvTS(t, date, start)
+	endsAt := rsvTS(t, date, end)
 
 	tests := []struct {
 		name       string
@@ -168,7 +170,7 @@ func TestReservationScheduleService_Save(t *testing.T) {
 		},
 		{
 			name:  "returns transaction-created aggregate",
-			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &start, WorkEnd: &end},
+			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), StartsAt: startsAt, EndsAt: endsAt},
 			saveFn: func(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
 				return &model.ShiftEntry{
 						ID:        100,
@@ -199,7 +201,7 @@ func TestReservationScheduleService_Save(t *testing.T) {
 		},
 		{
 			name:  "returns transaction-updated aggregate",
-			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &start, WorkEnd: &end, Breaks: []ReservationScheduleBreakInput{{Start: "12:00:00", End: "13:00:00"}}},
+			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), StartsAt: startsAt, EndsAt: endsAt, Breaks: []ReservationScheduleBreakInput{{StartsAt: *rsvTS(t, date, "12:00:00"), EndsAt: *rsvTS(t, date, "13:00:00")}}},
 			saveFn: func(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
 				return &model.ShiftEntry{ID: 5, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeFull},
 					[]model.ShiftEntryBreak{{ID: 6, ShiftEntryID: 5, StartsAt: rsvTS(t, rsvShiftDate, "12:00:00"), EndsAt: rsvTS(t, rsvShiftDate, "13:00:00")}},
@@ -219,7 +221,7 @@ func TestReservationScheduleService_Save(t *testing.T) {
 		},
 		{
 			name:    "invalid shift times returns error before save",
-			input:   &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &end, WorkEnd: &start}, // end before start
+			input:   &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), StartsAt: endsAt, EndsAt: startsAt}, // end before start
 			wantErr: true,
 		},
 		{
@@ -233,14 +235,14 @@ func TestReservationScheduleService_Save(t *testing.T) {
 		{
 			// EMR-241: 片方だけの時刻は拒否（WorkStart のみ）
 			name:      "working shift type with only work start is rejected before save",
-			input:     &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeMorning), WorkStart: &start},
+			input:     &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeMorning), StartsAt: startsAt},
 			wantErr:   true,
 			wantSaves: 0,
 		},
 		{
 			// EMR-241: 片方だけの時刻は拒否（WorkEnd のみ）
 			name:      "working shift type with only work end is rejected before save",
-			input:     &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeAfternoon), WorkEnd: &end},
+			input:     &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeAfternoon), EndsAt: endsAt},
 			wantErr:   true,
 			wantSaves: 0,
 		},
@@ -276,7 +278,7 @@ func TestReservationScheduleService_Save(t *testing.T) {
 		},
 		{
 			name:  "repo save error propagates",
-			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &start, WorkEnd: &end},
+			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), StartsAt: startsAt, EndsAt: endsAt},
 			saveFn: func(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
 				return nil, nil, false, errors.New("save error")
 			},
@@ -285,12 +287,69 @@ func TestReservationScheduleService_Save(t *testing.T) {
 		},
 		{
 			name:  "nil transaction result is rejected",
-			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), WorkStart: &start, WorkEnd: &end},
+			input: &CreateReservationScheduleInput{ShiftType: string(model.ShiftTypeFull), StartsAt: startsAt, EndsAt: endsAt},
 			saveFn: func(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
 				return nil, nil, true, nil
 			},
 			wantErr:   true,
 			wantSaves: 1,
+		},
+		{
+			// EMR-549: 日跨ぎ勤務（22:00 から翌日 07:00）は明示日時のまま保存できる。
+			name: "overnight shift is saved with the next-day ends_at",
+			input: &CreateReservationScheduleInput{
+				ShiftType: string(model.ShiftTypeFull),
+				StartsAt:  rsvTS(t, date, "22:00"),
+				EndsAt:    rsvTS(t, date.AddDate(0, 0, 1), "07:00"),
+			},
+			saveFn: func(_ context.Context, _ uint64, entry *model.ShiftEntry, _ []model.ShiftEntryBreak) (*model.ShiftEntry, []model.ShiftEntryBreak, bool, error) {
+				return entry, nil, true, nil
+			},
+			want: &ScheduleEntry{
+				Entry: model.ShiftEntry{
+					ClinicID:  clinicID,
+					StaffID:   staffID,
+					Date:      date,
+					ShiftType: model.ShiftTypeFull,
+					StartsAt:  rsvTS(t, date, "22:00"),
+					EndsAt:    rsvTS(t, date.AddDate(0, 0, 1), "07:00"),
+				},
+				Breaks: nil,
+			},
+			wantIsNew: true,
+			wantSaves: 1,
+		},
+		{
+			// EMR-549: off / paid_leave は終日非勤務。時刻を持つ入力は黙って捨てず保存前に拒否する。
+			name: "off shift type with times is rejected before save",
+			input: &CreateReservationScheduleInput{
+				ShiftType: string(model.ShiftTypeOff),
+				StartsAt:  startsAt,
+				EndsAt:    endsAt,
+			},
+			wantErr:   true,
+			wantSaves: 0,
+		},
+		{
+			name: "break outside the shift is rejected before save",
+			input: &CreateReservationScheduleInput{
+				ShiftType: string(model.ShiftTypeFull),
+				StartsAt:  startsAt,
+				EndsAt:    endsAt,
+				Breaks:    []ReservationScheduleBreakInput{{StartsAt: *rsvTS(t, date, "17:30:00"), EndsAt: *rsvTS(t, date, "18:30:00")}},
+			},
+			wantErr:   true,
+			wantSaves: 0,
+		},
+		{
+			name: "starts_at on another date is rejected before save",
+			input: &CreateReservationScheduleInput{
+				ShiftType: string(model.ShiftTypeFull),
+				StartsAt:  rsvTS(t, date.AddDate(0, 0, 1), "09:00"),
+				EndsAt:    rsvTS(t, date.AddDate(0, 0, 1), "18:00"),
+			},
+			wantErr:   true,
+			wantSaves: 0,
 		},
 	}
 

@@ -152,33 +152,24 @@ func buildStaffSlotInputsFromWindow(
 	dateStr := date.Format(time.DateOnly)
 	dayResv := reservationsByDate[dateStr]
 	staffEntries := entriesByDateStaff[dateStr]
+	// 評価日（JST）の 00:00〜翌 00:00。勤務・休憩の明示日時（starts_at / ends_at）をこの窓へ切り出して
+	// "HHMM" にする。時刻文字列の勤務日基準コンバータは使わない。
+	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, config.JST)
+	dayEnd := dayStart.AddDate(0, 0, 1)
 
 	inputs := make([]StaffSlotInput, 0, len(staffs))
-staffLoop:
 	for i := range staffs {
 		si := StaffSlotInput{StaffID: staffs[i].ID}
 
 		if entry, ok := staffEntries[staffs[i].ID]; ok && entry != nil {
 			breaks := breaksByEntry[entry.ID]
-			override := &StaffScheduleOverride{
-				ShiftType: string(entry.ShiftType),
-				WorkStart: ptrTimeToHHMM(sharedkernel.ShiftTimestampToClock(entry.StartsAt)), // starts_at (time.Local) → "HHMM"
-				WorkEnd:   ptrTimeToHHMM(sharedkernel.ShiftTimestampToClock(entry.EndsAt)),   // ends_at (time.Local) → "HHMM"
+			// interval_state=unknown（勤務の starts_at / ends_at が NULL、いずれかの休憩が区間不明、または
+			// off / paid_leave に矛盾する日時・休憩が残る行）は勤務可能と扱わない（api.yaml ShiftEntry）。
+			// 営業時間や shift_type の既定時間帯へ戻さず（fail-open にせず）、その日の候補から当該スタッフを外す。
+			if sharedkernel.ShiftEntryIntervalState(entry, breaks) == sharedkernel.ShiftIntervalStateUnknown {
+				continue
 			}
-			for _, b := range breaks {
-				start := sharedkernel.ShiftTimestampToClock(b.StartsAt)
-				end := sharedkernel.ShiftTimestampToClock(b.EndsAt)
-				if start == nil || end == nil {
-					// 区間不明の休憩を「休憩なし」とみなさない（unknown を確認済みへ変換しない）。
-					// 空き枠を過大に提示しないよう、その日の候補から当該スタッフを外す。
-					continue staffLoop
-				}
-				override.Breaks = append(override.Breaks, BreakPeriod{
-					Start: timeToHHMM(*start), // "HH:MM:SS" → "HHMM"
-					End:   timeToHHMM(*end),   // "HH:MM:SS" → "HHMM"
-				})
-			}
-			si.ScheduleOverride = override
+			si.ScheduleOverride = buildScheduleOverride(entry, breaks, dayStart, dayEnd)
 		}
 
 		// 当日の既存予約を絞り込み
@@ -198,4 +189,49 @@ staffLoop:
 		inputs = append(inputs, si)
 	}
 	return inputs
+}
+
+// buildScheduleOverride は interval_state=known の勤務行を、評価日 [dayStart, dayEnd) に切り出した
+// ScheduleOverride へ変換する。勤務・休憩とも starts_at / ends_at の明示日時から直接 "HHMM" を求め、
+// shift_type の名称や営業時間の既定時間帯は使わない。日跨ぎ勤務は当日分だけを切り出す。
+// 呼出し側で勤務種別が勤務なら両日時が非 NULL であること（interval_state=known）を確認済みであること。
+func buildScheduleOverride(entry *model.ShiftEntry, breaks []model.ShiftEntryBreak, dayStart, dayEnd time.Time) *StaffScheduleOverride {
+	override := &StaffScheduleOverride{ShiftType: string(entry.ShiftType)}
+	if !sharedkernel.RequiresTimeSlot(entry.ShiftType) || entry.StartsAt == nil || entry.EndsAt == nil {
+		return override
+	}
+	workStart, workEnd, onDay := clipToDayHHMM(*entry.StartsAt, *entry.EndsAt, dayStart, dayEnd)
+	if !onDay {
+		// 当日に掛からない勤務行（勤務日と starts_at の暦日が食い違う旧データ等）は空の勤務窓にし、営業時間へ戻さない。
+		workStart, workEnd = "0000", "0000"
+	}
+	override.WorkStart = &workStart
+	override.WorkEnd = &workEnd
+	for _, b := range breaks {
+		if b.StartsAt == nil || b.EndsAt == nil {
+			continue
+		}
+		if start, end, overlaps := clipToDayHHMM(*b.StartsAt, *b.EndsAt, dayStart, dayEnd); overlaps {
+			override.Breaks = append(override.Breaks, BreakPeriod{Start: start, End: end})
+		}
+	}
+	return override
+}
+
+// clipToDayHHMM は [startsAt, endsAt) を評価日 [dayStart, dayEnd) へ切り出し、JST の "HHMM" の組で返す。
+// 当日に掛からないときは ok=false。翌 0:00 は "HHMM" で表せない（2400 は下流の解析で拒否される）ため "2359" とする。
+// 末尾 1 分の丸めでコース所要時間を収める枠が増えることはない。
+func clipToDayHHMM(startsAt, endsAt, dayStart, dayEnd time.Time) (start, end string, ok bool) {
+	if !startsAt.Before(dayEnd) || !endsAt.After(dayStart) {
+		return "", "", false
+	}
+	clippedStart := startsAt
+	if clippedStart.Before(dayStart) {
+		clippedStart = dayStart
+	}
+	start = clippedStart.In(config.JST).Format("1504")
+	if !endsAt.Before(dayEnd) {
+		return start, "2359", true
+	}
+	return start, endsAt.In(config.JST).Format("1504"), true
 }

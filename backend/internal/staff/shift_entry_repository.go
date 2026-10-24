@@ -120,6 +120,7 @@ func (r *shiftEntryRepository) LockActiveByIDForUpdate(
 	var entry model.ShiftEntry
 	if err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Preload("Breaks").
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&entry).Error; err != nil {
@@ -132,8 +133,12 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 	if err := persistence.DBOrTx(ctx, r.db).Create(entry).Error; err != nil {
 		// PostgreSQL UNIQUE違反 (23505)
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("shift_entry",
-				fmt.Sprintf("staff_id=%d date=%s", entry.StaffID, entry.Date.Format(time.DateOnly)))
+			// api.yaml ShiftContractError: 同じ勤務日の重複は固定 code shift_exists（ErrAlreadyExists のまま 409）。
+			return &apperrors.AppError{
+				Code:    codeShiftExists,
+				Message: fmt.Sprintf("shift_entry 'staff_id=%d date=%s' already exists", entry.StaffID, entry.Date.Format(time.DateOnly)),
+				Err:     apperrors.ErrAlreadyExists,
+			}
 		}
 		return apperrors.FromGORM(err, "shift_entry", "")
 	}
@@ -141,11 +146,7 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 }
 
 func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateShiftEntryInput) error {
-	fields, err := buildShiftEntryUpdate(&cmd)
-	if err != nil {
-		return err
-	}
-	return r.update(ctx, clinicID, id, fields)
+	return r.update(ctx, clinicID, id, buildShiftEntryUpdate(&cmd))
 }
 
 func (r *shiftEntryRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {

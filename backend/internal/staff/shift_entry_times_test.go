@@ -6,93 +6,72 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
-func TestBuildShiftEntryUpdate_ConvertsClockToTimestampsOnWorkDate(t *testing.T) {
-	// Arrange
-	start, end := "09:30", "18:00:00"
-	input := &UpdateShiftEntryInput{StartTime: &start, EndTime: &end, WorkDate: testShiftDate}
+func TestBuildShiftEntryUpdate_WritesExplicitTimestampsAsIs(t *testing.T) {
+	// Arrange: 日跨ぎ（22:00 から翌日 07:00）の明示日時
+	startsAt := shiftTS(t, testShiftDate, "22:00")
+	endsAt := shiftTS(t, testShiftDate.AddDate(0, 0, 1), "07:00")
+	input := &UpdateShiftEntryInput{
+		StartsAt: OptionalShiftTime{Set: true, Value: startsAt},
+		EndsAt:   OptionalShiftTime{Set: true, Value: endsAt},
+	}
 
 	// Act
-	fields, err := buildShiftEntryUpdate(input)
+	fields := buildShiftEntryUpdate(input)
 
 	// Assert
-	require.NoError(t, err)
-	startsAt, ok := fields["starts_at"].(*time.Time)
+	gotStart, ok := fields["starts_at"].(*time.Time)
 	require.True(t, ok)
-	endsAt, ok := fields["ends_at"].(*time.Time)
+	gotEnd, ok := fields["ends_at"].(*time.Time)
 	require.True(t, ok)
-	assert.Equal(t, "09:30:00", shiftClock(startsAt))
-	assert.Equal(t, "18:00:00", shiftClock(endsAt))
+	assert.True(t, startsAt.Equal(*gotStart))
+	assert.True(t, endsAt.Equal(*gotEnd), "ends_at は翌日の明示日時のまま保存する")
 	assert.NotContains(t, fields, "start_time")
 	assert.NotContains(t, fields, "end_time")
 }
 
-func TestBuildShiftEntryUpdate_EmptyClockClearsTimestamp(t *testing.T) {
+func TestBuildShiftEntryUpdate_ExplicitNullClearsTimestamps(t *testing.T) {
 	// Arrange
-	empty := ""
-	input := &UpdateShiftEntryInput{StartTime: &empty, EndTime: &empty, WorkDate: testShiftDate}
+	input := &UpdateShiftEntryInput{
+		StartsAt: OptionalShiftTime{Set: true},
+		EndsAt:   OptionalShiftTime{Set: true},
+	}
 
 	// Act
-	fields, err := buildShiftEntryUpdate(input)
+	fields := buildShiftEntryUpdate(input)
 
 	// Assert
-	require.NoError(t, err)
+	require.Contains(t, fields, "starts_at")
+	require.Contains(t, fields, "ends_at")
 	assert.Nil(t, fields["starts_at"])
 	assert.Nil(t, fields["ends_at"])
 }
 
-func TestBuildShiftEntryUpdate_RequiresWorkDateWhenTimesChange(t *testing.T) {
-	// Arrange
-	start := "09:00"
-
-	// Act
-	fields, err := buildShiftEntryUpdate(&UpdateShiftEntryInput{StartTime: &start})
-
-	// Assert
-	require.Error(t, err)
-	assert.Nil(t, fields)
-}
-
-func TestBuildShiftEntryUpdate_NotesOnlyNeedsNoWorkDate(t *testing.T) {
+func TestBuildShiftEntryUpdate_UnspecifiedFieldsAreNotWritten(t *testing.T) {
 	// Arrange
 	notes := "memo"
 
 	// Act
-	fields, err := buildShiftEntryUpdate(&UpdateShiftEntryInput{Notes: &notes})
+	fields := buildShiftEntryUpdate(&UpdateShiftEntryInput{Notes: &notes})
 
 	// Assert
-	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"notes": "memo"}, fields)
 }
 
 func TestBuildShiftEntryBreaks(t *testing.T) {
-	t.Run("converts HH:MM breaks on the work date", func(t *testing.T) {
-		// Act
-		breaks, err := buildShiftEntryBreaks(testShiftDate, []ShiftBreakInput{{BreakStart: "12:00", BreakEnd: "13:00:00"}})
+	// Arrange
+	breakStart := *shiftTS(t, testShiftDate.AddDate(0, 0, 1), "01:00")
+	breakEnd := *shiftTS(t, testShiftDate.AddDate(0, 0, 1), "02:00")
 
-		// Assert
-		require.NoError(t, err)
-		require.Len(t, breaks, 1)
-		assert.Equal(t, "12:00:00", shiftClock(breaks[0].StartsAt))
-		assert.Equal(t, "13:00:00", shiftClock(breaks[0].EndsAt))
-	})
+	// Act
+	breaks := buildShiftEntryBreaks([]ShiftBreakInput{{StartsAt: breakStart, EndsAt: breakEnd}})
 
-	t.Run("rejects invalid or empty break times", func(t *testing.T) {
-		for _, in := range []ShiftBreakInput{
-			{BreakStart: "", BreakEnd: "13:00"},
-			{BreakStart: "12:00", BreakEnd: ""},
-			{BreakStart: "ab:cd", BreakEnd: "13:00"},
-		} {
-			// Act
-			breaks, err := buildShiftEntryBreaks(testShiftDate, []ShiftBreakInput{in})
-
-			// Assert
-			require.Error(t, err)
-			assert.Nil(t, breaks)
-			assert.True(t, apperrors.IsInvalidInput(err), "input %+v: %v", in, err)
-		}
-	})
+	// Assert
+	require.Len(t, breaks, 1)
+	require.NotNil(t, breaks[0].StartsAt)
+	require.NotNil(t, breaks[0].EndsAt)
+	assert.True(t, breakStart.Equal(*breaks[0].StartsAt))
+	assert.True(t, breakEnd.Equal(*breaks[0].EndsAt))
+	assert.Empty(t, buildShiftEntryBreaks(nil), "休憩なしは空配列（全休憩解除）")
 }
