@@ -10,7 +10,7 @@
 |:---|:---|
 | shared_files | version/reference_revision bigint default 1、retention_evidence_id/object_generation nullable、cleanup_state default none（none/reserved/deleting/deleted/unknown） |
 | shared_file_retention_evidence | append-only。id/clinic_id/file_id/file_version_at_check、retention_class/classification_reason、original_id/version nullable、verified_by_kind/ref/at、proof_kind/ref、content_digest、version。temporaryには原本一致と用途証拠必須 |
-| shared_file_references | id/clinic/file、ref_kind/id/version、requires_copy、delivery_state nullable、active、created_at/ended_at。UNIQUE(clinic,file,ref_kind,ref_id)。履歴は削除しない |
+| shared_file_references | id/clinic/file、ref_kind/id/version、requires_copy、delivery_state nullable、active、created_at/ended_at。参照instance idを行identityとして保持。UNIQUE(clinic,file,ref_kind,ref_id) WHERE active=true。同一active参照の重複を防ぎ、終了履歴は削除しない |
 | shared_file_operation_targets | binding_id＋clinicをPK、file_id/authorization_root_id。claimで保存し論理削除後も保持。コピー準備では後述の検証metadataも保存 |
 | shared_file_cleanup_jobs | id/clinic/file/file_key/object_generation、expected_file_version/reference_revision、evidence_id/version、original_id/version、pin_held/pin_released_at、state、attempt_id/provider_receipt nullable/last_error、requested_at/started_at/finished_at。state=reserved/deleting/succeeded/failed/cancelled/blocked/unknown。1file/generationに1active job |
 | audit_logs再利用 | resource=shared_file、resource_id=file_id。old/newに版・論理状態、metadataにoperation binding/classification/evidence/original refs/reference_revision/reason全文。既存actor/created_atで必須同TX INSERT |
@@ -51,6 +51,8 @@ Contentはschema=shared_file.prepare_delivery_copy.v1、source_file_id、deliver
 - `AcquireRetentionPin(tx,original_id,expected_version,cleanup_job_id)` → job.pin_held。原本の削除/置換/保持解除も同原本行をlockしheld pinなら拒否。保証できない原本はcleanup対象外。
 - `EvaluateFileRetention(tx,clinic,fileID,expected)` → manual_hide_allowed、cleanup_eligible、保護理由、現在file/ref/evidence/original版。manualとcleanupが共用。
 - `AttachFileReference(tx,fileID,refKind,refID,refVersion,requiresCopy,deliveryState)` / `EndFileReference(...)` は業務記録・送信claim・URL要求・不明送信を保護する。外部処理より先にDB参照をcommitし、送信済みだけで履歴参照を消さない。
+
+Attachは新しい参照instanceを作成する。Endは指定instanceだけをactive=false/ended_atへ更新し、再Attachでは旧終了行を書換えず新instanceを作る。遅延Endは過去instance IDへ束縛し、新active instanceを終了させない。Attach/Endともfile lockとreference_revision更新へ参加し、同一active参照を重複作成しない。
 
 全参照増減・分類/evidence変更・manual hide・reservationは同file行をlockしreference_revision/versionを増加。通常参照追加はcleanup_state=reserved/deleting/unknown/deletedで拒否。reserved解除は外部未開始が確定した時だけ。既存参照が未移行/閉包不明ならunknown。カウンタだけでなく同TX current referencesを検査しrequires_copy=true/未解決送信/読取失敗はcleanup不可。
 

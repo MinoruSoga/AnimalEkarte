@@ -223,7 +223,7 @@ repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語�
 
 推奨は既存vaccinesへnullable text `label_color`、許容 `blue|purple|green|orange`、NULLは未設定。既存BADGEの同名tokenへ一対一対応し、NULLはBADGE.muted＋名称。予約group/危険度/期限色を流用せず、ID hash/modulo・名称正規表現・任意hex/CSSを採らない。既存master編集paneに未設定/青/紫/緑/橙の5択、初期未設定。独立分類enum/配色管理画面・医学的推奨/警告を追加しない。方式/固定palette/既存pane追加は上記本人承認済みで、全vaccineへの実設定許可を含まない。
 
-producer案: master GETはlabel_colorを必ずNULL又は4値で返す。POST省略/NULLは未設定、PATCH省略保持/NULL clear/4値set、その他/空文字/未知keyは400。既存vaccine.version必須CAS・同TX更新、競合409/zero-write。既存master-medical:create/edit/viewを維持し、vaccinations:viewへwriteを開放しない。
+producer案: master GETの正常応答はlabel_colorを必ずNULL又は4値で返す。不正な保存tokenは正常NULLへ丸めずsource_integrity_error（503）として扱い、原tokenをresponseへ出さない。POST省略/NULLは未設定、PATCH省略保持/NULL clear/4値set、その他/空文字/未知keyは400。既存vaccine.version必須CAS・同TX更新、競合409/zero-write。既存master-medical:create/edit/viewを維持し、vaccinations:viewへwriteを開放しない。
 
 接種response直下に必須vaccine_labelを追加する。全variantはexact4key `{state,color,source_ref,reason}`。
 
@@ -234,7 +234,9 @@ producer案: master GETはlabel_colorを必ずNULL又は4値で返す。POST省�
 | unknown | null | null | source_unavailable |
 | invalid | null | 完全ref | invalid_stored_token |
 
-unconfiguredは取得済みmasterの保存色NULLを確認した場合だけ。unknownはrelation不存在/未解決/表示不可の違いを漏らさない。invalidでは不正な原tokenを返さない。
+接種label readerはserver repositoryからraw保存色とversionを同じread snapshotで取得し、validationでconfigured/unconfigured/invalidを分岐する。正規化済みmaster GETのNULLからinvalidを逆算しない。不正な原tokenはresponseへ出さない。
+
+unconfiguredは取得済みmasterのraw保存色NULLを確認した場合だけ。unknownの表示不可はrelation不在/未解決等の非運用状態だけを指し、その違いを漏らさない。DB・通信・必須reader障害は503、接種自体の認可失効は既存401/403/404でありunknownへ変換しない。invalidでは不正な原tokenを返さない。
 
 VaccineLabelSourceRefはexact4key `{schema:"vaccine-label-source/v1",clinic_id,vaccine_id,vaccine_version}`。IDは既存Go uint64/保存bigint、版は既存positive int64を正確に表す正整数十進string。いずれも1..9223372036854775807、符号/小数/指数/先頭0なし、JS Number化なし。serverが接種clinic/vaccine_idとの一致を保証する。
 

@@ -211,7 +211,7 @@ D16はD10の請求snapshot／差分と実移動event、D12の締めsnapshotを�
 
 `ReadEffectiveDischarges(ctx,authClinicID,DischargeQuery{jstDate}) -> EffectiveDischargePage` は一貫したread snapshotでstay・全movement chain・identity/nameを取得する。**chain解決後**の有効discharge.actual_atをJST対象日00:00以上・翌日00:00未満のUTC区間で抽出する。raw dischargeを日付で先に絞らず、訂正の日跨ぎ・void元行を取り漏らさない候補集合を使う。初版は日単位一括応答とし恣意的上限で切らない。
 
-対象は同院の入退院業務のcanonical stayで、有効hospitalization関連を検証する。inpatient/hotelの既存対象定義を継承しstay_kindだけで追加・除外しない。inpatientの診療入院記録条件をhotelへ誤適用しない。関連不明・stay_caseなし旧行はunknownで旧日付を補修しない。
+本帳票は、同院の既存入院記録に帰属する入院の実退院を対象とする。ホテル退室は今回の対象へ追加しない。499共通coreのホテル対応は帳票掲載の許可を意味しない。入院帰属不明は推測せずunknownとして照合する。既知のホテル退室は帳票対象外であり、欠損・取得不明の警告件数へ混ぜない。stay_caseなし旧行はunknownで旧日付を補修しない。
 
 行identityは `stay_case_id:discharge_root_event_id`。clinic/stay/kind/hospitalization/固定owner/pet identityとsource evidence（stay_version、movement_head_revision、projection_contract_version=1）を結ぶ。actual_discharge_atとactual_admission_atはoffset付きRFC3339で両方known必須。入院日は後者のJST日付。owner_name/pet_nameは各fieldにknown/unknownを付けnullableとし不明は「不明」、空文字や現在日時で補わない。固定stay identityに紐づく同じ読取snapshotの名称であり、現在主飼主へ付け替えず過去名称snapshot保持とも装わない。
 
@@ -228,7 +228,7 @@ D16はD10の請求snapshot／差分と実移動event、D12の締めsnapshotを�
 
 566同一実装PRは499訂正source subset共同供給→query/API→両画面・両print→unknown/取得失敗表示と認可まで。557の通常writer完成、499全体Done、税・会計票全体を開始gateにしない。557停止解除や実データE2E達成とは報告しない。Readyは同PR責務と契約の成立、完成時の採用SHA・producer symbol→reader→画面/print証拠と別である。
 
-六ACのfixture期待値はJST直前/00:00/末尾/翌日00:00、支払別日・未精算・会計なし、訂正日跨ぎ・退院void・入院void不整合・複数訂正・NULL・不明identity・他院、read-onlyと印刷前後金銭不変。定義のみで全実行NOT_RUN。
+六ACのfixture期待値はJST直前/00:00/末尾/翌日00:00、支払別日・未精算・会計なし、訂正日跨ぎ・退院void・入院void不整合・複数訂正・NULL・不明identity・他院、read-onlyと印刷前後金銭不変、取得失敗を正常空/partialにしないこと、両route各grant拒否時の無権限identity非公開。定義のみで全実行NOT_RUN。
 
 ## 完了判断と未実行
 
