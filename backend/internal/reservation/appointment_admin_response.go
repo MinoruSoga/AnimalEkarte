@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // reservationSummaryResponse は月表示用サマリ
@@ -31,7 +32,7 @@ type reservationDetailResponse struct {
 	VisitType         string          `json:"visit_type"`
 	ReservationTypeID uint64          `json:"reservation_type_id"`
 	DoctorID          *uint64         `json:"doctor_id,omitempty"`
-	IsDesignated      bool            `json:"is_designated"`
+	IsDesignated      *bool           `json:"is_designated"`
 	IsStaffDelegated  bool            `json:"is_staff_delegated"`
 	Source            string          `json:"source"`
 	Status            string          `json:"status"`
@@ -80,7 +81,7 @@ func toReservationSummaryResponse(ra *model.Reservation) reservationSummaryRespo
 		StaffName:        staffName,
 		IsStaffDelegated: ra.IsStaffDelegated,
 		Source:           string(ra.Source),
-		Status:           string(ra.Status),
+		Status:           sharedkernel.TextOrEmpty(ra.Status),
 	}
 }
 
@@ -125,7 +126,7 @@ func toReservationDetailResponse(ra *model.Reservation) reservationDetailRespons
 		IsDesignated:      ra.IsDesignated,
 		IsStaffDelegated:  ra.IsStaffDelegated,
 		Source:            string(ra.Source),
-		Status:            string(ra.Status),
+		Status:            sharedkernel.TextOrEmpty(ra.Status),
 		Notes:             ra.Notes,
 		CustomerFields:    ra.CustomerFields,
 		LineCustomerID:    ra.LineCustomerID,

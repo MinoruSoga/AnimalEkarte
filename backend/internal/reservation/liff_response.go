@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // liffSettingsResponse はLIFF向け公開設定レスポンス（機密フィールド除外）。
@@ -77,7 +78,7 @@ func toLiffCourseResponse(st *model.ReservationType) liffCourseResponse {
 		DurationMinutes:     st.DurationMinutes,
 		ReservationComment:  st.ReservationComment,
 		ReservationImageURL: st.ReservationImageURL,
-		SortOrder:           st.SortOrder,
+		SortOrder:           sharedkernel.SortOrderValue(st.SortOrder),
 		Category:            string(st.Category),
 	}
 }
@@ -101,7 +102,7 @@ func toLiffStaffResponse(st *model.Staff) liffStaffResponse {
 		Name:                name,
 		ReservationComment:  st.ReservationComment,
 		ReservationImageURL: st.ReservationImageURL,
-		SortOrder:           st.SortOrder,
+		SortOrder:           sharedkernel.SortOrderValue(st.SortOrder),
 	}
 }
 
@@ -218,7 +219,7 @@ func toLiffReservationResponse(r *model.Reservation, pair *LiffPetPair) liffRese
 		EndTime:   r.EndTime.In(time.Local).Format("15:04"),
 		PetID:     petID,
 		PetName:   petName,
-		Status:    string(r.Status),
+		Status:    sharedkernel.TextOrEmpty(r.Status),
 		Notes:     r.Notes,
 		CreatedAt: r.CreatedAt.In(time.Local),
 	}
@@ -361,7 +362,7 @@ func toLiffTrimmingCourseResponse(c *model.TrimmingCourse) liffTrimmingCourseRes
 		Name:        c.Name,
 		Description: c.Description,
 		Price:       c.Price,
-		SortOrder:   c.SortOrder,
+		SortOrder:   sharedkernel.SortOrderValue(c.SortOrder),
 	}
 }
 
@@ -380,6 +381,6 @@ func toLiffTrimmingOptionResponse(o *model.TrimmingOption) liffTrimmingOptionRes
 		Name:        o.Name,
 		Description: o.Description,
 		Price:       o.Price,
-		SortOrder:   o.SortOrder,
+		SortOrder:   sharedkernel.SortOrderValue(o.SortOrder),
 	}
 }

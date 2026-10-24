@@ -8,6 +8,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // nextVisitIntentMaxYearsAhead bounds how far ahead a next-visit intent date may be.
@@ -184,7 +185,7 @@ func (s *reservationService) ConfirmTentative(
 		if err != nil {
 			return err
 		}
-		if current.Status != model.ReservationStatusTentative {
+		if !sharedkernel.PtrEquals(current.Status, model.ReservationStatusTentative) {
 			return apperrors.WrapConflict("対象の予約は仮予約（次回予定）ではありません")
 		}
 		// Codex #16: post-commit の新旧 owner 双方をタグ再同期するため、昇格前の

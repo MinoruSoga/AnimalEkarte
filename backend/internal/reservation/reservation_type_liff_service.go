@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const (
@@ -147,7 +148,7 @@ func (s *reservationTypeLiffService) Create(ctx context.Context, clinicID uint64
 		Color:                input.Color,
 		IsActive:             true,
 		Description:          input.Description,
-		SortOrder:            input.SortOrder,
+		SortOrder:            sharedkernel.Ptr(input.SortOrder),
 		DurationMinutes:      input.DurationMinutes,
 		MaxConcurrent:        input.MaxConcurrent,
 		ShortName:            input.ShortName,

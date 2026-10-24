@@ -12,6 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const errMsgInvalidDateTime = "日時の形式が正しくありません"
@@ -274,7 +275,7 @@ func buildLineReservation(input *CreateReservationInput, startDT, endDT time.Tim
 		EndTime:           endDT,
 		ReservationTypeID: input.ReservationTypeID,
 		DoctorID:          doctorID,
-		Status:            model.ReservationStatusConfirmed,
+		Status:            sharedkernel.Ptr(model.ReservationStatusConfirmed),
 		Source:            model.ReservationSourceLine,
 		LineCustomerID:    &input.CustomerID,
 		OwnerID:           input.OwnerID,

@@ -132,7 +132,7 @@ func HasActiveAvailableSlots(slots []model.ReservationTypeAvailableSlot) bool {
 func FilterApplicableAvailableSlots(slots []model.ReservationTypeAvailableSlot, date time.Time) []model.ReservationTypeAvailableSlot {
 	dateJST := date.In(config.JST)
 	dateStr := dateJST.Format(time.DateOnly)
-	dayOfWeek := int8(dateJST.Weekday()) //nolint:gosec // Weekday() は 0-6 を返すため int8 に安全に収まる
+	dayOfWeek := int16(dateJST.Weekday()) //nolint:gosec // Weekday() は 0-6 を返すため int16 に安全に収まる
 	result := make([]model.ReservationTypeAvailableSlot, 0, len(slots))
 	for i := range slots {
 		if !slots[i].IsActive {

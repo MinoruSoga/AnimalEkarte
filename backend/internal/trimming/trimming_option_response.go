@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type trimmingOptionResponse struct {
@@ -30,7 +31,7 @@ func toTrimmingOptionResponse(o *model.TrimmingOption) trimmingOptionResponse {
 		Description:  o.Description,
 		Duration:     o.Duration,
 		IsCombinable: o.IsCombinable,
-		SortOrder:    o.SortOrder,
+		SortOrder:    sharedkernel.SortOrderValue(o.SortOrder),
 		CreatedAt:    localTime(o.CreatedAt),
 		UpdatedAt:    localTime(o.UpdatedAt),
 	}

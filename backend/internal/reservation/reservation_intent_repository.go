@@ -143,7 +143,11 @@ func (r *reservationRepository) BackfillForMedicalRecord(
 	if err != nil {
 		return err
 	}
-	if current.Status == model.ReservationStatusTentative {
+	currentStatus, err := sharedkernel.RequireStored(current.Status, "appointments.status")
+	if err != nil {
+		return err
+	}
+	if currentStatus == model.ReservationStatusTentative {
 		// tentative 行は general placeholder 区分を持つため category チェックを素通り
 		// するが、未確定の日付意図行にカルテは紐付けない（先に実予約へ昇格させる）。
 		return apperrors.WrapConflict("次回予定（未確定）をカルテの対象予約にはできません。先に予約を確定してください")
@@ -285,7 +289,11 @@ func (r *reservationRepository) PrepareForMedicalRecordFinalization(ctx context.
 	if err != nil {
 		return err
 	}
-	switch appointment.Status {
+	status, err := sharedkernel.RequireStored(appointment.Status, "appointments.status")
+	if err != nil {
+		return err
+	}
+	switch status {
 	case model.ReservationStatusNoShow, model.ReservationStatusCancelled:
 		return apperrors.WrapConflict("no-showまたはキャンセル済みの予約に紐づくカルテは確定できません")
 	case model.ReservationStatusTentative:
@@ -399,7 +407,7 @@ func (r *reservationRepository) CreateForTrimming(
 		OwnerID:           ownerID,
 		PetID:             input.PetID,
 		DoctorID:          input.DoctorID,
-		Status:            input.Status,
+		Status:            sharedkernel.PtrUnlessZero(input.Status),
 		Source:            model.ReservationSourceManual,
 		ReservationRoute:  input.ReservationRoute,
 	}
@@ -565,7 +573,11 @@ func (r *reservationRepository) UpdateForTrimming(
 	if err != nil {
 		return nil, err
 	}
-	if err := validateTrimmingStatusTransition(current.Status, input.Status); err != nil {
+	currentStatus, err := sharedkernel.RequireStored(current.Status, "appointments.status")
+	if err != nil {
+		return nil, err
+	}
+	if err := validateTrimmingStatusTransition(currentStatus, input.Status); err != nil {
 		return nil, err
 	}
 	if trimmingIdentityChanged(current, input) {
@@ -618,7 +630,7 @@ func (r *reservationRepository) UpdateForTrimming(
 	query := persistence.DBOrTx(ctx, r.db).
 		Model(&model.Reservation{}).
 		Where("appointments.clinic_id = ? AND appointments.id = ? AND appointments.deleted_at IS NULL", clinicID, id).
-		Where("appointments.status = ?", current.Status).
+		Where("appointments.status = ?", currentStatus).
 		Where(`EXISTS (
 			SELECT 1 FROM reservation_types rt
 			WHERE rt.id = appointments.reservation_type_id
@@ -651,7 +663,11 @@ func (r *reservationRepository) DeleteForTrimming(ctx context.Context, clinicID,
 	if err != nil {
 		return err
 	}
-	if err := ValidateTrimmingAppointmentMutable(current.Status); err != nil {
+	currentStatus, err := sharedkernel.RequireStored(current.Status, "appointments.status")
+	if err != nil {
+		return err
+	}
+	if err := ValidateTrimmingAppointmentMutable(currentStatus); err != nil {
 		return err
 	}
 	count, err := r.CountMedicalRecordsByReservationID(ctx, clinicID, id)
@@ -989,6 +1005,8 @@ func (r *reservationRepository) SetNextVisitIntent(
 		return nil, nil, err
 	}
 	route := nextVisitIntentRoute
+	// ReservationStatusTentative は package 変数のため、行へ載せる値はコピーを指す。
+	status := model.ReservationStatusTentative
 	appointment := &model.Reservation{
 		ClinicID:              clinicID,
 		ReservationTypeID:     reservationTypeID,
@@ -997,7 +1015,7 @@ func (r *reservationRepository) SetNextVisitIntent(
 		OwnerID:               &ownerID,
 		PetID:                 &petID,
 		VisitType:             model.VisitTypeRevisit,
-		Status:                model.ReservationStatusTentative,
+		Status:                &status,
 		Source:                model.ReservationSourceManual,
 		ReservationRoute:      &route,
 		IntendedDate:          &intended,
@@ -1103,7 +1121,7 @@ func (r *reservationRepository) ConfirmTentative(
 	if err != nil {
 		return nil, err
 	}
-	if current.Status != model.ReservationStatusTentative {
+	if !sharedkernel.PtrEquals(current.Status, model.ReservationStatusTentative) {
 		return nil, apperrors.WrapConflict("対象の予約は仮予約（次回予定）ではありません")
 	}
 	switch input.Status {
@@ -1215,7 +1233,7 @@ func (r *reservationRepository) updateTentativeStatus(
 		if lockedErr != nil {
 			return lockedErr
 		}
-		if locked.Status != model.ReservationStatusTentative {
+		if !sharedkernel.PtrEquals(locked.Status, model.ReservationStatusTentative) {
 			return apperrors.WrapConflict("次回予定が同時に更新されました。再読み込みしてください")
 		}
 		if validate != nil {
@@ -1407,13 +1425,17 @@ func (r *reservationRepository) promoteOrCreateFromTentative(
 // owner_id / line_customer_id / customer_fields / created_by は booking 側に実値が
 // ある場合だけ上書きし、未解決（nil/空）なら tentative 側の provenance を残す。
 func tentativeAbsorbFields(booking *model.Reservation, toCheckin bool, checkedInAt time.Time) map[string]any {
-	status := booking.Status
-	if toCheckin {
+	var status model.ReservationStatus
+	switch {
+	case toCheckin:
 		status = model.ReservationStatusCheckedIn
-	} else if status == "" || status == model.ReservationStatusTentative {
+	case booking.Status == nil || *booking.Status == "" || *booking.Status == model.ReservationStatusTentative:
 		// INSERT 側の DB default（'pending'）と同じ解決。昇格後に tentative を
-		// 残さないため、空・tentative 指定も pending へ正規化する。
+		// 残さないため、未指定（nil）・空・tentative 指定も pending へ正規化する。
+		// booking は書込み前の新規予約で、nil は「未指定」であり保存済み NULL の補完ではない。
 		status = model.ReservationStatusPending
+	default:
+		status = *booking.Status
 	}
 	visitType := booking.VisitType
 	if visitType == "" {
@@ -1427,13 +1449,16 @@ func tentativeAbsorbFields(booking *model.Reservation, toCheckin bool, checkedIn
 		"start_time":         booking.StartTime,
 		"end_time":           booking.EndTime,
 		"visit_type":         visitType,
-		"is_designated":      booking.IsDesignated,
 		"is_staff_delegated": booking.IsStaffDelegated,
 		"status":             status,
 		"notes":              booking.Notes,
 		"source":             source,
 	}
 	fields["reservation_type_id"] = booking.ReservationTypeID
+	// is_designated は未指定（nil）なら tentative 側の値を残し、NULL や既定値で上書きしない。
+	if booking.IsDesignated != nil {
+		fields["is_designated"] = *booking.IsDesignated
+	}
 	if status == model.ReservationStatusCheckedIn {
 		stamp := checkedInAt
 		if booking.CheckedInAt != nil {

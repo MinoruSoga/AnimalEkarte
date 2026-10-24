@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // FE7-1: tygo codegen 対象にするため export（BackendTrimming の生成契約ゲート化・FE-refactor.md
@@ -64,7 +65,7 @@ func toTrimmingResponse(appt *model.Reservation) TrimmingResponse {
 		EndTime:           localTime(appt.EndTime),
 		PetID:             appt.PetID,
 		StaffID:           appt.DoctorID,
-		Status:            string(appt.Status),
+		Status:            sharedkernel.TextOrEmpty(appt.Status),
 		Source:            string(appt.Source),
 		CreatedAt:         localTime(appt.CreatedAt),
 		UpdatedAt:         localTime(appt.UpdatedAt),

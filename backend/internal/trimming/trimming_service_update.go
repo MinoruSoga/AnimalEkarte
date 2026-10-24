@@ -6,6 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func applyTrimmingDetailFields(detail *model.AppointmentTrimmingDetail, input *UpdateTrimmingInput) {
@@ -56,7 +57,11 @@ func (s *trimmingService) updateTrimmingInTx(
 		return nil, nil, nil, apperrors.Wrap(err, "failed to lock trimming appointment")
 	}
 	before := trimmingNextVisitFactsFor(locked)
-	if err := reservation.ValidateTrimmingAppointmentMutable(locked.Status); err != nil {
+	lockedStatus, err := sharedkernel.RequireStored(locked.Status, "appointments.status")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if err := reservation.ValidateTrimmingAppointmentMutable(lockedStatus); err != nil {
 		return nil, nil, nil, err
 	}
 	finalPetID := locked.PetID

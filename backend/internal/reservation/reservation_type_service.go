@@ -67,7 +67,7 @@ type UpdateReservationTypeInput struct {
 // CreateUnavailableTimeInput は予約不可時間の作成入力DTO
 type CreateUnavailableTimeInput struct {
 	UnavailableType string
-	DayOfWeek       *int8
+	DayOfWeek       *int16
 	SpecificDate    *time.Time
 	StartTime       string
 	EndTime         string
@@ -76,7 +76,7 @@ type CreateUnavailableTimeInput struct {
 // CreateAvailableSlotInput は予約可能開始時刻の作成入力DTO
 type CreateAvailableSlotInput struct {
 	AvailableType string
-	DayOfWeek     *int8
+	DayOfWeek     *int16
 	SpecificDate  *time.Time
 	StartTime     string
 	IsActive      *bool

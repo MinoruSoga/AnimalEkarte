@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ---- 予約不可時間レスポンス ----
@@ -14,7 +15,7 @@ type unavailableTimeResponse struct {
 	ClinicID          uint64  `json:"clinic_id"`
 	ReservationTypeID uint64  `json:"reservation_type_id"`
 	UnavailableType   string  `json:"unavailable_type"`
-	DayOfWeek         *int8   `json:"day_of_week,omitempty"`
+	DayOfWeek         *int16  `json:"day_of_week,omitempty"`
 	SpecificDate      *string `json:"specific_date,omitempty"` // "YYYY-MM-DD"
 	StartTime         string  `json:"start_time"`
 	EndTime           string  `json:"end_time"`
@@ -44,7 +45,7 @@ type availableSlotResponse struct {
 	ClinicID          uint64  `json:"clinic_id"`
 	ReservationTypeID uint64  `json:"reservation_type_id"`
 	AvailableType     string  `json:"available_type"`
-	DayOfWeek         *int8   `json:"day_of_week,omitempty"`
+	DayOfWeek         *int16  `json:"day_of_week,omitempty"`
 	SpecificDate      *string `json:"specific_date,omitempty"` // "YYYY-MM-DD"
 	StartTime         string  `json:"start_time"`
 	IsActive          bool    `json:"is_active"`
@@ -150,7 +151,7 @@ func ToReservationTypeResponse(st *model.ReservationType) ReservationTypeRespons
 		Category:               st.Category,
 		IsActive:               st.IsActive,
 		Description:            st.Description,
-		SortOrder:              st.SortOrder,
+		SortOrder:              sharedkernel.SortOrderValue(st.SortOrder),
 		GroupID:                st.GroupID,
 		ParentID:               st.ParentID,
 		CreatedAt:              httpapi.LocalTime(st.CreatedAt),

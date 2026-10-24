@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateInventoryInput は在庫アイテム作成の入力DTO。
@@ -114,22 +115,20 @@ func (s *inventoryService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 }
 
 func (s *inventoryService) Create(ctx context.Context, clinicID uint64, input *CreateInventoryInput) (*model.InventoryItem, error) {
-	// SD-4 決裁A: status 列は client 指定を受け付けない。列は DB/GORM default の
-	// sufficient を残す（DROP COLUMN は別 Issue）。公開 API の status は読み取り時に
+	// SD-4 決裁A: status は client 指定を受け付けず、保存列も DROP 済み。公開 API の status は読み取り時に
 	// model.DeriveInventoryStatus(quantity, min_stock_level) で導出する
 	// （internal/inventory/inventory_response.go）。
 	item := &model.InventoryItem{
 		ClinicID:      clinicID,
 		Name:          input.Name,
 		Category:      model.InventoryCategory(input.Category),
-		Quantity:      input.Quantity,
+		Quantity:      sharedkernel.Ptr(int64(input.Quantity)),
 		Unit:          input.Unit,
-		MinStockLevel: input.MinStockLevel,
+		MinStockLevel: sharedkernel.Ptr(input.MinStockLevel),
 		Location:      input.Location,
 		ExpiryDate:    input.ExpiryDate,
 		Supplier:      input.Supplier,
 		LastRestocked: input.LastRestocked,
-		Status:        model.InventoryStatusSufficient, // dead column default; not client SoT
 	}
 
 	if err := s.repo.Create(ctx, clinicID, item); err != nil {

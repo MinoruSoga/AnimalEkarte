@@ -13,6 +13,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CRUDHandler は予約 CRUD の HTTP handler。
@@ -362,7 +363,8 @@ func shouldAutoCreateMedicalRecordForReservation(reservation *model.Reservation)
 	// 更新後の reservation.Status で判定するため、owner/pet 紐付けの Update でも confirmed なら作成され、
 	// owner/pet 未確定でスキップされた分が紐付け後に遅延作成される(Q9)。
 	// 同日同ペットの重複は AutoCreateFromReservation 側でスキップされるため二重作成しない。
-	if reservation.Status != model.ReservationStatusConfirmed && reservation.Status != model.ReservationStatusCheckedIn {
+	// status が NULL（未記録）の予約は確定・受付済みと断定できないため、カルテを自動作成しない。
+	if !sharedkernel.PtrEquals(reservation.Status, model.ReservationStatusConfirmed) && !sharedkernel.PtrEquals(reservation.Status, model.ReservationStatusCheckedIn) {
 		return false
 	}
 	if reservation.ReservationType != nil && reservation.ReservationType.Category == model.ReservationTypeCategoryTrimming {

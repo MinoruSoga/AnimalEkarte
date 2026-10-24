@@ -107,7 +107,7 @@ func (r *updateReservationTypeRequest) toServiceInput() *UpdateReservationTypeIn
 // CreateUnavailableTimeRequest は予約不可時間の作成リクエスト
 type createUnavailableTimeRequest struct {
 	UnavailableType string  `json:"unavailable_type" binding:"required,oneof=weekly specific"`
-	DayOfWeek       *int8   `json:"day_of_week"`
+	DayOfWeek       *int16  `json:"day_of_week"`
 	SpecificDate    *string `json:"specific_date"` // "YYYY-MM-DD"
 	StartTime       string  `json:"start_time"     binding:"required"`
 	EndTime         string  `json:"end_time"       binding:"required"`
@@ -133,7 +133,7 @@ func (r createUnavailableTimeRequest) toServiceInput() (CreateUnavailableTimeInp
 // CreateAvailableSlotRequest は予約可能開始時刻の作成リクエスト
 type createAvailableSlotRequest struct {
 	AvailableType string  `json:"available_type" binding:"required,oneof=weekly specific"`
-	DayOfWeek     *int8   `json:"day_of_week"`
+	DayOfWeek     *int16  `json:"day_of_week"`
 	SpecificDate  *string `json:"specific_date"` // "YYYY-MM-DD"
 	StartTime     string  `json:"start_time"     binding:"required"`
 	IsActive      *bool   `json:"is_active"`
