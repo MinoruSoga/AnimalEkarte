@@ -148,26 +148,8 @@ func (q *listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, e
 	}, nil
 }
 
-// medicalRecordFinalizeRetiredMessage は旧 finalize/unfinalize（request の status）が未提供であることを示す固定文言。
-// 再開の入口として案内する POST /api/v1/reservations/{id}/end-consultation はこの PR では実装されない（B 契約 §2）。
-const medicalRecordFinalizeRetiredMessage = "旧 finalize/unfinalize は未提供です。再開は予約の終了操作（POST /api/v1/reservations/{id}/end-consultation）で行ってください。"
-
-// medicalRecordStatusFieldRetiredMessage は更新 request に status が含まれていた場合の固定文言（SPEC-02）。
-const medicalRecordStatusFieldRetiredMessage = "カルテの status は廃止されました。更新リクエストに status を含めないでください。診療終了は予約の終了操作（POST /api/v1/reservations/{id}/end-consultation）で記録します。"
-
-// rejectRetiredMedicalRecordStatus は作成 request の status を検査する（更新は SPEC-02 で常に固定エラー）。
-// finalized は固定エラー（422 medical_record_status_retired）、draft と未指定は無視（FE 移行期の許容）、
-// それ以外の値は従来どおり 400。
-func rejectRetiredMedicalRecordStatus(status string) error {
-	switch status {
-	case "", "draft":
-		return nil
-	case "finalized":
-		return apperrors.WrapMedicalRecordStatusRetired(medicalRecordFinalizeRetiredMessage)
-	default:
-		return apperrors.WrapInvalidInput("ステータスの値が不正です")
-	}
-}
+// medicalRecordStatusFieldRetiredMessage は作成・更新 request に status キーが含まれていた場合の固定文言（SPEC-02 / EMR-549 B1）。
+const medicalRecordStatusFieldRetiredMessage = "カルテの status は廃止されました。リクエストに status を含めないでください。"
 
 // createMedicalRecordRequest はカルテ作成のバインド struct
 // FE互換: FEから送信されるフィールドと BE期待値を統一
@@ -181,7 +163,6 @@ type createMedicalRecordRequest struct {
 	PetID         *string    `json:"pet_id" binding:"required"`   // FE送信（string）→ uint64に変換
 	DoctorID      *string    `json:"doctor_id"`                   // FE送信（string）→ uint64に変換
 	AppointmentID *string    `json:"appointment_id"`              // FE送信（string）→ uint64に変換
-	Status        string     `json:"status"                       binding:"omitempty,oneof=draft finalized"`
 
 	// ClinicalPlan関連フィールド（原子的作成用）
 	ChiefComplaint       *string `json:"chief_complaint"`
@@ -232,10 +213,6 @@ func (r *createMedicalRecordRequest) toServiceInput(staffID uint64) (CreateMedic
 		visitType = model.VisitTypeFirst
 	}
 
-	// EMR-495: 旧 finalize（status=finalized）は未提供。draft / 未指定は無視する（FE 移行期の許容）。
-	if err := rejectRetiredMedicalRecordStatus(r.Status); err != nil {
-		return CreateMedicalRecordInput{}, err
-	}
 	var recommendationReason *string
 	if r.RecommendationReason != nil && *r.RecommendationReason != "" {
 		recommendationReason = r.RecommendationReason

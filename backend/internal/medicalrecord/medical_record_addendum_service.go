@@ -13,8 +13,8 @@ const maxReasonLength = 500
 // consultationEventKindEnded は medical_record_consultation_events.event_kind の終了値（001 CHECK: ended / end_undone）。
 const consultationEventKindEnded = "ended"
 
-// addendumRequiresEndedConsultationMessage は診療終了の記録がないカルテへの訂正追記を拒否する固定文言（EMR-495 Q2）。
-const addendumRequiresEndedConsultationMessage = "訂正追記は診療終了が記録されたカルテにのみ追加できます。終了の記録は予約の終了操作（POST /api/v1/reservations/{id}/end-consultation）で行います。"
+// addendumRequiresEndedConsultationMessage は診療終了の記録がないカルテへの訂正追記を拒否する固定文言（EMR-495 Q2 / EMR-549）。未提供の終了ルートへは案内しない。
+const addendumRequiresEndedConsultationMessage = "訂正追記は診療終了が記録されたカルテにのみ追加できます。診療終了の記録手段は未提供のため、追記はできません。"
 
 type CreateMedicalRecordAddendumInput struct {
 	MedicalRecordID uint64
@@ -102,7 +102,7 @@ func (s *medicalRecordAddendumService) Create(ctx context.Context, clinicID uint
 			return apperrors.Wrap(err, "failed to read consultation end history")
 		}
 		if !found || kind != consultationEventKindEnded {
-			return apperrors.WrapMedicalRecordStatusRetired(addendumRequiresEndedConsultationMessage)
+			return apperrors.WrapUnprocessableWithCode(apperrors.CodeMedicalRecordAddendumRequiresConsultationEnd, addendumRequiresEndedConsultationMessage)
 		}
 		if err := s.repo.Create(txCtx, addendum); err != nil {
 			return apperrors.Wrap(err, "failed to create medical record addendum")

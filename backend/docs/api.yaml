@@ -4311,11 +4311,10 @@ components:
       type: object
       description: |
         EMR-495: `status`（draft / finalized）は廃止した。medical_records.status 列は 001 で廃止され、
-        レスポンスにも含まれない。リクエストの `status` の扱い（旧 FE との移行期の許容は作成のみ）:
-        作成（POST）は未指定 / `"draft"` / 空なら無視して受理し、`"finalized"` は 422
-        （code `medical_record_status_retired`、旧 finalize / unfinalize は未提供）。
-        更新（PATCH）は変更できる status が無いため、`status` キーが存在すれば値（null・文字列・数値・真偽値・配列・
-        object を含む任意の値）に関わらず同じ 422 を返し、何も書かない（キーの存在で判定する）。
+        レスポンスにも含まれない。リクエストの `status` の扱い（互換許容なし。PO 決定 EMR-549 B1）:
+        作成（POST）・更新（PATCH）とも、`status` キーが存在すれば値（null・空文字・文字列・数値・真偽値・配列・
+        object を含む任意の値）に関わらず 422（code `medical_record_status_retired`）を返し、何も書かない
+        （キーの存在で判定する。旧 finalize / unfinalize は未提供）。
         POST / PATCH とも、body は単一の JSON オブジェクトでなければならない（末尾に別の値やゴミが続く body、
         最上位が配列・スカラー・null の body は 400）。FE の追随は EMR-549 で追跡する。
         診療終了は予約の終了操作（EMR-495 B。このスキーマ変更には含まない）で記録する。
@@ -20583,7 +20582,9 @@ paths:
       operationId: createMedicalRecord
       summary: カルテ作成
       description: |
-        EMR-495: リクエストの `status` は無視される（`"finalized"` は 422 `medical_record_status_retired`）。
+        EMR-495 / EMR-549（PO 決定 B1）: リクエストに `status` キーが存在すれば値（null・空文字・`"draft"`・`"finalized"`・
+        数値など任意の値）に関わらず 422 `medical_record_status_retired`（書込なし。PATCH と同じキー存在判定）。
+        `status` は送らないこと。
         診断は `diagnoses[]`（診断行。`diagnosis_slot` 1 または 2 必須、`diagnosis_type_id` / `diagnosis_name_id` /
         `diagnosis_name_snapshot` / `category_name_snapshot` は任意で送信値のまま保存、`sort_order` 省略は 0、最大 50 行）で送る。
         `diagnoses` は未送信 / null なら診断を変更しない（既存カルテへの再送 POST でも既存の診断行は消えない）。
@@ -20623,7 +20624,7 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
-          description: "旧 finalize（`status: finalized`）は未提供。code は `medical_record_status_retired`。"
+          description: "リクエストに `status` キーが存在する（値は問わない）。旧 finalize は未提供。code は `medical_record_status_retired`。"
           content:
             application/json:
               schema:
@@ -30957,8 +30958,9 @@ paths:
       description: |
         EMR-495 Q2: 追記は、そのカルテの最新の診療終了イベント（medical_record_consultation_events）が
         `ended` のときだけ追加できる（親カルテ行ロックと同じトランザクション内で読む）。イベントがない、
-        または最新が `end_undone` のカルテは 422（code `medical_record_status_retired`、追記は診療終了が記録された
-        カルテにのみ）。サーバはイベントを捏造しない。診療終了の記録は予約の終了操作（EMR-495 B）で行う。
+        または最新が `end_undone` のカルテは 422（code `medical_record_addendum_requires_consultation_end`。追記は
+        診療終了が記録されたカルテにのみ）。サーバはイベントを捏造しない。診療終了の記録手段は未提供のため、
+        現在は追記できない（EMR-495 B の終了操作が提供されるまで）。
       tags: [MedicalRecords]
       parameters:
         - name: id
@@ -30986,7 +30988,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '422':
-          description: 診療終了が記録されていないカルテへの追記。code は `medical_record_status_retired`。
+          description: 診療終了が記録されていないカルテへの追記（診療終了の記録手段は未提供のため、現在は追記できない）。code は `medical_record_addendum_requires_consultation_end`。
           content:
             application/json:
               schema:

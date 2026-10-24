@@ -32,7 +32,7 @@ func newMedicalRecordClinicIsolationService(
 	reservationRepo *mockReservationRepoForMedicalRecord,
 ) MedicalRecordService {
 	return NewMedicalRecordServiceWithTxAudit(
-		recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, medicalRecordTxMarker{})
+		recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTreatmentAuditTxLogger{}, medicalRecordTxMarker{})
 }
 
 func TestMedicalRecordService_Create_RejectsCrossClinicOwnerPetWithoutAppointment(t *testing.T) {

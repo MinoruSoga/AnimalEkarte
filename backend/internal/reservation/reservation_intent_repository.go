@@ -300,7 +300,7 @@ func (r *reservationRepository) PrepareForMedicalRecordFinalization(ctx context.
 
 // MarkNoShow performs an atomic, idempotent no-show transition and returns the exact prior
 // status for audit. A stale candidate cannot overwrite a concurrent lifecycle transition, and
-// an appointment whose medical record is in the ended consultation state can never be classified as a no-show.
+// an appointment whose linked medical record is ended, has no consultation history (unknown), or is otherwise undeterminable is never classified as a no-show (EMR-495 contract section 0.1).
 func (r *reservationRepository) MarkNoShow(ctx context.Context, clinicID, id uint64) (NoShowTransition, error) {
 	return r.MarkNoShowAt(ctx, clinicID, id, time.Now().UTC())
 }
@@ -330,7 +330,7 @@ func (r *reservationRepository) MarkNoShowAt(
 				WHERE mr.clinic_id = a.clinic_id
 				  AND mr.appointment_id = a.id
 				  AND mr.deleted_at IS NULL
-				  AND ` + endedMedicalRecordPredicate + `
+				  AND ` + noShowBlockingMedicalRecordPredicate + `
 			  )
 			FOR UPDATE
 		)

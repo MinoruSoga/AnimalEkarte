@@ -195,7 +195,6 @@ export function useMedicalRecordAutoCreate({
             visit_date: today,
             visit_type: toVisitTypeValue(visitType) ?? "revisit",
             appointment_id: appointmentId,
-            status: "draft",
             recommendation_reason: createRecommendationReason ?? "",
           });
           setFailure(null);

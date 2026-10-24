@@ -202,6 +202,11 @@ func TestMedicalRecordAddendumService_Create(t *testing.T) {
 				if tt.wantRetired {
 					assert.True(t, errors.Is(err, apperrors.ErrUnprocessable), "must be the fixed 422 class: %v", err)
 					assert.Contains(t, err.Error(), addendumRequiresEndedConsultationMessage)
+					var appErr *apperrors.AppError
+					require.True(t, errors.As(err, &appErr), "must carry an AppError code: %v", err)
+					assert.Equal(t, apperrors.CodeMedicalRecordAddendumRequiresConsultationEnd, appErr.Code)
+					assert.NotEqual(t, apperrors.CodeMedicalRecordStatusRetired, appErr.Code, "must not reuse the retired-status code")
+					assert.NotContains(t, err.Error(), "end-consultation", "must not point at the unshipped end route")
 					assert.False(t, createCalled, "no addendum may be written without a recorded consultation end")
 				}
 			} else {

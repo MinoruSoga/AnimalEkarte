@@ -39,7 +39,6 @@ export interface CreateMedicalRecordRequest {
   pet_id: string; // FE は string → BE で uint64 変換
   doctor_id?: string; // FE は string → BE で uint64 変換
   appointment_id?: string;
-  status?: string;
   recommendation_reason?: RecommendationReason | ""; // optional; "" は NULL 扱い
 
   // ClinicalPlan 関連（原子的作成用）
