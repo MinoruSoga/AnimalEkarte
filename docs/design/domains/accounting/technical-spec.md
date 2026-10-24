@@ -817,3 +817,8 @@ FIN-R01〜R10の文書精査として、本文181ACとsubpage固有20ACを別母
 小数数量の行丸め、内税換算、率と定額値引きの併用、混在税率の整合を受入残件とする。既決順序は照合例と矛盾しないが、旧システムの唯一式・現行診療システムとの同等性を検証済みとはしない。追加資料の原数値・画像・Driveリンクは含めない。条件付きSTG判断の成立やデータ操作許可も未確認である。
 
 品目保険の新規明細への初期値／参照版受渡しはEMR-454〜456（共有owner454）の実装境界。旧欠落の推測、保存済み行の自動再適用、健診保存からの会計生成は追加しない。今回のmodelの型対応は保存形状の整合であり、calculator・API・各writer・利用開始の完成証拠ではない。
+
+
+## 506初回受領・方法訂正・lookupの採択先
+
+[限定技術契約](fund-receive-method-contract.md)に初回A/B・lookupのclosed wire、QとPreconditions、fund/settlement token、元anchor/成功manifest、grantとowner別lock順を固定する。初回/未成功Applyはwrite、成功再送/lookupは現在accounting:view。日時・金額訂正/refundとComplete全体を一括採択せず必要subset/実装受領を分離する。billingsのno-op更新で版を進めず、fund/event/correctionモデル・業務金銭方針は不変。
