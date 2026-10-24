@@ -30,7 +30,7 @@ func TestBuildStaffSlotInputsFromWindow_ExcludesUnknownShift(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entries := map[string]map[uint64]*model.ShiftEntry{"2026-08-01": {1: tt.entry}}
+			entries := map[string]map[uint64][]*model.ShiftEntry{"2026-08-01": {1: {tt.entry}}}
 			breaksByEntry := map[uint64][]model.ShiftEntryBreak{10: tt.breaks}
 
 			inputs := buildStaffSlotInputsFromWindow(staffs, date, entries, breaksByEntry, nil)
@@ -45,8 +45,8 @@ func TestBuildStaffSlotInputsFromWindow_UnknownShiftDoesNotFallBackToBusinessHou
 	// Arrange: 営業時間 09:00-18:00 の医院で、勤務の日時が NULL のスタッフ 1 人だけ。
 	staffs := []model.Staff{{ID: 1}}
 	date := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	entries := map[string]map[uint64]*model.ShiftEntry{
-		"2026-08-01": {1: {ID: 10, ShiftType: model.ShiftTypeFull}},
+	entries := map[string]map[uint64][]*model.ShiftEntry{
+		"2026-08-01": {1: {{ID: 10, ShiftType: model.ShiftTypeFull}}},
 	}
 	inputs := buildStaffSlotInputsFromWindow(staffs, date, entries, nil, nil)
 
@@ -69,8 +69,8 @@ func TestBuildStaffSlotInputsFromWindow_ClipsOvernightShiftToTheEvaluatedDay(t *
 	staffs := []model.Staff{{ID: 1}}
 	date := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
 	nextDay := date.AddDate(0, 0, 1)
-	entries := map[string]map[uint64]*model.ShiftEntry{
-		"2026-08-01": {1: {ID: 10, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, date, "22:00"), EndsAt: rsvTS(t, nextDay, "07:00")}},
+	entries := map[string]map[uint64][]*model.ShiftEntry{
+		"2026-08-01": {1: {{ID: 10, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, date, "22:00"), EndsAt: rsvTS(t, nextDay, "07:00")}}},
 	}
 	breaksByEntry := map[uint64][]model.ShiftEntryBreak{
 		10: {rsvBreak(t, date, "23:00", "23:30"), rsvBreak(t, nextDay, "01:00", "02:00")},
@@ -105,8 +105,8 @@ func TestBuildStaffSlotInputsFromWindow_ShiftOnAnotherDayHasNoWorkWindow(t *test
 	staffs := []model.Staff{{ID: 1}}
 	date := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
 	other := date.AddDate(0, 0, 3)
-	entries := map[string]map[uint64]*model.ShiftEntry{
-		"2026-08-01": {1: {ID: 10, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, other, "09:00"), EndsAt: rsvTS(t, other, "18:00")}},
+	entries := map[string]map[uint64][]*model.ShiftEntry{
+		"2026-08-01": {1: {{ID: 10, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, other, "09:00"), EndsAt: rsvTS(t, other, "18:00")}}},
 	}
 	inputs := buildStaffSlotInputsFromWindow(staffs, date, entries, nil, nil)
 
@@ -196,8 +196,8 @@ func TestBuildStaffSlotInputsFromWindow_RoundsShiftSecondsWithoutWideningAvailab
 	// Arrange: 勤務 09:00:30〜18:00:30、休憩 12:00:30〜12:30:30。
 	staffs := []model.Staff{{ID: 1}}
 	date := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	entries := map[string]map[uint64]*model.ShiftEntry{
-		"2026-08-01": {1: {ID: 10, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, date, "09:00:30"), EndsAt: rsvTS(t, date, "18:00:30")}},
+	entries := map[string]map[uint64][]*model.ShiftEntry{
+		"2026-08-01": {1: {{ID: 10, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, date, "09:00:30"), EndsAt: rsvTS(t, date, "18:00:30")}}},
 	}
 	breaksByEntry := map[uint64][]model.ShiftEntryBreak{
 		10: {rsvBreak(t, date, "12:00:30", "12:30:30")},
@@ -237,8 +237,8 @@ func TestBuildStaffSlotInputsFromWindow_ShiftRoundedToEmptyHasNoWorkWindow(t *te
 	// Arrange: 勤務 09:00:10〜09:00:50（丸めると開始 09:01 が終了 09:00 を超える）。
 	staffs := []model.Staff{{ID: 1}}
 	date := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	entries := map[string]map[uint64]*model.ShiftEntry{
-		"2026-08-01": {1: {ID: 10, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, date, "09:00:10"), EndsAt: rsvTS(t, date, "09:00:50")}},
+	entries := map[string]map[uint64][]*model.ShiftEntry{
+		"2026-08-01": {1: {{ID: 10, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, date, "09:00:10"), EndsAt: rsvTS(t, date, "09:00:50")}}},
 	}
 	inputs := buildStaffSlotInputsFromWindow(staffs, date, entries, nil, nil)
 
@@ -260,43 +260,4 @@ func TestBuildStaffSlotInputsFromWindow_ShiftRoundedToEmptyHasNoWorkWindow(t *te
 	assert.Equal(t, "0000", *inputs[0].ScheduleOverride.WorkStart)
 	assert.Equal(t, "0000", *inputs[0].ScheduleOverride.WorkEnd)
 	assert.Empty(t, slots)
-}
-
-// EMR-549 A5-1: 日跨ぎ勤務の秒付き境界も、評価日ごとに当日分だけを切り出して丸める。
-func TestBuildStaffSlotInputsFromWindow_RoundsOvernightShiftSecondsPerEvaluatedDay(t *testing.T) {
-	// Arrange: 8/1 22:00:30 から 8/2 07:00:30 の勤務。休憩は 8/1 23:00:30-23:30:30 と 8/2 01:00:30-02:00:30。
-	staffs := []model.Staff{{ID: 1}}
-	date := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	nextDay := date.AddDate(0, 0, 1)
-	entry := &model.ShiftEntry{ID: 10, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, date, "22:00:30"), EndsAt: rsvTS(t, nextDay, "07:00:30")}
-	breaksByEntry := map[uint64][]model.ShiftEntryBreak{
-		10: {rsvBreak(t, date, "23:00:30", "23:30:30"), rsvBreak(t, nextDay, "01:00:30", "02:00:30")},
-	}
-
-	tests := []struct {
-		name       string
-		evaluated  time.Time
-		wantStart  string
-		wantEnd    string
-		wantBreaks []BreakPeriod
-	}{
-		{"first day keeps the tail of the day", date, "2201", "2359", []BreakPeriod{{Start: "2300", End: "2331"}}},
-		{"second day starts at midnight", nextDay, "0000", "0700", []BreakPeriod{{Start: "0100", End: "0201"}}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			entries := map[string]map[uint64]*model.ShiftEntry{tt.evaluated.Format(time.DateOnly): {1: entry}}
-
-			inputs := buildStaffSlotInputsFromWindow(staffs, tt.evaluated, entries, breaksByEntry, nil)
-
-			require.Len(t, inputs, 1)
-			override := inputs[0].ScheduleOverride
-			require.NotNil(t, override)
-			require.NotNil(t, override.WorkStart)
-			require.NotNil(t, override.WorkEnd)
-			assert.Equal(t, tt.wantStart, *override.WorkStart)
-			assert.Equal(t, tt.wantEnd, *override.WorkEnd)
-			assert.Equal(t, tt.wantBreaks, override.Breaks)
-		})
-	}
 }

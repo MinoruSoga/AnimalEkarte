@@ -28,8 +28,8 @@ func TestBuildStaffSlotInputsFromWindow(t *testing.T) {
 
 	t.Run("シフトエントリがあるスタッフはScheduleOverrideを持つ", func(t *testing.T) {
 		entry := &model.ShiftEntry{ID: 100, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, rsvShiftDate, startStr), EndsAt: rsvTS(t, rsvShiftDate, endStr)}
-		entriesByDateStaff := map[string]map[uint64]*model.ShiftEntry{
-			dateStr: {1: entry},
+		entriesByDateStaff := map[string]map[uint64][]*model.ShiftEntry{
+			dateStr: {1: {entry}},
 		}
 		breaksByEntry := map[uint64][]model.ShiftEntryBreak{
 			100: {{StartsAt: rsvTS(t, rsvShiftDate, "10:00:00"), EndsAt: rsvTS(t, rsvShiftDate, "10:15:00")}},
@@ -50,7 +50,7 @@ func TestBuildStaffSlotInputsFromWindow(t *testing.T) {
 	})
 
 	t.Run("該当日のエントリが無いスタッフはScheduleOverrideがnil", func(t *testing.T) {
-		inputs := buildStaffSlotInputsFromWindow(staffs, date, map[string]map[uint64]*model.ShiftEntry{}, nil, nil)
+		inputs := buildStaffSlotInputsFromWindow(staffs, date, map[string]map[uint64][]*model.ShiftEntry{}, nil, nil)
 		require.Len(t, inputs, 2)
 		assert.Nil(t, inputs[0].ScheduleOverride)
 		assert.Nil(t, inputs[1].ScheduleOverride)
@@ -58,7 +58,7 @@ func TestBuildStaffSlotInputsFromWindow(t *testing.T) {
 
 	t.Run("区間不明の休憩を持つスタッフはその日の候補から外す（休憩なしとみなさない）", func(t *testing.T) {
 		entry := &model.ShiftEntry{ID: 300, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, rsvShiftDate, startStr), EndsAt: rsvTS(t, rsvShiftDate, endStr)}
-		entriesByDateStaff := map[string]map[uint64]*model.ShiftEntry{dateStr: {1: entry}}
+		entriesByDateStaff := map[string]map[uint64][]*model.ShiftEntry{dateStr: {1: {entry}}}
 		breaksByEntry := map[uint64][]model.ShiftEntryBreak{300: {{StartsAt: nil, EndsAt: nil}}}
 
 		inputs := buildStaffSlotInputsFromWindow(staffs, date, entriesByDateStaff, breaksByEntry, nil)
@@ -91,7 +91,7 @@ func TestBuildStaffSlotInputsFromWindow(t *testing.T) {
 		doctorID1 := uint64(1)
 		otherStart := time.Date(2026, 8, 2, 10, 0, 0, 0, time.UTC)
 		entry := &model.ShiftEntry{ID: 200, ShiftType: model.ShiftTypeFull, StartsAt: rsvTS(t, rsvShiftDate, startStr), EndsAt: rsvTS(t, rsvShiftDate, endStr)}
-		entriesByDateStaff := map[string]map[uint64]*model.ShiftEntry{otherDateStr: {1: entry}}
+		entriesByDateStaff := map[string]map[uint64][]*model.ShiftEntry{otherDateStr: {1: {entry}}}
 		reservationsByDate := map[string][]model.Reservation{
 			otherDateStr: {{DoctorID: &doctorID1, Status: model.ReservationStatusConfirmed, StartTime: otherStart, EndTime: otherStart}},
 		}

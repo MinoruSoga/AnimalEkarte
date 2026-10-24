@@ -184,6 +184,34 @@ func TestReservationScheduleRepository_FindAllByStaffIDsAndDateRange(t *testing.
 		require.NoError(t, err)
 		assert.Empty(t, entries)
 	})
+
+	// EMR-549: 日跨ぎ勤務は勤務日が期間の前日でも、starts_at / ends_at が期間と重なれば返す。
+	t.Run("前日から続く日跨ぎ勤務は勤務日が期間外でも期間に掛かれば返す", func(t *testing.T) {
+		overnightDate := time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC)
+		nextDate := overnightDate.AddDate(0, 0, 1)
+		require.NoError(t, db.Create(&model.ShiftEntry{
+			ClinicID: clinicA, StaffID: staff2.ID, Date: overnightDate, ShiftType: model.ShiftTypeFull,
+			StartsAt: rsvTS(t, overnightDate, "22:00"), EndsAt: rsvTS(t, nextDate, "07:00"),
+		}).Error)
+		nextDayStart := *rsvTS(t, nextDate, "00:00")
+		nextDayEnd := *rsvTS(t, nextDate.AddDate(0, 0, 1), "00:00")
+
+		entries, err := repo.FindAllByStaffIDsAndDateRange(ctx, clinicA, []uint64{staff2.ID}, nextDayStart, nextDayEnd)
+
+		require.NoError(t, err)
+		require.Len(t, entries, 1, "勤務日 8/10 の夜勤が 8/11 の窓に掛かる")
+		assert.Equal(t, "2026-08-10", entries[0].Date.Format(time.DateOnly))
+
+		// 窓が ends_at（07:00）ちょうどから始まるなら重ならない（半開区間）。
+		afterEnd := *rsvTS(t, nextDate, "07:00")
+		entries, err = repo.FindAllByStaffIDsAndDateRange(ctx, clinicA, []uint64{staff2.ID}, afterEnd, nextDayEnd)
+		require.NoError(t, err)
+		assert.Empty(t, entries)
+
+		entries, err = repo.FindAllByStaffIDsAndDateRange(ctx, clinicB, []uint64{staff2.ID}, nextDayStart, nextDayEnd)
+		require.NoError(t, err)
+		assert.Empty(t, entries, "別医院 ID では重なる勤務も返さない")
+	})
 }
 
 func TestReservationScheduleRepository_Save_CreatesNewEntry(t *testing.T) {
