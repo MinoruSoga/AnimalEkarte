@@ -177,52 +177,6 @@ func TestCreateMedicalRecordRequest_ToServiceInput_InvalidOwnerID(t *testing.T) 
 	}
 }
 
-// EMR-495 Q7: request の status は移行期の許容。finalized は固定エラー（422 medical_record_status_retired）、
-// 未指定 / draft は無視して受理、それ以外は従来どおり 400（enum 内部名を漏らさない）。
-func TestCreateMedicalRecordRequest_ToServiceInput_StatusTolerance(t *testing.T) {
-	ownerID := "10"
-	petID := "20"
-
-	t.Run("finalized returns the fixed retired error with zero input", func(t *testing.T) {
-		req := createMedicalRecordRequest{OwnerID: &ownerID, PetID: &petID, Status: "finalized"}
-		input, err := req.toServiceInput(9)
-		if input.EnteredBy != nil {
-			t.Fatalf("input = %#v, want zero value", input)
-		}
-		if !errors.Is(err, apperrors.ErrUnprocessable) {
-			t.Fatalf("error = %v, want 422 class", err)
-		}
-		var appErr *apperrors.AppError
-		if !errors.As(err, &appErr) || appErr.Code != apperrors.CodeMedicalRecordStatusRetired {
-			t.Fatalf("error = %v, want code %q", err, apperrors.CodeMedicalRecordStatusRetired)
-		}
-	})
-
-	for _, status := range []string{"", "draft"} {
-		t.Run("status "+status+" is accepted and ignored", func(t *testing.T) {
-			req := createMedicalRecordRequest{OwnerID: &ownerID, PetID: &petID, Status: status}
-			input, err := req.toServiceInput(9)
-			if err != nil {
-				t.Fatalf("toServiceInput returned error: %v", err)
-			}
-			if input.EnteredBy == nil {
-				t.Fatal("input must be populated")
-			}
-		})
-	}
-
-	for _, status := range []string{"archived", "Finalized", "Draft"} {
-		t.Run("status "+status+" is invalid input without leaking the enum error", func(t *testing.T) {
-			req := createMedicalRecordRequest{OwnerID: &ownerID, PetID: &petID, Status: status}
-			input, err := req.toServiceInput(9)
-			if input.EnteredBy != nil {
-				t.Fatalf("input = %#v, want zero value", input)
-			}
-			assertFixedInvalidInputMessage(t, err, "ステータスの値が不正です", "invalid value")
-		})
-	}
-}
-
 func TestCreateMedicalRecordRequest_ToSubRecordsInput(t *testing.T) {
 	complaint := "cough"
 	plan := "observe"

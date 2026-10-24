@@ -163,6 +163,10 @@ func WrapUnprocessable(message string) error {
 // （旧 finalize / unfinalize、status による削除可否判定）を拒否する 422 の安定コード（EMR-495）。
 const CodeMedicalRecordStatusRetired = "medical_record_status_retired"
 
+// CodeMedicalRecordAddendumRequiresConsultationEnd は診療終了が記録されていないカルテへの訂正追記を拒否する
+// 422 の安定コード（EMR-549）。旧 status 用の medical_record_status_retired とは別にする。
+const CodeMedicalRecordAddendumRequiresConsultationEnd = "medical_record_addendum_requires_consultation_end"
+
 // WrapUnprocessableWithCode は WrapUnprocessable と同じ 422 に、FE が機械判定できる安定 code を付ける。
 // Err はセンチネル単独（WrapUnprocessable の注記どおり他センチネルを合成しない）。
 func WrapUnprocessableWithCode(code, message string) error {

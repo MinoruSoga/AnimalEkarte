@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import type { ClinicalPlan } from "../api/clinical-plan";
+import type { ClinicalPlan, ClinicalPlanDiagnosisRow } from "../api/clinical-plan";
 
 export interface ClinicalPlanDraft {
   physicalExam: string;
@@ -15,6 +15,8 @@ export interface ClinicalPlanDraft {
 interface ClinicalPlanSnapshot extends ClinicalPlanDraft {
   medicalRecordId: string;
   version: number;
+  /** BE が返した診断行の全件（返却順のまま）。保存時に変えていない slot の行を送り返す。 */
+  diagnosisRows: ClinicalPlanDiagnosisRow[];
 }
 
 type ClinicalPlanSnapshotSource = Pick<
@@ -24,14 +26,7 @@ type ClinicalPlanSnapshotSource = Pick<
   | "physical_exam"
   | "treatment_policy"
   | "diagnosis_details"
-  | "diagnosis_type_id"
-  | "diagnosis_name_id"
-  | "diagnosis_2_type_id"
-  | "diagnosis_2_name_id"
-  | "diagnosis_type"
-  | "diagnosis_name"
-  | "diagnosis_2_type"
-  | "diagnosis_2_name"
+  | "diagnoses"
 >;
 
 interface UseApplyClinicalPlanArgs extends ClinicalPlanDraft {
@@ -48,9 +43,6 @@ interface UseApplyClinicalPlanArgs extends ClinicalPlanDraft {
 
 function toOptionalNumber(value: unknown): number | null {
   if (value == null || value === "") return null;
-  if (typeof value === "object" && "id" in value) {
-    return toOptionalNumber(value.id);
-  }
   const numberValue = typeof value === "number" ? value : Number(value);
   return Number.isFinite(numberValue) ? numberValue : null;
 }
@@ -59,24 +51,21 @@ function toSnapshot(
   clinicalPlan: ClinicalPlanSnapshotSource,
   recordId?: string,
 ): ClinicalPlanSnapshot {
+  const diagnosisRows = Array.isArray(clinicalPlan.diagnoses) ? clinicalPlan.diagnoses : [];
+  // slot の代表行は返却順の先頭。BE は slot, sort_order, id 昇順で返す（ListDiagnoses）。
+  const slot1Row = diagnosisRows.find((row) => row.diagnosis_slot === 1);
+  const slot2Row = diagnosisRows.find((row) => row.diagnosis_slot === 2);
   return {
     medicalRecordId: clinicalPlan.medical_record_id || recordId || "",
     version: clinicalPlan.version,
     physicalExam: clinicalPlan.physical_exam ?? "",
     plan: clinicalPlan.treatment_policy ?? "",
     assessment: clinicalPlan.diagnosis_details ?? "",
-    diagnosis1CategoryId:
-      toOptionalNumber(clinicalPlan.diagnosis_type_id) ??
-      toOptionalNumber(clinicalPlan.diagnosis_type),
-    diagnosis1NameId:
-      toOptionalNumber(clinicalPlan.diagnosis_name_id) ??
-      toOptionalNumber(clinicalPlan.diagnosis_name),
-    diagnosis2CategoryId:
-      toOptionalNumber(clinicalPlan.diagnosis_2_type_id) ??
-      toOptionalNumber(clinicalPlan.diagnosis_2_type),
-    diagnosis2NameId:
-      toOptionalNumber(clinicalPlan.diagnosis_2_name_id) ??
-      toOptionalNumber(clinicalPlan.diagnosis_2_name),
+    diagnosisRows,
+    diagnosis1CategoryId: toOptionalNumber(slot1Row?.diagnosis_type_id),
+    diagnosis1NameId: toOptionalNumber(slot1Row?.diagnosis_name_id),
+    diagnosis2CategoryId: toOptionalNumber(slot2Row?.diagnosis_type_id),
+    diagnosis2NameId: toOptionalNumber(slot2Row?.diagnosis_name_id),
   };
 }
 
@@ -126,6 +115,7 @@ export function useApplyClinicalPlan({
   const activeRecordIdRef = useRef(recordId);
   const resetRecordIdRef = useRef(recordId);
   const [clinicalPlanVersion, setClinicalPlanVersion] = useState<number>();
+  const [clinicalPlanDiagnoses, setClinicalPlanDiagnoses] = useState<ClinicalPlanDiagnosisRow[]>();
   const currentDraftRef = useRef<ClinicalPlanDraft>({
     physicalExam,
     plan,
@@ -153,6 +143,7 @@ export function useApplyClinicalPlan({
     (snapshot: ClinicalPlanSnapshot) => {
       baselineRef.current = snapshot;
       setClinicalPlanVersion(snapshot.version);
+      setClinicalPlanDiagnoses(snapshot.diagnosisRows);
       setPhysicalExam(snapshot.physicalExam);
       setPlan(snapshot.plan);
       setAssessment(snapshot.assessment);
@@ -178,6 +169,7 @@ export function useApplyClinicalPlan({
     resetRecordIdRef.current = recordId;
     baselineRef.current = null;
     setClinicalPlanVersion(undefined);
+    setClinicalPlanDiagnoses(undefined);
     setPhysicalExam("");
     setPlan("");
     setAssessment("");
@@ -250,9 +242,10 @@ export function useApplyClinicalPlan({
 
       baselineRef.current = savedSnapshot;
       setClinicalPlanVersion(savedSnapshot.version);
+      setClinicalPlanDiagnoses(savedSnapshot.diagnosisRows);
     },
     [applySnapshot],
   );
 
-  return { clinicalPlanVersion, onClinicalPlanSaved };
+  return { clinicalPlanVersion, clinicalPlanDiagnoses, onClinicalPlanSaved };
 }

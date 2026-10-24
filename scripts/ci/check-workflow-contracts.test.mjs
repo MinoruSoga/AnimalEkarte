@@ -770,24 +770,9 @@ test("clinical-plan inventory matches the bounded current PATCH contract", () =>
       /physical_exam:\s*snapshot\.physicalExam/,
     ],
     [
-      "diagnosis1CategoryId",
-      "diagnosis_type_id",
-      /diagnosis_type_id:\s*snapshot\.diagnosis1CategoryId \?\? undefined/,
-    ],
-    [
-      "diagnosis1NameId",
-      "diagnosis_name_id",
-      /diagnosis_name_id:\s*snapshot\.diagnosis1NameId \?\? undefined/,
-    ],
-    [
-      "diagnosis2CategoryId",
-      "diagnosis_2_type_id",
-      /diagnosis_2_type_id:\s*snapshot\.diagnosis2CategoryId/,
-    ],
-    [
-      "diagnosis2NameId",
-      "diagnosis_2_name_id",
-      /diagnosis_2_name_id:\s*snapshot\.diagnosis2NameId/,
+      "diagnosisRows",
+      "diagnoses",
+      /diagnoses:\s*buildClinicalPlanDiagnoses\(snapshot\)/,
     ],
     [
       "assessment",
@@ -821,6 +806,143 @@ test("clinical-plan inventory matches the bounded current PATCH contract", () =>
       clinicalPlanRequest,
       new RegExp(`json:"${wireKey}"`),
       `${wireKey} Go request tag`,
+    );
+  }
+
+  // EMR-495: 診断は diagnoses 行配列。行の各キーを inventory・FE 入出力型・Go request/response tag で
+  // 一致させ、FE の送信は「読込済み行の保持」規則（変更なし = 送らない / 変えた slot だけ置換 / クリア）を満たす。
+  const diagnosisInputType = clinicalPlanApi.match(
+    /export interface ClinicalPlanDiagnosisInput \{[\s\S]*?\n\}/,
+  );
+  const diagnosisRowType = clinicalPlanApi.match(
+    /export interface ClinicalPlanDiagnosisRow \{[\s\S]*?\n\}/,
+  );
+  const updateInputType = clinicalPlanApi.match(
+    /export interface UpdateClinicalPlanInput \{[\s\S]*?\n\}/,
+  );
+  const responseTransform = clinicalPlanApi.match(
+    /function transformClinicalPlan\(item: \{[\s\S]*?\n\}\n/,
+  );
+  const goResponse = read("backend/internal/medicalrecord/clinical_plan_response.go");
+  const applyClinicalPlan = read(
+    "frontend/src/features/medical-records/hooks/use-apply-clinical-plan.ts",
+  );
+  const diagnosisRequestType = clinicalPlanRequest.match(
+    /type clinicalPlanDiagnosisRequest struct \{[\s\S]*?\n\}/,
+  );
+  const diagnosisResponseType = goResponse.match(
+    /type clinicalPlanDiagnosisResponse struct \{[\s\S]*?\n\}/,
+  );
+  const buildSlot = saveAction.match(/function buildSlotDiagnoses[\s\S]*?\n\}\n/);
+  const buildDiagnoses = saveAction.match(
+    /function buildClinicalPlanDiagnoses[\s\S]*?\n\}\n/,
+  );
+  for (const [name, matched] of [
+    ["ClinicalPlanDiagnosisInput", diagnosisInputType],
+    ["ClinicalPlanDiagnosisRow", diagnosisRowType],
+    ["UpdateClinicalPlanInput", updateInputType],
+    ["transformClinicalPlan", responseTransform],
+    ["clinicalPlanDiagnosisRequest", diagnosisRequestType],
+    ["clinicalPlanDiagnosisResponse", diagnosisResponseType],
+    ["buildSlotDiagnoses", buildSlot],
+    ["buildClinicalPlanDiagnoses", buildDiagnoses],
+  ]) {
+    assert.notEqual(matched, null, `missing ${name}`);
+  }
+
+  for (const rowKey of [
+    "diagnosis_slot",
+    "diagnosis_type_id",
+    "diagnosis_name_id",
+    "diagnosis_name_snapshot",
+    "category_name_snapshot",
+    "sort_order",
+  ]) {
+    assert.match(section, new RegExp(`\\b${rowKey}\\b`), `${rowKey} inventory`);
+    assert.match(
+      diagnosisInputType[0],
+      new RegExp(`\\b${rowKey}\\??:`),
+      `${rowKey} frontend diagnosis row input`,
+    );
+    assert.match(
+      diagnosisRowType[0],
+      new RegExp(`\\b${rowKey}:`),
+      `${rowKey} frontend diagnosis row response`,
+    );
+    assert.match(
+      diagnosisRequestType[0],
+      new RegExp(`json:"${rowKey}"`),
+      `${rowKey} Go diagnosis row request tag`,
+    );
+    assert.match(
+      diagnosisResponseType[0],
+      new RegExp(`json:"${rowKey}"`),
+      `${rowKey} Go diagnosis row response tag`,
+    );
+  }
+  assert.match(goResponse, /json:"diagnoses"/);
+  assert.match(
+    responseTransform[0],
+    /diagnoses:\s*ClinicalPlanDiagnosisRow\[\];[\s\S]*diagnoses:\s*item\.diagnoses,/,
+    "response model carries diagnoses rows",
+  );
+  assert.match(saveAction, /value\.diagnoses\.every\(isClinicalPlanDiagnosisRow\)/);
+  for (const hydrate of [
+    /toOptionalNumber\(slot1Row\?\.diagnosis_type_id\)/,
+    /toOptionalNumber\(slot1Row\?\.diagnosis_name_id\)/,
+    /toOptionalNumber\(slot2Row\?\.diagnosis_type_id\)/,
+    /toOptionalNumber\(slot2Row\?\.diagnosis_name_id\)/,
+  ]) {
+    assert.match(applyClinicalPlan, hydrate);
+  }
+  assert.match(
+    buildDiagnoses[0],
+    /buildSlotDiagnoses\(1,\s*source\.diagnosis1CategoryId,\s*source\.diagnosis1NameId,\s*loadedRows\)/,
+    "diagnosis 1 maps to slot 1",
+  );
+  assert.match(
+    buildDiagnoses[0],
+    /buildSlotDiagnoses\(2,\s*source\.diagnosis2CategoryId,\s*source\.diagnosis2NameId,\s*loadedRows\)/,
+    "diagnosis 2 maps to slot 2",
+  );
+  assert.match(
+    buildDiagnoses[0],
+    /if \(!slots\.some\(\(slotDiagnoses\) => slotDiagnoses\.changed\)\) return undefined;/,
+    "unchanged slots send no diagnoses",
+  );
+  for (const rule of [
+    /const representative: ClinicalPlanDiagnosisRow \| undefined = slotRows\[0\];/,
+    /rows:\s*slotRows\.map\(/,
+    /diagnosis_type_id:\s*toNumericId\(row\.diagnosis_type_id\),/,
+    /diagnosis_name_id:\s*toNumericId\(row\.diagnosis_name_id\),/,
+    /diagnosis_name_snapshot:\s*row\.diagnosis_name_snapshot,/,
+    /category_name_snapshot:\s*row\.category_name_snapshot,/,
+    /sort_order:\s*row\.sort_order,/,
+    /if \(categoryId === null && nameId === null\) return \{ changed: true, rows: \[\] \};/,
+    /diagnosis_name_snapshot:\s*null,\s*category_name_snapshot:\s*null,\s*sort_order:\s*0,/,
+  ]) {
+    assert.match(buildSlot[0], rule, String(rule));
+  }
+  assert.match(updateInputType[0], /\bdiagnoses\?:\s*ClinicalPlanDiagnosisInput\[\]/);
+
+  for (const legacyKey of [
+    "diagnosis_type_id",
+    "diagnosis_name_id",
+    "diagnosis_2_type_id",
+    "diagnosis_2_name_id",
+    "diagnosis_type",
+    "diagnosis_name",
+    "diagnosis_2_type",
+    "diagnosis_2_name",
+  ]) {
+    const legacy = new RegExp(`\\b${legacyKey}\\b`);
+    assert.doesNotMatch(updateInputType[0], legacy, `${legacyKey} stale API input`);
+    assert.doesNotMatch(responseTransform[0], legacy, `${legacyKey} stale response model`);
+    assert.doesNotMatch(treatmentPlanPayload[0], legacy, `${legacyKey} stale payload`);
+    assert.doesNotMatch(
+      section,
+      new RegExp(`\\|\\s*${legacyKey}\\s*\\|`),
+      `${legacyKey} stale inventory row`,
     );
   }
 

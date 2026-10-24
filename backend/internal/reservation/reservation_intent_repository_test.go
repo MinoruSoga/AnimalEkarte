@@ -316,6 +316,23 @@ func TestReservationRepository_MarkNoShow(t *testing.T) {
 		assert.Equal(t, model.ReservationStatusConfirmed, reloadReservationIntentStatus(t, db, appt.ID))
 	})
 
+	t.Run("does not overwrite an appointment whose medical record has no consultation history", func(t *testing.T) {
+		rt := makeReservationType(t, db, clinicA)
+		appt := makeReservationForReservationRepoTest(
+			t, db, clinicA, rt.ID, time.Now().UTC().Add(-6*time.Hour),
+			model.ReservationStatusConfirmed, model.ReservationSourceManual, nil, nil,
+		)
+		record := &model.MedicalRecord{
+			ClinicID: clinicA, RecordNo: "MR-NO-SHOW-NO-HISTORY", Date: time.Now().UTC(), AppointmentID: &appt.ID,
+		}
+		require.NoError(t, db.Create(record).Error)
+
+		transition, err := markNoShowInReservationRepoTest(ctx, db, repo, clinicA, appt.ID)
+		require.NoError(t, err)
+		assert.False(t, transition.Changed, "empty consultation history is unknown, not a known not-ended state")
+		assert.Equal(t, model.ReservationStatusConfirmed, reloadReservationIntentStatus(t, db, appt.ID))
+	})
+
 	t.Run("overwrites when the latest consultation event is end_undone", func(t *testing.T) {
 		rt := makeReservationType(t, db, clinicA)
 		appt := makeReservationForReservationRepoTest(
@@ -476,8 +493,8 @@ func TestReservationRepository_MarkNoShowAt_UsesSuppliedTimeInCAS(t *testing.T) 
 }
 
 // EMR-495: medical_records.status は 001 で廃止され、「終了済みカルテ」は
-// medical_record_consultation_events の最新イベントが ended であることで表す（predicate は
-// endedMedicalRecordPredicate）。終了ルート（B）は lifecycle lock を取ってから ended イベントを書く想定で、
+// medical_record_consultation_events の最新イベントが ended であることで表す。no-show は紐づくカルテが「最新 end_undone」と確定しているときだけ可能（履歴なしは unknown で除外。predicate は
+// knownNotEndedMedicalRecordPredicate）。終了ルート（B）は lifecycle lock を取ってから ended イベントを書く想定で、
 // ここでは旧 finalize の代わりにその書込を直列化の相手に使う（AutoMigrate double のため receipt 制約は無い）。
 func TestReservationRepository_NoShowAndConsultationEndSerialize(t *testing.T) {
 	const clinicID = uint64(1)
@@ -557,7 +574,10 @@ func TestReservationRepository_NoShowAndConsultationEndSerialize(t *testing.T) {
 	})
 
 	t.Run("no-show wins and later lifecycle-lock preparation is rejected", func(t *testing.T) {
-		db, repo, appointment, _ := newFixture(t)
+		db, repo, appointment, record := newFixture(t)
+		// 履歴なしのカルテは no-show を妨げる（契約 §0.1）。終了が取り消された（最新 end_undone）カルテだけが no-show 可能。
+		recordConsultationEventForReservationRepoTest(t, db, clinicID, record.ID, 1, "ended")
+		recordConsultationEventForReservationRepoTest(t, db, clinicID, record.ID, 2, "end_undone")
 		noShowApplied := make(chan struct{})
 		releaseNoShow := make(chan struct{})
 		noShowDone := make(chan error, 1)

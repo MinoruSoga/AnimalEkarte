@@ -424,6 +424,14 @@ func TestReservationRepository_FindNoShowCandidates(t *testing.T) {
 	recordConsultationEventForReservationRepoTest(t, db, clinicA, undoneRecord.ID, 1, "ended")
 	recordConsultationEventForReservationRepoTest(t, db, clinicA, undoneRecord.ID, 2, "end_undone")
 
+	// 履歴なし（カルテはあるが consultation events が 1 件もない）は未終了と断定できない（契約 §0.1・unknown）。
+	// 紐づくカルテの状態が判定できない予約はノーショウ自動確定の候補にしない。
+	noHistory := makeReservationForReservationRepoTest(t, db, clinicA, rt.ID, oldEnoughEnd.Add(-30*time.Minute),
+		model.ReservationStatusConfirmed, model.ReservationSourceManual, nil, nil)
+	require.NoError(t, db.Create(&model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "MR-NO-SHOW-CANDIDATE-NO-HISTORY", Date: now, AppointmentID: &noHistory.ID,
+	}).Error)
+
 	t.Run("4時間以上経過したconfirmed/pendingのみ該当", func(t *testing.T) {
 		got, err := repo.FindNoShowCandidates(ctx, clinicA)
 		require.NoError(t, err)
@@ -437,6 +445,7 @@ func TestReservationRepository_FindNoShowCandidates(t *testing.T) {
 		// EMR-495 Q4: 除外条件は「診療終了イベント(ended)が最新のカルテ」。
 		assert.NotContains(t, ids, endedRecordAppt.ID, "終了済みカルテがある予約はノーショウ候補外のはず")
 		assert.Contains(t, ids, undone.ID, "終了が取り消された（最新が end_undone）カルテだけの予約は候補に戻る")
+		assert.NotContains(t, ids, noHistory.ID, "履歴なし（判定不能）のカルテがある予約はノーショウ候補外のはず")
 	})
 
 	t.Run("該当データが無い医院は空を返す", func(t *testing.T) {

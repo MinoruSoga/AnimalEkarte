@@ -137,7 +137,8 @@ type medicalRecordService struct {
 }
 
 // NewMedicalRecordServiceWithTxAudit は確定監査を本体更新と同じトランザクションへ参加させる。
-// create と通常 update の監査は auditService 経由の best-effort のまま維持する。
+// 通常 update の監査は auditTx（LogEntryTx）で本体更新と同じ tx に書く fail-closed（失敗は更新ごと rollback）。
+// create の監査は auditService 経由の best-effort のまま維持する。
 func NewMedicalRecordServiceWithTxAudit(
 	repo MedicalRecordRepository,
 	inquiryRepo InquiryRepository,
