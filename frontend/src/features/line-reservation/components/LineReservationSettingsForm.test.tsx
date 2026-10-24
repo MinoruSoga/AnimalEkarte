@@ -49,8 +49,6 @@ const baseSetting: ReservationSetting = {
   no_staff_mode: "hide",
   show_no_staff_option: false,
   additional_fields: {} as unknown as string,
-  line_channel_id: "existing-channel-id",
-  liff_id: "existing-liff-id",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -97,10 +95,18 @@ function setupClinicHolidayWriteSpies() {
   return { posts, deletes };
 }
 
-// SD-3 決裁 A（q&a.html）: LINE credential（チャネルシークレット/アクセストークン）は
-// 平文 UI に置かない。この画面はそもそも credential を扱わないため、
-// 対応する input・formData 読み取り・payload キーのいずれも存在してはならない。
+// SD-3 決裁 A（q&a.html）+ EMR-549 Q-U5-1: LINE の資格情報・識別子（チャネルID/LIFF ID/
+// チャネルシークレット/アクセストークン）は clinic_integrations（LSTEP 連携設定）だけが保存先。
+// この画面は扱わないため、対応する input・formData 読み取り・payload キーのいずれも存在してはならない
+// （バックエンドはキーが存在するだけで 400 にする）。
 describe("LineReservationSettingsForm — LINE credential 非取扱い (SD-3 決裁A)", () => {
+  const LEGACY_LINE_CREDENTIAL_KEYS = [
+    "line_channel_id",
+    "line_channel_secret",
+    "liff_id",
+    "line_access_token",
+  ] as const;
+
   it("定休曜日checkboxのfocusable hit areaを44px以上に保つ", () => {
     renderForm();
 
@@ -114,16 +120,19 @@ describe("LineReservationSettingsForm — LINE credential 非取扱い (SD-3 決
     });
   });
 
-  it("チャネルシークレット・アクセストークンの input は画面に存在しない", () => {
+  it("チャネルID・LIFF ID・チャネルシークレット・アクセストークンの input は画面に存在しない", () => {
     renderForm();
 
     expect(screen.queryByPlaceholderText(/チャネルシークレット/)).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/アクセストークン/)).not.toBeInTheDocument();
-    expect(document.querySelector('input[name="line_channel_secret"]')).not.toBeInTheDocument();
-    expect(document.querySelector('input[name="line_access_token"]')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("LINE チャネルID")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("LIFF ID")).not.toBeInTheDocument();
+    for (const name of LEGACY_LINE_CREDENTIAL_KEYS) {
+      expect(document.querySelector(`input[name="${name}"]`)).not.toBeInTheDocument();
+    }
   });
 
-  it("保存すると PUT body に line_channel_secret / line_access_token キー自体が含まれない", async () => {
+  it("保存すると PUT body に LINE 資格情報・識別子のキー自体が含まれない", async () => {
     const getBody = setupPutHandler();
     renderForm();
 
@@ -134,25 +143,9 @@ describe("LineReservationSettingsForm — LINE credential 非取扱い (SD-3 決
       expect(getBody()).not.toBeNull();
     });
     const body = getBody() as Record<string, unknown>;
-    expect(Object.prototype.hasOwnProperty.call(body, "line_channel_secret")).toBe(false);
-    expect(Object.prototype.hasOwnProperty.call(body, "line_access_token")).toBe(false);
-  });
-
-  it("チャネルID・LIFF ID は引き続き通常の input として編集・送信できる（credential ではないため対象外）", async () => {
-    const getBody = setupPutHandler();
-    renderForm();
-
-    expect(screen.getByPlaceholderText("LINE チャネルID")).toHaveValue("existing-channel-id");
-    expect(screen.getByPlaceholderText("LIFF ID")).toHaveValue("existing-liff-id");
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "保存" }));
-
-    await waitFor(() => {
-      expect(getBody()).not.toBeNull();
-    });
-    expect(getBody()?.line_channel_id).toBe("existing-channel-id");
-    expect(getBody()?.liff_id).toBe("existing-liff-id");
+    for (const name of LEGACY_LINE_CREDENTIAL_KEYS) {
+      expect(Object.prototype.hasOwnProperty.call(body, name)).toBe(false);
+    }
   });
 });
 

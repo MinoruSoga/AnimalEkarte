@@ -81,8 +81,7 @@ type reservationServiceDependencies struct {
 	NextVisitTagSync reservation.NextVisitTagSyncer
 
 	NotificationConfig *reservation.ReservationNotificationConfig
-	EncryptCredential  func(value string) (string, error)
-	DecryptCredential  func(ctx context.Context, value string) string
+	DecryptCredential  func(value string) (string, error)
 	NewLineMessenger   func(channelToken string) reservation.LinePusher
 	SendMail           func(
 		ctx context.Context,
@@ -176,8 +175,6 @@ func newReservationMasterServices(
 		schedules: reservation.NewReservationScheduleService(repositories.ReservationSchedules),
 		lineSettings: reservation.NewLineReservationSettingService(
 			repositories.LineReservationSettings,
-			dependencies.EncryptCredential,
-			dependencies.DecryptCredential,
 		),
 	}
 }

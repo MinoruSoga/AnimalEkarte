@@ -10819,7 +10819,10 @@ components:
           format: date-time
     LineReservationSetting:
       type: object
-      description: line_reservation_settings schema
+      description: >-
+        line_reservation_settings schema。EMR-504: LINE 資格情報（line_channel_id / line_channel_secret /
+        liff_id / line_access_token）はこのテーブルから削除済みで、clinic_integrations（/lstep-settings）だけに保存する。
+        応答には含めない。PUT でこれらのキーが存在した場合は値（空文字・null・空白のみを含む）に関わらず 400。キーを省略した場合だけ受理し、何も保存しない。
       properties:
         id:
           type: integer
@@ -10881,14 +10884,6 @@ components:
           type: boolean
         additional_fields:
           type: object
-        line_channel_id:
-          type: string
-        line_channel_secret:
-          type: string
-        liff_id:
-          type: string
-        line_access_token:
-          type: string
         created_at:
           type: string
           format: date-time
@@ -12859,7 +12854,8 @@ components:
     # ─── LIFF (LINE Front-end Framework 公開API) ───────────────────────
     LiffSettings:
       type: object
-      description: 機密フィールド(LINEチャネルシークレット等)は除外済み。
+      description: 機密フィールド(LINEチャネルシークレット等)は除外済み。liff_id は clinic_integrations(lstep) の値で、未設定の医院は空文字。
+      required: [liff_id]
       properties:
         status:
           type: string
@@ -19248,6 +19244,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          description: >-
+            EMR-504: 配送記録（line_dispatch_intents / attempts / results）の writer が未接続のため送信しない。
+            code は `line_dispatch_pending`（成功を装わない）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
   /owners/{id}/line/send-logs:
@@ -19276,6 +19280,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          description: >-
+            EMR-504: 旧 line_send_logs は削除済みで、置換先の配送記録の reader が未接続のため履歴を返さない
+            （空の一覧=送信なし、とは見せない）。code は `line_dispatch_pending`。現在は常にこの応答。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
   /owners/{id}/line/link-token:
@@ -32237,6 +32249,9 @@ paths:
         EMR-445 A03 選定契約 §3.3: LINE acceptance 活性化医院では P 同値でも 409 contract_upgrade_required・zero-write で停止し、
         acceptance API（P）・PATCH presentation（N）・PATCH registration-fields（additional_fields）へ移す。未切替医院と旧 read は一律停止しない。
         停止の runtime（活性化判定・writer 閉包）は EMR-448/492（D）・EMR-446/466（B）で未接続（x-contract-status: selected は 409 の追記部分だけ）。
+        EMR-504: line_channel_id / line_channel_secret / liff_id / line_access_token は本 API では保存せず、
+        キーが存在すれば値（空文字・null・空白のみを含む）に関わらず 400（値は応答に含めない）。キーを省略した場合だけ受理して何も保存しない
+        （管理画面フォームはこれらのキーを送らない）。LINE 資格情報は LINE連携設定（/lstep-settings）で設定する。
       tags: [LINE予約設定]
       parameters:
         - name: clinic_id

@@ -19,9 +19,16 @@ type reservationTypeAvailableSlotReader interface {
 	FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error)
 }
 
+// LiffPublicSettings は LIFF 公開設定の取得結果。liff_id は line_reservation_settings ではなく
+// clinic_integrations(service='lstep') が唯一の保存先（EMR-504 Q8）。未設定の医院は LiffID が空文字。
+type LiffPublicSettings struct {
+	Setting *model.LineReservationSetting
+	LiffID  string
+}
+
 // LiffService はLIFF公開APIのビジネスロジックインターフェース
 type LiffService interface {
-	GetSettings(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	GetSettings(ctx context.Context, clinicID uint64) (*LiffPublicSettings, error)
 	GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error)
 	GetCourses(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	GetTrimmingCourses(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
@@ -43,7 +50,7 @@ type LiffMyReservationsResult struct {
 }
 
 type liffService struct {
-	settingRepo     lineReservationSettingFinder
+	settingRepo     liffSettingFinder
 	typeLiffRepo    ReservationTypeLiffRepository
 	typeRepo        reservationTypeFinder
 	staffRepo       ReservationStaffRepository
@@ -73,7 +80,7 @@ type liffService struct {
 }
 
 func NewLiffServiceWithType(
-	settingRepo lineReservationSettingFinder,
+	settingRepo liffSettingFinder,
 	typeLiffRepo ReservationTypeLiffRepository,
 	typeRepo reservationTypeFinder,
 	staffRepo ReservationStaffRepository,

@@ -8,7 +8,7 @@
  */
 
 /**
- * line_channel_secret / line_access_token はセキュリティ上レスポンスに含まれない。
+ * line_channel_id / line_channel_secret / liff_id / line_access_token はレスポンスに含まれない（EMR-504: clinic_integrations が唯一の保存先）。
  * @see backend/internal/reservation/line_reservation_setting_response.go
  *   lineReservationSettingResponse
  */
@@ -39,8 +39,6 @@ export interface LegacyLineReservationSettingResponse {
   no_staff_mode: string;
   show_no_staff_option: boolean;
   additional_fields: unknown;
-  line_channel_id: string;
-  liff_id: string;
   created_at: string;
   updated_at: string;
 }

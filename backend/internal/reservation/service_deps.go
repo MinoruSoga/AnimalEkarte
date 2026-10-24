@@ -68,6 +68,20 @@ type lineReservationSettingFinder interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 }
 
+// liffSettingFinder は LIFF 公開設定の読取り（予約設定 + clinic_integrations の liff_id）に使う最小 view。
+type liffSettingFinder interface {
+	lineReservationSettingFinder
+	FindIntegrationValue(ctx context.Context, clinicID uint64, keyName string) (string, error)
+}
+
+// reservationNotificationSettingFinder は予約の完了・キャンセル通知に使う最小 view。
+// 通知先メールの予約設定に加え、LINE Push 専用の channel access token 暗号文リーダーを持つ
+// （汎用の secret reader ではなく、復号は composition が注入する cipher closure が行う）。
+type reservationNotificationSettingFinder interface {
+	lineReservationSettingFinder
+	FindLineChannelAccessTokenCiphertext(ctx context.Context, clinicID uint64) (string, error)
+}
+
 // clinicHolidayFinder は clinic_holidays の日付検索に使う consumer-side 最小 view。
 // reservation は clinic package を import せず、composition が具象を注入する。
 type clinicHolidayFinder interface {

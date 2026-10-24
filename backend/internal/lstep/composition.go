@@ -79,7 +79,7 @@ type Dependencies struct {
 	Checkups              tagSyncCheckupRepo
 	BillingItems          tagSyncBillingItemRepo
 	ClinicSettings        lstepClinicSettingsRepo
-	ReservationSettings   lstepLineSettingReader
+	WebhookRoutes         lineWebhookRouteReader
 	Reservations          batchApplicationReservationRepository
 	Appointments          AppointmentRepository // EMR-308: next-visit tag sync + tentative reminder read 面
 	Clinics               lstepBatchClinicRepository

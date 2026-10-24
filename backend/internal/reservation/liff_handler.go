@@ -48,12 +48,12 @@ func (h *LiffHandler) GetLiffSettings(c *gin.Context) {
 	if !ok {
 		return
 	}
-	setting, err := h.svc.GetSettings(c.Request.Context(), clinicID)
+	settings, err := h.svc.GetSettings(c.Request.Context(), clinicID)
 	if err != nil {
 		respondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toLiffSettingsResponse(setting))
+	c.JSON(http.StatusOK, toLiffSettingsResponse(settings.Setting, settings.LiffID))
 }
 
 // GetLiffProfile はLIFF顧客プロフィールを返す。

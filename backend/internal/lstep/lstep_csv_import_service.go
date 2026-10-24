@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -163,11 +162,11 @@ func (s *lstepCsvImportService) parseFriendAttrCSVRow(row []string, colIdx map[s
 
 	if tags := splitMultiValue(getCol("tags")); len(tags) > 0 {
 		b, _ := json.Marshal(tags)
-		snapshot.Tags = datatypes.JSON(b)
+		snapshot.Tags = nullableJSONPtr(b)
 	}
 	if scenarios := splitMultiValue(getCol("scenarios")); len(scenarios) > 0 {
 		b, _ := json.Marshal(scenarios)
-		snapshot.Scenarios = datatypes.JSON(b)
+		snapshot.Scenarios = nullableJSONPtr(b)
 	}
 
 	return snapshot, nil

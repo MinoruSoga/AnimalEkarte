@@ -62,6 +62,10 @@ func (h *LineReservationSettingHandler) SaveLineReservationSetting(c *gin.Contex
 		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
+	if err := req.rejectLegacyLineCredentials(); err != nil {
+		respondError(c, err)
+		return
+	}
 	setting, isNew, err := h.svc.Save(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
 		respondError(c, err)

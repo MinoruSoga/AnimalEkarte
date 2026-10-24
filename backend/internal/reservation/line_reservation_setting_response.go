@@ -35,9 +35,8 @@ type lineReservationSettingResponse struct {
 	NoStaffMode             string          `json:"no_staff_mode"`
 	ShowNoStaffOption       bool            `json:"show_no_staff_option"`
 	AdditionalFields        json.RawMessage `json:"additional_fields"`
-	LineChannelID           string          `json:"line_channel_id"`
-	// LineChannelSecret と LineAccessToken はセキュリティ上レスポンスに含めない
-	LiffID    string    `json:"liff_id"`
+	// EMR-504: LINE 資格情報（channel ID / LIFF ID / token / secret）は clinic_integrations のみ。
+	// 本レスポンスには含めない。
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -55,7 +54,7 @@ func toLineReservationSettingResponse(s *model.LineReservationSetting) lineReser
 		ClosedDates:             json.RawMessage(s.ClosedDates),
 		NationalHolidayClosed:   s.NationalHolidayClosed,
 		BusinessHours:           json.RawMessage(s.BusinessHours),
-		BusinessHoursByWeekday:  json.RawMessage(s.BusinessHoursByWeekday),
+		BusinessHoursByWeekday:  nullableJSONBytes(s.BusinessHoursByWeekday),
 		BreakHours:              json.RawMessage(s.BreakHours),
 		DailyLimit:              s.DailyLimit,
 		MonthlyLimit:            s.MonthlyLimit,
@@ -70,8 +69,6 @@ func toLineReservationSettingResponse(s *model.LineReservationSetting) lineReser
 		NoStaffMode:             s.NoStaffMode,
 		ShowNoStaffOption:       s.ShowNoStaffOption,
 		AdditionalFields:        json.RawMessage(s.AdditionalFields),
-		LineChannelID:           s.LineChannelID,
-		LiffID:                  s.LiffID,
 		CreatedAt:               httpapi.LocalTime(s.CreatedAt),
 		UpdatedAt:               httpapi.LocalTime(s.UpdatedAt),
 	}

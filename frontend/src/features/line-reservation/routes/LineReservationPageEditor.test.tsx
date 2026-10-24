@@ -55,8 +55,6 @@ const baseSetting: ReservationSetting = {
   no_staff_mode: "hide",
   show_no_staff_option: false,
   additional_fields: {} as unknown as string,
-  line_channel_id: "existing-channel-id",
-  liff_id: "existing-liff-id",
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
@@ -169,6 +167,8 @@ describe("LineReservationPageEditor — FE-RC-211 mutation permission re-check",
     expect(body.closed_dates).toEqual(["2026-12-30"]);
     expect(body).not.toHaveProperty("line_access_token");
     expect(body).not.toHaveProperty("line_channel_secret");
+    expect(body).not.toHaveProperty("line_channel_id");
+    expect(body).not.toHaveProperty("liff_id");
     expect(toast.success).toHaveBeenCalledWith("ページ内容を保存しました");
   });
 

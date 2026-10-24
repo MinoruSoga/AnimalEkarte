@@ -319,3 +319,18 @@ func TestWrapUnprocessableWithCode(t *testing.T) {
 	assert.Equal(t, "message", appErr.Message)
 	assert.True(t, errors.Is(err, ErrUnprocessable))
 }
+
+// EMR-504 / EMR-549 C1: fixed 422 codes for LINE operations whose replacement storage has no
+// writer/reader (or routing) yet. The codes are stable wire values.
+func TestLinePendingCodesAndHasCode(t *testing.T) {
+	assert.Equal(t, "line_binding_pending", CodeLineBindingPending)
+	assert.Equal(t, "line_dispatch_pending", CodeLineDispatchPending)
+	assert.Equal(t, "line_webhook_routing_pending", CodeLineWebhookRoutingPending)
+
+	err := WrapUnprocessableWithCode(CodeLineDispatchPending, "pending")
+	assert.True(t, HasCode(err, CodeLineDispatchPending))
+	assert.False(t, HasCode(err, CodeLineBindingPending))
+	assert.True(t, HasCode(Wrap(err, "outer"), CodeLineDispatchPending), "found through a wrapping error chain")
+	assert.False(t, HasCode(errors.New("plain"), CodeLineDispatchPending))
+	assert.False(t, HasCode(nil, CodeLineDispatchPending))
+}

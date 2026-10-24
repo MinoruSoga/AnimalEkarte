@@ -22,7 +22,10 @@ type liffSettingsResponse struct {
 	BookingWindowMaxDays int    `json:"booking_window"`
 }
 
-func toLiffSettingsResponse(s *model.LineReservationSetting) liffSettingsResponse {
+// toLiffSettingsResponse は LIFF 公開設定を返す。liff_id は line_reservation_settings から DROP 済みで、
+// clinic_integrations(service='lstep') の値を liffID として受け取る（EMR-504 Q8）。
+// 未設定の医院は空文字（LIFF アプリは空の LIFF ID では初期化せず、LiffAuth も 503 を返す）。
+func toLiffSettingsResponse(s *model.LineReservationSetting, liffID string) liffSettingsResponse {
 	return liffSettingsResponse{
 		Status:               s.Status,
 		HeaderText:           s.HeaderText,
@@ -31,7 +34,7 @@ func toLiffSettingsResponse(s *model.LineReservationSetting) liffSettingsRespons
 		PrivacyPolicy:        s.PrivacyPolicy,
 		PhoneNumber:          s.PhoneNumber,
 		RequestExample:       s.RequestExample,
-		LiffID:               s.LiffID,
+		LiffID:               liffID,
 		ShowNoStaffOption:    s.ShowNoStaffOption,
 		BookingWindowMaxDays: s.BookingWindowMaxDays,
 	}

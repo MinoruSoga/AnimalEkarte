@@ -36,10 +36,8 @@ type UpsertLineReservationSettingInput struct {
 	NoStaffMode             string
 	ShowNoStaffOption       bool
 	AdditionalFields        []byte
-	LineChannelID           string
-	// LineChannelSecret removed in R-05 Phase B — canonical SoT is clinic_integrations.
-	LiffID          string
-	LineAccessToken string
+	// EMR-504: LINE credentials (channel ID / LIFF ID / access token / channel secret) are not part
+	// of the reservation setting; their only store is clinic_integrations (lstep-settings API).
 }
 
 // LineReservationSettingService は予約基本設定のビジネスロジックインターフェース
@@ -50,21 +48,11 @@ type LineReservationSettingService interface {
 
 type lineReservationSettingService struct {
 	repo LineReservationSettingRepository
-	// encrypt/decrypt は LINE credential の暗号化 helper（lstep 系実装・topo で import 不可）の
-	// closure 注入（R④ notification と同型・composition rootが実装を包んで渡す）。
-	encryptCredential func(value string) (string, error)
-	decryptCredential func(ctx context.Context, value string) string
-	// nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 }
 
 // NewLineReservationSettingService は LineReservationSettingService を初期化して返す。
-// closure が nil/空文字素通しを判定する場合（旧 cipher=nil 契約）は暗号化なしで動作する（lstep 連携と同一の cipher をcomposition rootから受け取る）。
-func NewLineReservationSettingService(
-	repo LineReservationSettingRepository,
-	encryptCredential func(value string) (string, error),
-	decryptCredential func(ctx context.Context, value string) string,
-) LineReservationSettingService {
-	return &lineReservationSettingService{repo: repo, encryptCredential: encryptCredential, decryptCredential: decryptCredential}
+func NewLineReservationSettingService(repo LineReservationSettingRepository) LineReservationSettingService {
+	return &lineReservationSettingService{repo: repo}
 }
 
 func (s *lineReservationSettingService) Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -163,25 +151,6 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 	}
 	isNew := existing == nil
 
-	// LineAccessToken はレスポンスに含まれないため、フロントエンドは既存値を読み取れない。
-	// 空文字が送られてきた場合は既存値（DB 上は暗号文）を復号して平文として保持する。
-	// lstep.DecryptLineCredential はレガシー平文行もそのまま返す。
-	//
-	// R-05 Phase B: LineChannelSecret は本経路では一切読まない・書かない。
-	// 正規 write owner は clinic_integrations（L-step 設定 API）。
-	// 既存 DB 列の値は repository の OnConflict 除外で温存し、presence SELECT 用に残す。
-	accessToken := input.LineAccessToken
-	if existing != nil && accessToken == "" {
-		accessToken = s.decryptCredential(ctx, existing.LineAccessToken)
-	}
-
-	// H-4: access token は保存時に常に暗号化する。既存のレガシー平文行は、この経路
-	// （次回保存）で自然に暗号化される（機会的再暗号化）。一括 migration は行わない。
-	encryptedToken, err := s.encryptCredential(accessToken)
-	if err != nil {
-		return nil, false, apperrors.Wrap(err, "failed to encrypt line access token")
-	}
-
 	setting := &model.LineReservationSetting{
 		ClinicID:                clinicID,
 		Status:                  input.Status,
@@ -193,7 +162,7 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		ClosedDates:             closedDates,
 		NationalHolidayClosed:   input.NationalHolidayClosed,
 		BusinessHours:           businessHours,
-		BusinessHoursByWeekday:  input.BusinessHoursByWeekday,
+		BusinessHoursByWeekday:  nullableJSONPtr(input.BusinessHoursByWeekday),
 		BreakHours:              breakHours,
 		DailyLimit:              input.DailyLimit,
 		MonthlyLimit:            input.MonthlyLimit,
@@ -208,11 +177,6 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		NoStaffMode:             input.NoStaffMode,
 		ShowNoStaffOption:       input.ShowNoStaffOption,
 		AdditionalFields:        additionalFields,
-		LineChannelID:           input.LineChannelID,
-		// LineChannelSecret: intentionally unset (zero). Create inserts empty;
-		// update OnConflict excludes the column so existing values stay intact.
-		LiffID:          input.LiffID,
-		LineAccessToken: encryptedToken,
 	}
 	if err := s.repo.Save(ctx, clinicID, setting); err != nil {
 		return nil, false, apperrors.Wrap(err, "failed to upsert reservation setting")

@@ -1,10 +1,12 @@
 package reservation
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -27,7 +29,7 @@ func TestToLineReservationSettingResponse(t *testing.T) {
 			ClosedDates:             []byte(`["2026-01-01"]`),
 			NationalHolidayClosed:   true,
 			BusinessHours:           []byte(`{"start":"0900","end":"1900"}`),
-			BusinessHoursByWeekday:  []byte(`{"mon":{"start":"0900","end":"1800"}}`),
+			BusinessHoursByWeekday:  nullableJSONPtr([]byte(`{"mon":{"start":"0900","end":"1800"}}`)),
 			BreakHours:              []byte(`[{"start":"1200","end":"1300"}]`),
 			DailyLimit:              &dailyLimit,
 			MonthlyLimit:            &monthlyLimit,
@@ -42,10 +44,6 @@ func TestToLineReservationSettingResponse(t *testing.T) {
 			NoStaffMode:             "first_available",
 			ShowNoStaffOption:       true,
 			AdditionalFields:        []byte(`{}`),
-			LineChannelID:           "channel-123",
-			LineChannelSecret:       "secret-should-not-leak",
-			LiffID:                  "liff-456",
-			LineAccessToken:         "token-should-not-leak",
 			CreatedAt:               created,
 			UpdatedAt:               updated,
 		}
@@ -68,10 +66,13 @@ func TestToLineReservationSettingResponse(t *testing.T) {
 		require.Equal(100, *resp.MonthlyLimit)
 		assert.Equal(t, 30, resp.BookingWindowMaxDays)
 		assert.Equal(t, 2, resp.BookingWindowMinDays)
-		assert.Equal(t, "channel-123", resp.LineChannelID)
-		assert.Equal(t, "liff-456", resp.LiffID)
-		// セキュリティ上、LineChannelSecret / LineAccessToken は lineReservationSettingResponse に
-		// フィールド自体が存在しないため、構造体に含まれないことを型で保証している。
+
+		// EMR-504: LINE 資格情報（channel ID / LIFF ID / token / secret）は応答に存在しない。
+		raw, err := json.Marshal(resp)
+		assert.NoError(t, err)
+		for _, key := range []string{"line_channel_id", "line_channel_secret", "liff_id", "line_access_token"} {
+			assert.NotContains(t, string(raw), `"`+key+`"`)
+		}
 	})
 
 	t.Run("converts setting with nil optional limits and empty byte fields", func(t *testing.T) {
@@ -95,5 +96,23 @@ func TestToLineReservationSettingResponse(t *testing.T) {
 		assert.Nil(t, resp.MonthlyLimit)
 		assert.Equal(t, "stopped", resp.Status)
 		assert.Empty(t, resp.BusinessHoursByWeekday)
+	})
+
+	// EMR-504 contract A: NULL (override released) is omitted from the wire; a stored JSON value is kept.
+	t.Run("business_hours_by_weekday NULL is omitted and a stored value is returned", func(t *testing.T) {
+		base := model.LineReservationSetting{
+			ClosedWeekdays: []byte(`[]`), ClosedDates: []byte(`[]`), BusinessHours: []byte(`{}`),
+			BreakHours: []byte(`[]`), AdditionalFields: []byte(`{}`),
+		}
+		withNull := base
+		raw, err := json.Marshal(toLineReservationSettingResponse(&withNull))
+		require.NoError(t, err)
+		assert.NotContains(t, string(raw), "business_hours_by_weekday")
+
+		withValue := base
+		withValue.BusinessHoursByWeekday = nullableJSONPtr([]byte(`{"6":{"start":"0900","end":"1300"}}`))
+		raw, err = json.Marshal(toLineReservationSettingResponse(&withValue))
+		require.NoError(t, err)
+		assert.Contains(t, string(raw), `"business_hours_by_weekday":{"6":{"start":"0900","end":"1300"}}`)
 	})
 }

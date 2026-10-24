@@ -171,21 +171,21 @@ func newRuntimeLstepApplication(
 	auditKernel audit.Kernel,
 ) *lstep.Application {
 	return lstep.NewApplication(&lstep.Dependencies{
-		DB:                  dependencies.DB,
-		Cipher:              dependencies.IntegrationCipher,
-		SharedFileStorage:   dependencies.SharedStorage,
-		Owners:              repositories.ownerPet.Owner,
-		OwnerLifecycle:      ownerLifecycleWriterAdapter{inner: repositories.ownerPet.Owner},
-		Pets:                repositories.ownerPet.Pet,
-		PetLifecycle:        petLifecycleWriterAdapter{inner: repositories.ownerPet.Pet},
-		Vaccinations:        repositories.medicalRecord.vaccinations,
-		MedicalRecords:      repositories.medicalRecord.medicalRecords,
-		Accounting:          repositories.billing.accounting,
-		Checkups:            repositories.medicalRecord.checkups,
-		BillingItems:        repositories.billing.billingItems,
-		ClinicSettings:      repositories.clinic.Settings,
-		ReservationSettings: repositories.reservation.LineReservationSettings,
-		Reservations:        repositories.reservation.Reservations,
+		DB:                dependencies.DB,
+		Cipher:            dependencies.IntegrationCipher,
+		SharedFileStorage: dependencies.SharedStorage,
+		Owners:            repositories.ownerPet.Owner,
+		OwnerLifecycle:    ownerLifecycleWriterAdapter{inner: repositories.ownerPet.Owner},
+		Pets:              repositories.ownerPet.Pet,
+		PetLifecycle:      petLifecycleWriterAdapter{inner: repositories.ownerPet.Pet},
+		Vaccinations:      repositories.medicalRecord.vaccinations,
+		MedicalRecords:    repositories.medicalRecord.medicalRecords,
+		Accounting:        repositories.billing.accounting,
+		Checkups:          repositories.medicalRecord.checkups,
+		BillingItems:      repositories.billing.billingItems,
+		ClinicSettings:    repositories.clinic.Settings,
+		WebhookRoutes:     repositories.reservation.LineReservationSettings,
+		Reservations:      repositories.reservation.Reservations,
 		// EMR-308: next_visit_* タグ同期と tentative リマインダー配信の appointment 参照
 		// （candidate 抽出・送信直前再検証）。同一 ReservationStore を共有する。
 		Appointments:          repositories.reservation.Reservations,
@@ -398,10 +398,9 @@ func newRuntimeReservationComposition(
 			NotificationConfig: reservationNotificationConfig(
 				dependencies.Config,
 			),
-			EncryptCredential: reservationCredentialEncryptor(
-				dependencies.IntegrationCipher,
-			),
-			DecryptCredential: reservationCredentialDecryptor(
+			// EMR-504 Q5(a): 予約の完了・キャンセル Push のトークンは clinic_integrations の暗号文。
+			// lstep 連携設定と同じ cipher で復号する（失敗は Push のみ止め、メール通知は継続する）。
+			DecryptCredential: reservationLineTokenDecryptor(
 				dependencies.IntegrationCipher,
 			),
 			NewLineMessenger: newReservationLineMessenger,
@@ -410,19 +409,18 @@ func newRuntimeReservationComposition(
 	)
 }
 
-func reservationCredentialEncryptor(
+// reservationLineTokenDecryptor は clinic_integrations に暗号化保存された LINE チャネルアクセストークンを、
+// lstep 連携設定（lstep_settings_credentials.go の decrypt）と同じ cipher・同じ規則で復号する。
+// cipher が nil（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定）のときは平文のまま返す。
+// 復号失敗は空文字へ置換せず error を返す（呼び出し側は Push を行わずログのみ）。
+func reservationLineTokenDecryptor(
 	cipher *appcrypto.AESGCMCipher,
 ) func(string) (string, error) {
 	return func(value string) (string, error) {
-		return lstep.EncryptLineCredential(cipher, value)
-	}
-}
-
-func reservationCredentialDecryptor(
-	cipher *appcrypto.AESGCMCipher,
-) func(context.Context, string) string {
-	return func(ctx context.Context, value string) string {
-		return lstep.DecryptLineCredential(ctx, cipher, value)
+		if cipher == nil {
+			return value, nil
+		}
+		return cipher.Decrypt(value)
 	}
 }
 

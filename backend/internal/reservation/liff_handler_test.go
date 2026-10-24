@@ -25,7 +25,7 @@ import (
 // ================================================================
 
 type mockLiffService struct {
-	getSettingsFn        func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	getSettingsFn        func(ctx context.Context, clinicID uint64) (*LiffPublicSettings, error)
 	getProfileFn         func(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error)
 	getCoursesFn         func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
 	getTrimmingCoursesFn func(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
@@ -39,11 +39,11 @@ type mockLiffService struct {
 	getHealthCardFn      func(ctx context.Context, clinicID, customerID uint64) (*HealthCardResult, error)
 }
 
-func (m *mockLiffService) GetSettings(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+func (m *mockLiffService) GetSettings(ctx context.Context, clinicID uint64) (*LiffPublicSettings, error) {
 	if m.getSettingsFn != nil {
 		return m.getSettingsFn(ctx, clinicID)
 	}
-	return &model.LineReservationSetting{ClinicID: clinicID, Status: "active"}, nil
+	return &LiffPublicSettings{Setting: &model.LineReservationSetting{ClinicID: clinicID, Status: "active"}}, nil
 }
 
 func (m *mockLiffService) GetProfile(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error) {
@@ -189,16 +189,43 @@ func doLiffRequest(t *testing.T, r *gin.Engine, method, path string, body any) *
 func TestGetLiffSettings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("正常系: 200 + 設定情報", func(t *testing.T) {
+	t.Run("正常系: 200 + 設定情報（clinic_integrations の liff_id を含む）", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{
-			getSettingsFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+			getSettingsFn: func(_ context.Context, clinicID uint64) (*LiffPublicSettings, error) {
 				assert.Equal(t, uint64(3), clinicID)
-				return &model.LineReservationSetting{ClinicID: 3, Status: "active", PhoneNumber: "052-000-0000"}, nil
+				return &LiffPublicSettings{
+					Setting: &model.LineReservationSetting{ClinicID: 3, Status: "active", PhoneNumber: "052-000-0000"},
+					LiffID:  "1234567890-abcdefgh",
+				}, nil
 			},
 		})
 		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/settings", nil)
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "active")
+		var body map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		var liffID string
+		require.NoError(t, json.Unmarshal(body["liff_id"], &liffID))
+		assert.Equal(t, "1234567890-abcdefgh", liffID)
+	})
+
+	t.Run("liff_id 未設定の医院は空文字で返す（キーは常に出す）", func(t *testing.T) {
+		h := newLiffHandler(&mockLiffService{
+			getSettingsFn: func(_ context.Context, clinicID uint64) (*LiffPublicSettings, error) {
+				return &LiffPublicSettings{Setting: &model.LineReservationSetting{ClinicID: clinicID, Status: "active"}}, nil
+			},
+		})
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/settings", nil)
+		assert.Equal(t, http.StatusOK, w.Code)
+		var body map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		rawLiffID, ok := body["liff_id"]
+		assert.True(t, ok, "liff_id key must always be present")
+		// json.Unmarshal は null を無エラーで空文字として受理するため、デコード前に生の値が JSON 空文字列 "" であることを固定する
+		assert.JSONEq(t, `""`, string(rawLiffID), "liff_id must be the empty string, not null")
+		var liffID string
+		require.NoError(t, json.Unmarshal(rawLiffID, &liffID))
+		assert.Equal(t, "", liffID)
 	})
 
 	t.Run("clinicId が数値でない → 400", func(t *testing.T) {
@@ -209,7 +236,7 @@ func TestGetLiffSettings(t *testing.T) {
 
 	t.Run("サービスエラー → 500", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{
-			getSettingsFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+			getSettingsFn: func(_ context.Context, _ uint64) (*LiffPublicSettings, error) {
 				return nil, errors.New("internal error")
 			},
 		})

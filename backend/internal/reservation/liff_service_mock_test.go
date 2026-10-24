@@ -19,7 +19,8 @@ import (
 // --- mockLineReservationSettingRepository ---
 
 type mockLiffSettingRepository struct {
-	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	findByClinicIDFn       func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	findIntegrationValueFn func(ctx context.Context, clinicID uint64, keyName string) (string, error)
 }
 
 func (m *mockLiffSettingRepository) FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -27,6 +28,13 @@ func (m *mockLiffSettingRepository) FindByClinicID(ctx context.Context, clinicID
 		return m.findByClinicIDFn(ctx, clinicID)
 	}
 	return nil, errors.New("not implemented")
+}
+
+func (m *mockLiffSettingRepository) FindIntegrationValue(ctx context.Context, clinicID uint64, keyName string) (string, error) {
+	if m.findIntegrationValueFn != nil {
+		return m.findIntegrationValueFn(ctx, clinicID, keyName)
+	}
+	return "", nil
 }
 
 func (m *mockLiffSettingRepository) FindAll(_ context.Context) ([]model.LineReservationSetting, error) {
@@ -708,7 +716,6 @@ func liffDefaultSetting() *model.LineReservationSetting {
 		ID:                      1,
 		ClinicID:                3,
 		Status:                  "active",
-		LiffID:                  "1234567890-abcdefgh",
 		BusinessHours:           json.RawMessage(`{"start":"0900","end":"1900"}`),
 		BreakHours:              json.RawMessage(`[{"start":"1200","end":"1300"}]`),
 		BookingWindowMinDays:    2,

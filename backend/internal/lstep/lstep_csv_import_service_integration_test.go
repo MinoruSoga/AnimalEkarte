@@ -89,8 +89,12 @@ func TestImportFriendAttributesCSV_Integration_HappyPath(t *testing.T) {
 		t.Fatalf("snapshot csv_import_id = %v, want %s", snapshot.CsvImportID, imp.ID)
 	}
 
+	if snapshot.Tags == nil || snapshot.Scenarios == nil || persistedImport.ErrorLog == nil {
+		t.Fatalf("tags/scenarios/error_log must be stored as JSON: tags=%v scenarios=%v errorLog=%v", snapshot.Tags, snapshot.Scenarios, persistedImport.ErrorLog)
+	}
+
 	var tags []string
-	if err := json.Unmarshal(snapshot.Tags, &tags); err != nil {
+	if err := json.Unmarshal(*snapshot.Tags, &tags); err != nil {
 		t.Fatalf("failed to unmarshal tags: %v", err)
 	}
 	if len(tags) != 2 || tags[0] != "tagA" || tags[1] != "tagB" {
@@ -98,7 +102,7 @@ func TestImportFriendAttributesCSV_Integration_HappyPath(t *testing.T) {
 	}
 
 	var scenarios []string
-	if err := json.Unmarshal(snapshot.Scenarios, &scenarios); err != nil {
+	if err := json.Unmarshal(*snapshot.Scenarios, &scenarios); err != nil {
 		t.Fatalf("failed to unmarshal scenarios: %v", err)
 	}
 	if len(scenarios) != 2 || scenarios[0] != "scenario1" || scenarios[1] != "scenario2" {
@@ -106,7 +110,7 @@ func TestImportFriendAttributesCSV_Integration_HappyPath(t *testing.T) {
 	}
 
 	var errorLog []csvImportErrorEntry
-	if err := json.Unmarshal(persistedImport.ErrorLog, &errorLog); err != nil {
+	if err := json.Unmarshal(*persistedImport.ErrorLog, &errorLog); err != nil {
 		t.Fatalf("failed to unmarshal error log: %v", err)
 	}
 	if len(errorLog) != 1 {
@@ -115,7 +119,7 @@ func TestImportFriendAttributesCSV_Integration_HappyPath(t *testing.T) {
 	if errorLog[0].Reason != csvErrorReasonUnknownLineUserID {
 		t.Fatalf("unexpected error log entry: %#v", errorLog[0])
 	}
-	if strings.Contains(string(persistedImport.ErrorLog), "U_unknown_999") {
+	if strings.Contains(string(*persistedImport.ErrorLog), "U_unknown_999") {
 		t.Fatal("error log must not persist the unmatched LINE user ID")
 	}
 }
