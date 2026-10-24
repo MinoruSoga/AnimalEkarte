@@ -49,110 +49,13 @@ type CategoryPaymentAllocationData struct {
 // Tax/insurance/billing-level discount shrink payment net (the allocated amount), not weights.
 const itemWeightSQL = `GREATEST(0, ROUND(bi.unit_price * bi.quantity::numeric) - bi.discount_amount)::bigint`
 
-// GetCategoryPaymentAllocationData loads per-billing weights/payments/refunds/counts for a period.
-// Shared by cash-register close and monthly category×payment matrix (#247 DEC-16⑥).
-func (r *accountingRepository) GetCategoryPaymentAllocationData(
-	ctx context.Context,
-	clinicID uint64,
-	periodStart, periodEnd time.Time,
-) (*CategoryPaymentAllocationData, error) {
-	cArgs := []any{clinicID, model.BillingStatusCompleted, periodStart.In(time.Local), periodEnd.In(time.Local)}
-	completedCTE := completedBillingsCTE("id, clinic_id")
-
-	var weights []allocationCategoryWeightRow
-	if err := r.db.WithContext(ctx).Raw(
-		completedCTE+`
-		SELECT bi.billing_id,
-		       bi.category::text AS category,
-		       COALESCE(SUM(`+itemWeightSQL+`), 0) AS amount
-		FROM billing_items bi
-		WHERE bi.billing_id IN (SELECT id FROM completed_billings)
-		  AND bi.deleted_at IS NULL
-		GROUP BY bi.billing_id, bi.category
-		`, cArgs...).Scan(&weights).Error; err != nil {
-		return nil, apperrors.Wrap(err, "failed to load allocation category weights")
-	}
-
-	var payments []allocationPaymentRow
-	if err := r.db.WithContext(ctx).Raw(
-		completedCTE+`
-		SELECT ps.billing_id,
-		       ps.payment_method_id,
-		       COALESCE(SUM(ps.amount), 0) AS amount
-		FROM payment_splits ps
-		JOIN completed_billings cb
-		  ON cb.id = ps.billing_id
-		 AND cb.clinic_id = ps.clinic_id
-		GROUP BY ps.billing_id, ps.payment_method_id
-		`, cArgs...).Scan(&payments).Error; err != nil {
-		return nil, apperrors.Wrap(err, "failed to load allocation payments")
-	}
-
-	// Refunds by occurrence date (refunded_at) — DEC-16⑥ 発生日の負値.
-	var refunds []allocationRefundRow
-	if err := r.db.WithContext(ctx).Raw(`
-		SELECT br.billing_id,
-		       br.payment_method::text AS payment_method,
-		       br.amount
-		FROM billing_refunds br
-		WHERE br.clinic_id = ?
-		  AND br.refunded_at >= ?
-		  AND br.refunded_at < ?
-		`, clinicID, periodStart.In(time.Local), periodEnd.In(time.Local)).
-		Scan(&refunds).Error; err != nil {
-		return nil, apperrors.Wrap(err, "failed to load allocation refunds")
-	}
-
-	// Parent category weights for refunds whose billing is outside the completed period set.
-	refundParentIDs := make([]uint64, 0)
-	seenParent := make(map[uint64]struct{})
-	completedSet := make(map[uint64]struct{}, len(weights)+len(payments))
-	for _, w := range weights {
-		completedSet[w.BillingID] = struct{}{}
-	}
-	for _, p := range payments {
-		completedSet[p.BillingID] = struct{}{}
-	}
-	for _, ref := range refunds {
-		if _, ok := completedSet[ref.BillingID]; ok {
-			continue
-		}
-		if _, ok := seenParent[ref.BillingID]; ok {
-			continue
-		}
-		seenParent[ref.BillingID] = struct{}{}
-		refundParentIDs = append(refundParentIDs, ref.BillingID)
-	}
-
-	var refundParentWeights []allocationCategoryWeightRow
-	if len(refundParentIDs) > 0 {
-		var err error
-		refundParentWeights, err = r.loadCategoryWeightsForBillings(ctx, clinicID, refundParentIDs)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	var countRows []allocationCategoryCountRow
-	if err := r.db.WithContext(ctx).Raw(
-		completedCTE+`
-		SELECT bi.category::text AS category,
-		       COUNT(DISTINCT bi.billing_id) AS count
-		FROM billing_items bi
-		WHERE bi.billing_id IN (SELECT id FROM completed_billings)
-		  AND bi.deleted_at IS NULL
-		GROUP BY bi.category
-		`, cArgs...).Scan(&countRows).Error; err != nil {
-		return nil, apperrors.Wrap(err, "failed to load allocation category counts")
-	}
-
-	return &CategoryPaymentAllocationData{
-		Weights:             weights,
-		Payments:            payments,
-		Refunds:             refunds,
-		RefundParentWeights: refundParentWeights,
-		CategoryCounts:      categoryCountMap(countRows),
-	}, nil
+// GetCategoryPaymentAllocationData は部門別・支払方法別の配賦（#247 DEC-16⑥）の入力を期間で読み出していた。held for EMR-509。
+// 旧実装は completed 会計の payment_splits と billing_refunds（refunded_at）から支払方法別の実額を読んでいたが、
+// いずれも廃止された（001_init.sql:10889,10919-10920）。後継は受領 (payment_funds)・配賦 (fund_consumption_events)・
+// 返金の記録を実際の受領日で読む reader で、未接続のため、空の配賦を返さず固定エラー（422）で拒否する。
+// 月次レポートと締めプレビューが共有する。部門別の重み付け（loadCategoryWeightsForBillings）と純粋な配賦関数は残す。
+func (*accountingRepository) GetCategoryPaymentAllocationData(_ context.Context, _ uint64, _, _ time.Time) (*CategoryPaymentAllocationData, error) {
+	return nil, apperrors.WrapFinanceConsumerPending("部門別・支払方法別の配賦は、受領・配賦・返金の記録の読取が未接続のため利用できません")
 }
 
 func (r *accountingRepository) loadCategoryWeightsForBillings(

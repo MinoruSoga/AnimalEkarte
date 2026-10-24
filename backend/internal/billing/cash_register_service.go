@@ -2,8 +2,6 @@ package billing
 
 import (
 	"context"
-	"encoding/json"
-	"log/slog"
 	"sort"
 
 	"time"
@@ -12,7 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
-	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
 // CloseRegisterInput はレジ締め実行の入力
@@ -188,31 +185,6 @@ type CashRegisterService interface {
 	IsDateClosed(ctx context.Context, clinicID uint64, date time.Time) (bool, error)
 }
 
-// periodAggregate は集計処理の共通結果型
-type periodAggregate struct {
-	Schedule        *sharedkernel.DaySchedule
-	PaymentRows     []PaymentAggregateRow
-	CategoryRows    []CategoryAggregateRow
-	TotalRefund     int64
-	BillingDetails  []CloseBillingDetailRow
-	TaxBreakdown    []TaxBreakdownRow
-	TheoreticalCash int64
-	PeriodStart     time.Time
-	PeriodEnd       time.Time
-	// PaymentMethods は当該 clinic の支払方法マスタ。現金マスタ id 判定（#128）と GetPreview の二重ロード回避に使う。
-	PaymentMethods []model.PaymentMethodMaster
-	// TaxRates は病院マスタの税率設定。M-7(#191): 締めレジの税率分類を月次レポート経路（exact-match）と統一する。
-	TaxRates accountingReportTaxRates
-	// UnclassifiedOtherCount は category=other 明細を持つ会計の distinct 件数（DEC-40）。
-	UnclassifiedOtherCount int64
-	// CategoryPaymentMatrixSystemKey は system_key キーの配賦マトリクス（snapshot 用）。
-	CategoryPaymentMatrixSystemKey map[string]map[string]int64
-	// CategoryPaymentMatrixNames は表示名キーの配賦マトリクス（preview UI 用）。
-	CategoryPaymentMatrixNames map[string]map[string]int64
-	// CategoryCounts は部門ごとの会計 distinct 件数。
-	CategoryCounts map[string]int64
-}
-
 type cashRegisterService struct {
 	closeRepo      CashRegisterCloseRepository
 	accountingRepo AccountingRepository
@@ -249,84 +221,24 @@ func validatePeriod(period string) error {
 	return nil
 }
 
-// fetchAggregate は date/period から集計処理（スケジュール取得・期間算出・会計集計）を実行する共通ロジック
-func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint64, date time.Time, period string) (*periodAggregate, error) {
-	schedule, err := s.closingsSvc.ResolveSchedule(ctx, clinicID, date)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to resolve schedule")
-	}
+// レジ締めのプレビューと締めの作成は、held for EMR-509。
+// 旧実装は completed_at 基準の会計集計（payments / payment_splits / billing_refunds）から理論現金を算出し、
+// cash_difference を保存していたが、いずれも廃止された（001_init.sql:10899,10918-10920）。後継は締め境界の版
+// （closing_boundary_revisions）・開始残高（cash_opening_balances）・現金の補充回収（cash_adjustment_events）・
+// 受領と返金の記録（finance_source_events）を束ねる締め文脈（cash_close_contexts。D12）で、その reader / writer が未接続のため、
+// 入力の形の検証の後に固定エラー（422）で拒否する。理論現金を 0 などで返さず、締めレコードを作らない。
+// 締め済みの一覧・詳細・締め済み判定の読取は残す。
+// 診療終了の判定などを含む旧集計の純粋な helper（resolvePeriodRange・calcTheoreticalCash・buildCategoryBreakdown 等）は 509 が再利用する。
+const (
+	cashRegisterPreviewPendingMessage = "レジ締めのプレビューは、受領・返金・確定の記録と締め境界の版の読取が未接続のため利用できません"
+	cashRegisterClosePendingMessage   = "レジ締めの実行は、締め文脈（開始残高・補充回収・受領と返金の記録）の保存が未接続のため利用できません"
+)
 
-	dateJST := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, config.JST)
-
-	periodStart, periodEnd, err := resolvePeriodRange(dateJST, period, schedule)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to fetch aggregate cash register")
-	}
-
-	aggregate, err := s.accountingRepo.GetCloseAggregate(ctx, GetCloseAggregateInput{
-		ClinicID:    clinicID,
-		PeriodStart: periodStart,
-		PeriodEnd:   periodEnd,
-	})
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to aggregate billings")
-	}
-
-	// #128: 現金マスタ id を解決し、payment_method_id=現金id の split を理論現金に含める。
-	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to load payment methods for aggregate")
-	}
-	cashMethodID, err := findCashMethodID(payMethods)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to find cash payment method")
-	}
-
-	// M-7(#191): 税率分類は固定閾値ではなく病院マスタ税率（exact-match）で行う（月次レポート経路と統一）。
-	clinic, err := s.clinicRepo.FindByID(ctx, clinicID)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to load clinic for tax rates")
-	}
-
-	// #247 DEC-16⑥: per-billing 配賦（期間全体 payment 比率の擬似按分は禁止）
-	allocData, err := s.accountingRepo.GetCategoryPaymentAllocationData(ctx, clinicID, periodStart, periodEnd)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to load category payment allocation data")
-	}
-	sysKeyFn, sysRefundFn := BuildSystemKeyMethodResolvers(payMethods)
-	nameFn, nameRefundFn := BuildNameMethodResolvers(payMethods)
-	matrixSystemKey := computeCategoryPaymentMatrix(allocData, sysKeyFn, sysRefundFn)
-	matrixNames := computeCategoryPaymentMatrix(allocData, nameFn, nameRefundFn)
-	categoryCounts := map[string]int64{}
-	if allocData != nil && allocData.CategoryCounts != nil {
-		categoryCounts = allocData.CategoryCounts
-	}
-
-	return &periodAggregate{
-		Schedule:                       schedule,
-		PaymentRows:                    aggregate.PaymentRows,
-		CategoryRows:                   aggregate.CategoryRows,
-		TotalRefund:                    aggregate.TotalRefund,
-		BillingDetails:                 aggregate.BillingDetails,
-		TaxBreakdown:                   aggregate.TaxBreakdown,
-		TheoreticalCash:                calcTheoreticalCash(aggregate.PaymentRows, aggregate.TotalRefund, cashMethodID),
-		PeriodStart:                    periodStart,
-		PeriodEnd:                      periodEnd,
-		PaymentMethods:                 payMethods,
-		TaxRates:                       clinicTaxRates(clinic),
-		UnclassifiedOtherCount:         aggregate.UnclassifiedOtherCount,
-		CategoryPaymentMatrixSystemKey: matrixSystemKey,
-		CategoryPaymentMatrixNames:     matrixNames,
-		CategoryCounts:                 categoryCounts,
-	}, nil
-}
-
-func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, dateStr, period string) (*CashRegisterPreview, error) {
+func (*cashRegisterService) GetPreview(_ context.Context, _ uint64, dateStr, period string) (*CashRegisterPreview, error) {
 	if dateStr == "" {
 		return nil, apperrors.WrapInvalidInput("date クエリパラメータは必須です")
 	}
-	date, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local)
-	if err != nil {
+	if _, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local); err != nil {
 		return nil, apperrors.WrapInvalidInput("date は YYYY-MM-DD 形式で指定してください")
 	}
 	if period == "" {
@@ -335,148 +247,18 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	if err := validatePeriod(period); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate period")
 	}
-
-	agg, err := s.fetchAggregate(ctx, clinicID, date, period)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to fetch aggregate cash register")
-	}
-
-	// 二重締め確認
-	existing, err := s.closeRepo.FindByDateAndPeriod(ctx, clinicID, date, period)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to check existing close")
-	}
-	isAlreadyClosed := existing != nil
-
-	// 支払方法マスタは fetchAggregate で取得済みのものを再利用する（#128: 二重ロード回避）
-	payMethods := agg.PaymentMethods
-	payMethodNames := buildPayMethodNameMap(payMethods)
-
-	// #247: per-billing 配賦済みマトリクス（表示名キー）
-	categories, err := buildPreviewCategories(agg.CategoryPaymentMatrixNames)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to build preview categories")
-	}
-
-	// 個別会計一覧を変換
-	details := make([]CloseBillingDetail, 0, len(agg.BillingDetails))
-	for _, d := range agg.BillingDetails {
-		pmName := paymentMethodNameForClose(d.PaymentMethodID, payMethodNames)
-		details = append(details, CloseBillingDetail{
-			BillingID:         d.BillingID,
-			PaidAt:            timeutil.LocalRFC3339(d.PaidAt),
-			OwnerName:         d.OwnerName,
-			PetName:           d.PetName,
-			IsHospitalization: d.IsHospitalization,
-			Category:          d.Category,
-			PaymentMethodID:   d.PaymentMethodID,
-			PaymentMethodName: pmName,
-			BillingAmount:     d.BillingAmount,
-			RefundAmount:      d.RefundAmount,
-			NetAmount:         d.NetAmount,
-			CategoryAmounts:   d.CategoryAmounts,
-		})
-	}
-
-	// 税率別集計
-	taxSummary := buildTaxBreakdown(agg.TaxBreakdown, agg.TaxRates)
-
-	return &CashRegisterPreview{
-		Date:            date.In(time.Local).Format(time.DateOnly),
-		Period:          period,
-		PeriodStart:     timeutil.LocalRFC3339(agg.PeriodStart),
-		PeriodEnd:       timeutil.LocalRFC3339(agg.PeriodEnd),
-		IsAlreadyClosed: isAlreadyClosed,
-		IsHoliday:       agg.Schedule != nil && agg.Schedule.IsHoliday,
-		Aggregate: CloseAggregateSummary{
-			Categories:             categories,
-			PaymentMethods:         orderPaymentMethodsForMatrix(payMethods, categories),
-			TheoreticalCash:        agg.TheoreticalCash,
-			TaxBreakdown:           taxSummary,
-			UnclassifiedOtherCount: agg.UnclassifiedOtherCount,
-			CategoryCounts:         agg.CategoryCounts,
-		},
-		BillingDetails: details,
-	}, nil
+	return nil, apperrors.WrapFinanceConsumerPending(cashRegisterPreviewPendingMessage)
 }
 
-func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error) {
+// Close は transaction・境界ロックを開く前に拒否する（失敗のためだけに advisory lock を取らない）。
+func (*cashRegisterService) Close(_ context.Context, _ uint64, input CloseRegisterInput) (*model.CashRegisterClose, error) {
 	if err := validatePeriod(input.Period); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate period")
-	}
-	if s.transactor == nil {
-		return nil, apperrors.WrapInternalServerError("cash register close transactor is required")
-	}
-
-	var record *model.CashRegisterClose
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		closed, err := s.closeInTx(txCtx, clinicID, input)
-		if err != nil {
-			return err
-		}
-		record = closed
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	slog.InfoContext(ctx, "cash register closed",
-		slog.Uint64("clinic_id", clinicID),
-		slog.String("date", input.Date.Format(time.DateOnly)),
-		slog.String("period", input.Period),
-		slog.Int64("theoretical_cash", record.TheoreticalCash),
-		slog.Int64("actual_cash", input.ActualCash))
-
-	return record, nil
-}
-
-func (s *cashRegisterService) closeInTx(ctx context.Context, clinicID uint64, input CloseRegisterInput) (*model.CashRegisterClose, error) {
-	if err := s.closeRepo.LockCloseBoundary(ctx, clinicID, input.Date); err != nil {
-		return nil, err
-	}
-
-	existing, err := s.closeRepo.FindByDateAndPeriod(ctx, clinicID, input.Date, input.Period)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to check existing close")
-	}
-	if existing != nil {
-		return nil, apperrors.WrapConflict("この日時はすでに締め済みです")
-	}
-
-	agg, err := s.fetchAggregate(ctx, clinicID, input.Date, input.Period)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to fetch aggregate cash register")
-	}
-
-	if agg.Schedule != nil && agg.Schedule.IsHoliday {
-		return nil, apperrors.WrapInvalidInput("休診日は締め処理できません")
 	}
 	if input.ActualCash < 0 {
 		return nil, apperrors.WrapInvalidInput("actual_cash は 0 以上で指定してください")
 	}
-
-	breakdownSchema := buildCategoryBreakdown(agg.CategoryPaymentMatrixSystemKey, agg.TaxBreakdown, agg.TaxRates, agg.UnclassifiedOtherCount)
-	breakdownJSON, err := json.Marshal(breakdownSchema)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to marshal category breakdown")
-	}
-
-	record := &model.CashRegisterClose{
-		ClinicID:          clinicID,
-		CloseDate:         input.Date,
-		Period:            input.Period,
-		TheoreticalCash:   agg.TheoreticalCash,
-		ActualCash:        input.ActualCash,
-		CashDifference:    input.ActualCash - agg.TheoreticalCash,
-		CategoryBreakdown: breakdownJSON,
-		Memo:              input.Memo,
-		ClosedBy:          input.ClosedBy,
-		ClosedAt:          time.Now(),
-	}
-	if err := s.closeRepo.Create(ctx, record); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create cash register close")
-	}
-	return record, nil
+	return nil, apperrors.WrapFinanceConsumerPending(cashRegisterClosePendingMessage)
 }
 
 func (s *cashRegisterService) List(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error) {

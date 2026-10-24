@@ -24,6 +24,10 @@ type cashRegisterCloseResponse struct {
 	UpdatedAt         time.Time       `json:"updated_at"`
 }
 
+// toCashRegisterCloseResponse は締めレコードをレスポンスへ写像する。
+// cash_difference は保存列が廃止された（001_init.sql:10899）ため、実査額 - 理論現金からこの写像でだけ導く（書込みはしない）。
+// held for EMR-509: 実査訂正（cash_actual_corrections）が書かれ始めると有効な実査額が変わるが、この導出は訂正を反映しない。
+// 訂正の reader を実装するまでの導出で、訂正済みの締めの差額を正しく表さない。
 func toCashRegisterCloseResponse(r *model.CashRegisterClose) cashRegisterCloseResponse {
 	return cashRegisterCloseResponse{
 		ID:                r.ID,
@@ -32,7 +36,7 @@ func toCashRegisterCloseResponse(r *model.CashRegisterClose) cashRegisterCloseRe
 		Period:            r.Period,
 		TheoreticalCash:   r.TheoreticalCash,
 		ActualCash:        r.ActualCash,
-		CashDifference:    r.CashDifference,
+		CashDifference:    r.ActualCash - r.TheoreticalCash,
 		CategoryBreakdown: r.CategoryBreakdown,
 		Memo:              r.Memo,
 		ClosedBy:          r.ClosedBy,

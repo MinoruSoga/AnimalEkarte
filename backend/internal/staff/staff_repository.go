@@ -469,11 +469,7 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 				  AND exams.clinic_id = ?
 				  AND exams.deleted_at IS NULL
 			)`, clinicID).
-			Where(`NOT EXISTS (
-				SELECT 1 FROM billing_refunds
-				WHERE billing_refunds.refunded_by = staffs.id
-				  AND billing_refunds.clinic_id = ?
-			)`, clinicID).
+			Scopes(notReferencedByFinanceStaffColumns(clinicID)).
 			Where(`NOT EXISTS (
 				SELECT 1 FROM cash_register_closes
 				WHERE cash_register_closes.closed_by = staffs.id
@@ -504,12 +500,6 @@ func (r *staffRepository) Delete(ctx context.Context, clinicID, id uint64) error
 						  AND daily_records.clinic_id = vital_records.clinic_id
 					))
 				  )
-			)`, clinicID).
-			Where(`NOT EXISTS (
-				SELECT 1 FROM payments
-				JOIN billings ON billings.id = payments.billing_id AND billings.clinic_id = ?
-				WHERE payments.paid_by = staffs.id
-				  AND payments.deleted_at IS NULL
 			)`, clinicID).
 			Update("deleted_at", gorm.Expr("now()"))
 		if result.Error != nil {
@@ -569,7 +559,7 @@ func (r *staffRepository) Reorder(ctx context.Context, clinicID uint64, ids []ui
 
 func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error) {
 	// clinic_id カラムを直接持つテーブルのみ汎用ループで処理。
-	// payments は clinic_id を持たないため後述の特殊クエリで対応。
+	// 財務系の表は financeStaffReferences（staff_finance_references.go）の一覧で、末尾の別ループが数える。
 	// medical_record_addenda / vital_records は子 clinic_id を持つが親業務行と
 	// 食い違いうるため、親 clinic 相関を別クエリで行う（SEC-SWEEP-02-STAFF-B1）。
 	// exams.entered_by カラムは存在しないため除外。
@@ -584,7 +574,6 @@ func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, 
 		{table: "hospitalizations", column: "doctor_id", label: "入院記録", softDel: true},
 		{table: "exams", column: "doctor_id", label: "検査", softDel: true},
 		{table: "shift_entries", column: "staff_id", label: "シフト", softDel: false},
-		{table: "billing_refunds", column: "refunded_by", label: "返金", softDel: false},
 		{table: "cash_register_closes", column: "closed_by", label: "レジ締め", softDel: false},
 	}
 
@@ -648,17 +637,19 @@ func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, 
 		dependencies = append(dependencies, StaffDependencyCount{Label: "バイタル記録", Count: vitalCount})
 	}
 
-	// payments は clinic_id を持たない。billings 経由で clinic_id をフィルタする。
-	var paymentCount int64
-	if err := persistence.DBOrTx(ctx, r.db).
-		Table("payments").
-		Joins("INNER JOIN billings ON billings.id = payments.billing_id AND billings.clinic_id = ?", clinicID).
-		Where("payments.paid_by = ? AND payments.deleted_at IS NULL", staffID).
-		Count(&paymentCount).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "payments", fmt.Sprintf("staff_id=%d", staffID))
-	}
-	if paymentCount > 0 {
-		dependencies = append(dependencies, StaffDependencyCount{Label: "支払い", Count: paymentCount})
+	// 財務系の表（受領・配賦・返金・会計の変更履歴・医師確認・見積・レジ関連の記録）。staffs への ON DELETE RESTRICT の
+	// 参照列を持つため、削除ガードと同じ一覧（financeStaffReferences）で数える。全て clinic_id を持ち、deleted_at は持たない。
+	for _, ref := range financeStaffReferences {
+		var count int64
+		if err := persistence.DBOrTx(ctx, r.db).
+			Table(ref.table).
+			Where(fmt.Sprintf("clinic_id = ? AND %s = ?", ref.column), clinicID, staffID).
+			Count(&count).Error; err != nil {
+			return nil, apperrors.FromGORM(err, ref.table, fmt.Sprintf("staff_id=%d", staffID))
+		}
+		if count > 0 {
+			dependencies = append(dependencies, StaffDependencyCount{Label: ref.label, Count: count})
+		}
 	}
 
 	return dependencies, nil

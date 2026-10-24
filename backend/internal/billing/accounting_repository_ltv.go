@@ -2,72 +2,32 @@ package billing
 
 import (
 	"context"
-	"fmt"
-	"time"
-
-	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-// validBillingOwnerMedicalRecordScope keeps direct billings, but excludes a
-// billing whose optional medical record is cross-clinic or soft-deleted.
-// DEC-27: medical_records.owner_id and billings.owner_id are independent
-// snapshots; do not require equality (pet transfer must not drop LTV rows).
-//
-// EMR-73 / spec-36 (顧客集計カウント整合): revenue/LTV aggregation counts ALL
-// completed billings — including owners whose completed billings have
-// medical_record_id NULL and no medical_records rows at all ("来院なし"
-// owners). A manual/retail-only completed billing is real revenue and must
-// not be dropped here. medical_records rows determine visit counts and visit
-// dates only, never revenue eligibility. The include_no_visit exclusion lives
-// in the owner-aggregation layer (internal/owner shouldExcludeNoVisit) and is
-// scoped to the last-visit-axis query (last_visit_bucket 指定または最終来院
-// 系ソート) — it must never gate these billing-side sums; conversely
-// COUNT(DISTINCT medical_records.date) remains the rule wherever actual visit
-// days are counted.
-func validBillingOwnerMedicalRecordScope(db *gorm.DB) *gorm.DB {
-	return db.Where(`billings.medical_record_id IS NULL OR EXISTS (
-		SELECT 1
-		FROM medical_records AS mr
-		WHERE mr.id = billings.medical_record_id
-		  AND mr.clinic_id = billings.clinic_id
-		  AND mr.deleted_at IS NULL
-	)`)
+// 飼主の売上・来院金額の集計（累計 LTV・1回来院の最大額・直近365日の売上上位）は、held for EMR-506。
+// 基準は請求確定額（税込。受領・返金とは別建て）に決まった（EMR-549 comment 0b600d6a / PO-NO-LEGACY-COMPAT 8823f814）。
+// 保存先（billings.claim_state='finalized' と current_calculation_id が指す billing_calculation_snapshots.total_amount、
+// 日付は確定イベント finance_source_events.occurred_at）は 001_init.sql にあるが、それを書く確定 writer
+// （POST /accountings/complete）が未接続で finalized の行が存在しない。この状態で読むと全飼主 0 円・0 件を返し、
+// 実績のない値を真として配る（zero-fill）ため、固定エラー（422 finance_consumer_pending）で拒否する。
+// 呼出し元（lstep のタグ同期）はエラーを伝播するため、0 に丸められず同期の失敗として可視化される。
+// 受領額（payment_funds）や返金からの代替集計は作らない。順位づけ（FindOwnersByAnnualRevenue）は今期の対象外で、基準が揃っても 422 のまま。
+// resume: 確定 writer が接続され、確定額の reader を実装したとき（順位づけを除く）。
+const (
+	ltvPendingMessage                   = "飼主の累計売上・1回来院の最大額は、請求確定額（確定時の算定固定と確定日）の読取が未接続のため利用できません"
+	annualRevenueRankingPendingMessage = "飼主の直近365日売上の順位づけは、今期の対象外のため利用できません"
+)
+
+// SumPaidByOwner は飼い主の累計売上（LTV）を返す（Lステップタグ同期用）。メソッド名は lstep の依存面のため維持する。
+func (*accountingRepository) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, apperrors.WrapFinanceConsumerPending(ltvPendingMessage)
 }
 
-// SumPaidByOwner は飼い主の支払済み請求合計（LTV）を返す（Lステップタグ同期用）。
-func (r *accountingRepository) SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
-	var total int64
-	err := r.db.WithContext(ctx).
-		Model(&model.Billing{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Scopes(validBillingOwnerMedicalRecordScope).
-		Where("owner_id = ? AND status = ? AND deleted_at IS NULL", ownerID, model.BillingStatusCompleted).
-		Select("COALESCE(SUM(total_amount), 0)").
-		Scan(&total).Error
-	if err != nil {
-		return 0, apperrors.FromGORM(err, "billing", fmt.Sprintf("owner=%d", ownerID))
-	}
-	return total, nil
-}
-
-// MaxSingleVisitAmountByOwner は飼い主の1回来院最大支払額を返す（CPMスポット判定用）。
-func (r *accountingRepository) MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
-	var maxAmount int64
-	err := r.db.WithContext(ctx).
-		Model(&model.Billing{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Scopes(validBillingOwnerMedicalRecordScope).
-		Where("owner_id = ? AND status = ? AND deleted_at IS NULL", ownerID, model.BillingStatusCompleted).
-		Select("COALESCE(MAX(total_amount), 0)").
-		Scan(&maxAmount).Error
-	if err != nil {
-		return 0, apperrors.FromGORM(err, "billing", fmt.Sprintf("owner=%d", ownerID))
-	}
-	return maxAmount, nil
+// MaxSingleVisitAmountByOwner は飼い主の1回来院最大額を返す（CPMスポット判定用）。
+func (*accountingRepository) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, apperrors.WrapFinanceConsumerPending(ltvPendingMessage)
 }
 
 // OwnerAnnualRevenue は飼い主ごとの直近365日売上集計。
@@ -76,84 +36,7 @@ type OwnerAnnualRevenue struct {
 	Revenue int64
 }
 
-// ltvTopPercent は Lステップ LTV_上位20 タグの対象割合（％）。
-// topN = ceil(N * ltvTopPercent / 100) = (N * ltvTopPercent + 99) / 100（正の整数除算）。
-const ltvTopPercent = 20
-
-// ownerAnnualRevenueTopPercentSQL は直近365日完了会計を現在の clinic owner に集計し、
-// 売上降順・owner_id 昇順の確定タイブレークで exact top-percent だけを返す（G2F-03）。
-//
-// Bound contract:
-//   - DB が total_owners から topN を算出し、rn <= topN の行だけを返す
-//   - 呼び出し側 Go は返却集合を再スライスせず top 集合として扱う
-//   - 全 clinic owner 売上を Go ヒープへ materialize しない
-//
-// Query plan (EXPLAIN evidence pinned by TestAccountingRepository_FindOwnersByAnnualRevenue_ExplainPlanIsWindowBounded):
-// PostgreSQL evaluates the window phase (WindowAgg over the grouped owner_revenue CTE)
-// and filters to rn <= topN before the final result is scanned into Go. The returned
-// row count is O(ceil(N*20/100)), not O(N).
-const ownerAnnualRevenueTopPercentSQL = `
-WITH owner_revenue AS (
-	SELECT
-		billings.owner_id AS owner_id,
-		COALESCE(SUM(billings.total_amount), 0) AS revenue
-	FROM billings
-	INNER JOIN owners
-		ON owners.id = billings.owner_id
-		AND owners.clinic_id = billings.clinic_id
-		AND owners.deleted_at IS NULL
-	WHERE billings.clinic_id = ?
-		AND billings.status = ?
-		AND billings.deleted_at IS NULL
-		AND billings.completed_at >= ?
-		AND billings.owner_id IS NOT NULL
-		AND (
-			billings.medical_record_id IS NULL OR EXISTS (
-				SELECT 1
-				FROM medical_records AS mr
-				WHERE mr.id = billings.medical_record_id
-					AND mr.clinic_id = billings.clinic_id
-					AND mr.deleted_at IS NULL
-			)
-		)
-	GROUP BY billings.owner_id
-),
-ranked AS (
-	SELECT
-		owner_id,
-		revenue,
-		COUNT(*) OVER () AS total_owners,
-		ROW_NUMBER() OVER (ORDER BY revenue DESC, owner_id ASC) AS rn
-	FROM owner_revenue
-)
-SELECT owner_id, revenue
-FROM ranked
-WHERE rn <= ((total_owners * ? + 99) / 100)
-ORDER BY revenue DESC, owner_id ASC
-`
-
-// FindOwnersByAnnualRevenue は直近365日の完了済み請求額合計を飼い主ごとに集計し、
-// LTV 上位 ltvTopPercent% の飼い主だけを降順で返す（bounded top-N contract / LTV上位％判定用）。
-//
-// セマンティクス:
-//   - clinic scope + current non-deleted owners only
-//   - completed billings with completed_at within 365 days
-//   - deterministic ties: revenue DESC, owner_id ASC
-//   - exact topN = (count * 20 + 99) / 100; empty set when no qualifying owners
-func (r *accountingRepository) FindOwnersByAnnualRevenue(ctx context.Context, clinicID uint64) ([]OwnerAnnualRevenue, error) {
-	cutoff := time.Now().AddDate(0, 0, -365)
-	var results []OwnerAnnualRevenue
-	err := r.db.WithContext(ctx).
-		Raw(
-			ownerAnnualRevenueTopPercentSQL,
-			clinicID,
-			model.BillingStatusCompleted,
-			cutoff,
-			ltvTopPercent,
-		).
-		Scan(&results).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("clinic=%d", clinicID))
-	}
-	return results, nil
+// FindOwnersByAnnualRevenue は直近365日の売上上位の飼い主を返していた（LTV_上位20 タグ用）。順位づけは今期の対象外。
+func (*accountingRepository) FindOwnersByAnnualRevenue(_ context.Context, _ uint64) ([]OwnerAnnualRevenue, error) {
+	return nil, apperrors.WrapFinanceConsumerPending(annualRevenueRankingPendingMessage)
 }
