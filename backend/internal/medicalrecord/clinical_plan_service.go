@@ -27,11 +27,6 @@ type UpdateClinicalPlanInput struct {
 	persistVersion *int
 }
 
-// hasPlanColumns は plan 本文列（診断行を除く）の更新が要求されているかを返す。
-func (i *UpdateClinicalPlanInput) hasPlanColumns() bool {
-	return i.PhysicalExam != nil || i.DiagnosisDetails != nil || i.TreatmentPolicy != nil
-}
-
 // hasChanges は plan 本文列または診断行の更新が要求されているかを返す。
 func (i *UpdateClinicalPlanInput) hasChanges() bool {
 	return i.PhysicalExam != nil || i.DiagnosisDetails != nil || i.TreatmentPolicy != nil || i.Diagnoses != nil

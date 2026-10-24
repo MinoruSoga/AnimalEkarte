@@ -236,6 +236,71 @@ func TestCreateSubRecords(t *testing.T) {
 		assert.Equal(t, "snap-1", *replaced[0].DiagnosisNameSnapshot, "snapshots are stored as sent")
 	})
 
+	// EMR-495 F-01: 診断行だけの入力でも plan の version を CAS つきで進め、診断行の置換より先に行う。
+	t.Run("diagnosis-only input advances the plan version under CAS before replacing rows", func(t *testing.T) {
+		var order []string
+		var gotCmd UpdateClinicalPlanInput
+		var gotExpected *int
+		clinicalPlanRepo := &mockClinicalPlanRepository{
+			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+				return &model.ClinicalPlan{ID: 7, Version: 3}, nil
+			},
+			updateWithVersionFn: func(_ context.Context, _, planID uint64, cmd UpdateClinicalPlanInput, expectedVersion *int) error {
+				order = append(order, "update")
+				assert.Equal(t, uint64(7), planID)
+				gotCmd = cmd
+				gotExpected = expectedVersion
+				return nil
+			},
+			replaceDiagnosesFn: func(_ context.Context, _, _ uint64, _ []ClinicalPlanDiagnosisInput) error {
+				order = append(order, "replace")
+				return nil
+			},
+		}
+		svc := &medicalRecordService{
+			inquiryRepo: &mockInquiryRepository{}, clinicalPlanRepo: clinicalPlanRepo,
+			diagTypeRepo: okDiagnosisTypeRepo(), diagNameRepo: okDiagnosisNameRepo(),
+		}
+
+		err := svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
+			Diagnoses: []ClinicalPlanDiagnosisInput{{Slot: 1}},
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"update", "replace"}, order)
+		require.NotNil(t, gotExpected)
+		assert.Equal(t, 3, *gotExpected, "CAS は直前に読んだ version に対して行う")
+		require.NotNil(t, gotCmd.persistVersion)
+		assert.Equal(t, 4, *gotCmd.persistVersion)
+		assert.Nil(t, gotCmd.TreatmentPolicy, "本文列は触らず version だけを進める")
+		assert.Nil(t, gotCmd.DiagnosisDetails)
+	})
+
+	t.Run("diagnosis-only input leaves rows untouched when the plan version CAS is lost", func(t *testing.T) {
+		clinicalPlanRepo := &mockClinicalPlanRepository{
+			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+				return &model.ClinicalPlan{ID: 7, Version: 3}, nil
+			},
+			updateWithVersionFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput, _ *int) error {
+				return apperrors.WrapConflict("version mismatch")
+			},
+			replaceDiagnosesFn: func(_ context.Context, _, _ uint64, _ []ClinicalPlanDiagnosisInput) error {
+				t.Fatal("must not replace rows after losing the plan version CAS")
+				return nil
+			},
+		}
+		svc := &medicalRecordService{
+			inquiryRepo: &mockInquiryRepository{}, clinicalPlanRepo: clinicalPlanRepo,
+			diagTypeRepo: okDiagnosisTypeRepo(), diagNameRepo: okDiagnosisNameRepo(),
+		}
+
+		err := svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
+			Diagnoses: []ClinicalPlanDiagnosisInput{{Slot: 1}},
+		})
+
+		require.Error(t, err)
+	})
+
 	t.Run("plan created from sub-records carries the trusted clinic_id", func(t *testing.T) {
 		var createdPlan *model.ClinicalPlan
 		clinicalPlanRepo := &mockClinicalPlanRepository{

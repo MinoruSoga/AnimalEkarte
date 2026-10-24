@@ -81,11 +81,38 @@ function hasSameDraft(left: ClinicalPlanDraft, right: ClinicalPlanDraft): boolea
   );
 }
 
+/**
+ * 診断行の全件が同一かを返す。slot ごとの代表行（先頭行）の ID だけでは、行の追加・
+ * スナップショット変更・sort_order 変更を検出できないため、全行を返却順のまま比較する。
+ */
+function hasSameDiagnosisRows(
+  left: ClinicalPlanDiagnosisRow[],
+  right: ClinicalPlanDiagnosisRow[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((row, index) => {
+      const other = right[index];
+      return (
+        row.id === other.id &&
+        row.version === other.version &&
+        row.diagnosis_slot === other.diagnosis_slot &&
+        row.diagnosis_type_id === other.diagnosis_type_id &&
+        row.diagnosis_name_id === other.diagnosis_name_id &&
+        row.diagnosis_name_snapshot === other.diagnosis_name_snapshot &&
+        row.category_name_snapshot === other.category_name_snapshot &&
+        row.sort_order === other.sort_order
+      );
+    })
+  );
+}
+
 function hasSameSnapshot(left: ClinicalPlanSnapshot, right: ClinicalPlanSnapshot): boolean {
   return (
     left.medicalRecordId === right.medicalRecordId &&
     left.version === right.version &&
-    hasSameDraft(left, right)
+    hasSameDraft(left, right) &&
+    hasSameDiagnosisRows(left.diagnosisRows, right.diagnosisRows)
   );
 }
 
