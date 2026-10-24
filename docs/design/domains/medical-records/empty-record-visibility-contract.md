@@ -14,7 +14,7 @@ hideはvisibleでhead null又はrestore、restoreはhiddenでhead hideかつそ�
 
 visibility GETは単一soft-deleted対象を限定readし `{record_id,record_version,visibility:visible|hidden,visibility_event_id,hidden_at,can_hide,can_restore}`。can_*は時点判定でwrite tokenでない。既存患者指定一覧GET `/api/v1/medical-records?visibility=hidden` はpet_idとview+delete必須、既存page/limit上限で最新hide eventのある対象だけ。既定visible、all modeなし、旧一般deletedは候補にしない。最小DTOと復元理由確認だけを表示しhidden本文API/汎用PATCHを開放しない。
 
-POST/lookupは既存C06 flat ResultResponse、成功refs `{medical_record_id,visibility_event_id}`、versions `{record_version}`。現在状態は別GETで取り過去receiptと混同しない。validation400、version-conflict/dependency-changed/edit-right-lost409、busy409、result-unavailable503。不明は同key lookup、別key補償なし。
+POST/lookupは既存C06 flat ResultResponse、成功result_refs `{medical_record_id,visibility_event_id}`、committed_versions `{record_version}`。現在状態は別GETで取り過去receiptと混同しない。validation400、version-conflict/dependency-changed/edit-right-lost409、busy409、result-unavailable503。不明は同key lookup、別key補償なし。
 
 ## 不変command・anchor
 
@@ -42,7 +42,7 @@ restoreも同じ空・依存・現在scopeとrecord_no/active appointmentの既�
 
 ## append-only保存と同一TX
 
-既存medical_records.deleted_at/versionを更新し物理DELETE禁止、hidden汎用write拒否は親guard一元化。新medical_record_visibility_events：id bigserial PK、clinic_id/medical_record_id bigint NOT NULL、revision bigint CHECK>0、event_kind text hidden|restored NOT NULL、previous_event_id/restores_event_id nullable bigint、reason text非blank、recorded_by bigint→staffs RESTRICT、recorded_at timestamptz default clock_timestamp()、operation_id bigint、record_version_before/after integer NOT NULL CHECK after=before+1。
+既存medical_records.deleted_at/versionを更新し物理DELETE禁止、hidden汎用write拒否は親guard一元化。新medical_record_visibility_events：id bigserial PK、clinic_id/medical_record_id bigint NOT NULL、revision bigint NOT NULL CHECK>0、event_kind text hidden|restored NOT NULL、previous_event_id/restores_event_id nullable bigint、reason text NOT NULL CHECK btrim(reason)<>''、recorded_by bigint NOT NULL→staffs(id) RESTRICT、recorded_at timestamptz NOT NULL DEFAULT clock_timestamp()、operation_id bigint NOT NULL、record_version_before/after integer NOT NULL CHECK after=before+1。
 
 UNIQUE(id,clinic,record)、UNIQUE(clinic,record,revision)、UNIQUE(clinic,operation)。record/clinic FK→medical_records(id,clinic) RESTRICT、previous/restores eventも同clinic/record複合FK、operationは既存binding FK。hiddenはrestores NULL、restoredは非NULL。head chain/alternation/restores=headをrecord lockで検査、初回revision1以後head+1。UPDATE/DELETE禁止・既存tenant RLS、履歴trimなし。headは限定recordの最大revision、別head表/cache/statusなし。
 
