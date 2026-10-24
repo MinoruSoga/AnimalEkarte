@@ -184,6 +184,19 @@ func validatePlannedStayInterval(entry, exit *time.Time) error {
 	return nil
 }
 
+// filterByLifecycleState keeps exactly the rows whose derived lifecycle equals state (unknown rows only
+// match lifecycle_state=unknown). A row without a projection matches nothing and is never inferred into a
+// state. The list tabs and the snapshot read share it so the row set and the total cannot diverge.
+func filterByLifecycleState(rows []model.Hospitalization, projections map[uint64]HospitalizationStayProjection, state string) []model.Hospitalization {
+	matched := make([]model.Hospitalization, 0, len(rows))
+	for i := range rows {
+		if projections[rows[i].ID].Lifecycle == state {
+			matched = append(matched, rows[i])
+		}
+	}
+	return matched
+}
+
 // listByLifecycleState serves the list tabs (予約 / 入院・預かり中 / 退院済, docs/spec/screens/07-hospitalization-list.md)
 // from the DERIVED effective state, since no SQL column holds it any more. It reads the bounded candidate set,
 // projects every row, keeps exactly the rows whose lifecycle equals the requested state (unknown rows only
@@ -203,12 +216,7 @@ func (s *hospitalizationService) listByLifecycleState(ctx context.Context, clini
 	if err != nil {
 		return nil, 0, err
 	}
-	matched := make([]model.Hospitalization, 0, len(candidates))
-	for i := range candidates {
-		if projections[candidates[i].ID].Lifecycle == state {
-			matched = append(matched, candidates[i])
-		}
-	}
+	matched := filterByLifecycleState(candidates, projections, state)
 	matchedTotal := int64(len(matched))
 	// page は上限なしで渡されるため、(page-1)*limit を先に計算すると int が溢れて start が負になり
 	// matched[start:end] で panic する。乗算の前に page-1 を len/limit と比較して範囲外を弾く。

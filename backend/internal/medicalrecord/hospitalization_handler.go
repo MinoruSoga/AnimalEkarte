@@ -116,8 +116,9 @@ func (h *HospitalizationHandler) CreateHospitalization(c *gin.Context) {
 		return
 	}
 	var input createHospitalizationRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	// 旧ライフサイクル名は null でも拒否するため、バインドの前に JSON キーの存在で検査する。
+	if err := bindJSONGuarded(c, &input, rejectRetiredHospitalizationCreateKeys); err != nil {
+		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}
 
@@ -164,8 +165,9 @@ func (h *HospitalizationHandler) UpdateHospitalization(c *gin.Context) {
 		return
 	}
 	var input updateHospitalizationRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	// 滞在由来・旧ライフサイクルのキーは null でも拒否するため、バインドの前に JSON キーの存在で検査する。
+	if err := bindJSONGuarded(c, &input, rejectStayOwnedHospitalizationUpdateKeys); err != nil {
+		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}
 

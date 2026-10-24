@@ -1,7 +1,9 @@
 package medicalrecord
 
 import (
+	"encoding/json"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -233,6 +235,35 @@ type updateHospitalizationRequest struct {
 func errStayLifecycleFieldNotWritable(field string) error {
 	return apperrors.WrapUnprocessableWithCode(codeStayLifecycleWriteUnavailable,
 		field+" は入院の滞在・状態の導出値になったため、この API では変更できません")
+}
+
+// rejectPresentHospitalizationKeys は names のいずれかが JSON のキーとして存在すれば、値（null を含む）に
+// 関わらず固定エラー（422 stay_lifecycle_write_unavailable）を返す。`*T` フィールドへのバインドでは null が
+// 未送信に見え、`"planned_exit_at": null` が黙って受理されるため、存在判定はキーで行う（PR #851 review A2）。
+// Go の JSON デコーダと同様に大文字小文字を区別せず照合する。names の順に検査するので結果は決定的。
+func rejectPresentHospitalizationKeys(keys map[string]json.RawMessage, names []string) error {
+	for _, name := range names {
+		for key := range keys {
+			if strings.EqualFold(key, name) {
+				return errStayLifecycleFieldNotWritable(name)
+			}
+		}
+	}
+	return nil
+}
+
+// rejectRetiredHospitalizationCreateKeys は作成 body に旧ライフサイクル名（hospitalization_type / start_date /
+// end_date / status）が存在すれば拒否する。stay_kind / planned_* は作成では書ける。
+func rejectRetiredHospitalizationCreateKeys(keys map[string]json.RawMessage) error {
+	return rejectPresentHospitalizationKeys(keys, []string{"hospitalization_type", "start_date", "end_date", "status"})
+}
+
+// rejectStayOwnedHospitalizationUpdateKeys は PATCH body に滞在種別・予定区間・旧ライフサイクル名が存在すれば
+// 拒否する（予定の変更は延長提案・受入 proof の責務で、直接上書きしない）。
+func rejectStayOwnedHospitalizationUpdateKeys(keys map[string]json.RawMessage) error {
+	return rejectPresentHospitalizationKeys(keys, []string{
+		"stay_kind", "planned_entry_at", "planned_exit_at", "hospitalization_type", "start_date", "end_date", "status",
+	})
 }
 
 func (r *updateHospitalizationRequest) toServiceInput() (UpdateHospitalizationInput, error) {

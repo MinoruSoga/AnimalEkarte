@@ -20040,27 +20040,10 @@ paths:
           schema:
             type: string
             format: date
-        - name: lifecycle_state
+        - name: status
           in: query
-          description: |
-            導出された滞在状態で絞り込み（予約/入院・預かり中/退院済み等のタブ）。stay_movement_eventsから導出し、
-            解決できない滞在は`unknown`にだけ一致する。旧`status`/`start_date`/`end_date`クエリは廃止（400）。
-            候補は最大10000件。超過は黙って切り捨てず400。
           schema:
             type: string
-            enum: [reserved, admitted, discharged, cancelled, no_show, unknown]
-        - name: planned_entry_from
-          in: query
-          description: 予定入院日の下限（YYYY-MM-DD, JST暦日、当日を含む）。予定入院日=stay_cases.planned_entry_at。実入院日ではない。
-          schema:
-            type: string
-            format: date
-        - name: planned_entry_to
-          in: query
-          description: 予定入院日の上限（YYYY-MM-DD, JST暦日、当日を含む=翌日0時未満）。
-          schema:
-            type: string
-            format: date
         - name: pet_id
           in: query
           description: ペットIDで絞り込み
@@ -20848,10 +20831,27 @@ paths:
           schema:
             type: integer
             default: 20
-        - name: status
+        - name: lifecycle_state
           in: query
+          description: |
+            導出された滞在状態で絞り込み（予約/入院・預かり中/退院済み等のタブ）。stay_movement_eventsから導出し、
+            解決できない滞在は`unknown`にだけ一致する。旧`status`/`start_date`/`end_date`クエリは廃止（400）。
+            候補は最大10000件。超過は黙って切り捨てず400。snapshot=true併用時も同じ導出状態で絞り込み、totalは絞り込み後の件数。
           schema:
             type: string
+            enum: [reserved, admitted, discharged, cancelled, no_show, unknown]
+        - name: planned_entry_from
+          in: query
+          description: 予定入院日の下限（YYYY-MM-DD, JST暦日、当日を含む）。予定入院日=stay_cases.planned_entry_at。実入院日ではない。
+          schema:
+            type: string
+            format: date
+        - name: planned_entry_to
+          in: query
+          description: 予定入院日の上限（YYYY-MM-DD, JST暦日、当日を含む=翌日0時未満）。
+          schema:
+            type: string
+            format: date
         - name: pet_id
           in: query
           description: ペットIDで絞り込み

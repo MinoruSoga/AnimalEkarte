@@ -68,6 +68,13 @@ func (h *HospitalizationHandler) maybeListHospitalizationSnapshot(c *gin.Context
 		httpapi.RespondError(c, err)
 		return true
 	}
+	// lifecycle_state は移動イベントからの導出値で SQL では絞れない。リスト（タブ）と同じ導出状態の絞り込みを
+	// 候補集合（上限は findSnapshot が強制）へ適用し、total は一致件数にする。全候補と未絞り込みの total を
+	// 返すと、要求した状態以外の行が混ざる（PR #851 review A1）。
+	if filters.LifecycleState != nil {
+		rows = filterByLifecycleState(rows, projections, *filters.LifecycleState)
+		total = int64(len(rows))
+	}
 	c.JSON(http.StatusOK, struct {
 		Data     []HospitalizationResponse `json:"data"`
 		Total    int64                     `json:"total"`
