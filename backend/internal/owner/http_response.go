@@ -213,6 +213,8 @@ func toOwnerResponse(o *model.Owner) (OwnerResponse, error) {
 		}
 		pets = append(pets, petResp)
 	}
+	// owners.line_id_confirmed_at/by は drop 済みで、置換先（owner_line_binding_states）の reader がこの branch に無い。
+	// line_id_confirmed_at / line_id_confirmed_by は値を作らず未設定のまま返す（omitempty により応答から省略される）。
 	return OwnerResponse{
 		ID:                     o.ID,
 		ClinicID:               o.ClinicID,
@@ -235,8 +237,6 @@ func toOwnerResponse(o *model.Owner) (OwnerResponse, error) {
 		IsDangerous:            o.IsDangerous,
 		DiscountRate:           o.DiscountRate,
 		MembershipType:         string(o.MembershipType),
-		LineIDConfirmedAt:      httpapi.LocalTimePtr(o.LineIDConfirmedAt),
-		LineIDConfirmedBy:      o.LineIDConfirmedBy,
 		DeliveryExcluded:       o.DeliveryExcluded,
 		DeliveryExcludedReason: o.DeliveryExcludedReason,
 		DeliveryCaution:        o.DeliveryCaution,

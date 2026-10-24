@@ -28,6 +28,8 @@ func toLineCustomerResponse(rc *model.LineCustomer) lineCustomerResponse {
 		// 固定シグネチャのため R-NIL（EMR-491）に従う。取得経路（LINE 顧客 repository）が hydrate すること。
 		ownerName = commonbasic.MustOwnerBasic(rc.Owner).Name
 	}
+	// line_customers.owner_id は drop 済み。飼主との紐付けの正本は owner_line_binding_states（state='linked'）だが、
+	// この branch には reader が無いため owner_id は返さない（omitempty で省略する。他列へのフォールバックはしない）。
 	return lineCustomerResponse{
 		ID:               rc.ID,
 		ClinicID:         rc.ClinicID,
@@ -35,7 +37,6 @@ func toLineCustomerResponse(rc *model.LineCustomer) lineCustomerResponse {
 		DisplayName:      rc.DisplayName,
 		RealName:         rc.RealName,
 		AdditionalFields: json.RawMessage(rc.AdditionalFields),
-		OwnerID:          rc.OwnerID,
 		OwnerName:        ownerName,
 		CreatedAt:        httpapi.LocalTime(rc.CreatedAt),
 		UpdatedAt:        httpapi.LocalTime(rc.UpdatedAt),
