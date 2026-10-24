@@ -209,6 +209,17 @@ func WrapCalculationUnsupported(message string) error {
 	return WrapUnprocessableWithCode(CodeCalculationUnsupported, message)
 }
 
+// EMR-508 / EMR-549 U4: 見積書ヘッダーの割引額・保険適用額は estimates の列が廃止され、置換先
+// （estimate_calculation_revisions の conditions / insurance_confirmation）のキーが未決定のため保存できない。
+// 0 以外の値を黙って捨てず、422 の安定コードで拒否する（未指定と 0 は受け付ける）。
+const CodeEstimateHeaderAdjustmentPending = "estimate_header_adjustment_pending"
+
+// WrapEstimateHeaderAdjustmentPending は見積書ヘッダーの 0 以外の割引額・保険適用額を拒否する固定エラー（422）を返す。
+// code は CodeEstimateHeaderAdjustmentPending 固定。
+func WrapEstimateHeaderAdjustmentPending(message string) error {
+	return WrapUnprocessableWithCode(CodeEstimateHeaderAdjustmentPending, message)
+}
+
 // HasCode は err の連鎖に AppError があり、その Code が code と一致するかを返す。
 func HasCode(err error, code string) bool {
 	var appErr *AppError

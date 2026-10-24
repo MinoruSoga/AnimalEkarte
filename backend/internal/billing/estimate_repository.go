@@ -217,7 +217,7 @@ func (r *estimateRepository) normalizeDeleteIfNotLockedMiss(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	if existing.Status == model.EstimateStatusApproved || existing.Status == model.EstimateStatusRejected {
+	if isEstimateLocked(existing.Status) {
 		return apperrors.WrapConflict("承認済みまたは却下済みの見積書は削除できません")
 	}
 	count, err := r.CountItemsByEstimateID(ctx, clinicID, id)

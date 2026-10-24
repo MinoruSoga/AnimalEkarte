@@ -73,20 +73,9 @@ func (s *estimateService) updateEstimateInTx(
 
 	// Keep the prior error precedence: missing or locked estimates are rejected before
 	// request validation. Validation still occurs before any write in this transaction.
-	if input.Subtotal != nil && *input.Subtotal < 0 {
-		return result, apperrors.WrapInvalidInput("subtotal must be 0 or greater")
-	}
-	if input.TaxTotal != nil && *input.TaxTotal < 0 {
-		return result, apperrors.WrapInvalidInput("tax_total must be 0 or greater")
-	}
-	if input.TotalAmount != nil && *input.TotalAmount < 0 {
-		return result, apperrors.WrapInvalidInput("total_amount must be 0 or greater")
-	}
-	if input.InsuranceAmount != nil && *input.InsuranceAmount < 0 {
-		return result, apperrors.WrapInvalidInput("insurance_amount must be 0 or greater")
-	}
-	if input.DiscountAmount != nil && *input.DiscountAmount < 0 {
-		return result, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
+	// EMR-508 / Q6: ヘッダーの割引・保険適用額は保存先が未決定のため 0 以外を受け付けない。
+	if err := rejectEstimateHeaderAdjustment(input.DiscountAmount, input.InsuranceAmount); err != nil {
+		return result, err
 	}
 	fields := buildEstimateUpdate(input)
 	if len(fields) == 0 && input.Items == nil {
@@ -105,82 +94,13 @@ func (s *estimateService) updateEstimateInTx(
 			return result, err
 		}
 		preparedItems = estimateItemsFromInput(id, normalized)
-		subtotal, taxTotal, totalAmount := calculateEstimateTotals(preparedItems)
-		if len(preparedItems) == 0 {
-			// 全行クリアは Create と同じセマンティクス: 合計は 0、ヘッダー割引はメタデータ
-			// として保持する（黙ってリセットすると権限判断が変わる）。明細総額が 0 のため
-			// 割引超過検証は適用しない。負の割引は既存の入力検証で拒否済み。
-			cmd.Subtotal = &subtotal
-			cmd.TaxTotal = &taxTotal
-			cmd.TotalAmount = &totalAmount
-		} else {
-			// PR665/PR669: 実効控除は「入力指定値、省略時は保存済み値」を割引・保険それぞれに
-			// 適用する。合計のみ控除する。
-			effectiveDiscount := result.existing.DiscountAmount
-			if input.DiscountAmount != nil {
-				effectiveDiscount = *input.DiscountAmount
-			}
-			effectiveInsurance := result.existing.InsuranceAmount
-			if input.InsuranceAmount != nil {
-				effectiveInsurance = *input.InsuranceAmount
-			}
-			subtotal, taxTotal, totalAmount, adjustErr := applyEstimateHeaderAdjustments(subtotal, taxTotal, totalAmount, effectiveDiscount, effectiveInsurance)
-			if adjustErr != nil {
-				return result, adjustErr
-			}
-			cmd.Subtotal = &subtotal
-			cmd.TaxTotal = &taxTotal
-			cmd.TotalAmount = &totalAmount
-		}
 		cmd.Items = &normalized
 	}
 
-	if input.Items == nil && len(result.existing.Items) > 0 {
-		// Active persisted items are the source of truth for estimate totals. Header-only
-		// PATCHes must not allow client-supplied totals to drift from those items.
-		// PR669: メタデータ/ステータスのみ・控除据え置きの PATCH は保存済み合計をそのまま
-		// 保持する。保存時点より前の旧データ（超過控除を含む）を再計算・再検証しない。
-		// 再計算するのは割引または保険の実効値が変わる時だけ。
-		discountChanged := input.DiscountAmount != nil && *input.DiscountAmount != result.existing.DiscountAmount
-		insuranceChanged := input.InsuranceAmount != nil && *input.InsuranceAmount != result.existing.InsuranceAmount
-		if discountChanged || insuranceChanged {
-			subtotal, taxTotal, totalAmount := calculateEstimateTotals(result.existing.Items)
-			effectiveDiscount := result.existing.DiscountAmount
-			if input.DiscountAmount != nil {
-				effectiveDiscount = *input.DiscountAmount
-			}
-			effectiveInsurance := result.existing.InsuranceAmount
-			if input.InsuranceAmount != nil {
-				effectiveInsurance = *input.InsuranceAmount
-			}
-			subtotal, taxTotal, totalAmount, adjustErr := applyEstimateHeaderAdjustments(subtotal, taxTotal, totalAmount, effectiveDiscount, effectiveInsurance)
-			if adjustErr != nil {
-				return result, adjustErr
-			}
-			cmd.Subtotal = &subtotal
-			cmd.TaxTotal = &taxTotal
-			cmd.TotalAmount = &totalAmount
-		} else {
-			// クライアント提示の合計が保存済み値と乖離しても適用しない。
-			// 送られてきた total 系ポインタは保存済み値へ置き換え、未送信は nil のまま。
-			if cmd.Subtotal != nil {
-				stored := result.existing.Subtotal
-				cmd.Subtotal = &stored
-			}
-			if cmd.TaxTotal != nil {
-				stored := result.existing.TaxTotal
-				cmd.TaxTotal = &stored
-			}
-			if cmd.TotalAmount != nil {
-				stored := result.existing.TotalAmount
-				cmd.TotalAmount = &stored
-			}
-		}
-	}
 	result.isBecomingApproved = input.Status != nil && *input.Status == model.EstimateStatusApproved &&
-		result.existing.Status != model.EstimateStatusApproved
+		!estimateStatusIs(result.existing.Status, model.EstimateStatusApproved)
 	result.isBecomingRejected = input.Status != nil && *input.Status == model.EstimateStatusRejected &&
-		result.existing.Status != model.EstimateStatusRejected
+		!estimateStatusIs(result.existing.Status, model.EstimateStatusRejected)
 
 	// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書編集を拒否。
 	if err := lockDraftMedicalRecordIfPresent(txCtx, s.medicalRecordRepo, clinicID, result.existing.MedicalRecordID,
