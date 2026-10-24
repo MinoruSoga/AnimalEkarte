@@ -65,7 +65,7 @@ type UpsertExamItemInput struct {
 //   - ref_max が指定され v > ref_max → (high, true)
 //   - 範囲内 → (normal, false)
 //   - ref_min == ref_max == nil → (normal, false)（比較できない）
-func computeExamResultStatus(inspectionValue string, refMin, refMax *float64) (model.ExaminationResultStatus, bool) {
+func computeExamResultStatus(inspectionValue string, refMin, refMax *model.ExactNumeric) (model.ExaminationResultStatus, bool) {
 	assessment := assessExamResult(inspectionValue, refMin, refMax, nil, nil)
 	return assessment.status, assessment.isAbnormal
 }

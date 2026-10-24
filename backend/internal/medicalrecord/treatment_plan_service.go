@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -44,7 +43,12 @@ type UpdateTreatmentPlanInput struct {
 // applyTreatmentPlanDiscountGuard rechecks discount against the locked plan row (SEC-CS-F10).
 func applyTreatmentPlanDiscountGuard(locked *model.TreatmentPlan, input *UpdateTreatmentPlanInput) error {
 	if input.DiscountRate != nil {
-		if !httpapi.FloatEquals(*input.DiscountRate, locked.DiscountRate) && !input.DiscountEditAllowed {
+		// 割引率の同値判定は exact 値の厳密比較（epsilon なし）。保存値が NULL・非有限なら変更として扱う（fail-closed）。
+		same, err := exactNumericEqualsFloat(locked.DiscountRate, *input.DiscountRate, "discount_rate")
+		if err != nil {
+			return err
+		}
+		if !same && !input.DiscountEditAllowed {
 			return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
 		}
 	}
@@ -183,6 +187,16 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 	}
 	subtotal := computeTreatmentPlanSubtotal(input.UnitPrice, input.Quantity, input.DiscountRate, input.DiscountAmount)
 
+	// quantity / discount_rate は exact 列。検証済みの float64 request 値を最短10進表現で橋渡しする。
+	quantity, err := exactNumericFromFloat(input.Quantity, "quantity")
+	if err != nil {
+		return nil, err
+	}
+	discountRate, err := exactNumericFromFloat(input.DiscountRate, "discount_rate")
+	if err != nil {
+		return nil, err
+	}
+
 	plan := &model.TreatmentPlan{
 		ClinicID:          clinicID,
 		MedicalRecordID:   medicalRecordID,
@@ -191,8 +205,8 @@ func (s *treatmentPlanService) Create(ctx context.Context, clinicID uint64, medi
 		Memo:              input.Memo,
 		IsInsurance:       input.IsInsurance,
 		UnitPrice:         input.UnitPrice,
-		Quantity:          input.Quantity,
-		DiscountRate:      input.DiscountRate,
+		Quantity:          &quantity,
+		DiscountRate:      &discountRate,
 		DiscountAmount:    input.DiscountAmount,
 		Subtotal:          subtotal,
 		SortOrder:         input.SortOrder,
@@ -245,8 +259,14 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 		// race-write stale values. Differing values already failed the guard above.
 		effective := *input
 		effective.Subtotal = nil
-		if input.DiscountRate != nil && httpapi.FloatEquals(*input.DiscountRate, existing.DiscountRate) && !input.DiscountEditAllowed {
-			effective.DiscountRate = nil
+		if input.DiscountRate != nil && !input.DiscountEditAllowed {
+			same, err := exactNumericEqualsFloat(existing.DiscountRate, *input.DiscountRate, "discount_rate")
+			if err != nil {
+				return err
+			}
+			if same {
+				effective.DiscountRate = nil
+			}
 		}
 		if input.DiscountAmount != nil && *input.DiscountAmount == existing.DiscountAmount && !input.DiscountEditAllowed {
 			effective.DiscountAmount = nil
@@ -254,8 +274,10 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 
 		// Merge money fields for validation / subtotal recompute.
 		unitPrice := existing.UnitPrice
-		quantity := existing.Quantity
-		discountRate := existing.DiscountRate
+		// quantity / discount_rate は exact 列。既存の金額式は float64 のため境界で変換する。
+		// 保存値が NULL・非有限でも 0 へ補完せず、その値を金額計算に使う場合（下の moneyTouched）に限り error とする。
+		quantity, quantityErr := exactNumericRequiredFloat64(existing.Quantity, "quantity")
+		discountRate, discountRateErr := exactNumericRequiredFloat64(existing.DiscountRate, "discount_rate")
 		discountAmount := existing.DiscountAmount
 		moneyTouched := false
 		if effective.UnitPrice != nil {
@@ -264,10 +286,12 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 		}
 		if effective.Quantity != nil {
 			quantity = *effective.Quantity
+			quantityErr = nil
 			moneyTouched = true
 		}
 		if effective.DiscountRate != nil {
 			discountRate = *effective.DiscountRate
+			discountRateErr = nil
 			moneyTouched = true
 		}
 		if effective.DiscountAmount != nil {
@@ -275,6 +299,12 @@ func (s *treatmentPlanService) Update(ctx context.Context, clinicID, id uint64, 
 			moneyTouched = true
 		}
 		if moneyTouched {
+			if quantityErr != nil {
+				return quantityErr
+			}
+			if discountRateErr != nil {
+				return discountRateErr
+			}
 			if err := validateTreatmentPlanMoney(unitPrice, quantity, discountRate, discountAmount); err != nil {
 				return err
 			}

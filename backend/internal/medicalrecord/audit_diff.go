@@ -93,10 +93,10 @@ func diffVitalImportantFields(oldRec, newRec *model.VitalRecord) (oldDiff, newDi
 	}
 
 	comparisons := []comparison{
-		{key: "temperature", oldVal: oldRec.Temperature, newVal: newRec.Temperature, equal: ptrFloat64Equal(oldRec.Temperature, newRec.Temperature)},
+		{key: "temperature", oldVal: oldRec.Temperature, newVal: newRec.Temperature, equal: ptrExactNumericEqual(oldRec.Temperature, newRec.Temperature)},
 		{key: "heart_rate", oldVal: oldRec.HeartRate, newVal: newRec.HeartRate, equal: ptrIntEqual(oldRec.HeartRate, newRec.HeartRate)},
 		{key: "respiration_rate", oldVal: oldRec.RespirationRate, newVal: newRec.RespirationRate, equal: ptrIntEqual(oldRec.RespirationRate, newRec.RespirationRate)},
-		{key: "weight", oldVal: oldRec.Weight, newVal: newRec.Weight, equal: ptrFloat64Equal(oldRec.Weight, newRec.Weight)},
+		{key: "weight", oldVal: oldRec.Weight, newVal: newRec.Weight, equal: ptrExactNumericEqual(oldRec.Weight, newRec.Weight)},
 		{key: "weight_unit", oldVal: string(oldRec.WeightUnit), newVal: string(newRec.WeightUnit), equal: oldRec.WeightUnit == newRec.WeightUnit},
 		{key: "recorded_at", oldVal: oldRec.RecordedAt, newVal: newRec.RecordedAt, equal: oldRec.RecordedAt.Equal(newRec.RecordedAt)},
 		{key: "staff_id", oldVal: oldRec.StaffID, newVal: newRec.StaffID, equal: ptrUint64Equal(oldRec.StaffID, newRec.StaffID)},

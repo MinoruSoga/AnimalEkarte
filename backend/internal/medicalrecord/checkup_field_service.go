@@ -3,7 +3,6 @@ package medicalrecord
 import (
 	"context"
 	"encoding/json"
-	"math"
 	"strings"
 
 	"gorm.io/datatypes"
@@ -124,16 +123,18 @@ func validateCheckupFieldOptions(options []CheckupFieldOptionInput) error {
 	return nil
 }
 
-// validateCheckupFieldBounds は min_value / max_value の有限性と min<=max を検証する。
-func validateCheckupFieldBounds(minValue, maxValue *float64) error {
-	if minValue != nil && (math.IsNaN(*minValue) || math.IsInf(*minValue, 0)) {
+// validateCheckupFieldBounds は min_value / max_value の有限性と min<=max を exact 値の厳密比較で検証する。
+func validateCheckupFieldBounds(minValue, maxValue *model.ExactNumeric) error {
+	if minValue != nil && !minValue.IsFinite() {
 		return apperrors.WrapInvalidInput("min_value は有限の数値で指定してください")
 	}
-	if maxValue != nil && (math.IsNaN(*maxValue) || math.IsInf(*maxValue, 0)) {
+	if maxValue != nil && !maxValue.IsFinite() {
 		return apperrors.WrapInvalidInput("max_value は有限の数値で指定してください")
 	}
-	if minValue != nil && maxValue != nil && *minValue > *maxValue {
-		return apperrors.WrapInvalidInput("min_value は max_value 以下で指定してください")
+	if minValue != nil && maxValue != nil {
+		if cmp, ok := minValue.Cmp(*maxValue); !ok || cmp > 0 {
+			return apperrors.WrapInvalidInput("min_value は max_value 以下で指定してください")
+		}
 	}
 	return nil
 }
@@ -206,7 +207,16 @@ func (s *checkupTypeFieldService) CreateField(
 	if err := validateCheckupFieldOptions(input.Options); err != nil {
 		return nil, err
 	}
-	if err := validateCheckupFieldBounds(input.MinValue, input.MaxValue); err != nil {
+	// float64 の request 値を exact 列へ橋渡しする（NaN・±Inf は 400）。nil（基準値なし）は nil のまま。
+	minValue, err := exactNumericPtrFromFloatPtr(input.MinValue, "min_value")
+	if err != nil {
+		return nil, err
+	}
+	maxValue, err := exactNumericPtrFromFloatPtr(input.MaxValue, "max_value")
+	if err != nil {
+		return nil, err
+	}
+	if err := validateCheckupFieldBounds(minValue, maxValue); err != nil {
 		return nil, err
 	}
 	optionsJSON, err := marshalCheckupFieldOptionInputs(input.Options)
@@ -226,8 +236,8 @@ func (s *checkupTypeFieldService) CreateField(
 			Name:          input.Name,
 			FieldType:     fieldType,
 			Unit:          input.Unit,
-			MinValue:      input.MinValue,
-			MaxValue:      input.MaxValue,
+			MinValue:      minValue,
+			MaxValue:      maxValue,
 			Options:       optionsJSON,
 			SortOrder:     input.SortOrder,
 		}
@@ -291,17 +301,26 @@ func (s *checkupTypeFieldService) UpdateField(
 			return apperrors.WrapInvalidInput("非選択式フィールドに options は指定できません")
 		}
 
+		// float64 の request 値を exact 値へ橋渡しする（NaN・±Inf は 400）。nil（未指定）は nil のまま。
+		inputMin, err := exactNumericPtrFromFloatPtr(input.MinValue, "min_value")
+		if err != nil {
+			return err
+		}
+		inputMax, err := exactNumericPtrFromFloatPtr(input.MaxValue, "max_value")
+		if err != nil {
+			return err
+		}
 		effectiveMin := existing.MinValue
 		if input.ClearMinValue {
 			effectiveMin = nil
 		} else if input.MinValue != nil {
-			effectiveMin = input.MinValue
+			effectiveMin = inputMin
 		}
 		effectiveMax := existing.MaxValue
 		if input.ClearMaxValue {
 			effectiveMax = nil
 		} else if input.MaxValue != nil {
-			effectiveMax = input.MaxValue
+			effectiveMax = inputMax
 		}
 		if err := validateCheckupFieldBounds(effectiveMin, effectiveMax); err != nil {
 			return err

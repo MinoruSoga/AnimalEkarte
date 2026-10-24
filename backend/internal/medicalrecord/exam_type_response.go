@@ -21,13 +21,13 @@ type examTypeItemResponse struct {
 }
 
 type examReferenceRangeResponse struct {
-	ID              uint64   `json:"id"`
-	ExamTypeFieldID uint64   `json:"exam_type_field_id"`
-	AnimalSpeciesID uint64   `json:"animal_species_id"`
-	RefMin          *float64 `json:"ref_min,omitempty"`
-	RefMax          *float64 `json:"ref_max,omitempty"`
-	QualitativeMin  *string  `json:"qualitative_min,omitempty"`
-	QualitativeMax  *string  `json:"qualitative_max,omitempty"`
+	ID              uint64              `json:"id"`
+	ExamTypeFieldID uint64              `json:"exam_type_field_id"`
+	AnimalSpeciesID uint64              `json:"animal_species_id"`
+	RefMin          *model.ExactNumeric `json:"ref_min,omitempty"`
+	RefMax          *model.ExactNumeric `json:"ref_max,omitempty"`
+	QualitativeMin  *string             `json:"qualitative_min,omitempty"`
+	QualitativeMax  *string             `json:"qualitative_max,omitempty"`
 }
 
 type examTypeResponse struct {

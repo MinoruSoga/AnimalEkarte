@@ -13,10 +13,10 @@ type vitalResponse struct {
 	MedicalRecordID *string              `json:"medical_record_id,omitempty"`
 	RecordedAt      time.Time            `json:"recorded_at"`
 	StaffID         *string              `json:"staff_id,omitempty"`
-	Temperature     *float64             `json:"temperature,omitempty"`
+	Temperature     *model.ExactNumeric  `json:"temperature,omitempty"`
 	HeartRate       *int                 `json:"heart_rate,omitempty"`
 	RespirationRate *int                 `json:"respiration_rate,omitempty"`
-	Weight          *float64             `json:"weight,omitempty"`
+	Weight          *model.ExactNumeric  `json:"weight,omitempty"`
 	WeightUnit      model.BodyWeightUnit `json:"weight_unit"`
 	Notes           string               `json:"notes"`
 	Version         int                  `json:"version"`

@@ -137,13 +137,22 @@ func toExamInputs(clinicID uint64, reqs []labExamInputReq) ([]LabExamPersistInpu
 					"inputs[%d].items[%d].ref_min は ref_max 以下である必要があります", i, j,
 				))
 			}
+			// float64 の request 値を exact へ橋渡しする（NaN・±Inf は 400）。nil（基準値なし）は nil のまま。
+			refMin, err := exactNumericPtrFromFloatPtr(it.RefMin, fmt.Sprintf("inputs[%d].items[%d].ref_min", i, j))
+			if err != nil {
+				return nil, err
+			}
+			refMax, err := exactNumericPtrFromFloatPtr(it.RefMax, fmt.Sprintf("inputs[%d].items[%d].ref_max", i, j))
+			if err != nil {
+				return nil, err
+			}
 			items[j] = LabExamItemInput{
 				Name:            it.Name,
 				InspectionValue: it.InspectionValue,
 				Unit:            it.Unit,
 				ReferenceValue:  it.ReferenceValue,
-				RefMin:          it.RefMin,
-				RefMax:          it.RefMax,
+				RefMin:          refMin,
+				RefMax:          refMax,
 				SortOrder:       it.SortOrder,
 			}
 		}

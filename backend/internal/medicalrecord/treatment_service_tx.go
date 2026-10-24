@@ -22,6 +22,16 @@ func (s *treatmentService) createTreatmentInTx(
 		return nil, err
 	}
 
+	// quantity / discount_rate は exact 列。検証済みの float64 service 入力を最短10進表現で橋渡しする。
+	quantity, err := exactNumericFromFloat(input.Quantity, "quantity")
+	if err != nil {
+		return nil, err
+	}
+	discountRate, err := exactNumericFromFloat(input.DiscountRate, "discount_rate")
+	if err != nil {
+		return nil, err
+	}
+
 	treatment := &model.Treatment{
 		MedicalRecordID: medicalRecordID,
 		ItemType:        input.ItemType,
@@ -30,14 +40,14 @@ func (s *treatmentService) createTreatmentInTx(
 		MedicineID:      input.MedicineID,
 		InventoryID:     input.InventoryID,
 		UnitPrice:       input.UnitPrice,
-		Quantity:        input.Quantity,
+		Quantity:        &quantity,
 		IsSelected:      input.IsSelected,
 		Status:          status,
 		Content:         input.Content,
 		Memo:            input.Memo,
 		AdminRoute:      input.AdminRoute,
 		IsInsurance:     input.IsInsurance,
-		DiscountRate:    input.DiscountRate,
+		DiscountRate:    &discountRate,
 		DiscountAmount:  input.DiscountAmount,
 		SortOrder:       input.SortOrder,
 
@@ -147,7 +157,10 @@ func (s *treatmentService) updateTreatmentInTx(
 	var doseMedicineID uint64
 	if doseRelevant {
 		// 親行 + treatment 行ロック取得後の locked snapshot で dose を評価する。
-		effItemType, effMedicineID, effQty := effectiveDoseInputs(current, &effective)
+		effItemType, effMedicineID, effQty, qtyErr := effectiveDoseInputs(current, &effective)
+		if qtyErr != nil {
+			return qtyErr
+		}
 		eval, derr := s.evaluateDoseForSave(txCtx, clinicID, medicalRecordID, effItemType, effMedicineID, effQty)
 		if derr != nil {
 			return derr // species 不一致など fail-closed

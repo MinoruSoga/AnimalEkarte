@@ -9,16 +9,16 @@ import (
 )
 
 type vitalRecordResponse struct {
-	ID              string    `json:"id"`
-	DailyRecordID   string    `json:"daily_record_id"`
-	Time            string    `json:"time"`
-	Temperature     *float64  `json:"temperature,omitempty"`
-	HeartRate       *int      `json:"heart_rate,omitempty"`
-	RespirationRate *int      `json:"respiration_rate,omitempty"`
-	Weight          *float64  `json:"weight,omitempty"`
-	Notes           string    `json:"notes"`
-	StaffID         *string   `json:"staff_id,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
+	ID              string              `json:"id"`
+	DailyRecordID   string              `json:"daily_record_id"`
+	Time            string              `json:"time"`
+	Temperature     *model.ExactNumeric `json:"temperature,omitempty"`
+	HeartRate       *int                `json:"heart_rate,omitempty"`
+	RespirationRate *int                `json:"respiration_rate,omitempty"`
+	Weight          *model.ExactNumeric `json:"weight,omitempty"`
+	Notes           string              `json:"notes"`
+	StaffID         *string             `json:"staff_id,omitempty"`
+	CreatedAt       time.Time           `json:"created_at"`
 }
 
 type careLogResponse struct {

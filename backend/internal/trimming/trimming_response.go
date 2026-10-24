@@ -31,19 +31,19 @@ type TrimmingResponse struct {
 	Status            string    `json:"status"`
 	Source            string    `json:"source"`
 	// トリミング詳細（appointment_trimming_details から flat 化）
-	HasDetail      bool      `json:"has_detail"`
-	CourseID       *uint64   `json:"course_id,omitempty"`
-	StyleRequest   string    `json:"style_request"`
-	BW             *float64  `json:"bw,omitempty"`
-	BWUnit         string    `json:"bw_unit"`
-	BT             *float64  `json:"bt,omitempty"`
-	UsedShampoo    string    `json:"used_shampoo"`
-	UsedRibbon     string    `json:"used_ribbon"`
-	Remarks        string    `json:"remarks"`
-	StyleImage     string    `json:"style_image"`
-	CompletedImage string    `json:"completed_image"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	HasDetail      bool                `json:"has_detail"`
+	CourseID       *uint64             `json:"course_id,omitempty"`
+	StyleRequest   string              `json:"style_request"`
+	BW             *model.ExactNumeric `json:"bw,omitempty"`
+	BWUnit         string              `json:"bw_unit"`
+	BT             *model.ExactNumeric `json:"bt,omitempty"`
+	UsedShampoo    string              `json:"used_shampoo"`
+	UsedRibbon     string              `json:"used_ribbon"`
+	Remarks        string              `json:"remarks"`
+	StyleImage     string              `json:"style_image"`
+	CompletedImage string              `json:"completed_image"`
+	CreatedAt      time.Time           `json:"created_at"`
+	UpdatedAt      time.Time           `json:"updated_at"`
 	// リレーション
 	// FE7-2: Pet/Staff は petSummaryResponse/staffSummaryResponse（11+18箇所で共有される
 	// 非公開型）を参照しており tygo が解決できないため tstype:"-" で生成対象から除外する

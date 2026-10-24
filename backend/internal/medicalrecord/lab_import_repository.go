@@ -451,7 +451,7 @@ func labImportExamResultsMatch(stored []model.ExamResult, input []LabExamItemInp
 	}
 	type payload struct {
 		name, inspection, unit, reference string
-		refMin, refMax                    *float64
+		refMin, refMax                    *model.ExactNumeric
 		sortOrder                         int
 	}
 	left := make([]payload, len(stored))
@@ -484,8 +484,8 @@ func labImportExamResultsMatch(stored []model.ExamResult, input []LabExamItemInp
 			left[i].unit != right[i].unit ||
 			left[i].reference != right[i].reference ||
 			left[i].sortOrder != right[i].sortOrder ||
-			!labImportNullableFloat64Equal(left[i].refMin, right[i].refMin) ||
-			!labImportNullableFloat64Equal(left[i].refMax, right[i].refMax) {
+			!ptrExactNumericEqual(left[i].refMin, right[i].refMin) ||
+			!ptrExactNumericEqual(left[i].refMax, right[i].refMax) {
 			return false
 		}
 	}
@@ -499,11 +499,13 @@ func labImportNullableUint64Equal(a, b *uint64) bool {
 	return *a == *b
 }
 
-func labImportNullableFloat64Equal(a, b *float64) bool {
+// ptrExactNumericEqual は nullable な ExactNumeric の等値を返す（nil は nil とのみ等しい）。
+// 数値としての厳密比較（10 と 10.00 は等しい）で、比較不能な値（NaN 等）は常に不等とする（fail-closed）。
+func ptrExactNumericEqual(a, b *model.ExactNumeric) bool {
 	if a == nil || b == nil {
 		return a == nil && b == nil
 	}
-	return *a == *b
+	return a.Equal(*b)
 }
 
 // SoftDeleteExamByJob は clinic+exam+job で active exam を条件付き soft delete する。

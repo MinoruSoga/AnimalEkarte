@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // BUG-372: 割引フィールド専用の権限チェック（treatment / treatment-plan 共有）。
@@ -14,6 +15,20 @@ const discountFloatEpsilon = 0.0001
 
 func requireDiscountEditFloat(c *gin.Context, hasPermission PermissionChecker, newVal *float64, oldVal float64) error {
 	return httpapi.RequireDiscountEditFloat(c, httpapi.PermissionChecker(hasPermission), newVal, oldVal)
+}
+
+// requireDiscountEditRate は float64 の request 値と保存済みの割引率（exact）を厳密比較し、
+// 数値として異なる場合にのみ discount:edit を要求する（epsilon なし）。
+// 保存値が NULL・非有限の場合は変更とみなして権限を要求する（fail-closed）。
+func requireDiscountEditRate(c *gin.Context, hasPermission PermissionChecker, newVal *float64, oldVal *model.ExactNumeric) error {
+	if newVal == nil {
+		return nil
+	}
+	requested, err := exactNumericFromFloat(*newVal, "discount_rate")
+	if err != nil {
+		return err
+	}
+	return httpapi.RequireDiscountEditExact(c, httpapi.PermissionChecker(hasPermission), &requested, exactNumericOrNull(oldVal))
 }
 
 func requireDiscountEditInt(c *gin.Context, hasPermission PermissionChecker, newVal *int64, oldVal int64) error {

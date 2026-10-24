@@ -3,6 +3,7 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"math/big"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -234,12 +235,12 @@ func buildExamResultsFromInputs(
 ) []model.ExamResult {
 	items := make([]model.ExamResult, 0, len(inputs))
 	for _, in := range inputs {
-		var refMin, refMax *float64
+		var refMin, refMax *model.ExactNumeric
 		var qualitativeMin, qualitativeMax *string
 		if in.ExamTypeFieldID != nil {
 			if referenceRange, ok := resolvedRanges[*in.ExamTypeFieldID]; ok {
-				refMin = cloneOptionalFloat64(referenceRange.RefMin)
-				refMax = cloneOptionalFloat64(referenceRange.RefMax)
+				refMin = cloneOptionalExactNumeric(referenceRange.RefMin)
+				refMax = cloneOptionalExactNumeric(referenceRange.RefMax)
 				qualitativeMin = cloneOptionalString(referenceRange.QualitativeMin)
 				qualitativeMax = cloneOptionalString(referenceRange.QualitativeMax)
 			}
@@ -272,11 +273,15 @@ func buildExamResultsFromInputs(
 	return items
 }
 
-func cloneOptionalFloat64(value *float64) *float64 {
+// cloneOptionalExactNumeric は big.Int まで deep copy する（複製が元の値と内部状態を共有しない）。
+func cloneOptionalExactNumeric(value *model.ExactNumeric) *model.ExactNumeric {
 	if value == nil {
 		return nil
 	}
 	cloned := *value
+	if value.Int != nil {
+		cloned.Int = new(big.Int).Set(value.Int)
+	}
 	return &cloned
 }
 

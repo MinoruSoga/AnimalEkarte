@@ -58,6 +58,44 @@ func floatOrNil(p *float64) any {
 	return *p
 }
 
+// newMedicineDoseParamFromInput は検証済みの float64 入力を exact 列の model へ橋渡しする（最短10進表現経由）。
+// NaN・±Inf は 400。任意項目の nil（上限・丸めなし）は nil のまま保ち、0 へ補完しない。
+func newMedicineDoseParamFromInput(clinicID, medicineID uint64, input *MedicineDoseParamInput) (*model.MedicineDoseParam, error) {
+	dosePerKg, err := exactNumericFromFloat(input.DosePerKg, "dose_per_kg")
+	if err != nil {
+		return nil, err
+	}
+	minMg, err := exactNumericPtrFromFloatPtr(input.MinMgPerKg, "min_mg_per_kg")
+	if err != nil {
+		return nil, err
+	}
+	maxMg, err := exactNumericPtrFromFloatPtr(input.MaxMgPerKg, "max_mg_per_kg")
+	if err != nil {
+		return nil, err
+	}
+	absoluteMax, err := exactNumericPtrFromFloatPtr(input.AbsoluteMaxDose, "absolute_max_dose")
+	if err != nil {
+		return nil, err
+	}
+	step, err := exactNumericPtrFromFloatPtr(input.RoundingStep, "rounding_step")
+	if err != nil {
+		return nil, err
+	}
+	return &model.MedicineDoseParam{
+		ClinicID:        clinicID,
+		MedicineID:      medicineID,
+		Species:         input.Species,
+		DoseBasis:       input.DoseBasis,
+		DosePerKg:       dosePerKg,
+		MinMgPerKg:      minMg,
+		MaxMgPerKg:      maxMg,
+		AbsoluteMaxDose: absoluteMax,
+		RoundingStep:    step,
+		RoundingMode:    input.RoundingMode,
+		Notes:           input.Notes,
+	}, nil
+}
+
 // MedicineDoseParamService は種軸 dose パラメータの authoring CRUD。
 type MedicineDoseParamService interface {
 	List(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error)
@@ -99,6 +137,12 @@ func (s *medicineDoseParamService) Upsert(ctx context.Context, clinicID, medicin
 		return nil, apperrors.Wrap(err, "failed to validate dose param input")
 	}
 
+	// float64 の request 値を exact 列へ橋渡しする（NaN・±Inf はここで 400。tx 内の create 分岐は複製を使う）。
+	template, err := newMedicineDoseParamFromInput(clinicID, medicineID, input)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to convert dose param input")
+	}
+
 	// MRC-03: parent per_weight / ownership / existing row checks share the write transaction
 	// so concurrent medicine type flips cannot pass a stale pre-tx validation.
 	var result *model.MedicineDoseParam
@@ -127,19 +171,8 @@ func (s *medicineDoseParamService) Upsert(ctx context.Context, clinicID, medicin
 			result = updated
 			return nil
 		case apperrors.IsNotFound(findErr):
-			param := &model.MedicineDoseParam{
-				ClinicID:        clinicID,
-				MedicineID:      medicineID,
-				Species:         input.Species,
-				DoseBasis:       input.DoseBasis,
-				DosePerKg:       input.DosePerKg,
-				MinMgPerKg:      input.MinMgPerKg,
-				MaxMgPerKg:      input.MaxMgPerKg,
-				AbsoluteMaxDose: input.AbsoluteMaxDose,
-				RoundingStep:    input.RoundingStep,
-				RoundingMode:    input.RoundingMode,
-				Notes:           input.Notes,
-			}
+			created := *template
+			param := &created
 			if txErr := s.repo.Create(txCtx, clinicID, param); txErr != nil {
 				return apperrors.Wrap(txErr, "failed to create medicine dose param")
 			}

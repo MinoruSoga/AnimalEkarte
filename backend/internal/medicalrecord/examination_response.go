@@ -73,25 +73,25 @@ func toExaminationResponseWithItems(exam *model.Examination) examinationResponse
 
 // examResultResponse は exam_results 1 行分のレスポンス。
 type examResultResponse struct {
-	ID              uint64    `json:"id"`
-	ExamID          uint64    `json:"exam_id"`
-	ExamTypeFieldID *uint64   `json:"exam_type_field_id,omitempty"`
-	Name            string    `json:"name"`
-	InspectionValue string    `json:"inspection_value"`
-	NormalValue     string    `json:"normal_value"`
-	Result          string    `json:"result"`
-	Unit            string    `json:"unit"`
-	ReferenceValue  string    `json:"reference_value"`
-	RefMin          *float64  `json:"ref_min,omitempty"`
-	RefMax          *float64  `json:"ref_max,omitempty"`
-	QualitativeMin  *string   `json:"qualitative_min,omitempty"`
-	QualitativeMax  *string   `json:"qualitative_max,omitempty"`
-	IsAssessed      bool      `json:"is_assessed"`
-	IsAbnormal      bool      `json:"is_abnormal"`
-	Status          string    `json:"status"`
-	SortOrder       int       `json:"sort_order"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID              uint64              `json:"id"`
+	ExamID          uint64              `json:"exam_id"`
+	ExamTypeFieldID *uint64             `json:"exam_type_field_id,omitempty"`
+	Name            string              `json:"name"`
+	InspectionValue string              `json:"inspection_value"`
+	NormalValue     string              `json:"normal_value"`
+	Result          string              `json:"result"`
+	Unit            string              `json:"unit"`
+	ReferenceValue  string              `json:"reference_value"`
+	RefMin          *model.ExactNumeric `json:"ref_min,omitempty"`
+	RefMax          *model.ExactNumeric `json:"ref_max,omitempty"`
+	QualitativeMin  *string             `json:"qualitative_min,omitempty"`
+	QualitativeMax  *string             `json:"qualitative_max,omitempty"`
+	IsAssessed      bool                `json:"is_assessed"`
+	IsAbnormal      bool                `json:"is_abnormal"`
+	Status          string              `json:"status"`
+	SortOrder       int                 `json:"sort_order"`
+	CreatedAt       time.Time           `json:"created_at"`
+	UpdatedAt       time.Time           `json:"updated_at"`
 }
 
 func toExamResultResponse(item *model.ExamResult) examResultResponse {
@@ -126,7 +126,7 @@ func toExamResultResponse(item *model.ExamResult) examResultResponse {
 
 func isExamResultAssessed(
 	inspectionValue string,
-	refMin, refMax *float64,
+	refMin, refMax *model.ExactNumeric,
 	qualitativeMin, qualitativeMax *string,
 ) bool {
 	return assessExamResult(

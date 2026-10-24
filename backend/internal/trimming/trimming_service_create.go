@@ -53,7 +53,10 @@ func (s *trimmingService) createTrimmingAppointmentInTx(
 	if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
 		return nil, nil, err
 	}
-	detail := newTrimmingDetailFromCreateInput(clinicID, appt.ID, input, bwUnit)
+	detail, err := newTrimmingDetailFromCreateInput(clinicID, appt.ID, input, bwUnit)
+	if err != nil {
+		return nil, nil, err
+	}
 	if err := s.lockImageReferencesInTx(txCtx, clinicID, detail.StyleImage, detail.CompletedImage); err != nil {
 		return nil, nil, err
 	}
@@ -168,7 +171,10 @@ func (s *trimmingService) createTrimmingDetailForExistingInTx(
 		}
 	}
 
-	detail := newTrimmingDetailFromCreateInput(clinicID, appointmentID, input, bwUnit)
+	detail, err := newTrimmingDetailFromCreateInput(clinicID, appointmentID, input, bwUnit)
+	if err != nil {
+		return nil, err
+	}
 	if err := s.lockImageReferencesInTx(txCtx, clinicID, detail.StyleImage, detail.CompletedImage); err != nil {
 		return nil, err
 	}
@@ -199,23 +205,44 @@ func (s *trimmingService) createTrimmingDetailForExistingInTx(
 	return result, nil
 }
 
+// trimmingExactNumeric は float64 の request 値（bw / bt）を exact 列へ最短10進表現で橋渡しする。
+// nil（未測定）は nil のまま返し、NaN・±Inf は 400 とする。
+func trimmingExactNumeric(value *float64, field string) (*model.ExactNumeric, error) {
+	if value == nil {
+		return nil, nil
+	}
+	exact, err := model.ExactNumericFromFloat64(*value)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput(field + " は有限な数値で指定してください")
+	}
+	return &exact, nil
+}
+
 func newTrimmingDetailFromCreateInput(
 	clinicID, appointmentID uint64,
 	input *CreateTrimmingInput,
 	bwUnit model.BodyWeightUnit,
-) *model.AppointmentTrimmingDetail {
+) (*model.AppointmentTrimmingDetail, error) {
+	bodyWeight, err := trimmingExactNumeric(input.BodyWeight, "bw")
+	if err != nil {
+		return nil, err
+	}
+	bodyTemperature, err := trimmingExactNumeric(input.BodyTemperature, "bt")
+	if err != nil {
+		return nil, err
+	}
 	return &model.AppointmentTrimmingDetail{
 		ClinicID:        clinicID,
 		AppointmentID:   appointmentID,
 		CourseID:        input.CourseID,
 		StyleRequest:    input.StyleRequest,
-		BodyWeight:      input.BodyWeight,
+		BodyWeight:      bodyWeight,
 		BWUnit:          bwUnit,
-		BodyTemperature: input.BodyTemperature,
+		BodyTemperature: bodyTemperature,
 		UsedShampoo:     input.UsedShampoo,
 		UsedRibbon:      input.UsedRibbon,
 		Remarks:         input.Remarks,
 		StyleImage:      input.StyleImage,
 		CompletedImage:  input.CompletedImage,
-	}
+	}, nil
 }

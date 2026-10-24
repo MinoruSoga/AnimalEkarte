@@ -33,7 +33,7 @@ type examResultAssessment struct {
 
 func assessExamResult(
 	inspectionValue string,
-	refMin, refMax *float64,
+	refMin, refMax *model.ExactNumeric,
 	qualitativeMin, qualitativeMax *string,
 ) examResultAssessment {
 	hasNumericBounds := refMin != nil || refMax != nil
@@ -52,29 +52,49 @@ func assessExamResult(
 
 func assessNumericExamResult(
 	inspectionValue string,
-	refMin, refMax *float64,
+	refMin, refMax *model.ExactNumeric,
 ) examResultAssessment {
-	if !isFiniteOptionalFloat64(refMin) || !isFiniteOptionalFloat64(refMax) {
+	if !isFiniteOptionalExactNumeric(refMin) || !isFiniteOptionalExactNumeric(refMax) {
 		return unassessedExamResult()
 	}
-	if refMin != nil && refMax != nil && *refMin > *refMax {
+	if refMin != nil && refMax != nil {
+		if cmp, ok := refMin.Cmp(*refMax); !ok || cmp > 0 {
+			return unassessedExamResult()
+		}
+	}
+	parsed, err := strconv.ParseFloat(strings.TrimSpace(inspectionValue), 64)
+	if err != nil || math.IsNaN(parsed) || math.IsInf(parsed, 0) {
 		return unassessedExamResult()
 	}
-	value, err := strconv.ParseFloat(strings.TrimSpace(inspectionValue), 64)
-	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+	// 判定は exact 同士の厳密比較。入力文字列の受理構文は従来どおり ParseFloat とし、
+	// 最短10進表現で exact へ橋渡しする。橋渡しできない極端な値は判定不能（unassessed）とする。
+	value, err := model.ExactNumericFromFloat64(parsed)
+	if err != nil {
 		return unassessedExamResult()
 	}
-	if refMin != nil && value < *refMin {
-		return abnormalExamResult(model.ExaminationResultStatusLow)
+	if refMin != nil {
+		cmp, ok := value.Cmp(*refMin)
+		if !ok {
+			return unassessedExamResult()
+		}
+		if cmp < 0 {
+			return abnormalExamResult(model.ExaminationResultStatusLow)
+		}
 	}
-	if refMax != nil && value > *refMax {
-		return abnormalExamResult(model.ExaminationResultStatusHigh)
+	if refMax != nil {
+		cmp, ok := value.Cmp(*refMax)
+		if !ok {
+			return unassessedExamResult()
+		}
+		if cmp > 0 {
+			return abnormalExamResult(model.ExaminationResultStatusHigh)
+		}
 	}
 	return normalAssessedExamResult()
 }
 
-func isFiniteOptionalFloat64(value *float64) bool {
-	return value == nil || (!math.IsNaN(*value) && !math.IsInf(*value, 0))
+func isFiniteOptionalExactNumeric(value *model.ExactNumeric) bool {
+	return value == nil || value.IsFinite()
 }
 
 func assessQualitativeExamResult(

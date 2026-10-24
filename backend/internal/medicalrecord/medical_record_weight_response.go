@@ -18,7 +18,7 @@ import (
 // id/value/unit/recorded_at のみ（患者本体の属性や他バイタルは含めない）。
 type WeightMeasurementResponse struct {
 	ID         uint64               `json:"id"`
-	Value      float64              `json:"value"`
+	Value      model.ExactNumeric   `json:"value"`
 	Unit       model.BodyWeightUnit `json:"unit"`
 	RecordedAt time.Time            `json:"recorded_at"`
 }

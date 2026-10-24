@@ -14,20 +14,20 @@ import (
 // Nested under GET /hospitalizations/:id/treatment-plans (or medical-records/...); not embedded
 // on HospitalizationResponse / MedicalRecordResponse detail payloads.
 type TreatmentPlanResponse struct {
-	ID                string    `json:"id"`
-	MedicalRecordID   *string   `json:"medical_record_id,omitempty"`
-	HospitalizationID *string   `json:"hospitalization_id,omitempty"`
-	TreatmentContent  string    `json:"treatment_content"`
-	Memo              string    `json:"memo"`
-	IsInsurance       bool      `json:"is_insurance"`
-	UnitPrice         int64     `json:"unit_price"`
-	Quantity          float64   `json:"quantity"`
-	DiscountRate      float64   `json:"discount_rate"`
-	DiscountAmount    int64     `json:"discount_amount"`
-	Subtotal          int64     `json:"subtotal"`
-	SortOrder         int       `json:"sort_order"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	ID                string              `json:"id"`
+	MedicalRecordID   *string             `json:"medical_record_id,omitempty"`
+	HospitalizationID *string             `json:"hospitalization_id,omitempty"`
+	TreatmentContent  string              `json:"treatment_content"`
+	Memo              string              `json:"memo"`
+	IsInsurance       bool                `json:"is_insurance"`
+	UnitPrice         int64               `json:"unit_price"`
+	Quantity          *model.ExactNumeric `json:"quantity"`
+	DiscountRate      *model.ExactNumeric `json:"discount_rate"`
+	DiscountAmount    int64               `json:"discount_amount"`
+	Subtotal          int64               `json:"subtotal"`
+	SortOrder         int                 `json:"sort_order"`
+	CreatedAt         time.Time           `json:"created_at"`
+	UpdatedAt         time.Time           `json:"updated_at"`
 }
 
 func toTreatmentPlanResponse(p *model.TreatmentPlan) TreatmentPlanResponse {

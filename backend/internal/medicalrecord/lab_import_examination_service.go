@@ -35,8 +35,8 @@ type LabExamItemInput struct {
 	InspectionValue string
 	Unit            string
 	ReferenceValue  string
-	RefMin          *float64
-	RefMax          *float64
+	RefMin          *model.ExactNumeric
+	RefMax          *model.ExactNumeric
 	ExamTypeFieldID *uint64
 	SortOrder       int
 }

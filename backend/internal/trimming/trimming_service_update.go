@@ -8,7 +8,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
-func applyTrimmingDetailFields(detail *model.AppointmentTrimmingDetail, input *UpdateTrimmingInput) {
+func applyTrimmingDetailFields(detail *model.AppointmentTrimmingDetail, input *UpdateTrimmingInput) error {
 	if input.CourseID != nil {
 		detail.CourseID = input.CourseID
 	}
@@ -16,13 +16,21 @@ func applyTrimmingDetailFields(detail *model.AppointmentTrimmingDetail, input *U
 		detail.StyleRequest = *input.StyleRequest
 	}
 	if input.BodyWeight != nil {
-		detail.BodyWeight = input.BodyWeight
+		bodyWeight, err := trimmingExactNumeric(input.BodyWeight, "bw")
+		if err != nil {
+			return err
+		}
+		detail.BodyWeight = bodyWeight
 	}
 	if input.BWUnit != nil {
 		detail.BWUnit = *input.BWUnit
 	}
 	if input.BodyTemperature != nil {
-		detail.BodyTemperature = input.BodyTemperature
+		bodyTemperature, err := trimmingExactNumeric(input.BodyTemperature, "bt")
+		if err != nil {
+			return err
+		}
+		detail.BodyTemperature = bodyTemperature
 	}
 	if input.UsedShampoo != nil {
 		detail.UsedShampoo = *input.UsedShampoo
@@ -39,6 +47,7 @@ func applyTrimmingDetailFields(detail *model.AppointmentTrimmingDetail, input *U
 	if input.CompletedImage != nil {
 		detail.CompletedImage = *input.CompletedImage
 	}
+	return nil
 }
 
 func (s *trimmingService) updateTrimmingInTx(
@@ -126,7 +135,9 @@ func (s *trimmingService) updateTrimmingInTx(
 	if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, optionIDs, detail.CourseID, existingOptionIDs); err != nil {
 		return nil, nil, nil, err
 	}
-	applyTrimmingDetailFields(detail, input)
+	if err := applyTrimmingDetailFields(detail, input); err != nil {
+		return nil, nil, nil, err
+	}
 	if err := s.lockImageReferencesInTx(txCtx, clinicID, detail.StyleImage, detail.CompletedImage); err != nil {
 		return nil, nil, nil, err
 	}

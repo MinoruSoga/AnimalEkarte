@@ -33,8 +33,8 @@ type ExaminationPrintItem struct {
 	Result          string
 	Unit            string
 	ReferenceValue  string
-	RefMin          *float64
-	RefMax          *float64
+	RefMin          *model.ExactNumeric
+	RefMax          *model.ExactNumeric
 	QualitativeMin  *string
 	QualitativeMax  *string
 	IsAssessed      bool
@@ -126,8 +126,8 @@ func (r *examinationRepository) FindPrintSnapshot(
 			Result:          item.Result,
 			Unit:            item.Unit,
 			ReferenceValue:  item.ReferenceValue,
-			RefMin:          cloneOptionalFloat64(item.RefMin),
-			RefMax:          cloneOptionalFloat64(item.RefMax),
+			RefMin:          cloneOptionalExactNumeric(item.RefMin),
+			RefMax:          cloneOptionalExactNumeric(item.RefMax),
 			QualitativeMin:  cloneOptionalString(item.QualitativeMin),
 			QualitativeMax:  cloneOptionalString(item.QualitativeMax),
 			IsAssessed:      item.IsAssessed,
@@ -189,22 +189,22 @@ func (s *examinationService) GetPrintSnapshot(
 }
 
 type examinationPrintItemResponse struct {
-	ID              uint64   `json:"id"`
-	ExamTypeFieldID *uint64  `json:"exam_type_field_id,omitempty"`
-	Name            string   `json:"name"`
-	InspectionValue string   `json:"inspection_value"`
-	NormalValue     string   `json:"normal_value"`
-	Result          string   `json:"result"`
-	Unit            string   `json:"unit"`
-	ReferenceValue  string   `json:"reference_value"`
-	RefMin          *float64 `json:"ref_min,omitempty"`
-	RefMax          *float64 `json:"ref_max,omitempty"`
-	QualitativeMin  *string  `json:"qualitative_min,omitempty"`
-	QualitativeMax  *string  `json:"qualitative_max,omitempty"`
-	IsAssessed      bool     `json:"is_assessed"`
-	IsAbnormal      bool     `json:"is_abnormal"`
-	Status          string   `json:"status"`
-	SortOrder       int      `json:"sort_order"`
+	ID              uint64              `json:"id"`
+	ExamTypeFieldID *uint64             `json:"exam_type_field_id,omitempty"`
+	Name            string              `json:"name"`
+	InspectionValue string              `json:"inspection_value"`
+	NormalValue     string              `json:"normal_value"`
+	Result          string              `json:"result"`
+	Unit            string              `json:"unit"`
+	ReferenceValue  string              `json:"reference_value"`
+	RefMin          *model.ExactNumeric `json:"ref_min,omitempty"`
+	RefMax          *model.ExactNumeric `json:"ref_max,omitempty"`
+	QualitativeMin  *string             `json:"qualitative_min,omitempty"`
+	QualitativeMax  *string             `json:"qualitative_max,omitempty"`
+	IsAssessed      bool                `json:"is_assessed"`
+	IsAbnormal      bool                `json:"is_abnormal"`
+	Status          string              `json:"status"`
+	SortOrder       int                 `json:"sort_order"`
 }
 
 type examinationPrintDisplayResponse struct {

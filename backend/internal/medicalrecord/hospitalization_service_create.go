@@ -82,6 +82,15 @@ func (s *hospitalizationService) createNestedTreatmentPlansInTx(
 			return apperrors.WrapInvalidInput("treatment_content is required")
 		}
 		subtotal := computeTreatmentPlanSubtotal(planInput.UnitPrice, planInput.Quantity, planInput.DiscountRate, planInput.DiscountAmount)
+		// quantity / discount_rate は exact 列。検証済みの float64 request 値を最短10進表現で橋渡しする。
+		quantity, err := exactNumericFromFloat(planInput.Quantity, "quantity")
+		if err != nil {
+			return err
+		}
+		discountRate, err := exactNumericFromFloat(planInput.DiscountRate, "discount_rate")
+		if err != nil {
+			return err
+		}
 		plan := &model.TreatmentPlan{
 			ClinicID:          clinicID,
 			HospitalizationID: &hospID,
@@ -89,8 +98,8 @@ func (s *hospitalizationService) createNestedTreatmentPlansInTx(
 			Memo:              planInput.Memo,
 			IsInsurance:       planInput.IsInsurance,
 			UnitPrice:         planInput.UnitPrice,
-			Quantity:          planInput.Quantity,
-			DiscountRate:      planInput.DiscountRate,
+			Quantity:          &quantity,
+			DiscountRate:      &discountRate,
 			DiscountAmount:    planInput.DiscountAmount,
 			Subtotal:          subtotal,
 			SortOrder:         planInput.SortOrder,

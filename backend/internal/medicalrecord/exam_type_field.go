@@ -234,12 +234,21 @@ func (s *examTypeService) ReplaceReferenceRanges(
 	}
 	ranges := make([]model.ExamReferenceRange, 0, len(command.Ranges))
 	for _, input := range command.Ranges {
+		// float64 の request 値を exact 列へ橋渡しする（有限性は上で検証済み）。nil（下限・上限なし）は nil のまま。
+		refMin, err := exactNumericPtrFromFloatPtr(input.RefMin, "ref_min")
+		if err != nil {
+			return nil, err
+		}
+		refMax, err := exactNumericPtrFromFloatPtr(input.RefMax, "ref_max")
+		if err != nil {
+			return nil, err
+		}
 		ranges = append(ranges, model.ExamReferenceRange{
 			ClinicID:        clinicID,
 			ExamTypeFieldID: command.ExamTypeFieldID,
 			AnimalSpeciesID: input.AnimalSpeciesID,
-			RefMin:          input.RefMin,
-			RefMax:          input.RefMax,
+			RefMin:          refMin,
+			RefMax:          refMax,
 			QualitativeMin:  input.QualitativeMin,
 			QualitativeMax:  input.QualitativeMax,
 		})

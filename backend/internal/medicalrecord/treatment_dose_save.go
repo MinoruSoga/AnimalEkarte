@@ -75,13 +75,16 @@ func (s *treatmentService) evaluateDoseForSave(
 		return nil, apperrors.WrapConflict("投与量パラメータの種別が患者種と一致しません（安全のため保存を中止しました）")
 	}
 
-	eval := EvaluateSavedDose(SavedDoseInput{
+	eval, err := EvaluateSavedDose(SavedDoseInput{
 		Medicine:     medicine,
 		Param:        param,
 		Species:      species,
 		WeightKg:     weightKg,
 		SubmittedQty: submittedQty,
 	})
+	if err != nil {
+		return nil, err
+	}
 	eval.WeightSource = weightSource
 	return &eval, nil
 }
@@ -99,7 +102,7 @@ func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medi
 	var chosen *model.VitalRecord
 	for i := range vitals {
 		v := &vitals[i]
-		if v.Weight == nil || *v.Weight <= 0 {
+		if v.Weight == nil || !exactNumericIsPositive(*v.Weight) {
 			continue
 		}
 		if chosen == nil || v.RecordedAt.After(chosen.RecordedAt) {
@@ -109,7 +112,12 @@ func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medi
 	if chosen == nil {
 		return 0, "", false, nil
 	}
-	kg, ok := NormalizeWeightToKg(*chosen.Weight, chosen.WeightUnit)
+	// 既存の kg 正規化式は float64。境界で変換し、float64 に収まらない値は未記録扱いにせず error とする。
+	weight, convErr := exactNumericToFloat64(*chosen.Weight, "weight")
+	if convErr != nil {
+		return 0, "", false, convErr
+	}
+	kg, ok := NormalizeWeightToKg(weight, chosen.WeightUnit)
 	if !ok {
 		return 0, "", false, nil
 	}

@@ -109,7 +109,9 @@ func trimmingAuditUint64Value(value *uint64) any {
 	return *value
 }
 
-func trimmingAuditFloat64Value(value *float64) any {
+// trimmingAuditFloat64Value は数値項目（体重・体温）の監査値を返す。exact 列のため値は ExactNumeric のまま渡し、
+// JSON 化では数値として出力される（float64 へ変換しない）。名称は呼出側の差分を増やさないため維持する。
+func trimmingAuditFloat64Value(value *model.ExactNumeric) any {
 	if value == nil {
 		return nil
 	}
