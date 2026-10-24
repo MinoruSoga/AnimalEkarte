@@ -162,16 +162,28 @@ func TestUpsertReservationSchedule(t *testing.T) {
 			name:     "returns 201 with Location header when newly created",
 			staffID:  "3",
 			date:     "2026-05-15",
-			body:     `{"shift_type":"full","work_start":"09:00","work_end":"18:00"}`,
+			body:     `{"shift_type":"full","work_start":"2026-05-15T09:00:00+09:00","work_end":"2026-05-15T18:00:00+09:00"}`,
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationScheduleService{
 				saveFn: func(_ context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error) {
 					assert.Equal(t, "full", input.ShiftType)
+					if assert.NotNil(t, input.StartsAt) {
+						assert.Equal(t, "2026-05-15T09:00:00+09:00", input.StartsAt.Format(time.RFC3339))
+					}
 					return &ScheduleEntry{Entry: model.ShiftEntry{ID: 1, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeFull}}, true, nil
 				},
 			},
 			wantStatus:   http.StatusCreated,
 			wantLocation: true,
+		},
+		{
+			name:       "returns 400 when work_start is a legacy HH:MM clock without a date",
+			staffID:    "3",
+			date:       "2026-05-15",
+			body:       `{"shift_type":"full","work_start":"09:00","work_end":"18:00"}`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationScheduleService{},
+			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 200 without Location header when updated",

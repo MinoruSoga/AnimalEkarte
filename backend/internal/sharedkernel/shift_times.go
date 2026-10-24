@@ -5,9 +5,11 @@ package sharedkernel
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -82,32 +84,127 @@ func ValidateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) e
 	return nil
 }
 
-// ShiftClockToTimestamp は勤務日と時刻文字列（HH:MM / HH:MM:SS）から time.Local の
-// タイムスタンプを組み立てる（shift_entries.starts_at/ends_at, shift_entry_breaks.starts_at/ends_at 用）。
-// 年月日は date.In(time.Local) から取る（レスポンスの Date 整形と同じゾーン）。
-// clock が nil または空文字なら (nil, nil)。解析できない clock は invalid input。
-func ShiftClockToTimestamp(date time.Time, clock *string) (*time.Time, error) {
-	if clock == nil || *clock == "" {
-		return nil, nil
-	}
-	normalized := NormalizeTimeString(clock)
-	if normalized == nil {
-		return nil, apperrors.WrapInvalidInput("時刻は HH:MM 形式で指定してください")
-	}
-	parsed, err := time.ParseInLocation("15:04:05", *normalized, time.Local)
-	if err != nil {
-		return nil, apperrors.WrapInvalidInput("時刻の解析に失敗しました")
-	}
-	year, month, day := date.In(time.Local).Date()
-	ts := time.Date(year, month, day, parsed.Hour(), parsed.Minute(), parsed.Second(), 0, time.Local)
-	return &ts, nil
+// ShiftIntervalState の値。api.yaml の ShiftEntry.interval_state / ShiftWorkBreakView.interval_state と一致させる。
+const (
+	ShiftIntervalStateKnown   = "known"
+	ShiftIntervalStateUnknown = "unknown"
+)
+
+// ShiftWindow は勤務内の休憩検証に使う明示日時の区間 [StartsAt, EndsAt)。
+type ShiftWindow struct {
+	StartsAt time.Time
+	EndsAt   time.Time
 }
 
-// ShiftTimestampToClock は starts_at/ends_at を time.Local の "HH:MM:SS" へ戻す。nil は nil。
-func ShiftTimestampToClock(ts *time.Time) *string {
-	if ts == nil {
+// ValidateShiftInterval は勤務種別に応じた starts_at / ends_at の整合を検証する（EMR-493 / EMR-549）。
+// 勤務（full / morning / afternoon）は両日時が必須で starts_at < ends_at。ends_at が翌日以降の日跨ぎ勤務も許し、
+// 時刻だけから翌日を推測しない。off / paid_leave は終日非勤務のため両日時とも NULL。
+func ValidateShiftInterval(shiftType model.ShiftType, startsAt, endsAt *time.Time) error {
+	if !RequiresTimeSlot(shiftType) {
+		if startsAt != nil || endsAt != nil {
+			return apperrors.WrapInvalidInput("starts_at and ends_at must be null for off and paid_leave")
+		}
 		return nil
 	}
-	clock := ts.In(time.Local).Format("15:04:05")
-	return &clock
+	if startsAt == nil || endsAt == nil {
+		return apperrors.WrapInvalidInput("starts_at and ends_at are required for this shift type")
+	}
+	if !startsAt.Before(*endsAt) {
+		return apperrors.WrapInvalidInput("starts_at must be before ends_at")
+	}
+	return nil
+}
+
+// ValidateShiftDate は勤務日 date が starts_at の JST 暦日と一致することを検証する。
+// starts_at が nil（終日非勤務）のときは検査しない。
+func ValidateShiftDate(date time.Time, startsAt *time.Time) error {
+	if startsAt == nil {
+		return nil
+	}
+	if shiftDateKey(date) != shiftDateKey(*startsAt) {
+		return apperrors.WrapInvalidInput("date must equal the JST date of starts_at")
+	}
+	return nil
+}
+
+// shiftDateKey は時刻の JST 暦日を YYYY-MM-DD で返す。DATE 列は UTC 0 時で読まれうるため、必ず JST へ直して比較する。
+func shiftDateKey(t time.Time) string {
+	return t.In(config.JST).Format(time.DateOnly)
+}
+
+// ValidateShiftBreaks は休憩が勤務区間 [starts_at, ends_at) の内側にあり、各休憩の starts_at < ends_at で、
+// 互いに正の時間幅で重複しないことを検証する。区間は半開のため、休憩の終了と次の休憩の開始がちょうど接する場合は
+// 重複とみなさない。
+func ValidateShiftBreaks(startsAt, endsAt *time.Time, breaks []ShiftWindow) error {
+	if len(breaks) == 0 {
+		return nil
+	}
+	if startsAt == nil || endsAt == nil {
+		return apperrors.WrapInvalidInput("breaks require a shift interval")
+	}
+	sorted := make([]ShiftWindow, len(breaks))
+	copy(sorted, breaks)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].StartsAt.Before(sorted[j].StartsAt) })
+	for i, b := range sorted {
+		if !b.StartsAt.Before(b.EndsAt) {
+			return apperrors.WrapInvalidInput("break starts_at must be before ends_at")
+		}
+		if b.StartsAt.Before(*startsAt) || b.EndsAt.After(*endsAt) {
+			return apperrors.WrapInvalidInput("break must be within the shift interval")
+		}
+		if i > 0 && sorted[i-1].EndsAt.After(b.StartsAt) {
+			return apperrors.WrapInvalidInput("breaks must not overlap")
+		}
+	}
+	return nil
+}
+
+// ValidateShiftEntryShape は保存後の勤務全体（種別・日時・勤務日・休憩）を shift 契約どおり検証する。
+// off / paid_leave は休憩を持てない（終日非勤務）。
+func ValidateShiftEntryShape(shiftType model.ShiftType, date time.Time, startsAt, endsAt *time.Time, breaks []ShiftWindow) error {
+	if err := ValidateShiftInterval(shiftType, startsAt, endsAt); err != nil {
+		return err
+	}
+	if !RequiresTimeSlot(shiftType) {
+		if len(breaks) > 0 {
+			return apperrors.WrapInvalidInput("breaks must be empty for off and paid_leave")
+		}
+		return nil
+	}
+	if err := ValidateShiftDate(date, startsAt); err != nil {
+		return err
+	}
+	return ValidateShiftBreaks(startsAt, endsAt, breaks)
+}
+
+// ShiftBreakIntervalState は休憩の interval_state を返す。いずれかの日時が NULL なら unknown。
+func ShiftBreakIntervalState(b model.ShiftEntryBreak) string {
+	if b.StartsAt == nil || b.EndsAt == nil {
+		return ShiftIntervalStateUnknown
+	}
+	return ShiftIntervalStateKnown
+}
+
+// ShiftEntryIntervalState は勤務行の interval_state を返す（api.yaml ShiftEntry）。
+// 勤務で starts_at / ends_at が NULL、いずれかの休憩が unknown、または off / paid_leave に矛盾する
+// 日時・休憩が残る行は unknown。unknown は休日でも勤務可能でもなく、値を補完・削除しない。
+func ShiftEntryIntervalState(entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) string {
+	if entry == nil {
+		return ShiftIntervalStateUnknown
+	}
+	for _, b := range breaks {
+		if ShiftBreakIntervalState(b) == ShiftIntervalStateUnknown {
+			return ShiftIntervalStateUnknown
+		}
+	}
+	if RequiresTimeSlot(entry.ShiftType) {
+		if entry.StartsAt == nil || entry.EndsAt == nil {
+			return ShiftIntervalStateUnknown
+		}
+		return ShiftIntervalStateKnown
+	}
+	if entry.StartsAt != nil || entry.EndsAt != nil || len(breaks) > 0 {
+		return ShiftIntervalStateUnknown
+	}
+	return ShiftIntervalStateKnown
 }

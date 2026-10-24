@@ -15,15 +15,15 @@ import (
 
 func TestShiftEntryService_Update(t *testing.T) {
 	newShiftType := string(model.ShiftTypeAfternoon)
-	newStartTime := "15:00"
-	newEndTime := "19:00"
+	newStartsAt := shiftTS(t, testShiftDate, "15:00")
+	newEndsAt := shiftTS(t, testShiftDate, "19:00")
 	newNote := "Updated note"
-	// BUG-036: Full 勤務の既存行は start/end を持つ前提で検証する
+	// BUG-036: Full 勤務の既存行は starts_at/ends_at を持つ前提で検証する
 	existingStart := "09:00:00"
 	existingEnd := "18:00:00"
-	// EMR-241: 空文字は normalize で nil → 時刻クリアを意味する
-	emptyTime := ""
 	offType := string(model.ShiftTypeOff)
+	nextDay := testShiftDate.AddDate(0, 0, 1)
+	noBreaks := []ShiftBreakInput{}
 
 	tests := []struct {
 		name            string
@@ -33,6 +33,7 @@ func TestShiftEntryService_Update(t *testing.T) {
 		repoUpdateErr   error
 		repoReturnEntry *model.ShiftEntry
 		wantErr         bool
+		wantInvalid     bool
 	}{
 		{
 			name:     "updates shift entry successfully",
@@ -40,25 +41,21 @@ func TestShiftEntryService_Update(t *testing.T) {
 			id:       1,
 			input: &UpdateShiftEntryInput{
 				ShiftType: &newShiftType,
-				StartTime: &newStartTime,
-				EndTime:   &newEndTime,
+				StartsAt:  OptionalShiftTime{Set: true, Value: newStartsAt},
+				EndsAt:    OptionalShiftTime{Set: true, Value: newEndsAt},
 				Notes:     &newNote,
 			},
-			repoUpdateErr: nil,
 			repoReturnEntry: &model.ShiftEntry{
 				ID:        1,
 				ShiftType: model.ShiftType(newShiftType),
 			},
-			wantErr: false,
 		},
 		{
-			name:            "returns error when no fields provided",
-			clinicID:        1,
-			id:              1,
-			input:           &UpdateShiftEntryInput{},
-			repoUpdateErr:   nil,
-			repoReturnEntry: nil,
-			wantErr:         true,
+			name:     "returns error when no fields provided",
+			clinicID: 1,
+			id:       1,
+			input:    &UpdateShiftEntryInput{},
+			wantErr:  true,
 		},
 		{
 			name:     "returns error when update fails",
@@ -67,53 +64,86 @@ func TestShiftEntryService_Update(t *testing.T) {
 			input: &UpdateShiftEntryInput{
 				Notes: &newNote,
 			},
-			repoUpdateErr:   errors.New("db error"),
-			repoReturnEntry: nil,
-			wantErr:         true,
+			repoUpdateErr: errors.New("db error"),
+			wantErr:       true,
 		},
 		{
-			// EMR-241: 勤務区分（既存 full）の時刻を両方クリアする更新は InvalidInput。
-			// 空文字は normalize で nil になり、実効値が両方 NULL になるため拒否される。
+			// EMR-241: 勤務区分（既存 full）の starts_at/ends_at を両方 null にする更新は InvalidInput。
 			name:     "returns invalid input when clearing both times on a working shift",
 			clinicID: 1,
 			id:       1,
 			input: &UpdateShiftEntryInput{
-				StartTime: &emptyTime,
-				EndTime:   &emptyTime,
+				StartsAt: OptionalShiftTime{Set: true},
+				EndsAt:   OptionalShiftTime{Set: true},
 			},
-			repoUpdateErr:   nil,
-			repoReturnEntry: nil,
-			wantErr:         true,
+			wantErr:     true,
+			wantInvalid: true,
 		},
 		{
-			// EMR-241: 勤務区分への片方だけの時刻更新は既存値と併せて検証され、
-			// end<=start なら InvalidInput（片方だけの矛盾した更新を許さない）。
-			name:     "returns invalid input when one-sided update breaks start<end",
+			// EMR-241: 片方だけの日時更新は既存値と併せて検証され、
+			// ends_at <= starts_at なら InvalidInput（片方だけの矛盾した更新を許さない）。
+			// starts_at を既存 ends_at（18:00）と同時刻にして拒否されることを確認する。
+			name:     "returns invalid input when one-sided update breaks starts_at < ends_at",
 			clinicID: 1,
 			id:       1,
 			input: &UpdateShiftEntryInput{
-				StartTime: &existingEnd, // 18:00 → 既存 end(18:00) と等しくなり拒否
+				StartsAt: OptionalShiftTime{Set: true, Value: shiftTS(t, testShiftDate, existingEnd)},
 			},
-			repoUpdateErr:   nil,
-			repoReturnEntry: nil,
-			wantErr:         true,
+			wantErr:     true,
+			wantInvalid: true,
 		},
 		{
-			// EMR-241: off への変更と時刻クリアは許可（off は時刻任意）
-			name:     "allows clearing times when switching to off",
+			// EMR-549: off への変更は終日非勤務。日時を明示 null にして初めて受け付ける。
+			name:     "allows switching to off when both times are cleared explicitly",
 			clinicID: 1,
 			id:       1,
 			input: &UpdateShiftEntryInput{
 				ShiftType: &offType,
-				StartTime: &emptyTime,
-				EndTime:   &emptyTime,
+				StartsAt:  OptionalShiftTime{Set: true},
+				EndsAt:    OptionalShiftTime{Set: true},
+				Breaks:    &noBreaks,
 			},
-			repoUpdateErr: nil,
 			repoReturnEntry: &model.ShiftEntry{
 				ID:        1,
 				ShiftType: model.ShiftTypeOff,
 			},
-			wantErr: false,
+		},
+		{
+			// EMR-549: 日時を残したままの off への変更は、勤務時間を黙って捨てず InvalidInput。
+			name:     "returns invalid input when switching to off without clearing times",
+			clinicID: 1,
+			id:       1,
+			input: &UpdateShiftEntryInput{
+				ShiftType: &offType,
+			},
+			wantErr:     true,
+			wantInvalid: true,
+		},
+		{
+			// 日跨ぎ勤務への変更: 22:00 から翌日 07:00。翌日は明示日時で表す。
+			name:     "allows changing to an overnight shift",
+			clinicID: 1,
+			id:       1,
+			input: &UpdateShiftEntryInput{
+				StartsAt: OptionalShiftTime{Set: true, Value: shiftTS(t, testShiftDate, "22:00")},
+				EndsAt:   OptionalShiftTime{Set: true, Value: shiftTS(t, nextDay, "07:00")},
+			},
+			repoReturnEntry: &model.ShiftEntry{
+				ID:        1,
+				ShiftType: model.ShiftTypeFull,
+			},
+		},
+		{
+			// 勤務日の付替えは受け付けない: starts_at の JST 日付が保存済みの date と一致しなければ InvalidInput。
+			name:     "returns invalid input when starts_at moves to another date",
+			clinicID: 1,
+			id:       1,
+			input: &UpdateShiftEntryInput{
+				StartsAt: OptionalShiftTime{Set: true, Value: shiftTS(t, nextDay, "09:00")},
+				EndsAt:   OptionalShiftTime{Set: true, Value: shiftTS(t, nextDay, "18:00")},
+			},
+			wantErr:     true,
+			wantInvalid: true,
 		},
 	}
 
@@ -124,6 +154,7 @@ func TestShiftEntryService_Update(t *testing.T) {
 			baseEntry := &model.ShiftEntry{
 				ID:        1,
 				ClinicID:  1,
+				Date:      testShiftDate,
 				ShiftType: model.ShiftTypeFull,
 				StartsAt:  shiftTS(t, testShiftDate, existingStart),
 				EndsAt:    shiftTS(t, testShiftDate, existingEnd),
@@ -149,6 +180,9 @@ func TestShiftEntryService_Update(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantInvalid {
+					assert.True(t, apperrors.IsInvalidInput(err), "unexpected error: %v", err)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, entry)
@@ -454,8 +488,8 @@ func TestValidateShiftTimes(t *testing.T) {
 
 func TestShiftEntryService_Create_AdditionalBranches(t *testing.T) {
 	date := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
-	startTime := "09:00:00"
-	endTime := "18:00:00"
+	startsAt := shiftTS(t, date, "09:00:00")
+	endsAt := shiftTS(t, date, "18:00:00")
 
 	t.Run("returns invalid input for unknown shift type", func(t *testing.T) {
 		repo := &mockShiftEntryRepository{}
@@ -495,10 +529,10 @@ func TestShiftEntryService_Create_AdditionalBranches(t *testing.T) {
 			StaffID:   1,
 			Date:      date,
 			ShiftType: string(model.ShiftTypeFull),
-			StartTime: &startTime,
-			EndTime:   &endTime,
+			StartsAt:  startsAt,
+			EndsAt:    endsAt,
 			Breaks: []ShiftBreakInput{
-				{BreakStart: "12:00:00", BreakEnd: "13:00:00"},
+				{StartsAt: *shiftTS(t, date, "12:00:00"), EndsAt: *shiftTS(t, date, "13:00:00")},
 			},
 		})
 
@@ -525,10 +559,10 @@ func TestShiftEntryService_Create_AdditionalBranches(t *testing.T) {
 			StaffID:   1,
 			Date:      date,
 			ShiftType: string(model.ShiftTypeFull),
-			StartTime: &startTime,
-			EndTime:   &endTime,
+			StartsAt:  startsAt,
+			EndsAt:    endsAt,
 			Breaks: []ShiftBreakInput{
-				{BreakStart: "12:00:00", BreakEnd: "13:00:00"},
+				{StartsAt: *shiftTS(t, date, "12:00:00"), EndsAt: *shiftTS(t, date, "13:00:00")},
 			},
 		})
 
@@ -552,8 +586,8 @@ func TestShiftEntryService_Create_AdditionalBranches(t *testing.T) {
 			StaffID:   1,
 			Date:      date,
 			ShiftType: string(model.ShiftTypeFull),
-			StartTime: &startTime,
-			EndTime:   &endTime,
+			StartsAt:  startsAt,
+			EndsAt:    endsAt,
 		})
 
 		require.Error(t, err)
@@ -565,8 +599,8 @@ func TestShiftEntryService_Create_AdditionalBranches(t *testing.T) {
 // ---- Update: additional branch coverage ----
 
 func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
-	newStartTime := "20:00:00"
-	newEndTime := "19:00:00" // end < start を意図的に指定
+	newStartsAt := shiftTS(t, testShiftDate, "20:00:00")
+	newEndsAt := shiftTS(t, testShiftDate, "19:00:00") // ends_at < starts_at を意図的に指定
 	newNote := "note"
 	invalidShiftType := "bogus"
 	// BUG-036: 勤務種別の既存行は有効な start/end を持つ
@@ -618,8 +652,8 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 		svc := newTestShiftEntryService(repo)
 
 		entry, err := svc.Update(context.Background(), 1, 1, &UpdateShiftEntryInput{
-			StartTime: &newStartTime,
-			EndTime:   &newEndTime,
+			StartsAt: OptionalShiftTime{Set: true, Value: newStartsAt},
+			EndsAt:   OptionalShiftTime{Set: true, Value: newEndsAt},
 		})
 
 		require.Error(t, err)
@@ -634,7 +668,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftEntry, error) {
 				callCount++
 				return &model.ShiftEntry{
-					ID: id, ShiftType: model.ShiftTypeFull,
+					ID: id, Date: testShiftDate, ShiftType: model.ShiftTypeFull,
 					StartsAt: shiftTS(t, testShiftDate, existingStart), EndsAt: shiftTS(t, testShiftDate, existingEnd),
 				}, nil
 			},
@@ -648,7 +682,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 		}
 		svc := newTestShiftEntryService(repo)
 
-		breaks := []ShiftBreakInput{{BreakStart: "12:00:00", BreakEnd: "13:00:00"}}
+		breaks := []ShiftBreakInput{{StartsAt: *shiftTS(t, testShiftDate, "12:00:00"), EndsAt: *shiftTS(t, testShiftDate, "13:00:00")}}
 		entry, err := svc.Update(context.Background(), 1, 1, &UpdateShiftEntryInput{
 			Notes:  &newNote,
 			Breaks: &breaks,
@@ -661,12 +695,15 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 	})
 
 	t.Run("accepts breaks only update", func(t *testing.T) {
-		breaks := []ShiftBreakInput{{BreakStart: "12:00:00", BreakEnd: "13:00:00"}}
+		breaks := []ShiftBreakInput{{StartsAt: *shiftTS(t, testShiftDate, "12:00:00"), EndsAt: *shiftTS(t, testShiftDate, "13:00:00")}}
 		updateCalled := false
 		replaceCalled := false
 		repo := &mockShiftEntryRepository{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftEntry, error) {
-				return &model.ShiftEntry{ID: id, ShiftType: model.ShiftTypeOff}, nil
+				return &model.ShiftEntry{
+					ID: id, Date: testShiftDate, ShiftType: model.ShiftTypeFull,
+					StartsAt: shiftTS(t, testShiftDate, existingStart), EndsAt: shiftTS(t, testShiftDate, existingEnd),
+				}, nil
 			},
 			updateFn: func(_ context.Context, _, _ uint64, _ UpdateShiftEntryInput) error {
 				updateCalled = true
@@ -693,7 +730,10 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 		tx := &rollbackShiftUpdateTransactor{state: state}
 		repo := &mockShiftEntryRepository{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftEntry, error) {
-				return &model.ShiftEntry{ID: id, ShiftType: model.ShiftTypeOff, Notes: state.notes}, nil
+				return &model.ShiftEntry{
+					ID: id, Date: testShiftDate, ShiftType: model.ShiftTypeFull, Notes: state.notes,
+					StartsAt: shiftTS(t, testShiftDate, existingStart), EndsAt: shiftTS(t, testShiftDate, existingEnd),
+				}, nil
 			},
 			updateFn: func(_ context.Context, _, _ uint64, cmd UpdateShiftEntryInput) error {
 				if cmd.Notes != nil {
@@ -712,7 +752,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 			&mockShiftEntryStaffAssignments{},
 			tx,
 		)
-		breaks := []ShiftBreakInput{{BreakStart: "12:00:00", BreakEnd: "13:00:00"}}
+		breaks := []ShiftBreakInput{{StartsAt: *shiftTS(t, testShiftDate, "12:00:00"), EndsAt: *shiftTS(t, testShiftDate, "13:00:00")}}
 
 		entry, err := svc.Update(context.Background(), 1, 1, &UpdateShiftEntryInput{
 			Notes:  &newNote,
@@ -730,7 +770,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 		repo := &mockShiftEntryRepository{
 			findByIDFn: func(_ context.Context, _, id uint64) (*model.ShiftEntry, error) {
 				return &model.ShiftEntry{
-					ID: id, ShiftType: model.ShiftTypeFull,
+					ID: id, Date: testShiftDate, ShiftType: model.ShiftTypeFull,
 					StartsAt: shiftTS(t, testShiftDate, existingStart), EndsAt: shiftTS(t, testShiftDate, existingEnd),
 				}, nil
 			},
@@ -743,7 +783,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 		}
 		svc := newTestShiftEntryService(repo)
 
-		breaks := []ShiftBreakInput{{BreakStart: "12:00:00", BreakEnd: "13:00:00"}}
+		breaks := []ShiftBreakInput{{StartsAt: *shiftTS(t, testShiftDate, "12:00:00"), EndsAt: *shiftTS(t, testShiftDate, "13:00:00")}}
 		entry, err := svc.Update(context.Background(), 1, 1, &UpdateShiftEntryInput{
 			Notes:  &newNote,
 			Breaks: &breaks,
@@ -760,7 +800,7 @@ func TestShiftEntryService_Update_AdditionalBranches(t *testing.T) {
 				callCount++
 				if callCount == 1 {
 					return &model.ShiftEntry{
-						ID: id, ShiftType: model.ShiftTypeFull,
+						ID: id, Date: testShiftDate, ShiftType: model.ShiftTypeFull,
 						StartsAt: shiftTS(t, testShiftDate, existingStart), EndsAt: shiftTS(t, testShiftDate, existingEnd),
 					}, nil
 				}

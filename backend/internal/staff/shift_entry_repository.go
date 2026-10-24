@@ -15,6 +15,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // staffAssignedToClinicCond keeps the shift entry visible while hiding a Staff
@@ -120,6 +121,7 @@ func (r *shiftEntryRepository) LockActiveByIDForUpdate(
 	var entry model.ShiftEntry
 	if err := persistence.DBOrTx(ctx, r.db).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Preload("Breaks").
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&entry).Error; err != nil {
@@ -132,8 +134,12 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 	if err := persistence.DBOrTx(ctx, r.db).Create(entry).Error; err != nil {
 		// PostgreSQL UNIQUE違反 (23505)
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("shift_entry",
-				fmt.Sprintf("staff_id=%d date=%s", entry.StaffID, entry.Date.Format(time.DateOnly)))
+			// api.yaml ShiftContractError: 同じ勤務日の重複は固定 code shift_exists（ErrAlreadyExists のまま 409）。
+			return &apperrors.AppError{
+				Code:    codeShiftExists,
+				Message: fmt.Sprintf("shift_entry 'staff_id=%d date=%s' already exists", entry.StaffID, entry.Date.Format(time.DateOnly)),
+				Err:     apperrors.ErrAlreadyExists,
+			}
 		}
 		return apperrors.FromGORM(err, "shift_entry", "")
 	}
@@ -141,11 +147,7 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 }
 
 func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, cmd UpdateShiftEntryInput) error {
-	fields, err := buildShiftEntryUpdate(&cmd)
-	if err != nil {
-		return err
-	}
-	return r.update(ctx, clinicID, id, fields)
+	return r.update(ctx, clinicID, id, buildShiftEntryUpdate(&cmd))
 }
 
 func (r *shiftEntryRepository) update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
@@ -339,6 +341,28 @@ func replaceScheduleBreaks(
 	return persisted, nil
 }
 
+// findScheduleBreaks は親 shift_entry の clinic_id を JOIN で相関させて休憩を取得する（RSV-08）。
+// 呼出し側は親行の行ロックを保持していること（休憩の書き換えは常に親ロック下で行われる）。
+func findScheduleBreaks(
+	tx *gorm.DB,
+	clinicID, shiftEntryID uint64,
+) ([]model.ShiftEntryBreak, error) {
+	found := make([]model.ShiftEntryBreak, 0)
+	if err := tx.
+		Model(&model.ShiftEntryBreak{}).
+		Joins("JOIN shift_entries ON shift_entries.id = shift_entry_breaks.shift_entry_id AND shift_entries.clinic_id = ?", clinicID).
+		Where("shift_entry_breaks.shift_entry_id = ?", shiftEntryID).
+		Order("shift_entry_breaks.id ASC").
+		Find(&found).Error; err != nil {
+		return nil, apperrors.FromGORM(
+			err,
+			"shift_entry_break",
+			strconv.FormatUint(shiftEntryID, 10),
+		)
+	}
+	return found, nil
+}
+
 // SaveByStaffDate atomically upserts a shift graph and returns the persisted
 // parent, persisted breaks, and whether this transaction created the parent.
 // The exclusive staff -> assignment -> shift order also serializes absent keys.
@@ -389,6 +413,19 @@ func (r *shiftEntryRepository) SaveByStaffDate(
 			}
 			created = true
 		} else {
+			// 既存行（親・休憩）が unknown なら、PATCH と同じ source_unresolved で書込前に停止する。
+			// 親の行ロック下で休憩も clinic 相関つきで読み、NULL を勤務可能・休日と扱って
+			// 上書き・全置換しない（api.yaml ShiftEntry interval_state）。
+			existingBreaks, breaksErr := findScheduleBreaks(tx, clinicID, existing.ID)
+			if breaksErr != nil {
+				return breaksErr
+			}
+			if sharedkernel.ShiftEntryIntervalState(existing, existingBreaks) == sharedkernel.ShiftIntervalStateUnknown {
+				return newShiftContractConflict(
+					codeShiftSourceUnresolved,
+					"shift entry interval is unresolved",
+				)
+			}
 			fields := map[string]any{
 				"shift_type": entry.ShiftType,
 				"starts_at":  entry.StartsAt,

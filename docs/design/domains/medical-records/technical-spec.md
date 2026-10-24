@@ -731,3 +731,39 @@ AC-dose-source-*へ、承認なし／単位欠落／対象外／パターン版�
 [本人確定の後日予定レポートFR／3AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-deferred-plan-report)はカルテ右上から開く[D21](../../../spec/screens/39-owner-report.md#owner-report-deferred-plan)のreadに限る。過去カルテの元予定identity・元recordと現在の実施／中止状態を保って参照し、別recordの実績へ結び付けて消化する方式は採用しない。次回予約・受付・来院時の追加表示、来院だけの自動実施、元予定の移動／上書き、新たな消化操作を実装候補にしない。同一record後日入力・新来院の既存選択copyは別操作で、レポートから自動実行しない。具体的projection／取得範囲・配置は設計未了で、未選定の保存方式・多重度・権限mappingを今回確定しない。実装適合・実機受入は未確認。
 
 後日予定readは既存の履歴100件だけを網羅済みとせず、古い対象にも到達できる取得設計とする。未取得／打切りは不完全として「予定なし」に変換しない。D03のAC-medical-records-deferred-report-scope-errorで100件より古い予定を対照し、具体的な取得方式は設計へ残す。他sectionの無制限取得・新期間制限・新リンク／modal／自動focusは追加しない。表示はD21既存§3.2を適用し、操作数／所要時間のbaseline・改善実測は後日の実装受入へ残す。
+
+<a id="manual-inquiry-template-contract-20261024"></a>
+## 手動問診テンプレートの選択・適用契約（EMR-560）
+
+基準main `c0ee0914e723791c59cfa971cbb1ad84cff171db`。2026-10-24の限定技術整備。製品実装・供給受領・実行claim・実機PASSではない。対象は[手動挿入の業務正本・3AC](../../../spec/domains/medical-records/pages/medical-record-form.md#requirement-fr-medical-records-manual-template-insertion)。過去カルテcopy102/182/325は別scope。560が適用consumer、447/medicalrecord master ownerが選択reader、495/549が問診draft/save/fence、445/API ownerがAPI/認可登録を同じ成功単位で収容する。個人assigneeは未割当。
+
+### 対象欄・local draft
+
+対象はchiefComplaint（API chief_complaint）とtreatmentPolicy（API notes）。各欄の「テンプレート」入口がtarget_fieldを固定し、previewに欄名を示す。categoryは自由文字列の分類/表示情報であり、既知値chief_complaint/history/current_medications/notesや未知値から自動振分け・固定カテゴリ必須化をしない。主訴区分ID・診断・処方・治療行は変更しない。
+
+有効templateのtitle/categoryとplain text本文を表示し、Markdown/HTMLを実行しない。既存sort_order→title→id順、同名はidで区別。自動挿入/動的サジェストなし。空contentはpreviewできるが適用で元本文を消さず、追記なしを表示する。
+
+基本は追記。空draftなら本文、非空なら元文字列をtrimせず改行1つで連結し、既に末尾改行があれば区切りを増やさない。同templateの明示再適用は重複除去しない。追加部分が分かる位置へfocusしdirtyを保持、template名を保存本文へ足さない。置換は対象欄・現本文・置換後本文の確認付き副操作で、取消なら全draft不変。確認中に本文又はcontext generationが変われば再確認する。
+
+適用は既存state setter/dirty trackerだけで、保存API・master CRUD・receiptを発火しない。通常の問診保存へ合流し、失敗/版競合/unknownでdraftを保持する。旧finalizedだけの無効化を目標に残さず、現在grant・edit fence・期待版・結果照会・履歴・離脱保護を維持する。
+
+### 本人承認済みの限定選択reader
+
+同医院のmedical-records:editによる有効templateの限定read/適用は、2026-10-24 05:02:53 UTCの本人「ok」（Sentinel_b88574b3f9a08191b8e3bbe8941124b8）で承認済み。master-medical管理GET/CRUDのgrantを緩めず、新grant/職位条件/管理CRUDを追加しない。
+
+選定routeはGET `/v1/medical-records/inquiry-template-choices` と同route `/{template_id}`。現在selected clinicのmedical-records:editをserverで検査し、同医院・is_active=true・未削除だけ返す。対象scope不一致は非開示。新規カルテdraftでも同院編集grantで選択でき、予約/カルテを作成しない。view-only staffには本文を配信しない。
+
+一覧のclosed responseは `{items:[Choice]}`、Choiceは `{id,title,category,content,selection_digest}`。idはcanonical signed-int64正十進string。digestは `{schema:"inquiry-template-choice.v1",clinic_id,id,title,category,content,is_active:true}` のJCS UTF-8 SHA256 lowercase64hex。updated_atをversionと偽装せず、sort_orderはserver整列用で公開しない。
+
+選択/置換確認直前に同idを再GETし、digest変更なら新本文を示し再選択。403/404/取得失敗でdraftを変更せず古いcacheへfallbackしない。選択後に通常テキストとなったdraftや保存済み問診をmaster変更で自動更新/消去せず、失効後も保存済み本文を参照できる。query key/応答採用にclinicと認証generation、dialogにclinic/pet/record又はnew-record draft ID・画面generation・対象field・元draft revisionを束縛。患者切替でpending選択だけ破棄し、元draftは既存離脱保護へ渡す。
+
+### 同PR責務・Readyと検証
+
+既存listInquiryTemplates/useGetInquiryTemplates、inquiry_template_handlerのList/Getとclinic-scoped FindAllは実在する。reader全体不存在とは扱わず、限定選択認可とconsumer接続を収容する。MedicalRecordInterviewの固定配列・setChiefComplaint(text)を正本とせず、InterviewChiefComplaint/InterviewTreatmentPolicy、digest/active再読取、追記/確認置換/取消/連続適用、既存save/dirty/fenceまで同PRで結ぶ。495/549共有hunkは単一editor。
+
+必要subsetは既存save/fenceの共有owner/供給SHA又は今回同PR差分。447全体・過去copy全体・Phase2全入力のDone待ちにしない。3ACに、無効化/過去本文、別患者遅延、確認中変更、失権/取得失敗、保存unknown、同名/自由category/空本文のfixtureを対応付ける。設計Readyと供給済み・実装完了を区別し、全実行はNOT_RUN。
+
+
+### 560と既存495実装PRの統合順
+
+Draft #849 head `b36cc9aa074007c928605c35d959ad2b1ca96901` はinquiry_request.go/inquiry_service.go/inquiry_repository.goと対応fixtureを変更する。560のローカル挿入と、その後の同じ問診saveの接点であり採用mainではない。560実装は495/549の同一問診writer ownerへ統合するか、当該inquiry request presence・現在編集保護・save subsetの固定採用SHA受領後に再照合する。全#849 Done待ちでなく、選択reader/ローカルdraftは独立準備可、shared save hunkは単一editor。API型と実callerも同完結単位で置換し旧コード互換を目的にしない。

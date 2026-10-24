@@ -25,6 +25,15 @@ func passthroughOrInvalidDateTime(err error) error {
 	return apperrors.WrapInvalidInput(errMsgInvalidDateTime)
 }
 
+// respondShiftError は勤務 API のエラー応答を返す。409 は api.yaml ShiftContractError に合わせて固定 code を含める。
+func respondShiftError(c *gin.Context, err error) {
+	if apperrors.IsConflict(err) || apperrors.IsAlreadyExists(err) {
+		httpapi.RespondErrorWithExtras(c, err, nil)
+		return
+	}
+	RespondError(c, err)
+}
+
 // ListShiftEntries godoc
 func (h *Handler) ListShiftEntries(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -62,6 +71,11 @@ func (h *Handler) CreateShiftEntry(c *gin.Context) {
 		return
 	}
 
+	operationKey, err := parseShiftOperationKey(req.OperationKey)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 	input, err := req.toServiceInput()
 	if err != nil {
 		RespondError(c, passthroughOrInvalidDateTime(err))
@@ -70,11 +84,11 @@ func (h *Handler) CreateShiftEntry(c *gin.Context) {
 
 	shift, err := h.svc.ShiftEntry.Create(c.Request.Context(), clinicID, input)
 	if err != nil {
-		RespondError(c, err)
+		respondShiftError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/shifts/%d", shift.ID))
-	c.JSON(http.StatusCreated, toShiftResponse(shift))
+	c.JSON(http.StatusCreated, toShiftMutationReceipt(operationKey, shiftIntentCreate, shift))
 }
 
 // UpdateShiftEntry godoc
@@ -95,12 +109,23 @@ func (h *Handler) UpdateShiftEntry(c *gin.Context) {
 		return
 	}
 
-	shift, err := h.svc.ShiftEntry.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
+	operationKey, err := parseShiftOperationKey(req.OperationKey)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toShiftResponse(shift))
+	input, err := req.toServiceInput()
+	if err != nil {
+		RespondError(c, passthroughOrInvalidDateTime(err))
+		return
+	}
+
+	shift, err := h.svc.ShiftEntry.Update(c.Request.Context(), clinicID, id, input)
+	if err != nil {
+		respondShiftError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toShiftMutationReceipt(operationKey, shiftIntentUpdate, shift))
 }
 
 // DeleteShiftEntry godoc

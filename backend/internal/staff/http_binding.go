@@ -46,6 +46,11 @@ func bindStaffJSON(c *gin.Context, destination any) error {
 
 	c.Request.Body = io.NopCloser(bytes.NewReader(body))
 	if err := c.ShouldBindJSON(destination); err != nil {
+		// 要求型の UnmarshalJSON（勤務リクエスト）が返す入力不正は、固定メッセージを保つため汎用文言へ潰さない。
+		var appErr *apperrors.AppError
+		if errors.As(err, &appErr) && errors.Is(err, apperrors.ErrInvalidInput) {
+			return apperrors.Wrap(err, staffJSONInvalidMessage)
+		}
 		return apperrors.WrapInvalidInput(httpapi.ParseBindError(err))
 	}
 	return validateStaffJSONByteLengths(destination)

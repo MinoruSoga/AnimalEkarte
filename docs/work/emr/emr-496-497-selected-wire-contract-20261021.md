@@ -1,5 +1,10 @@
 # EMR-496 / EMR-497 採択技術契約 R5
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（496）
+
+§3のcategory deprecated alias受付・二重応答・利用ログ/consumer棚卸し後まで除去禁止、および後続節のalias維持/旧alias対応必須だけを撤回する。canonical chief_complaint_type_idと必要callerを同じ完結単位で整合させ、旧aliasの存在だけを新consumerの必須条件にしない。presence・厳密整数安全・snapshot/履歴・CAS/hashを維持する。既存scalarの数値をstringへ変える選定ではなく、502のnumber精度/JCSも変更しない。 詳細根拠は[全票監査の採用是正方針](backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 2026-10-21。独立レビューを経て採択した技術契約。R4の保存・監査・hash契約を維持し、共通restore_contextと純読取baseline snapshotの2点を統合した公開用単一文書。既存494の採用契約を拡張する追加schema/wireであり、runtime実装、DDL適用、配備、試験は未実施（NOT_RUN）。技術選定済みと実装済みを区別する。
 
 ## 1. 現存契約と照合根拠

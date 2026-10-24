@@ -280,11 +280,12 @@ func TestShiftEntryService_List(t *testing.T) {
 
 func TestShiftEntryService_Create(t *testing.T) {
 	date := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
-	startTime := "09:00:00"
-	endTime := "18:00:00"
-	// BUG-028: end_time <= start_time のテスト用
-	sameTime := "09:00:00"
-	earlierTime := "08:00:00"
+	startsAt := shiftTS(t, date, "09:00:00")
+	endsAt := shiftTS(t, date, "18:00:00")
+	earlierEndsAt := shiftTS(t, date, "08:00:00")
+	// 日跨ぎ勤務: 22:00 から翌日 07:00。翌日は明示日時で表し、時刻の大小からは推測しない。
+	overnightStartsAt := shiftTS(t, date, "22:00:00")
+	overnightEndsAt := shiftTS(t, date.AddDate(0, 0, 1), "07:00:00")
 
 	tests := []struct {
 		name             string
@@ -301,13 +302,22 @@ func TestShiftEntryService_Create(t *testing.T) {
 				StaffID:   1,
 				Date:      date,
 				ShiftType: string(model.ShiftTypeMorning),
-				StartTime: &startTime,
-				EndTime:   &endTime,
+				StartsAt:  startsAt,
+				EndsAt:    endsAt,
 				Notes:     "Regular shift",
 			},
-			repoErr:          nil,
-			wantErr:          false,
-			wantInvalidInput: false,
+		},
+		{
+			// EMR-549: 日跨ぎ勤務は登録できる（ends_at が翌日の明示日時）
+			name:     "creates overnight shift ending on the next day",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: string(model.ShiftTypeFull),
+				StartsAt:  overnightStartsAt,
+				EndsAt:    overnightEndsAt,
+			},
 		},
 		{
 			name:     "creates shift without times",
@@ -318,27 +328,23 @@ func TestShiftEntryService_Create(t *testing.T) {
 				ShiftType: string(model.ShiftTypeOff),
 				Notes:     "Day off",
 			},
-			repoErr:          nil,
-			wantErr:          false,
-			wantInvalidInput: false,
 		},
 		{
-			// BUG-028: paid_leave は時刻不要なので end_time <= start_time でもエラーなし
-			name:     "creates paid_leave shift without time validation",
+			// EMR-549: paid_leave は終日非勤務。日時を持つ入力は黙って捨てず InvalidInput
+			name:     "returns invalid input when paid_leave has times",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
 				ShiftType: string(model.ShiftTypePaidLeave),
-				StartTime: &sameTime,
-				EndTime:   &sameTime,
+				StartsAt:  startsAt,
+				EndsAt:    endsAt,
 			},
-			repoErr:          nil,
-			wantErr:          false,
-			wantInvalidInput: false,
+			wantErr:          true,
+			wantInvalidInput: true,
 		},
 		{
-			// BUG-036: full で時刻未指定は InvalidInput（DB に NULL を残さない）
+			// BUG-036: full で日時未指定は InvalidInput（DB に NULL を残さない）
 			name:     "returns invalid input when full shift has no times",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
@@ -346,7 +352,6 @@ func TestShiftEntryService_Create(t *testing.T) {
 				Date:      date,
 				ShiftType: string(model.ShiftTypeFull),
 			},
-			repoErr:          nil,
 			wantErr:          true,
 			wantInvalidInput: true,
 		},
@@ -359,65 +364,91 @@ func TestShiftEntryService_Create(t *testing.T) {
 				Date:      date,
 				ShiftType: string(model.ShiftTypeMorning),
 			},
-			repoErr:          nil,
 			wantErr:          true,
 			wantInvalidInput: true,
 		},
 		{
-			// EMR-241: 片方だけの時刻は拒否（start のみ）
-			name:     "returns invalid input when full shift has only start_time",
+			// EMR-241: 片方だけの日時は拒否（starts_at のみ）
+			name:     "returns invalid input when full shift has only starts_at",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
 				ShiftType: string(model.ShiftTypeFull),
-				StartTime: &startTime,
+				StartsAt:  startsAt,
 			},
-			repoErr:          nil,
 			wantErr:          true,
 			wantInvalidInput: true,
 		},
 		{
-			// EMR-241: 片方だけの時刻は拒否（end のみ）
-			name:     "returns invalid input when afternoon shift has only end_time",
+			// EMR-241: 片方だけの日時は拒否（ends_at のみ）
+			name:     "returns invalid input when afternoon shift has only ends_at",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
 				ShiftType: string(model.ShiftTypeAfternoon),
-				EndTime:   &endTime,
+				EndsAt:    endsAt,
 			},
-			repoErr:          nil,
 			wantErr:          true,
 			wantInvalidInput: true,
 		},
 		{
-			// BUG-028: end_time == start_time は InvalidInput
-			name:     "returns invalid input when end_time equals start_time",
+			// BUG-028: ends_at == starts_at は InvalidInput
+			name:     "returns invalid input when ends_at equals starts_at",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
 				ShiftType: string(model.ShiftTypeFull),
-				StartTime: &sameTime,
-				EndTime:   &sameTime,
+				StartsAt:  startsAt,
+				EndsAt:    startsAt,
 			},
-			repoErr:          nil,
 			wantErr:          true,
 			wantInvalidInput: true,
 		},
 		{
-			// BUG-028: end_time < start_time は InvalidInput
-			name:     "returns invalid input when end_time is before start_time",
+			// BUG-028: ends_at < starts_at は InvalidInput
+			name:     "returns invalid input when ends_at is before starts_at",
 			clinicID: 1,
 			input: &CreateShiftEntryInput{
 				StaffID:   1,
 				Date:      date,
 				ShiftType: string(model.ShiftTypeMorning),
-				StartTime: &startTime,
-				EndTime:   &earlierTime,
+				StartsAt:  startsAt,
+				EndsAt:    earlierEndsAt,
 			},
-			repoErr:          nil,
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
+		{
+			// EMR-549: date は starts_at の JST 暦日と一致しなければ InvalidInput（時刻から日付を推測しない）
+			name:     "returns invalid input when date differs from the JST date of starts_at",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date.AddDate(0, 0, 1),
+				ShiftType: string(model.ShiftTypeFull),
+				StartsAt:  startsAt,
+				EndsAt:    endsAt,
+			},
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
+		{
+			// EMR-549: 休憩は勤務区間の内側でなければ InvalidInput
+			name:     "returns invalid input when a break lies outside the shift",
+			clinicID: 1,
+			input: &CreateShiftEntryInput{
+				StaffID:   1,
+				Date:      date,
+				ShiftType: string(model.ShiftTypeFull),
+				StartsAt:  startsAt,
+				EndsAt:    endsAt,
+				Breaks: []ShiftBreakInput{
+					{StartsAt: *shiftTS(t, date, "17:30:00"), EndsAt: *shiftTS(t, date, "18:30:00")},
+				},
+			},
 			wantErr:          true,
 			wantInvalidInput: true,
 		},
@@ -428,12 +459,11 @@ func TestShiftEntryService_Create(t *testing.T) {
 				StaffID:   1,
 				Date:      date,
 				ShiftType: string(model.ShiftTypeMorning),
-				StartTime: &startTime,
-				EndTime:   &endTime,
+				StartsAt:  startsAt,
+				EndsAt:    endsAt,
 			},
-			repoErr:          errors.New("db error"),
-			wantErr:          true,
-			wantInvalidInput: false,
+			repoErr: errors.New("db error"),
+			wantErr: true,
 		},
 	}
 
@@ -628,12 +658,15 @@ func TestShiftEntryService_Create_UsesStaffThenAssignmentLockAndTransactionConte
 	}
 	svc := NewShiftEntryService(repo, staffLocker, assignments, markedStaffSecurityTransactor{})
 
+	date := time.Date(2026, 7, 24, 0, 0, 0, 0, time.UTC)
 	entry, err := svc.Create(context.Background(), 2, &CreateShiftEntryInput{
 		StaffID:   7,
-		Date:      time.Date(2026, 7, 24, 0, 0, 0, 0, time.UTC),
-		ShiftType: string(model.ShiftTypeOff),
+		Date:      date,
+		ShiftType: string(model.ShiftTypeFull),
+		StartsAt:  shiftTS(t, date, "09:00:00"),
+		EndsAt:    shiftTS(t, date, "18:00:00"),
 		Breaks: []ShiftBreakInput{
-			{BreakStart: "12:00:00", BreakEnd: "13:00:00"},
+			{StartsAt: *shiftTS(t, date, "12:00:00"), EndsAt: *shiftTS(t, date, "13:00:00")},
 		},
 	})
 
@@ -679,12 +712,15 @@ func TestShiftEntryService_Create_RollsBackEntryWhenBreakReplacementFails(t *tes
 	}
 	svc := NewShiftEntryService(repo, &mockShiftEntryStaffLocker{}, assignments, &rollbackShiftCreateTransactor{state: state})
 
+	date := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
 	entry, err := svc.Create(context.Background(), 2, &CreateShiftEntryInput{
 		StaffID:   7,
-		Date:      time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC),
-		ShiftType: string(model.ShiftTypeOff),
+		Date:      date,
+		ShiftType: string(model.ShiftTypeFull),
+		StartsAt:  shiftTS(t, date, "09:00:00"),
+		EndsAt:    shiftTS(t, date, "18:00:00"),
 		Breaks: []ShiftBreakInput{
-			{BreakStart: "12:00:00", BreakEnd: "13:00:00"},
+			{StartsAt: *shiftTS(t, date, "12:00:00"), EndsAt: *shiftTS(t, date, "13:00:00")},
 		},
 	})
 

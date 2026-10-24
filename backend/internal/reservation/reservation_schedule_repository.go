@@ -15,7 +15,8 @@ import (
 // ReservationScheduleRepository はスタッフ個人スケジュール（shift_entries + shift_entry_breaks）のデータアクセスインターフェース
 type ReservationScheduleRepository interface {
 	FindAllByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error)
-	// FindAllByStaffIDsAndDateRange は複数スタッフの指定期間内シフトエントリを一括取得する(G7-1: 日付ループN+1回避のプリフェッチ用)。
+	// FindAllByStaffIDsAndDateRange は複数スタッフの、期間 [from, to) に掛かるシフトエントリを一括取得する(G7-1: 日付ループN+1回避のプリフェッチ用)。
+	// 勤務日が期間内の行に加え、明示日時 [starts_at, ends_at) が期間と重なる行（前日から続く日跨ぎ勤務）も返す。
 	FindAllByStaffIDsAndDateRange(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error)
 	// clinicID correlates breaks to parent shift_entries.clinic_id (RSV-08 / SEC-SWEEP-02).
 	FindAllBreaksByEntryIDs(ctx context.Context, clinicID uint64, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
@@ -74,7 +75,10 @@ func (r *reservationScheduleRepository) FindAllByMonth(ctx context.Context, clin
 	return entries, nil
 }
 
-// FindAllByStaffIDsAndDateRange は [from, to) 半開区間・複数スタッフのシフトエントリを1クエリで返す(G7-1)。
+// FindAllByStaffIDsAndDateRange は複数スタッフの、期間 [from, to) に掛かるシフトエントリを1クエリで返す(G7-1)。
+// 勤務日(date)が期間内の行に加え、明示日時 [starts_at, ends_at) が期間と重なる行（前日から続く日跨ぎ勤務など）も返す。
+// 勤務の長さに上限はなく（sharedkernel.ValidateShiftInterval は starts_at < ends_at のみを要求する）、固定日数の余白では
+// 取りこぼしうるため、区間の重なりそのもので絞る。starts_at / ends_at が NULL の行（off / paid_leave / 不明）は勤務日だけで選ぶ。
 // staffIDs が空の場合は空スライスを即返す(クエリを発行しない)。
 func (r *reservationScheduleRepository) FindAllByStaffIDsAndDateRange(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error) {
 	if len(staffIDs) == 0 {
@@ -83,8 +87,8 @@ func (r *reservationScheduleRepository) FindAllByStaffIDsAndDateRange(ctx contex
 	entries := make([]model.ShiftEntry, 0)
 	err := r.db.WithContext(ctx).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("staff_id IN ? AND date >= ? AND date < ?",
-			staffIDs, from.Format(time.DateOnly), to.Format(time.DateOnly)).
+		Where("staff_id IN ? AND ((date >= ? AND date < ?) OR (starts_at < ? AND ends_at > ?))",
+			staffIDs, from.Format(time.DateOnly), to.Format(time.DateOnly), to, from).
 		Order("date ASC").
 		Find(&entries).Error
 	if err != nil {

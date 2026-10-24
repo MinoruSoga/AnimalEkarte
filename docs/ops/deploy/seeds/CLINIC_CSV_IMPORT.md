@@ -1,5 +1,10 @@
 # 医院 CSV カットオーバー投入（F6）
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（342 / 343 / 364）
+
+本書の旧21表経路・既定/pin・表別commit/prefix resumeは当時の手順記録で、旧コード互換を目的とする維持・回帰は新仕様の完了条件ではない。現在19 CSVへの適合済みや正式実行可能とは扱わず、旧受領証拠を保全し、新profile/必要CLI・producer/consumerの置換契約と受領を閉じる。全source hash・同一artifact/run/医院/target・独立検証・両側receipt・fresh/band・原子性・UNKNOWN照合・実操作承認と正式HOLDを維持する。退役会計CSV/列を復活させない。本追補は取込実行許可ではない。 詳細根拠は[全票監査の採用是正方針](../../../work/emr/backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 更新日: 2026-07-31
 
 以下は deployed/main の既存21表 consumer に対するF6投入手順の記録です。`old_db` が出力した AnimalEkarte 形状 CSV 21 テーブルを対象とします。`old_db` DB へは接続せず、医院・run 固定の `manifest.json` と CSV ディレクトリだけを読みます。このF6経路は対象DBへのcutoverであり、`backend/migrations/seeds/` のCSVやmanifestは生成・更新しません。

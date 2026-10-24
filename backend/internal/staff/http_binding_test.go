@@ -68,13 +68,16 @@ func TestBindStaffJSONEnforcesBcryptByteMaximum(t *testing.T) {
 func TestBindStaffJSONAcceptsValidRequest(t *testing.T) {
 	context := newStaffBindingContext(
 		t,
-		`{"staff_id":7,"date":"2026-07-24","shift_type":"full","notes":"ok"}`,
+		`{"operation_key":"11111111-1111-4111-8111-111111111111","staff_id":"7","date":"2026-07-24",`+
+			`"shift_type":"full","starts_at":"2026-07-24T09:00:00+09:00","ends_at":"2026-07-24T18:00:00+09:00",`+
+			`"breaks":[],"notes":"ok"}`,
 	)
 	request := &createShiftRequest{}
 
 	require.NoError(t, bindStaffJSON(context, request))
-	assert.Equal(t, uint64(7), request.StaffID)
-	assert.Equal(t, "ok", request.Notes)
+	assert.Equal(t, "7", request.StaffID)
+	require.NotNil(t, request.Notes)
+	assert.Equal(t, "ok", *request.Notes)
 }
 
 func TestStaffJSONRequestStringsHaveExplicitMaximums(t *testing.T) {

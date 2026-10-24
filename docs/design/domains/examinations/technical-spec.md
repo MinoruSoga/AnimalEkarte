@@ -122,10 +122,10 @@ D21の検査履歴sectionはスタッフの閲覧専用であり、同sectionか
 | 選択 | snapshot内のitem ref集合と表示順。未指定の初期選択と明示的な空集合を区別し、重複refは同じ行を二重出力しない。別exam／別版／不明refは拒否。名称・行番号で版をまたいで解決しない |
 | 行の状態 | 実施済み／未実施／実施不明、結果あり／結果待ち／意味不明、取得状態を独立に保持。これらは意味契約で、新しい物理enum／fieldが実装済みという主張ではない。未実施はサーバ側候補・出力双方で除外、実施不明は自動選択せず理由を返す |
 | 出力 | 同じsnapshot ref・選択ref集合・順序・原値／単位／保存範囲・各検査日・版／訂正識別。欠損した旧範囲を現在マスタで補完しない。選択0件と取得失敗を別結果にする |
-| previewから印刷 | 同じ出力集合を固定し、出力直前にも現在のread認可・医院／患者・対象版対応を再検証。新版発生は無言で差替えず更新通知・再プレビューへ。旧版の明示的再印刷は旧版と分かる同じsnapshotを使う |
+| previewから印刷 | 同じ出力集合を固定し、出力直前にも現在のread認可・医院／患者・対象版対応を再検証。新版発生は無言で差替えず更新通知・再プレビューへ。旧版の明示再印刷も旧版と分かる同snapshot/selection/orderを使う。requested固定revisionとpreview時に観測したcurrent head/result_state_versionは別軸であり、requested revision==current headを要求しない |
 | 副作用 | 臨床結果／版・確定・患者関連・初期行生成・会計／在庫・外部送信を変更しない。print向けreadをGetOrCreate／board等のwriterへ流さない。既存readのusage receipt要否は別途照合し、印刷選択を公開approvalへ変換しない |
 
-空のinspection_valueやlegacyの「-」だけでは未実施を決められない。過去行で実施を確認できる結果由来／状態が不足する場合は不明を保ち、対象行だけ照合・適法な訂正へ渡す。未実施の除外をD03治療プランの状態や検査全体statusだけから一括算出しない。print-snapshot応答・選択input・実施由来・版内refのadapterと旧値移行は未実装／未検証であり、新しいURL／DB列を本書で確定しない。
+空のinspection_valueやlegacyの「-」だけでは未実施を決められない。過去行で実施を確認できる結果由来／状態が不足する場合は不明を保ち、対象行だけ照合・適法な訂正へ渡す。未実施の除外をD03治療プランの状態や検査全体statusだけから一括算出しない。print-snapshot応答・選択input・実施由来・版内refのadapterと旧値移行は未実装／未検証であり、当時は新URL／列を選定しなかったが、後掲[EMR-563契約](#selected-print-563-20261024)で限定方式を選定する。実DDL/API反映は未供給。
 
 <a id="examination-infection-summary-contract"></a>
 ## 追加採用の技術契約：患者トップの感染症結果projection
@@ -189,3 +189,42 @@ CL-R14の実機receiptは医院・機種／個体・OS／Chrome版・接続経�
 [D03の現行観察と設計残件](../medical-records/technical-spec.md#plan-domain-tabs-target-gap)から関連の安定した識別・必要版と結果照合を設計する。表示のための物理資源作成を必須とせず、projectionの選定も未了。各ownerの保存単位・訂正／監査・再送保護を維持し、全owner一括transactionや一律1対1を新たな決定としない。実装適合／実機検証は未実施。
 
 [既存detach使用中保護](../../../spec/domains/examinations/lifecycle.md#fr-examinations-idempotency)には元予定との結果関連も含め、関連を残した患者NULL化を拒否する。必要時はD03関連訂正／D07専用訂正へ渡し、同job由来全件の補償単位・元版・履歴を維持する。自動unlink／無条件再attachや新しい解除方式は追加しない。AC-examinations-detach-usedの適用補足であり、実装適合は未確認。
+
+<a id="selected-print-563-20261024"></a>
+## EMR-563 保存検査の実施項目選択印刷
+
+基準main `c0ee0914e723791c59cfa971cbb1ad84cff171db`。[FR-examinations-selected-print・8AC](../../../spec/domains/examinations/lifecycle.md)の技術選定。既存examination_print_snapshot.goは不変revision/itemと保存単位・範囲・順序・display、clinical-use receiptを持ち、nil versionはcurrent、legacy revisionなしは失敗する。しかし実施証拠はなく、IsAssessed/Statusは判定状態で実施状態でない。[provenance契約](provenance-official-summary-contract.md#exam-provenance-summary-handoff)のvalue_present fallbackをperformed証明へ流用しない。
+
+### 明示証拠producerと不変copy
+
+既存可変ExamResultと不変ExaminationRevisionItemへ同じnullable payloadを持たせ既存revision writer同TXでcopyする。別台帳・印刷時writeを新設しない。payload exact `{performance,result_availability,evidence_origin,evidence_id,evidence_version}`。performance=performed|not_performed|unknown、availability=available|pending|unknown|not_applicable、origin=staff_recorded|source_reported。全体NULLは証拠未収録。serverが保存操作でUUIDを発行、v1 evidence_version="1"、不変copyは同identity/version、実施/結果待ち訂正は新UUID/version1。actor/recorded_at/operation refは既存監査からserver記録しclient申告を信用しない。
+
+許可組合せはperformed＋available/pending/unknown、not_performed＋not_applicable、unknown＋unknownのみ。availableは原値補完許可でなく0/陰性/<等も文字列保持。not_performedなのに結果原文あり、pendingと明示available併存、scope/ref不整合は503 source_integrity_errorで原文を消さない。NULL/unknownは実施不明、証拠読取障害は503でunknownへ偽装しない。
+
+固定ref exact `{clinic_id,examination_id,revision_id,revision_version,revision_item_id,evidence_id,evidence_version,evidence_profile:"exam-item-performance/v1"}`。数値ID/版はpositive decimal string、evidence_idはRFC 4122 UUID。JS Number化なし。
+
+証拠payload=NULLの旧行もclinic/examination/revision/revision_version/revision_item_idは必須。証拠3key evidence_id/evidence_version/evidence_profileは全て明示NULLで省略不可。payload非NULLなら3key全て非NULL（RFC4122 UUID/"1"/"exam-item-performance/v1"）。部分NULLは503 source_integrity_error。明示unknown＋unknownは証拠refを持つが実施証明にはしない。選択可能performed行の完全item refは非NULL証拠を要求する。証拠なし行へ架空UUIDを発行せず名前/位置で補完しない。
+
+既存手入力editorへ任意実施状態/結果待ちfieldを置き指定時だけ既存保存へ渡す。create/editは既存examinations:create/editで新臨床承認/医師資格gateなし。初期unknown、未指定でも通常保存可、値入力だけでperformedへせず親exam.statusを連鎖変更しない。初版はstaff_recorded実接続。機器sourceは明示実施情報＋固定item identityを証明するadapter供給時だけsource_reported、それ以外NULLで機器全種類の解釈を拡張しない。印刷画面で実施を承認する操作ではない。
+
+501 source/item ownerはcreate/update/replace items/working copy/confirm/reconfirm/unconfirm/correction/restoreの全snapshot生成経路でcopyを保証し、名称/位置で別itemへ移植しない。旧行推測backfillなし。既存監査・result_state_version CAS・成功receiptと同TX、501 D4二重writerなし。物理列は今回未供給。
+
+### read projectionと出力照合
+
+POST `/v1/examinations/{exam_id}/selected-print-projection`、既存examinations:view。selected refsをURLへ出さずclosed bodyで渡すreadであり結果保存/確定をしない。各purposeのpayload前に既存PrintSnapshot clinical-use receipt必須、失敗503。この利用記録は印刷成功/実施確認/新業務operation receiptではない。
+
+共通body必須はschema=examination-selected-print/v1、pet_id/medical_record_id（nullable明示しsnapshot一致）、revision_version、expected_result_state_version、selectionとpurpose。closed unionはinitial＋mode initial（digest禁止）、preview＋mode explicit（digest禁止）、output＋mode explicit＋expected_projection_digest必須。それ以外400。
+
+initialはperformed全行を初期選択しpendingは「実施済み・結果待ち」、performed+unknownは結果状態不明を表示。unknown/not_performedは選択不可。explicitは `{mode:"explicit",item_refs:[完全ref...]}` 必須、欠落/null400、空配列200 outcome=no_print_itemsでrender payloadなし/出力不可。fallbackなし。重複ref400、別版/scope404、snapshot内不適格指定409 selection_not_eligible、黙って除外しない。順序は保存sort_order,idでclient順を採用しない。
+
+responseはschema/scope/snapshot_ref/observed_result_state_version/outcome（preview_ready|output_ready|no_print_items）、items（固定ref・保存表示値・実施/結果状態）、selected_item_refs/excluded_unknown_item_refs/projection_digest/print_boundary/watermark。digestはcanonical schema＋scope＋revision全識別＋親result_state_version＋evidence全ref/payload＋選択setと保存順＋印字内容＋訂正識別＋境界。認可tokenでない。unknown除外noticeも認可snapshot内だけ、取得失敗と正常空を分離。
+
+initial/preview/outputで現在認可・clinic/pet/parent・削除状態、requested固定revisionと観測した親current head/result_state_versionを同read snapshotで検査する。この2軸は別で、requested revision==current headは要求しない。出力直前にpreview時の観測head/result_state_version又はscopeが変われば409 print_context_changedとして再previewし、requested revisionや選択を新版へ無言移行しない。旧版の明示再印刷は旧版と分かる同じsnapshot/selection/保存順で許可し、再previewでもそのrequested revisionを保持できる。同版再印刷は同set/保存順/digestを照合する。
+
+ExaminationForm→selector→preview model→ExaminationFormHeader実window.printを置換し、直前output照合await後のoutput_ready固定modelだけを印刷surfaceへ渡す。競合/失敗/空では旧modelを印刷しない。未保存値非反映を表示しdraft保持、取消でsave/confirm/attach/sendなし。dialog開始を物理成功とせずOSまで分散lock保持も保証しない。
+
+### 一つの実装PR
+
+明示producer→既存保存/監査/CAS→全revision copy→固定証拠reader→selected projection→実selector/preview/output/reprintを単一保存検査のPRへ収容。履歴横断検索・比較帳票・D20公開・送付・証明書は対象外。Readyには501 ownerによる同PR producer/copy列/schema/CAS責務受領が必要、UI実装済み待ちではない。供給境界未受領はBacklog、受領後は実装Ready判定可。完成は同版producer/reader/caller SHAと実接続証拠。
+
+8AC（selection/unknown/snapshot/empty/version-change/access/cancel-draft/single-snapshot）へ陰性/0/不等式、pending/legacy unknown/not_performed/矛盾、空/省略、別医院患者版、preview後訂正、scope切替遅延、未保存/取消、同版同set再印刷を対応。全実行NOT_RUNで追加回帰gateにしない。

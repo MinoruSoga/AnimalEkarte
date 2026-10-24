@@ -1,5 +1,10 @@
 # EMR-490 / 492 採択技術契約・runtime未実装
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（492）
+
+旧clear_group_id/clear_max_concurrentを受ける互換adapterは必須ではない。本文の「旧adapterがある場合」の一回変換は任意の切替手段に限り、確定group_id等の省略=保持/null=解除/値=設定、presence・CAS・現在医院scopeを維持し必要callerを同じ完結単位で置換する。490/491の別の採択契約を変更する追補ではない。 詳細根拠は[全票監査の採用是正方針](backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 2026-10-21 公開用統合版。既決業務を継承し、追加wire/adapter方式を技術契約として選定する。本文の選定はruntime実装・OpenAPI反映・DB適用・試験・運用開始を意味しない。491への外部更新は行わない。
 
 ## 0. 照合範囲・既存選定

@@ -197,6 +197,8 @@ LINEの空き表示・確定時再判定は[予定枠基準の最新訂正](../.
 <a id="reservation-api-matrix"></a>
 ### 4.5 API・DTO・理由codeの対応表
 
+D06の本人承認済み専用intent `trimming.correct_wrong_completion` は[574契約§7](../trimming/record-correction-contract.md#wrong-completion-correction-574)に従い468 ambient participantへ渡す。専用理由/履歴/現在根拠の下で施術中へ戻すが、通常undo-consultation-endの会計確定歴停止は維持。予約statusの別writerを作らず、確定会計/実入出金は変更しない。
+
 Sentinel_087e713d04548191b371bfdc4e19dbeaで許可された文書具体化。下記は将来の推奨wireで、現行[API YAML](../../../../backend/docs/api.yaml)・[route](../../../../backend/internal/reservation/routes.go)・生成型へ未反映。新業務遷移やactor権限の追加ではない。通常編集・専用操作の入力schemaは閉じた項目集合とし、余分なstatus・禁止項目を黙って無視して成功扱いにしない。
 
 | 目的 | 現行入口／推奨wire | DTO・結果／参加する契約 |
@@ -254,6 +256,8 @@ Sentinel_087e713d04548191b371bfdc4e19dbeaで許可された文書具体化。下
 
 <a id="reservation-api-closed-contract"></a>
 ### 4.7 閉じたschema・目的別grantの選定
+
+D06の本人承認済み専用intent `trimming.correct_wrong_completion` は[574契約§7](../trimming/record-correction-contract.md#wrong-completion-correction-574)に従い468 ambient participantへ渡す。専用理由/履歴/現在根拠の下で施術中へ戻すが、通常undo-consultation-endの会計確定歴停止は維持。予約statusの別writerを作らず、確定会計/実入出金は変更しない。
 
 本節は将来の予約boundaryの設計契約。**列挙の版境界**：下表のcreate/update等の閉じた入力は、後続の[コース・追加オプション・時間採用の確定仕様](../../../spec/domains/reservations/pages/reservation-management.md#booking-course-option-duration-20261017)をまだ表現し切れていない先行設計である。院内新規/編集とLINEそれぞれで、コース0..1・異種option複数/同一1回・数量なし、許可対応と内包重複排除、未設定時間と明示0分、採用時の時間値・マスタ版、選択変更の再計算と終了候補/既決チェックを入力・保存・再取得・競合再検証へ対応付ける必要がある。具体wireキー・schema拡張・保存構造は未選定であり、下表の「だけ」を最新選択機能の拒否や実装済み保証へ転用しない。未知属性拒否・既存grant・医院/患者/版/再送保護を維持し、任意属性を無検証で受け付ける変更にもしない。AC-reservations-single-course-limit、AC-reservations-option-once-no-quantity、AC-reservations-course-option-compatibility、AC-reservations-course-included-service-exclusion、AC-reservations-booked-duration-snapshot、AC-reservations-course-option-edit-durationへ追跡する。API YAML／生成型／route・seedは未変更。既存resourceを用い、一般群がreception:viewのみで予約editを持つ現導線をreception:editへ一律置換しない。実医院のgrantはseedの存在から推測せずserverで再照合する。
 
@@ -363,6 +367,8 @@ EMR-274のmode固定と、EMR-308のcreateOrPromoteTentativeによる全同pet�
 
 <a id="reservation-receiving-contracts"></a>
 ### 5.1 他ownerが返す境界契約
+
+D06の本人承認済み専用intent `trimming.correct_wrong_completion` は[574契約§7](../trimming/record-correction-contract.md#wrong-completion-correction-574)に従い468 ambient participantへ渡す。専用理由/履歴/現在根拠の下で施術中へ戻すが、通常undo-consultation-endの会計確定歴停止は維持。予約statusの別writerを作らず、確定会計/実入出金は変更しない。
 
 全participantは認証scope・actor・operation ID・ambient transactionを必須とし、同じ物理transactionで再照合・必要監査を行う。ID／revisionは§4.7の共通型。欠落／取得失敗／整合不能は成功へ変換しない。interfaceはconsumer側の最小契約として置き、owner service全体を相互importしない。
 

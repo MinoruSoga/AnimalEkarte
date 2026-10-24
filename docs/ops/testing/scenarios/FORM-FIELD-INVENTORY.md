@@ -1,5 +1,10 @@
 # フォーム×項目 棚卸し (Form Field Inventory)
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（240 / 251）
+
+LSTEP旧POSTの残置・204維持は将来の必須条件ではない。UI単独票へ対象外API削除を追加せず、240で必要consumerと旧入口の置換/廃止を一つの成果単位にする。UIはdelivery-exclusionによる両停止flag整合・理由上限100を維持し、送信gate/同期OFFと独立停止理由を保全する。 詳細根拠は[全票監査の採用是正方針](../../../work/emr/backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 > **目的**: 受入 V シリーズの永続化フォームについて、検証済み exact field key と未収録 gap を管理する。
 > **使い方**: 左の項目を 1 行ずつ [FIELD-LEVEL-PROTOCOL.md](FIELD-LEVEL-PROTOCOL.md) で実施。手順の補足は V01〜V05。
 > **更新規則**: 画面に入力項目を追加したら、本表と該当 V を同 PR で更新する。

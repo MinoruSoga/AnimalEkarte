@@ -84,6 +84,12 @@ type BreakPeriod struct {
 	End   string // "HHMM"
 }
 
+// WorkPeriod は勤務時間帯を表す。
+type WorkPeriod struct {
+	Start string // "HHMM"
+	End   string // "HHMM"
+}
+
 // ExistingReservation は当日の既存予約を表す（重複除外用）。
 type ExistingReservation struct {
 	StaffID   uint64
@@ -94,10 +100,11 @@ type ExistingReservation struct {
 // StaffScheduleOverride はスタッフ個人の勤務設定を表す。
 // nil の場合は基本設定（BusinessHours, Breaks）を使用する。
 type StaffScheduleOverride struct {
-	ShiftType string        // "full" | "morning" | "afternoon" | "off" | "paid_leave"
-	WorkStart *string       // nil なら shift_type のデフォルトを使用
-	WorkEnd   *string       // nil なら shift_type のデフォルトを使用
-	Breaks    []BreakPeriod // 個人設定の休憩時間
+	ShiftType   string        // "full" | "morning" | "afternoon" | "off" | "paid_leave"
+	WorkStart   *string       // nil なら shift_type のデフォルトを使用
+	WorkEnd     *string       // nil なら shift_type のデフォルトを使用
+	Breaks      []BreakPeriod // 個人設定の休憩時間
+	WorkWindows []WorkPeriod  // 非空なら WorkStart / WorkEnd より優先する勤務窓（同日に複数の勤務行が掛かる場合）
 }
 
 // StaffSlotInput は1スタッフ分の時間枠計算入力。
@@ -257,6 +264,10 @@ func resolveWorkIntervals(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]
 	}
 
 	ov := staffInput.ScheduleOverride
+	// 複数の勤務窓（前日から続く夜勤の続きと当日の勤務など）は、窓の間を営業時間の既定で埋めず窓だけを勤務区間にする。
+	if len(ov.WorkWindows) > 0 && ov.ShiftType != "off" && ov.ShiftType != "paid_leave" {
+		return workWindowIntervals(ov.WorkWindows)
+	}
 	switch ov.ShiftType {
 	case "off", "paid_leave":
 		return nil, nil
@@ -303,6 +314,23 @@ func resolveWorkIntervals(input *TimeSlotsInput, staffInput *StaffSlotInput) ([]
 		}
 		return []interval{{s, e}}, nil
 	}
+}
+
+// workWindowIntervals は勤務窓（"HHMM"）を区間へ変換する。解析できない窓は勤務可能として扱わず、エラーにする。
+func workWindowIntervals(windows []WorkPeriod) ([]interval, error) {
+	result := make([]interval, 0, len(windows))
+	for _, w := range windows {
+		s, err := MinutesSinceMidnight(w.Start)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to parse work window start time")
+		}
+		e, err := MinutesSinceMidnight(w.End)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to parse work window end time")
+		}
+		result = append(result, interval{s, e})
+	}
+	return result, nil
 }
 
 // resolveBreakIntervals はスタッフの休憩時間区間を解決する。

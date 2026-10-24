@@ -1,5 +1,10 @@
 # EMR-364 / 375 / 376：履歴CSVと通常更新を分離する共通契約
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（364）
+
+§3.1/3.5/7/8の旧profile意味・既定/pin・表別commit/prefix resume・互換回帰を恒久維持する義務だけを撤回する。履歴tax_rateと375/376の保全・更新意味は変更しない。現在19 CSVへの適合を推定せず、新profileの全source hash・同一artifact/run/医院/target・独立検証・両側receipt・fresh/band保護・原子性・UNKNOWN照合・実操作承認と正式HOLDを維持する。旧成果物は証拠保全し、退役会計CSV/列を戻さない。 詳細根拠は[全票監査の採用是正方針](backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 状態：root技術採択済みの選定契約。業務方針は既決を再利用。producer共同合意・実source承認・実装・DB適用・runtime受入は未完。NOT_RUN。文書公開と実装完了を混同しない。
 確認版：main `e71ddf03462a0ee7a9864ad2ce6854b243591770`、2026-10-21。旧351監査のed04c0237・236列は比較inventoryであり、現writerの証明ではない。
 

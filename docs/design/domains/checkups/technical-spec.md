@@ -130,3 +130,44 @@ D21の健診履歴sectionはスタッフの閲覧専用で、同sectionからの
 | 抽出基盤 | PDF見本未受領。OCR provider、課金、外部送信、抽出項目mappingは未選定。実患者PDF処理・外部送信は本作業で実施しない |
 
 現在の医院・患者・record・Checkup・masterの照合、通常受付、過去／死亡後生前分の専用訂正、原結果保持と手入力を維持する。確認保存の必要履歴が失敗した状態を確定成功として返さない。D03の一般PDF閲覧は抽出実行の入口と同一視しない。各差分の受入は上記7ACへ対応する。storage／wireの選定範囲は[EMR-500 PDF採択技術契約](../../../work/emr/emr-500-outsourced-checkup-pdf-contract-20261021.md)を正とし、providerなしで先行する必要subsetと全writer/readerの実装依存を着手プランへ渡す。provider・費用・外部転送承認、見本mapping、実環境配線と受入は未完のまま。
+
+<a id="package-next-date-contract-20261024"></a>
+## 次回日rule authoringから両入口までの契約案（EMR-565）
+
+基準main `c0ee0914e723791c59cfa971cbb1ad84cff171db`。[既決の次回日・5AC](../../../spec/domains/checkups/lifecycle.md#checkup-next-date-approved)を実現する技術選択案。製品・API/DDL反映・実装供給済みではなく、全実行NOT_RUN。自由文intervalとversion/CASは実在するが、自由文の計算意味は未確定。年4回/春夏秋冬/年1回/1年を自動parseせず、臨床間隔・季節日を補わない。
+
+### 機械ruleの保存・候補
+
+checkup_typesへnullable JSONB next_due_ruleを追加する案。既存intervalは表示頻度として保持する。既存master POST/PATCH/GETと編集paneに一属性を収容し、policy table/新画面/承認workflowを作らない。
+
+closed shapeは `{schema:"checkup-next-due/v1",kind:"none"}` 又は `{schema:"checkup-next-due/v1",kind:"elapsed",unit:"day"|"month"|"year",amount:positive integer,anchor:"performed_date",missing_day:"no_candidate"}`。未知/重複key、NULL member、不正unit/amount、数値stringは400。amountは正確な正整数で、表現可能な暦日の計算範囲だけを受理し、独自の臨床上限を設けない。型の日付範囲外はinvalid_ruleで候補なし。季節month/dayは新設しない。
+
+保存NULLは未収録。POST省略NULL、PATCH省略保持/明示nullは400、設定なしはkind:none。旧interval空＋rule=NULLはnone、非空＋NULLはunknown/legacy_text_only。ruleがあればruleだけを計算元とする。既存master操作grant・version CASを維持し、checkups:viewから設定writeへ昇格しない。既存paneで自動候補なし/実施日から数＋日月年を明示入力、既定数値なし。import/manifestはoptional同schema、省略保持。既存immutable seed/季節値を勝手に変えず、正規seed生成は本人担当。
+
+JST calendar additionを使い、対象月に同じ日がなければunknown/calendar_day_unavailable。1/31＋1月、2/29＋1年を月末へ丸めず手入力可。dayもUTCミリ秒差でずらさず、具体的な医学的間隔は導かない。
+
+候補GET案 `/v1/masters/checkup-types/{id}/next-date-candidate?performed_date=YYYY-MM-DD`。既存master GETにもrule/versionを返す。read grantは既存ResourceCheckupsのcheckups:viewで、master-medical:viewではない。medical-records:editだけから権限を作らず、取得不可でも手入力を保持する。
+
+responseはexact9key `{schema:"checkup-next-date-candidate/v1",clinic_id,checkup_type_id,rule_version,performed_date,state,candidate_date,reason,rule_ref}`。clinic_id/checkup_type_idは既存Go uint64/保存bigint identityをwire上canonical positive decimal string（1..9223372036854775807、符号/小数/指数/先頭0なし）で表す。rule_versionも既存checkup_types.versionのpositive int64を同じcanonical positive decimal stringで表す。JS Number化禁止。
+
+rule_refはexact4key `{schema:"checkup-next-rule-source/v1",clinic_id,checkup_type_id,checkup_type_version}`。ID型は上記、checkup_type_versionはrule_versionと同値string。rule又はNULLとintervalを読んだ同じmaster行/版を固定する。200のcandidate/none/unknown全てで非NULL、top-levelとrefのclinic/type IDは同値。client送信request/refの未知key/重複key/必須省略/不正整数/型不整合は400 invalid_next_date_request。server response不正はFEがfail closedとしHTTP400を捏造しない。
+
+performed_date/candidate_dateは厳密な実在暦日YYYY-MM-DD。candidateはdate非NULL・reason=NULL、noneはdate=NULL・reason=NULL、unknownはdate=NULL・reason=legacy_text_only|calendar_day_unavailable|invalid_rule。noneはkind:none又は既定どおりinterval空＋rule=NULL。認証失効401、ID非依存checkups:view不足403、対象不存在/他院scope404、必要reader/DB/通信障害503で、errorに候補日/refを含めず200 none/unknownへ変換しない。
+
+### 両入口の状態と保存
+
+独立CheckupFormとカルテ内CheckupsTabは同hook/reducerを使う。next_date_source=pristine|candidate|manual|savedとcandidate_status=loading|candidate|none|unknown|errorは別軸。新規pristineだけ候補を初期反映。手入力/手動clear後はmanual、保存済みはsavedで、package/実施日変更・再取得/現master改定で無言上書きしない。新候補は別表示し明示採用、unknown/失敗時も入力保持、noneのpristineは空欄・任意。
+
+既存checkup create/updateへpresence付きnext_dateを渡す。create省略/NULLは未設定、update省略保持/NULL clear/日付set。next_date_intent=manual|package_candidateを同payloadへ含める。package_candidateはrule_ref・元performed_date・candidate_date必須、manualは候補証拠rule_ref/candidate_dateを禁止（付与時400）し、通常の実施日performed_date入力/検証は保持する。NULL clearもmanual。next_date省略時はintentも省略、片方だけ400。省略adapterでclearを失わない。
+
+現コードがnext_date省略とNULLをnilへ潰す差を解消する未実装adapter作業を565同一実装PRへ含める。UpdateCheckupRequest/Inputは明示presence/clearを保持し、clear-onlyを空更新として拒否しないvalidationへ置換する。buildCheckupUpdateは明示NULLを更新mapへ残し、next_date_intentとcandidate証拠をvalidatorへ運ぶ。これは同PRの実装対象であり、現コードが既に契約を満たすとの記述ではない。
+
+package_candidate保存は完全rule_ref・performed_date・candidate_dateを送る。serverは認証clinic/保存対象type/送信実施日/next_dateと照合し、同TXのmaster行lock下で現在versionとref版を比較して候補を再評価する。scope不一致404、古い版/再評価不一致409 next_date_candidate_stale、構造不正又は同payloadのnext_dateとcandidate_date不一致400。日付を最新値へ自動変更しない。master writer/importも既存version CASへ参加しruleだけ無版変更しない。refは権限tokenではなくcheckup自身の期待版/C06も別途検査する。
+
+manual日付/NULL clearとsaved保持は候補取得成否・rule改定に依存させず、既存validation/scope/親/必須条件を維持する。master.versionをcheckup版の代用にしない。unknownは同key/作成済みID照会、新createで救済しない。GETは保存next_dateを返し現ruleへ依存させず、監査に由来を残す場合もmanualへ架空ruleを付けない。保存後GET失敗は成功保持・readだけretry。
+
+### 同PRの供給・完結
+
+447がruleのrequest/response/service/repository、既存master pane、manifest parser、500が既存writer期待版/結果照会、445がclosed DTO/正規生成、446が保存差分、565が両フォームと共通candidate hook/calculatorを同PRで結ぶ。外注PDF/OCR/providerやmaster全機能Doneは不要。上記で契約を閉鎖。同PRの447/500/445/446/565が型と保存CASを実装し、未実装を設計待ちに戻さない。実packageへの実数値seed投入は完了条件でなく、合成値は臨床設定ではない。
+
+5ACへ同rule同日両入口、旧自由文無推測、none/unknown/error、manual/clear、保存済み保持、master競合、月末/閏日、他院/親不一致/失権、応答断同ID照会を対応付ける。供給SHA・両実caller接続・採用SHAは実装後の証拠で、現稿を実機PASSとしない。

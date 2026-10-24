@@ -27,7 +27,7 @@
 | D12 | [レジ締め](finance-operations/technical-spec.md)、[A1/A2有限契約](finance-operations/cash-closing-contract.md#cash-closing-public-wire) | [業務・受入](../../spec/domains/cash-register/business-rules.md) |
 | D13 | [在庫](finance-operations/technical-spec.md) | [業務・受入](../../spec/domains/inventory/business-rules.md) |
 | D14 | [職員・シフト](staff-workforce/technical-spec.md) | [業務・受入](../../spec/domains/staff-workforce/README.md) |
-| D15 | [CRM・Lステップ](../../spec/line/lstep-integration.md) | [業務・受入](../../spec/line/lstep-integration.md) |
+| D15 | [CRM・Lステップ](../../spec/line/lstep-integration.md)、[共有ファイル原本保持](crm/README.md) | [業務・受入](../../spec/line/lstep-integration.md) |
 | D16 | [経営・顧客集計](finance-operations/technical-spec.md) | [業務・受入](../../spec/domains/analytics/business-rules.md) |
 | D17 | [医院・設定入口](clinic-settings/technical-spec.md) | [業務・受入](../../spec/domains/clinic-settings/README.md) |
 | D18 | [LINE予約チャネル](../../spec/screens/28-line-reservation.md) | [業務・受入](../../spec/screens/28-line-reservation.md) |

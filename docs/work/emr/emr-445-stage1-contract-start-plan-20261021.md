@@ -1,5 +1,10 @@
 # EMR-445 段階① DB・API 契約の着手プラン
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（527）
+
+①の具体consumer表・§5.2の互換adapter保持や旧HTTP DTO先行→新exact置換を、旧コード互換のためだけの必須工程にしない。新仕様と必要model/callerを直接整合できる場合は同じ完結単位で置換する。既採用PR #808から新wireへ進めた成果を後退させず、旧保存field/旧numberを復活させない。正規生成・単一DTO所有・null/省略/0の確定意味と旧writer迂回封鎖は維持する。下表は当時の型影響調査として残し、旧HTTP形状保存を独立の受入条件にしない。 詳細根拠は[全票監査の採用是正方針](backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 2026-10-21 選定済みの着手プラン。基準は PR #802 の採用 commit `a88fa4add58d43cff643590f9f507c8ab1a3c085` と `docs/work/emr/emr-445-master-stages-ledger-20261021.md`。
 
 段階① DB・API 契約 → ②全マスタ → ③共通UIを優先し、これらの完了前に④業務機能の新規着手を増やさない。既存④成果や進行中の担当は停止・再割当しない。
