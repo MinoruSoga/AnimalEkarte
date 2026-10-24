@@ -102,7 +102,6 @@ func TestHospitalizationService_Create_RejectsCrossClinicOwnerPet(t *testing.T) 
 			svc := NewHospitalizationService(hospRepo, resRepo, nil, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 			got, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
-				CageID:   func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:  tt.ownerID,
 				PetID:    tt.petID,
 				StayKind: stayKindInpatient,
@@ -135,7 +134,6 @@ func TestHospitalizationService_Create_AcceptsSameClinicOwnerPet(t *testing.T) {
 	}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	got, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
-		CageID:   func() *uint64 { v := uint64(10); return &v }(),
 		OwnerID:  ownedOwnerID,
 		PetID:    ownedPetID,
 		StayKind: stayKindInpatient,

@@ -152,6 +152,7 @@ func (m *cageFinderOnlyRepo) FindByID(ctx context.Context, clinicID, id uint64) 
 // TestHospitalizationCageGuard_FacelessRepoFailsClosed は CageMergeRepository 面を持たない
 // cageFinder 注入の fail-closed 契約を固定する: ガードは no-op ではなく内部エラーを返す
 // （fail-open だと構成ケージへの割当が素通りするため — Merge/Unmerge と同じ扱い）。
+// Create は merge 面に到達する前に occupancy_unknown（409）で拒否される（hospitalization_service_create.go）ため、ここでは Update のみを対象にする。
 func TestHospitalizationCageGuard_FacelessRepoFailsClosed(t *testing.T) {
 	const clinicID = uint64(1)
 
@@ -174,25 +175,6 @@ func TestHospitalizationCageGuard_FacelessRepoFailsClosed(t *testing.T) {
 			WithPetLifeStateReader(stubPetLifeReader{}),
 		)
 	}
-
-	t.Run("create with cage fails closed without the merge face", func(t *testing.T) {
-		created := false
-		svc := newSvc(&mockHospitalizationRepository{
-			createFn: func(_ context.Context, _ *model.Hospitalization) error { created = true; return nil },
-		})
-		cageID := uint64(10)
-		got, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
-			OwnerID:  2,
-			PetID:    5,
-			StayKind: stayKindInpatient,
-			CageID:   &cageID,
-		})
-		require.Error(t, err, "merge 面なし注入は fail-closed（500）")
-		assert.Nil(t, got)
-		assert.False(t, created, "ガード不通過で永続化してはならない")
-		status, _, _ := httpapi.ResolveErrorResponse(err)
-		assert.Equal(t, http.StatusInternalServerError, status)
-	})
 
 	t.Run("update cage change fails closed without the merge face", func(t *testing.T) {
 		updated := false

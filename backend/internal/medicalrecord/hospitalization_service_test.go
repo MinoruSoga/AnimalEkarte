@@ -658,7 +658,6 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 		{
 			name: "is_insurance=true の場合は保険フィールドを保存する",
 			input: &CreateHospitalizationInput{
-				CageID:               func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:              2,
 				PetID:                5,
 				StayKind:             stayKindInpatient,
@@ -672,7 +671,6 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 		{
 			name: "is_insurance=false の場合は保険フィールドを NULL にする",
 			input: &CreateHospitalizationInput{
-				CageID:               func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:              2,
 				PetID:                5,
 				StayKind:             stayKindInpatient,

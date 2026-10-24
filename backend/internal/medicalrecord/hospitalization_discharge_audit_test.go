@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -25,10 +24,11 @@ func (r *hospitalizationAuditRecorder) LogEntryTx(_ context.Context, entry *Audi
 	return r.err
 }
 
-// NOTE (EMR-499 U1): the billing-on-discharge tests in this file and hospitalization_discharge_guard_test.go
-// exercise createDischargeBilling, which is now unreachable: create_accounting=true is refused with
-// stay_discharge_billing_unavailable. EMR-505/506/508 (unit 4) re-point them at the rebuilt billing seam.
-// updateFn is retained only so those call sites keep compiling; the movement side no longer updates a row.
+// NOTE (EMR-499 U1): createDischargeBilling is unreachable: create_accounting=true is refused with
+// stay_discharge_billing_unavailable (422) before any transaction starts. The tests that exercised billing
+// creation, reuse and its audit payload were replaced by refusal tests in this file and in
+// hospitalization_discharge_guard_test.go; EMR-505/506/508 (unit 4) re-add them against the rebuilt billing seam.
+// updateFn is retained only so call sites stay unchanged; the movement side no longer updates a row.
 func admittedHospitalizationRepo(updateFn func(context.Context, uint64, uint64, UpdateHospitalizationInput) (*model.Hospitalization, error)) *mockHospitalizationRepository {
 	return &mockHospitalizationRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
@@ -42,135 +42,70 @@ func admittedHospitalizationRepo(updateFn func(context.Context, uint64, uint64, 
 	}
 }
 
-func TestHospitalizationService_DischargeWithBilling_AuditsBillingTotals(t *testing.T) {
-	actorID := uint64(42)
-	order := make([]string, 0, 5)
-	audit := &hospitalizationAuditRecorder{}
-	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
-		order = append(order, "status")
-		return &model.Hospitalization{ID: 10}, nil
-	})
-	carePlanRepo := &mockCarePlanItemRepository{
-		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
-			return []model.CarePlanItem{
-				{Name: "食事介助", UnitPrice: 1000},
-				{Name: "点滴", UnitPrice: 2000},
-			}, nil
-		},
-	}
-	accountingRepo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, billing *model.Billing) error {
-			order = append(order, "billing")
-			billing.ID = 55
-			return nil
-		},
-	}
-	billingItemRepo := &mockBillingItemRepository{
-		createFn: func(_ context.Context, _ *model.BillingItem) error {
-			order = append(order, "item")
-			return nil
-		},
-		updateBillingTotals: func(_ context.Context, _, _ uint64, _, _, _ int64) error {
-			order = append(order, "totals")
-			return nil
-		},
-	}
-	auditWithOrder := AuditTxLoggerFunc(func(ctx context.Context, entry *AuditEntry) error {
-		order = append(order, "audit")
-		return audit.LogEntryTx(ctx, entry)
-	})
-	svc := NewHospitalizationServiceWithAudit(
-		hospRepo, newDischargeTestDeps(hospRepo, nil, nil, nil).reservation, nil, nil,
-		carePlanRepo, accountingRepo, billingItemRepo, &mockTransactor{}, auditWithOrder,
-		WithPetLifeStateReader(stubPetLifeReader{}),
-	)
-
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
-		DischargeDate:    time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
-		CreateAccounting: true,
-		ActorID:          &actorID,
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.Equal(t, []string{"status", "billing", "item", "item", "totals", "audit"}, order)
-	require.Len(t, audit.entries, 1)
-	entry := audit.entries[0]
-	require.NotNil(t, entry.ClinicID)
-	require.NotNil(t, entry.ActorID)
-	require.NotNil(t, entry.ResourceID)
-	assert.Equal(t, uint64(1), *entry.ClinicID)
-	assert.Equal(t, actorID, *entry.ActorID)
-	assert.Equal(t, model.AuditActorTypeStaff, entry.ActorType)
-	assert.Equal(t, model.AuditActionHospitalizationDischargeWithBilling, entry.Action)
-	assert.Equal(t, model.AuditResourceHospitalization, entry.Resource)
-	assert.Equal(t, uint64(10), *entry.ResourceID)
-	assert.Nil(t, entry.OldValue)
-	assert.Equal(t, map[string]any{
-		"billing_id":      uint64(55),
-		"subtotal_amount": int64(3000),
-		"tax_amount":      int64(300),
-		"total_amount":    int64(3300),
-	}, entry.NewValue)
-}
-
-// TestHospitalizationService_DischargeWithBilling_ManualCarePlanItemConvertsLikeReferenced は
-// EMR-179 の手入力ケアプラン明細（type=item, ref NULL, category=other, other_reason 保持）が
-// 退院会計でマスタ参照明細と同一規則（name/unit_price 転記・ResolveItemCategory・
-// source=hospitalization）に変換され、other_reason が billing_items へ伝播しないことを検証する。
-func TestHospitalizationService_DischargeWithBilling_ManualCarePlanItemConvertsLikeReferenced(t *testing.T) {
-	actorID := uint64(42)
-	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
-		return &model.Hospitalization{ID: 10}, nil
-	})
-	carePlanRepo := &mockCarePlanItemRepository{
-		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
-			return []model.CarePlanItem{
-				{
-					Name:        "持ち込み療養食",
-					Type:        model.CarePlanTypeItem,
-					UnitPrice:   1500,
-					Category:    "other",
-					OtherReason: "持ち込み品のため",
+// create_accounting=true is refused with stay_discharge_billing_unavailable (422) before the transaction starts
+// (hospitalization_discharge.go), whatever the actor. Nothing is locked, read, billed or audited.
+func TestHospitalizationService_DischargeWithBilling_CreateAccountingRefusedBeforeAnyWork(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		actorID *uint64
+	}{
+		{name: "actor present", actorID: uint64PtrHosp(42)},
+		{name: "actor missing", actorID: nil},
+		{name: "actor zero", actorID: uint64PtrHosp(0)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			txCalls := 0
+			hospRepo := &mockHospitalizationRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					t.Fatal("hospitalization must not be read or locked when billing is unavailable")
+					return nil, nil
 				},
-			}, nil
-		},
-	}
-	var createdItem *model.BillingItem
-	billingItemRepo := &mockBillingItemRepository{
-		createFn: func(_ context.Context, item *model.BillingItem) error {
-			createdItem = item
-			return nil
-		},
-		updateBillingTotals: func(_ context.Context, _, _ uint64, _, _, _ int64) error {
-			return nil
-		},
-	}
-	accountingRepo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, billing *model.Billing) error {
-			billing.ID = 58
-			return nil
-		},
-	}
-	deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo)
-	svc := NewHospitalizationServiceWithAudit(
-		hospRepo, deps.reservation, nil, nil, carePlanRepo, accountingRepo, deps.billingItem, &mockTransactor{}, &hospitalizationAuditRecorder{},
-		WithPetLifeStateReader(stubPetLifeReader{}),
-	)
+			}
+			carePlanRepo := &mockCarePlanItemRepository{
+				listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
+					t.Fatal("care plan items must not be fetched when billing is unavailable")
+					return nil, nil
+				},
+			}
+			accountingRepo := &mockAccountingRepository{
+				createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
+					t.Fatal("billing must not be created when billing is unavailable")
+					return nil
+				},
+			}
+			billingItemRepo := &mockBillingItemRepository{
+				createFn: func(_ context.Context, _ *model.BillingItem) error {
+					t.Fatal("billing items must not be created when billing is unavailable")
+					return nil
+				},
+				updateBillingTotals: func(_ context.Context, _, _ uint64, _, _, _ int64) error {
+					t.Fatal("billing totals must not be written when billing is unavailable")
+					return nil
+				},
+			}
+			audit := &hospitalizationAuditRecorder{}
+			transactor := &mockTransactor{withTxFn: func(ctx context.Context, fn func(context.Context) error) error {
+				txCalls++
+				return fn(ctx)
+			}}
+			deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo)
+			svc := NewHospitalizationServiceWithAudit(
+				hospRepo, deps.reservation, nil, nil, carePlanRepo, accountingRepo, billingItemRepo, transactor, audit,
+				WithPetLifeStateReader(stubPetLifeReader{}),
+			)
 
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
-		DischargeDate:    time.Now(),
-		CreateAccounting: true,
-		ActorID:          &actorID,
-	})
+			result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
+				DischargeDate:    time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
+				CreateAccounting: true,
+				ActorID:          tc.actorID,
+			})
 
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.NotNil(t, createdItem, "手入力ケアプラン明細は請求明細へ変換される")
-	assert.Equal(t, "持ち込み療養食", createdItem.Name)
-	assert.Equal(t, int64(1500), createdItem.UnitPrice)
-	assert.Equal(t, model.ItemSourceHospitalization, createdItem.Source)
-	assert.Nil(t, createdItem.OtherReason, "other_reason は請求明細へ伝播しない（理由必須は source=manual のみ）")
+			require.Nil(t, result)
+			requireCoded422(t, err, codeStayDischargeBillingUnavailable)
+			assert.Zero(t, txCalls, "no transaction is started")
+			assert.Empty(t, audit.entries, "no audit entry is written")
+		})
+	}
 }
 
 func TestHospitalizationService_DischargeWithBilling_MissingAuditDependencyFailsBeforeStatusWrite(t *testing.T) {
@@ -189,7 +124,8 @@ func TestHospitalizationService_DischargeWithBilling_MissingAuditDependencyFails
 		ActorID:          &actorID,
 	})
 
-	assert.Error(t, err)
+	// create_accounting=true is refused before the transaction starts, so nothing is written.
+	requireCoded422(t, err, codeStayDischargeBillingUnavailable)
 	assert.Nil(t, result)
 	assert.False(t, statusWritten)
 }
@@ -220,8 +156,8 @@ func TestHospitalizationService_DischargeWithBilling_MissingOrZeroActorFailsBefo
 				ActorID:          tc.actorID,
 			})
 
-			assert.Error(t, err)
-			assert.True(t, apperrors.IsInvalidInput(err))
+			// create_accounting=true is refused before the actor is validated, so the code is the same for every actor.
+			requireCoded422(t, err, codeStayDischargeBillingUnavailable)
 			assert.Nil(t, result)
 			assert.False(t, statusWritten)
 		})
@@ -247,51 +183,6 @@ func TestHospitalizationService_DischargeWithBilling_WithoutAccountingDoesNotAud
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Empty(t, audit.entries)
-}
-
-func TestHospitalizationService_DischargeWithBilling_ZeroCarePlanCreatesZeroBillingAudit(t *testing.T) {
-	actorID := uint64(42)
-	audit := &hospitalizationAuditRecorder{}
-	hospRepo := admittedHospitalizationRepo(func(_ context.Context, _, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
-		return &model.Hospitalization{ID: 10}, nil
-	})
-	carePlanRepo := &mockCarePlanItemRepository{
-		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
-			return nil, nil
-		},
-	}
-	billingCreated := false
-	accountingRepo := &mockAccountingRepository{
-		createFn: func(_ context.Context, _ uint64, billing *model.Billing) error {
-			billingCreated = true
-			billing.ID = 56
-			return nil
-		},
-	}
-	deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, &mockBillingItemRepository{})
-	svc := NewHospitalizationServiceWithAudit(
-		hospRepo, deps.reservation, nil, nil, carePlanRepo, accountingRepo, deps.billingItem, &mockTransactor{}, audit,
-		WithPetLifeStateReader(stubPetLifeReader{}),
-	)
-
-	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
-		DischargeDate:    time.Now(),
-		CreateAccounting: true,
-		ActorID:          &actorID,
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, result)
-	assert.True(t, billingCreated)
-	require.NotNil(t, result.AccountingID)
-	assert.Equal(t, uint64(56), *result.AccountingID)
-	require.Len(t, audit.entries, 1)
-	assert.Equal(t, map[string]any{
-		"billing_id":      uint64(56),
-		"subtotal_amount": int64(0),
-		"tax_amount":      int64(0),
-		"total_amount":    int64(0),
-	}, audit.entries[0].NewValue)
 }
 
 type AuditTxLoggerFunc func(context.Context, *AuditEntry) error
@@ -378,7 +269,9 @@ func (r *statefulBillingItemRepo) UpdateBillingTotals(_ context.Context, _, _ ui
 	return nil
 }
 
-func TestHospitalizationService_DischargeWithBilling_AuditFailureRollsBackAllWrites(t *testing.T) {
+// create_accounting=true is refused before the transaction starts (hospitalization_discharge.go), so the audit sink is
+// never reached and no hospitalization, billing or billing item write happens; the transaction is never rolled back.
+func TestHospitalizationService_DischargeWithBilling_CreateAccountingRefusedLeavesPersistenceUntouched(t *testing.T) {
 	actorID := uint64(42)
 	state := &dischargePersistenceState{status: model.HospitalizationStatusAdmitted}
 	hospRepo := &statefulHospitalizationRepo{mockHospitalizationRepository: &mockHospitalizationRepository{}, state: state}
@@ -403,9 +296,11 @@ func TestHospitalizationService_DischargeWithBilling_AuditFailureRollsBackAllWri
 		ActorID:          &actorID,
 	})
 
-	assert.ErrorIs(t, err, errHospitalizationAuditWrite)
+	requireCoded422(t, err, codeStayDischargeBillingUnavailable)
+	assert.NotErrorIs(t, err, errHospitalizationAuditWrite, "the audit sink is never reached")
 	assert.Nil(t, result)
-	assert.True(t, transactor.rolledBack)
+	assert.Empty(t, audit.entries)
+	assert.False(t, transactor.rolledBack, "no transaction is started, so nothing is rolled back")
 	assert.Equal(t, model.HospitalizationStatusAdmitted, state.status)
 	assert.Zero(t, state.billingCount)
 	assert.Zero(t, state.billingItems)

@@ -4473,7 +4473,7 @@ components:
           type: string
           nullable: true
           readOnly: true
-          enum: [inpatient, hotel]
+          enum: [inpatient, hotel, null]
           description: stay_cases.stay_kind。stay_caseが無い旧行・認識できない種別はnull。
         planned_entry_at:
           type: string
