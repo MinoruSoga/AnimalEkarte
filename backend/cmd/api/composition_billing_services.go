@@ -94,13 +94,7 @@ func newBillingDocumentServices(
 			d.Transactor,
 			billing.WithEstimateAuditTx(auditTx),
 		),
-		refunds: billing.NewRefundService(
-			r.refunds,
-			r.accounting,
-			auditTx,
-			d.Transactor,
-			billing.WithRefundCloseRepository(r.cashRegisterCloses),
-		),
+		refunds: billing.NewRefundService(),
 	}
 }
 

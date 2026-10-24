@@ -2,7 +2,6 @@ package billing
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -13,90 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
-	"github.com/animal-ekarte/backend/internal/textsearch"
 )
-
-// applyBillingOwnerPetSearch scopes billings by owner/pet display names with
-// katakana→hiragana symmetry (same translate/NormalizeKana contract as owners list).
-
-// applyBillingPaymentMethodFilter scopes by payments / payment_splits method.
-// Op: is (default), is_not, is_empty, is_not_empty. Empty method with is/is_not is a no-op.
-func applyBillingPaymentMethodFilter(q *gorm.DB, method *string, op string) *gorm.DB {
-	op = strings.ToLower(strings.TrimSpace(op))
-	if op == "" {
-		op = "is"
-	}
-	hasPayment := `EXISTS (
-		SELECT 1 FROM payments p
-		WHERE p.billing_id = billings.id
-		  AND p.clinic_id = billings.clinic_id
-		  AND p.deleted_at IS NULL
-	)`
-	hasSplit := `EXISTS (
-		SELECT 1 FROM payment_splits ps
-		WHERE ps.billing_id = billings.id
-		  AND ps.clinic_id = billings.clinic_id
-	)`
-	switch op {
-	case "is_empty":
-		return q.Where("NOT (" + hasPayment + " OR " + hasSplit + ")")
-	case "is_not_empty":
-		return q.Where("(" + hasPayment + " OR " + hasSplit + ")")
-	}
-	if method == nil || strings.TrimSpace(*method) == "" {
-		return q
-	}
-	m := strings.TrimSpace(*method)
-	methodMatch := `(
-		EXISTS (
-			SELECT 1 FROM payments p
-			WHERE p.billing_id = billings.id
-			  AND p.clinic_id = billings.clinic_id
-			  AND p.deleted_at IS NULL
-			  AND p.method = ?
-		)
-		OR EXISTS (
-			SELECT 1 FROM payment_splits ps
-			WHERE ps.billing_id = billings.id
-			  AND ps.clinic_id = billings.clinic_id
-			  AND ps.method = ?
-		)
-	)`
-	if op == "is_not" {
-		return q.Where("NOT "+methodMatch, m, m)
-	}
-	return q.Where(methodMatch, m, m)
-}
-
-func applyBillingOwnerPetSearch(q *gorm.DB, search string) *gorm.DB {
-	qSearch := textsearch.NormalizeQuerySpaces(search)
-	if qSearch == "" {
-		return q.Where("1 = 0")
-	}
-	normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
-	return q.Where(
-		`(
-			(billings.owner_id, billings.clinic_id) IN (
-				SELECT o.id, o.clinic_id FROM owners o
-				WHERE o.deleted_at IS NULL
-				  AND (
-				    `+textsearch.FoldedExpr("o.name")+` ILIKE ? ESCAPE '\'
-				    OR `+textsearch.FoldedExpr("o.name_kana")+` ILIKE ? ESCAPE '\'
-				  )
-			)
-			OR (billings.pet_id, billings.clinic_id) IN (
-				SELECT p.id, p.clinic_id FROM pets p
-				WHERE p.deleted_at IS NULL
-				  AND (
-				    `+textsearch.FoldedExpr("p.name")+` ILIKE ? ESCAPE '\'
-				    OR `+textsearch.FoldedExpr("p.name_kana")+` ILIKE ? ESCAPE '\'
-				  )
-			)
-		)`,
-		normalizedPattern, normalizedPattern,
-		normalizedPattern, normalizedPattern,
-	)
-}
 
 // AccountingListFilters is the list query contract for FindAll / List.
 // StatusOp: "is" (default) | "is_not".
@@ -121,138 +37,6 @@ func NewAccountingRepository(db *gorm.DB) *accountingRepository {
 	return &accountingRepository{db: db}
 }
 
-func scopedPaymentSplitsPreload(clinicIDs []uint64) func(*gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.
-			Where("payment_splits.clinic_id IN ?", clinicIDs).
-			Where(`EXISTS (
-				SELECT 1
-				FROM billings AS payment_split_billing
-				WHERE payment_split_billing.id = payment_splits.billing_id
-				  AND payment_split_billing.clinic_id = payment_splits.clinic_id
-				  AND payment_split_billing.deleted_at IS NULL
-			)`)
-	}
-}
-
-func scopedRefundsPreload(clinicIDs []uint64) func(*gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.
-			Where("billing_refunds.clinic_id IN ?", clinicIDs).
-			Where(`EXISTS (
-				SELECT 1
-				FROM billings AS refund_billing
-				WHERE refund_billing.id = billing_refunds.billing_id
-				  AND refund_billing.clinic_id = billing_refunds.clinic_id
-				  AND refund_billing.deleted_at IS NULL
-			)`)
-	}
-}
-
-func scopedBillingStaffPreload(clinicIDs []uint64) func(*gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.
-			// Historical accounting rows keep the name of an inactive staff
-			// member while the staff remains assigned to the billing clinic.
-			// Active status is enforced separately on new writes.
-			Where("staffs.deleted_at IS NULL").
-			Where(`EXISTS (
-				SELECT 1
-				FROM staff_clinic_assignments AS billing_staff_assignment
-				WHERE billing_staff_assignment.staff_id = staffs.id
-				  AND billing_staff_assignment.clinic_id IN ?
-				  AND billing_staff_assignment.deleted_at IS NULL
-			)`, clinicIDs)
-	}
-}
-
-func scopedStaffAssignmentsPreload(clinicIDs []uint64) func(*gorm.DB) *gorm.DB {
-	return func(db *gorm.DB) *gorm.DB {
-		return db.
-			Where("staff_clinic_assignments.clinic_id IN ?", clinicIDs).
-			Where("staff_clinic_assignments.deleted_at IS NULL")
-	}
-}
-
-func staffHasClinicAssignment(staff *model.Staff, clinicID uint64) bool {
-	if staff == nil || staff.DeletedAt.Valid {
-		return false
-	}
-	for i := range staff.ClinicAssignments {
-		assignment := staff.ClinicAssignments[i]
-		if assignment.StaffID == staff.ID &&
-			assignment.ClinicID == clinicID &&
-			!assignment.DeletedAt.Valid {
-			return true
-		}
-	}
-	return false
-}
-
-func sanitizeBillingStaff(
-	staff **model.Staff,
-	expectedStaffID *uint64,
-	clinicID uint64,
-) {
-	if *staff == nil {
-		return
-	}
-	if expectedStaffID == nil ||
-		(*staff).ID != *expectedStaffID ||
-		!staffHasClinicAssignment(*staff, clinicID) {
-		*staff = nil
-		return
-	}
-	// ClinicAssignments is loaded only to verify the exact billing/staff
-	// correlation. Clone before clearing it because GORM may reuse one preload
-	// pointer for the same staff across multiple billing parents.
-	sanitized := **staff
-	sanitized.ClinicAssignments = nil
-	*staff = &sanitized
-}
-
-// sanitizeBillingRelations enforces exact parent correlation after GORM's
-// batched preloads. A multi-clinic preload can safely query the authorized
-// clinic set, but an association from clinic A must still never attach a row
-// from clinic B (or a pet owned by someone other than the billing owner).
-func sanitizeBillingRelations(billing *model.Billing) {
-	if billing.Owner != nil &&
-		(billing.OwnerID == nil ||
-			billing.Owner.ID != *billing.OwnerID ||
-			billing.Owner.ClinicID != billing.ClinicID) {
-		billing.Owner = nil
-	}
-	if billing.Pet != nil &&
-		(billing.PetID == nil ||
-			billing.Pet.ID != *billing.PetID ||
-			billing.Pet.ClinicID != billing.ClinicID ||
-			billing.OwnerID == nil ||
-			billing.Owner == nil ||
-			billing.Pet.OwnerID != *billing.OwnerID) {
-		billing.Pet = nil
-	}
-	for i := range billing.Payments {
-		sanitizeBillingStaff(
-			&billing.Payments[i].PaidByStaff,
-			billing.Payments[i].PaidBy,
-			billing.ClinicID,
-		)
-	}
-	for i := range billing.Refunds {
-		sanitizeBillingStaff(
-			&billing.Refunds[i].RefundedByStaff,
-			billing.Refunds[i].RefundedBy,
-			billing.ClinicID,
-		)
-	}
-}
-
-func sanitizeBillingSliceRelations(billings []model.Billing) {
-	for i := range billings {
-		sanitizeBillingRelations(&billings[i])
-	}
-}
-
 func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
 	return r.findBillingsWithFilters(ctx, []uint64{clinicID}, filters, page, limit)
 }
@@ -261,9 +45,8 @@ func (r *accountingRepository) FindAllForClinics(ctx context.Context, clinicIDs 
 	return r.findBillingsWithFilters(ctx, clinicIDs, filters, page, limit)
 }
 
-// billingListClinicScope は一覧クエリの clinic スコープ。Find は Owner/Pet を
-// LEFT JOIN するため、bare の clinic_id は owners/pets 側と曖昧になるので
-// 必ず billings. で修飾する。
+// billingListClinicScope は一覧クエリの clinic スコープ。pets 相関サブクエリと同居するため、
+// clinic_id は必ず billings. で修飾する。
 func billingListClinicScope(clinicIDs []uint64) func(*gorm.DB) *gorm.DB {
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Where("billings.clinic_id IN ?", clinicIDs)
@@ -281,24 +64,13 @@ func applyAccountingListFilters(q *gorm.DB, filters AccountingListFilters) *gorm
 	if filters.OwnerID != nil {
 		q = q.Where("billings.owner_id = ?", *filters.OwnerID)
 	}
-	if filters.Status != nil && *filters.Status != "" {
-		op := strings.ToLower(strings.TrimSpace(filters.StatusOp))
-		if op == "is_not" {
-			q = q.Where("billings.status <> ?", *filters.Status)
-		} else {
-			q = q.Where("billings.status = ?", *filters.Status)
-		}
-	}
 	if filters.StartDate != nil {
 		q = q.Where("billings.scheduled_date >= ?", *filters.StartDate)
 	}
 	if filters.EndDate != nil {
 		q = q.Where("billings.scheduled_date <= ?", *filters.EndDate)
 	}
-	if filters.Search != "" {
-		q = applyBillingOwnerPetSearch(q, filters.Search)
-	}
-	return applyBillingPaymentMethodFilter(q, filters.PaymentMethod, filters.PaymentMethodOp)
+	return q
 }
 
 func (r *accountingRepository) billingListQuery(ctx context.Context, clinicIDs []uint64, filters AccountingListFilters) *gorm.DB {
@@ -308,13 +80,31 @@ func (r *accountingRepository) billingListQuery(ctx context.Context, clinicIDs [
 	)
 }
 
-// findBillingsWithFilters はフィルタ・ページネーション適用後に関連データを付与して返す共通実装。
-// STG では 1 クエリあたりの DB 往復がレイテンシの支配項のため、COUNT と FIND、および
-// ページ内 association の取得をそれぞれ並行化して往復数を削減する（EMR-201）。
-// Owner/Pet は belongs-to で行増殖しないため JOIN に畳み込み、clinic 述語は ON 句に
-// 保持する（旧 Preload の "clinic_id IN ? AND deleted_at IS NULL" と同条件・AUD-002）。
-// search / status / payment_method はサーバサイド（ページ横断）。
+// rejectUnsupportedListFilters は置換先の reader が未接続の絞り込みを、読取の前に固定エラー（422）で拒否する。
+// held for EMR-506: 状態（旧 status）・支払方法は保存先の廃止、飼主・ペット名の検索は氏名 reader（EMR-491）待ち（Q4(c) / Q8）。
+// 無視して全件を返すと「絞り込めた」と誤認させるため、黙って外さない。
+func rejectUnsupportedListFilters(filters AccountingListFilters) error {
+	if filters.Status != nil && *filters.Status != "" {
+		return apperrors.WrapFinanceConsumerPending("会計一覧の状態による絞り込みは、請求状態の表示対応が未決定のため利用できません")
+	}
+	if filters.Search != "" {
+		return apperrors.WrapFinanceConsumerPending("会計一覧の飼主・ペット名による検索は、氏名の参照が未接続のため利用できません")
+	}
+	op := strings.ToLower(strings.TrimSpace(filters.PaymentMethodOp))
+	hasMethod := filters.PaymentMethod != nil && strings.TrimSpace(*filters.PaymentMethod) != ""
+	if hasMethod || op == "is_empty" || op == "is_not_empty" {
+		return apperrors.WrapFinanceConsumerPending("会計一覧の支払方法による絞り込みは、受領の保存先が未接続のため利用できません")
+	}
+	return nil
+}
+
+// findBillingsWithFilters はフィルタ・ページネーション適用後に明細を付与して返す共通実装。
+// COUNT と FIND を並行化して往復数を削減する（EMR-201）。
+// Q4(c) / Q8: 合計・状態・支払い・返金と、owner / pet の入れ子は読まない（held for EMR-506）。
 func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, clinicIDs []uint64, filters AccountingListFilters, page, limit int) ([]model.Billing, int64, error) {
+	if err := rejectUnsupportedListFilters(filters); err != nil {
+		return nil, 0, err
+	}
 	billings := make([]model.Billing, 0)
 	var total int64
 
@@ -328,8 +118,6 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, clin
 	g.Go(func() error {
 		err := r.billingListQuery(gctx, clinicIDs, filters).
 			Where("(billings.pet_id IS NULL OR EXISTS (SELECT 1 FROM pets p WHERE p.id = billings.pet_id AND p.clinic_id = billings.clinic_id))").
-			Joins("Owner", r.db.Where(`"Owner".clinic_id IN ? AND "Owner".deleted_at IS NULL`, clinicIDs)).
-			Joins("Pet", r.db.Where(`"Pet".clinic_id IN ? AND "Pet".deleted_at IS NULL`, clinicIDs)).
 			Scopes(persistence.Paginate(page, limit)).
 			Order("billings.scheduled_date DESC, billings.created_at DESC").
 			Find(&billings).Error
@@ -341,17 +129,15 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, clin
 	if err := g.Wait(); err != nil {
 		return nil, 0, apperrors.Wrap(err, "fetch billings for list")
 	}
-	if err := r.attachBillingListRelations(ctx, billings, clinicIDs); err != nil {
+	if err := r.attachBillingListItems(ctx, billings, clinicIDs); err != nil {
 		return nil, 0, err
 	}
-	sanitizeBillingSliceRelations(billings)
 	return billings, total, nil
 }
 
-// attachBillingListRelations はページ内 billing の Payments / Items / PaymentSplits /
-// 返金合計を 1 並行バッチで取得して demultiplex する。発行する SQL は従来の
-// Preload / attachRefundTotals と同一条件で、直列 4 往復を 1 往復分に縮める。
-func (r *accountingRepository) attachBillingListRelations(ctx context.Context, billings []model.Billing, clinicIDs []uint64) error {
+// attachBillingListItems はページ内 billing の明細を取得して付与する。
+// payments / payment_splits / 返金合計は廃止された保存先のため読まない。
+func (r *accountingRepository) attachBillingListItems(ctx context.Context, billings []model.Billing, clinicIDs []uint64) error {
 	if len(billings) == 0 {
 		return nil
 	}
@@ -360,189 +146,59 @@ func (r *accountingRepository) attachBillingListRelations(ctx context.Context, b
 		ids = append(ids, billings[i].ID)
 	}
 
-	var payments []model.Payment
 	var items []model.BillingItem
-	var splits []model.PaymentSplit
-	var refundTotals map[uint64]int64
-
-	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		if err := r.db.WithContext(gctx).
-			Scopes(persistence.BillingTenantScope("payments", clinicIDs)).
-			Where("payments.billing_id IN ? AND payments.deleted_at IS NULL", ids).
-			Find(&payments).Error; err != nil {
-			return apperrors.FromGORM(err, "payment", "")
-		}
-		return nil
-	})
-	g.Go(func() error {
-		if err := r.db.WithContext(gctx).
-			Scopes(persistence.BillingTenantScope("billing_items", clinicIDs)).
-			Where("billing_items.billing_id IN ? AND billing_items.deleted_at IS NULL", ids).
-			Find(&items).Error; err != nil {
-			return apperrors.FromGORM(err, "billing_item", "")
-		}
-		return nil
-	})
-	g.Go(func() error {
-		if err := scopedPaymentSplitsPreload(clinicIDs)(
-			r.db.WithContext(gctx).Where("payment_splits.billing_id IN ?", ids),
-		).Find(&splits).Error; err != nil {
-			return apperrors.FromGORM(err, "payment_split", "")
-		}
-		return nil
-	})
-	g.Go(func() error {
-		totals, err := r.billingRefundTotals(gctx, ids)
-		if err != nil {
-			return err
-		}
-		refundTotals = totals
-		return nil
-	})
-	if err := g.Wait(); err != nil {
-		return apperrors.Wrap(err, "fetch billing list relations")
+	if err := r.db.WithContext(ctx).
+		Scopes(persistence.BillingTenantScope("billing_items", clinicIDs)).
+		Where("billing_items.billing_id IN ? AND billing_items.deleted_at IS NULL", ids).
+		Find(&items).Error; err != nil {
+		return apperrors.FromGORM(err, "billing_item", "")
 	}
 
-	paymentsByBilling := make(map[uint64][]model.Payment, len(payments))
-	for _, p := range payments {
-		paymentsByBilling[p.BillingID] = append(paymentsByBilling[p.BillingID], p)
-	}
 	itemsByBilling := make(map[uint64][]model.BillingItem, len(items))
 	for _, item := range items {
 		itemsByBilling[item.BillingID] = append(itemsByBilling[item.BillingID], item)
 	}
-	splitsByBilling := make(map[uint64][]model.PaymentSplit, len(splits))
-	for _, split := range splits {
-		splitsByBilling[split.BillingID] = append(splitsByBilling[split.BillingID], split)
-	}
 	for i := range billings {
-		billings[i].Payments = paymentsByBilling[billings[i].ID]
 		billings[i].Items = itemsByBilling[billings[i].ID]
-		billings[i].PaymentSplits = splitsByBilling[billings[i].ID]
-		billings[i].TotalRefundedAmount = refundTotals[billings[i].ID]
 	}
 	return nil
 }
 
-// billingRefundTotals は指定 billing の返金合計を一括集計する。
-// billing_refunds の行は Unscoped（soft-delete 済み返金も合計に含める従来挙動）で、
-// 親 billings への clinic 相関 JOIN はそのまま維持する。
-func (r *accountingRepository) billingRefundTotals(ctx context.Context, ids []uint64) (map[uint64]int64, error) {
-	type refundSum struct {
-		BillingID uint64
-		Total     int64
-	}
-	var sums []refundSum
-	if err := r.db.WithContext(ctx).
-		Model(&model.BillingRefund{}).
-		Unscoped().
-		Select(
-			"billing_refunds.billing_id,"+
-				" COALESCE(SUM(billing_refunds.amount), 0) AS total",
-		).
-		Joins(
-			"JOIN billings ON billings.id = billing_refunds.billing_id"+
-				" AND billings.clinic_id = billing_refunds.clinic_id"+
-				" AND billings.deleted_at IS NULL",
-		).
-		Where("billing_refunds.billing_id IN ?", ids).
-		Group("billing_refunds.billing_id").
-		Scan(&sums).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "billing_refund", "")
-	}
-	totals := make(map[uint64]int64, len(sums))
-	for _, s := range sums {
-		totals[s.BillingID] = s.Total
-	}
-	return totals, nil
-}
-
 func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
-	return r.findBillingByIDWithScope(persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)), []uint64{clinicID}, id)
+	return r.findBillingByIDWithScope(persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScope(clinicID)), id)
 }
 
 func (r *accountingRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error) {
-	return r.findBillingByIDWithScope(persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScopeIn(clinicIDs)), clinicIDs, id)
+	return r.findBillingByIDWithScope(persistence.DBOrTx(ctx, r.db).Scopes(persistence.ClinicScopeIn(clinicIDs)), id)
 }
 
-// findBillingByIDWithScope は clinic スコープ適用済みのクエリで billing を1件取得し、返金合計を計算して返す。
-// clinicIDs は Owner/Pet Preload の P3.1 clinic_id 述語用（AUD-002）。
-func (r *accountingRepository) findBillingByIDWithScope(q *gorm.DB, clinicIDs []uint64, id uint64) (*model.Billing, error) {
+// findBillingByIDWithScope は clinic スコープ適用済みのクエリで billing を1件取得し、明細だけを付与する。
+// payments / payment_splits / refunds は廃止された保存先で読まず、owner / pet の入れ子も
+// 氏名の reader（EMR-491）が接続されるまで付与しない（Q4(c) / Q8。held for EMR-506）。
+func (r *accountingRepository) findBillingByIDWithScope(q *gorm.DB, id uint64) (*model.Billing, error) {
 	var billing model.Billing
 	err := q.
 		Preload("Items", "deleted_at IS NULL").
-		Preload("Payments", "deleted_at IS NULL").
-		Preload("Payments.PaidByStaff", scopedBillingStaffPreload(clinicIDs)).
-		Preload("Payments.PaidByStaff.ClinicAssignments", scopedStaffAssignmentsPreload(clinicIDs)).
-		Preload("Refunds", scopedRefundsPreload(clinicIDs)).
-		Preload("Refunds.RefundedByStaff", scopedBillingStaffPreload(clinicIDs)).
-		Preload("Refunds.RefundedByStaff.ClinicAssignments", scopedStaffAssignmentsPreload(clinicIDs)).
-		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("PaymentSplits", scopedPaymentSplitsPreload(clinicIDs)).
 		Where("id = ?", id).First(&billing).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
 	}
-	sanitizeBillingRelations(&billing)
-	var total int64
-	for i := range billing.Refunds {
-		total += billing.Refunds[i].Amount
-	}
-	billing.TotalRefundedAmount = total
 	return &billing, nil
 }
 
-// LockAndFindByID は FOR UPDATE で請求を行ロック取得する。
-// refund_service の CreateRefund・accounting_service_correction の CorrectCreditPayment の
-// トランザクション内で使用し、TOCTOU を防止する。
+// LockAndFindByID は FOR UPDATE で請求を行ロック取得する。明細の変更（billing_item_service）が
+// claim_state の判定と同一 tx で使い、TOCTOU を防止する。
 // BE-refactor.md R1-1 (D2): dbOrTx で ambient tx に参加する。参加しないと FOR UPDATE ロックが
-// 別セッションで即座に解放され、TOCTOU 防止が機能しない（過去は r.db.WithContext(ctx) 直参照だった）。
+// 別セッションで即座に解放され、TOCTOU 防止が機能しない。
 func (r *accountingRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	var billing model.Billing
 	err := persistence.DBOrTx(ctx, r.db).
 		Preload("Items", "deleted_at IS NULL").
-		Preload("Payments", "deleted_at IS NULL").
-		Preload("Payments.PaidByStaff", scopedBillingStaffPreload([]uint64{clinicID})).
-		Preload("Payments.PaidByStaff.ClinicAssignments", scopedStaffAssignmentsPreload([]uint64{clinicID})).
-		Preload("Refunds", scopedRefundsPreload([]uint64{clinicID})).
-		Preload("Refunds.RefundedByStaff", scopedBillingStaffPreload([]uint64{clinicID})).
-		Preload("Refunds.RefundedByStaff.ClinicAssignments", scopedStaffAssignmentsPreload([]uint64{clinicID})).
-		Preload("PaymentSplits", scopedPaymentSplitsPreload([]uint64{clinicID})).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", id).First(&billing).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", id))
-	}
-	sanitizeBillingRelations(&billing)
-	// Preload した Refunds から TotalRefundedAmount を計算（FindByID と同じ）
-	var total int64
-	for i := range billing.Refunds {
-		total += billing.Refunds[i].Amount
-	}
-	billing.TotalRefundedAmount = total
-	return &billing, nil
-}
-
-// FindByCompletionRequestID は BUG-018 の冪等キーで会計を検索する。
-// soft-deleted 行も含め（Unscoped）、key 再利用を拒否するため。見つからなければ (nil, nil)。
-func (r *accountingRepository) FindByCompletionRequestID(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error) {
-	if requestID == "" {
-		return nil, nil
-	}
-	var billing model.Billing
-	err := persistence.DBOrTx(ctx, r.db).
-		Unscoped().
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("completion_request_id = ?", requestID).
-		First(&billing).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, apperrors.FromGORM(err, "billing", requestID)
 	}
 	return &billing, nil
 }
@@ -584,161 +240,10 @@ func (r *accountingRepository) update(ctx context.Context, clinicID, billingID u
 	}
 	var billing model.Billing
 	if err := persistence.DBOrTx(ctx, r.db).
-		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", scopedBillingStaffPreload([]uint64{clinicID})).Preload("Payments.PaidByStaff.ClinicAssignments", scopedStaffAssignmentsPreload([]uint64{clinicID})).Preload("Refunds", scopedRefundsPreload([]uint64{clinicID})).Preload("Refunds.RefundedByStaff", scopedBillingStaffPreload([]uint64{clinicID})).Preload("Refunds.RefundedByStaff.ClinicAssignments", scopedStaffAssignmentsPreload([]uint64{clinicID})).Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("PaymentSplits", scopedPaymentSplitsPreload([]uint64{clinicID})).
+		Preload("Items", "deleted_at IS NULL").
 		Scopes(persistence.ClinicScope(clinicID)).
 		First(&billing, "id = ?", billingID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
 	}
-	sanitizeBillingRelations(&billing)
-	for i := range billing.Refunds {
-		billing.TotalRefundedAmount += billing.Refunds[i].Amount
-	}
 	return &billing, nil
-}
-
-// BE-refactor.md R1-1 (D2): accounting_service_core.Update・accounting_service_correction.
-// CorrectCreditPayment の両方が本メソッドを ambient tx 内から txCtx 付きで呼ぶため dbOrTx で参加する。
-func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.Payment) error {
-	if payment == nil || payment.BillingID == 0 {
-		return apperrors.WrapInvalidInput("payment requires billing_id")
-	}
-	// map[string]any を使用してゼロ値（Subtotal=0 等）も確実に更新する。
-	// struct の Assign では GORM がゼロ値フィールドをスキップする問題がある。
-	fields := map[string]any{
-		"subtotal":         payment.Subtotal,
-		"tax_total":        payment.TaxTotal,
-		"total_amount":     payment.TotalAmount,
-		"insurance_name":   payment.InsuranceName,
-		"insurance_ratio":  payment.InsuranceRatio,
-		"insurance_amount": payment.InsuranceAmount,
-		"discount_amount":  payment.DiscountAmount,
-		"billing_amount":   payment.BillingAmount,
-		"received_amount":  payment.ReceivedAmount,
-		"change_amount":    payment.ChangeAmount,
-		"method":           payment.Method,
-		"paid_by":          payment.PaidBy,
-		// method ⇄ payment_method_id の dual maintain（model.Payment コメントの不変条件）。
-		// Updates(map) はゼロ値も書き込むため、merge 済みの payment.PaymentMethodID をそのまま反映する。
-		"payment_method_id": payment.PaymentMethodID,
-	}
-
-	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		clinicID, err := lockBillingClinic(tx, payment.BillingID)
-		if err != nil {
-			return err
-		}
-		// TASK-445: payments.clinic_id is an internal tenant key derived from the
-		// locked billing row (never from request body). Set always so create and
-		// update stay consistent with the billing tenant.
-		payment.ClinicID = clinicID
-		fields["clinic_id"] = payment.ClinicID
-		if payment.PaidBy != nil {
-			if err := lockActiveBillingStaffs(
-				tx,
-				clinicID,
-				[]uint64{*payment.PaidBy},
-			); err != nil {
-				return err
-			}
-		}
-
-		var existing model.Payment
-		err = tx.
-			Where("billing_id = ?", payment.BillingID).
-			First(&existing).Error
-		if err != nil {
-			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return apperrors.FromGORM(
-					err,
-					"payment",
-					fmt.Sprintf("billing_id=%d", payment.BillingID),
-				)
-			}
-			if err := tx.Create(payment).Error; err != nil {
-				return apperrors.FromGORM(
-					err,
-					"payment",
-					fmt.Sprintf("billing_id=%d", payment.BillingID),
-				)
-			}
-			return nil
-		}
-
-		if err := tx.
-			Model(&model.Payment{}).
-			Where("billing_id = ?", payment.BillingID).
-			Updates(fields).Error; err != nil {
-			return apperrors.FromGORM(
-				err,
-				"payment",
-				fmt.Sprintf("billing_id=%d", payment.BillingID),
-			)
-		}
-		payment.ID = existing.ID
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to save payment")
-	}
-	return nil
-}
-
-// SavePaymentSplits は billing の payment_splits を delete-then-recreate で保存する。
-// splits が空の場合は既存レコードを削除のみ行う。
-// P4: DELETE に clinic_id = ? を付与しテナント越境削除を防ぐ（splits[0].ClinicID = 呼び出し元の clinicID）。
-// BE-refactor.md R1-1 (D2): persistence.DBOrTx(ctx, r.db).Transaction(...) にすることで、ambient tx があれば
-// その中のネスト tx（SAVEPOINT）として参加する。過去は r.db.WithContext(ctx).Transaction(...) で
-// 常に独立した新規 tx を開始しており、ambient tx が rollback しても本メソッドの書込は
-// 既にコミット済みのため巻き戻らない部分コミットのバグがあった。
-func (r *accountingRepository) SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error {
-	if len(splits) == 0 {
-		return nil
-	}
-	billingID := splits[0].BillingID
-	clinicID := splits[0].ClinicID
-	if billingID == 0 || clinicID == 0 {
-		return apperrors.WrapInvalidInput(
-			"payment splits require billing_id and clinic_id",
-		)
-	}
-	for i := range splits {
-		if splits[i].BillingID != billingID ||
-			splits[i].ClinicID != clinicID {
-			return apperrors.WrapInvalidInput(
-				"payment splits must belong to one billing and clinic",
-			)
-		}
-	}
-	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		var billing model.Billing
-		if err := tx.
-			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Scopes(persistence.ClinicScope(clinicID)).
-			Where("id = ?", billingID).
-			First(&billing).Error; err != nil {
-			return apperrors.FromGORM(
-				err,
-				"billing",
-				fmt.Sprintf("%d", billingID),
-			)
-		}
-		staffIDs := make([]uint64, 0, len(splits))
-		for i := range splits {
-			if splits[i].PaidBy != nil {
-				staffIDs = append(staffIDs, *splits[i].PaidBy)
-			}
-		}
-		if err := lockActiveBillingStaffs(tx, clinicID, staffIDs); err != nil {
-			return err
-		}
-		if err := tx.Where("billing_id = ? AND clinic_id = ?", billingID, clinicID).Delete(&model.PaymentSplit{}).Error; err != nil {
-			return apperrors.FromGORM(err, "payment_split", fmt.Sprintf("billing_id=%d", billingID))
-		}
-		if err := tx.Create(&splits).Error; err != nil {
-			return apperrors.FromGORM(err, "payment_split", fmt.Sprintf("billing_id=%d", billingID))
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to save payment splits")
-	}
-	return nil
 }

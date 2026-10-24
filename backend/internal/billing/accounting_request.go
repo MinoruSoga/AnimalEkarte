@@ -155,6 +155,8 @@ func (q listUnpaidBillingsQuery) toServiceFilters() (listUnpaidBillingsFilters, 
 }
 
 // createAccountingRequest は会計作成リクエスト。
+// 作成は draft のヘッダ（関連 ID・予定日・メモ）だけを受け付ける。subtotal 以下の金額・状態の項目は、
+// 無視せず service が 400 で拒否するために受け取る（Q4(c)。held for EMR-506）。
 type createAccountingRequest struct {
 	MedicalRecordID   *uint64    `json:"medical_record_id"`
 	HospitalizationID *uint64    `json:"hospitalization_id"`
@@ -322,7 +324,8 @@ func (r *correctCreditPaymentRequest) toServiceInput(id, clinicID, staffID uint6
 
 // updateAccountingRequest は会計更新リクエスト。
 // nil フィールドは更新しない（GORM ゼロ値スキップ問題を回避するためポインタ型を使用）。
-// Payment フィールドが含まれている場合、会計完了時に Payment を同時 upsert する。
+// 更新できるのは関連 ID・予定日・メモだけ。金額・状態・支払いの項目は service が拒否するために受け取る
+// （金額・状態は 400、支払い・保険・割引は固定エラー 422。held for EMR-506）。
 type updateAccountingRequest struct {
 	MedicalRecordID   *uint64    `json:"medical_record_id"`
 	HospitalizationID *uint64    `json:"hospitalization_id"`

@@ -42,12 +42,8 @@ func (h *BillingConfirmationHandler) GetBillingConfirmation(c *gin.Context) {
 		return
 	}
 
-	review, err := h.svc.GetOrCreate(c.Request.Context(), clinicID, medicalRecordID)
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toBillingConfirmationResponse(review))
+	// held for EMR-462: service は常に固定エラー（422）で拒否する。
+	respondBillingConfirmationPending(c, h.svc.Get(c.Request.Context(), clinicID, medicalRecordID))
 }
 
 // ConfirmBillingConfirmation は会計を医師確認済みにする
@@ -78,12 +74,8 @@ func (h *BillingConfirmationHandler) ConfirmBillingConfirmation(c *gin.Context) 
 		return
 	}
 
-	review, err := h.svc.Confirm(c.Request.Context(), clinicID, medicalRecordID, normalizedReq.toServiceInput(staffID))
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toBillingConfirmationResponse(review))
+	// held for EMR-462: body の形式検証の後、service が固定エラー（422）で拒否する。
+	respondBillingConfirmationPending(c, h.svc.Confirm(c.Request.Context(), clinicID, medicalRecordID, normalizedReq.toServiceInput(staffID)))
 }
 
 // ReturnBillingConfirmation は会計を差し戻す
@@ -114,12 +106,8 @@ func (h *BillingConfirmationHandler) ReturnBillingConfirmation(c *gin.Context) {
 		return
 	}
 
-	review, err := h.svc.Return(c.Request.Context(), clinicID, medicalRecordID, normalizedReq.toServiceInput(staffID))
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toBillingConfirmationResponse(review))
+	// held for EMR-462: body の形式検証の後、service が固定エラー（422）で拒否する。
+	respondBillingConfirmationPending(c, h.svc.Return(c.Request.Context(), clinicID, medicalRecordID, normalizedReq.toServiceInput(staffID)))
 }
 
 var errBillingConfirmationUnsupportedMediaType = errors.New(
@@ -200,6 +188,15 @@ func respondBillingConfirmationRequestError(c *gin.Context, err error) {
 			gin.H{"error": billingConfirmationUnsupportedMediaTypeMessage},
 		)
 		return
+	}
+	httpapi.RespondError(c, err)
+}
+
+// respondBillingConfirmationPending は quarantine 中の service の結果を応答する。
+// held for EMR-462: service は常に固定エラー（422）を返す。nil が返っても成功応答は組み立てず 500 で止める（fail-closed）。
+func respondBillingConfirmationPending(c *gin.Context, err error) {
+	if err == nil {
+		err = apperrors.WrapInternalServerError("billing confirmation quarantine returned without refusal")
 	}
 	httpapi.RespondError(c, err)
 }

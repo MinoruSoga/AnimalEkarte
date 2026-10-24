@@ -19,49 +19,6 @@ var PaymentMethodSystemKeys = map[model.PaymentMethod]string{
 	model.PaymentMethodBankTransfer:    "bank_transfer",
 }
 
-// resolvePaymentMethodMasterID は method(ENUM) を当該 clinic の payment_methods マスタ id に解決する（#128/#197）。
-// 真実の源泉は検証済みの method(ENUM)。systemKeyToID は当該 clinic の payment_methods マスタ system_key→id マップ。
-// existing（リクエストが明示供給した payment_method_id。ハンドラで無検証バインドされる）が非 nil の場合は、
-// 当該 clinic の当該 method に解決される id と一致することを検証し、不一致なら拒否する
-// （他クリニックの master id や method と矛盾する id の混入を防ぐ＝マルチテナント隔離）。
-// 対応するマスタ行が無い場合は明示エラーを返す（payment_method_id=NULL のまま保存して集計で現金に倒す挙動を防ぐ）。
-func resolvePaymentMethodMasterID(method model.PaymentMethod, existing *uint64, systemKeyToID map[string]uint64) (*uint64, error) {
-	key, ok := PaymentMethodSystemKeys[method]
-	if !ok {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("未知の支払方法のためマスタ解決ができません: %s", method))
-	}
-	id, ok := systemKeyToID[key]
-	if !ok {
-		// クリニックに既定支払方法マスタが存在しない設定不整合。誤って現金扱いせず、会計確定を止める。
-		return nil, apperrors.WrapInternalServerError(fmt.Sprintf("支払方法マスタ (system_key=%s) が見つかりません", key))
-	}
-	// 明示供給された id は当該 clinic の当該 method マスタと一致する場合のみ許可する。
-	if existing != nil && *existing != id {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("指定された支払方法 id (%d) は当該医院の支払方法 (system_key=%s) と一致しません", *existing, key))
-	}
-	resolved := id
-	return &resolved, nil
-}
-
-// ensureNoInactiveNewReceiptMethods は、新たに採用される支払方法が停止中（is_active=false）でないことを
-// 検査する（EMR-465）。既存受領と同じ method の再保存・idempotent replay は拒否しない。
-// 未知の method は resolvePaymentMethodMasterID の解決経路で拒否されるため、ここでは skip する。
-func ensureNoInactiveNewReceiptMethods(methods []model.PaymentMethod, savedMethods map[model.PaymentMethod]bool, activeSystemKeys map[string]bool) error {
-	for _, m := range methods {
-		if m == "" {
-			continue
-		}
-		key, ok := PaymentMethodSystemKeys[m]
-		if !ok {
-			continue
-		}
-		if !activeSystemKeys[key] && !savedMethods[m] {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("停止中の支払方法では新しい受領を作成できません: %s", m))
-		}
-	}
-	return nil
-}
-
 // hasPaymentFields は UpdateAccountingInput に Payment 関連フィールドが含まれているか判定する。
 func hasPaymentFields(input *UpdateAccountingInput) bool {
 	return len(input.PaymentSplits) > 0 ||
@@ -75,212 +32,12 @@ func hasPaymentFields(input *UpdateAccountingInput) bool {
 		input.DiscountAmount != nil
 }
 
-// representativeMethod は splits から payments.method（代表手段）を導出する仕様ロジック（PO判断B 2026-05-25: 確定）。
-// 優先順位は仕様として固定: cash > credit_card > bank_transfer > electronic_money（#198 で bank_transfer を明示追加）。
-func representativeMethod(splits []PaymentSplitInput) model.PaymentMethod {
-	for _, p := range []model.PaymentMethod{
-		model.PaymentMethodCash,
-		model.PaymentMethodCreditCard,
-		model.PaymentMethodBankTransfer,
-		model.PaymentMethodElectronicMoney,
-	} {
-		for _, s := range splits {
-			if s.Method == p {
-				return p
-			}
-		}
-	}
-	return model.PaymentMethodElectronicMoney
-}
-
-// validatePaymentSplits は splits の整合性を検証する。
-func validatePaymentSplits(splits []PaymentSplitInput, billingAmount *int64) error {
-	if len(splits) == 0 {
-		return nil
-	}
-	seen := make(map[model.PaymentMethod]bool, len(splits))
-	var total int64
-	for _, s := range splits {
-		if seen[s.Method] {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("支払い手段 %s が重複しています", s.Method))
-		}
-		seen[s.Method] = true
-		if s.Amount <= 0 {
-			return apperrors.WrapInvalidInput("各支払い金額は1円以上でなければなりません")
-		}
-		total += s.Amount
-		if s.Method == model.PaymentMethodCash {
-			if err := validateCashSplit(s); err != nil {
-				return err
-			}
-		}
-	}
-	if billingAmount != nil && total != *billingAmount {
-		return apperrors.WrapInvalidInput(fmt.Sprintf("支払い内訳の合計（%d）が請求金額（%d）と一致しません", total, *billingAmount))
-	}
-	return nil
-}
-
-func validateCashSplit(s PaymentSplitInput) error {
-	if s.ReceivedAmount < s.Amount {
-		return apperrors.WrapInvalidInput("現金の預り金が不足しています")
-	}
-	if s.ChangeOverride {
-		// #188: お釣り直接上書きモード。レジ実機（カルテ非連動）の誤差を会計記録に反映するため
-		// change == received - amount の整合検証を意図的に緩和する。下限ガード（change >= 0）は維持する。
-		if s.ChangeAmount < 0 {
-			return apperrors.WrapInvalidInput("お釣りは0円以上でなければなりません")
-		}
-		return nil
-	}
-	if s.ChangeAmount != s.ReceivedAmount-s.Amount {
-		return apperrors.WrapInvalidInput("お釣り計算が不正です")
-	}
-	return nil
-}
-
-// buildPaymentFromInput は UpdateAccountingInput から Payment モデルを構築する。
-// splits がある場合は代表支払い手段・受領額・お釣りを splits から導出する。
-//
-// EMR-63: base（既存の payment 行）が与えられた場合は merge セマンティクス。
-// nil フィールドは既存値を保持し、送信されたフィールドだけが上書きされる。
-// これにより PATCH が payment 全項目の再送を要求せず、未送信フィールドが
-// ゼロ値で既存値を破壊する（保険情報・預り金の消失）ことを防ぐ。
-// billing_amount は呼び出し側が server 権威で再計算して上書きするため、
-// 本関数では base/input どちらの値も最終値として使わない点に注意。
-func buildPaymentFromInput(input *UpdateAccountingInput, base *model.Payment) *model.Payment {
-	p := &model.Payment{
-		BillingID: input.ID,
-		PaidBy:    input.StaffID,
-	}
-	if base != nil {
-		p.Subtotal = base.Subtotal
-		p.TaxTotal = base.TaxTotal
-		p.TotalAmount = base.TotalAmount
-		p.InsuranceName = base.InsuranceName
-		p.InsuranceRatio = base.InsuranceRatio
-		p.InsuranceAmount = base.InsuranceAmount
-		p.DiscountAmount = base.DiscountAmount
-		p.BillingAmount = base.BillingAmount
-		p.ReceivedAmount = base.ReceivedAmount
-		p.ChangeAmount = base.ChangeAmount
-		p.Method = base.Method
-		p.PaymentMethodID = base.PaymentMethodID
-	}
-	if input.Subtotal != nil {
-		p.Subtotal = *input.Subtotal
-	}
-	if input.TaxTotal != nil {
-		p.TaxTotal = *input.TaxTotal
-	}
-	if input.TotalAmount != nil {
-		p.TotalAmount = *input.TotalAmount
-	}
-	if input.InsuranceName != nil {
-		p.InsuranceName = *input.InsuranceName
-	}
-	if input.InsuranceRatio != nil {
-		p.InsuranceRatio = *input.InsuranceRatio
-	}
-	if input.InsuranceAmount != nil {
-		p.InsuranceAmount = *input.InsuranceAmount
-	}
-	if input.DiscountAmount != nil {
-		p.DiscountAmount = *input.DiscountAmount
-	}
-	if input.BillingAmount != nil {
-		p.BillingAmount = *input.BillingAmount
-	}
-
-	if len(input.PaymentSplits) > 0 {
-		// 混在会計: splits の一次情報から代表手段・受領額・お釣りを導出（仕様）。
-		// splits が送られた場合、受領額・お釣りは現金内訳のみから決まるため
-		// 既存値は引き継がず明示的に再導出する（現金以外の内訳では 0）。
-		p.Method = representativeMethod(input.PaymentSplits)
-		p.ReceivedAmount = 0
-		p.ChangeAmount = 0
-		for _, s := range input.PaymentSplits {
-			if s.Method == model.PaymentMethodCash {
-				p.ReceivedAmount = s.ReceivedAmount
-				p.ChangeAmount = s.ChangeAmount
-				break
-			}
-		}
-	} else {
-		if input.ReceivedAmount != nil {
-			p.ReceivedAmount = *input.ReceivedAmount
-		}
-		if input.ChangeAmount != nil {
-			p.ChangeAmount = *input.ChangeAmount
-		}
-		if input.PaymentMethod != nil {
-			p.Method = *input.PaymentMethod
-		}
-	}
-	return p
-}
-
-// buildPaymentSplits は UpdateAccountingInput から PaymentSplit モデルのスライスを構築する。
-// PaymentSplits が空の場合は単一支払いフィールドから1行を生成する（backward compat）。
-// effectiveBillingAmount は呼び出し側が server 権威で確定した請求金額（EMR-63）。
-// 単一支払いの合成は input.BillingAmount が明示送信された場合のみ行い、
-// 金額には client 供給値ではなく effectiveBillingAmount を使う。
-func buildPaymentSplits(input *UpdateAccountingInput, effectiveBillingAmount int64) []model.PaymentSplit {
-	if len(input.PaymentSplits) > 0 {
-		splits := make([]model.PaymentSplit, 0, len(input.PaymentSplits))
-		for _, s := range input.PaymentSplits {
-			splits = append(splits, model.PaymentSplit{
-				ClinicID:        input.ClinicID,
-				BillingID:       input.ID,
-				Method:          s.Method,
-				PaymentMethodID: s.PaymentMethodID,
-				Amount:          s.Amount,
-				ReceivedAmount:  s.ReceivedAmount,
-				ChangeAmount:    s.ChangeAmount,
-				PaidBy:          input.StaffID,
-			})
-		}
-		return splits
-	}
-	// 単一支払い backward compat — BillingAmount が明示送信されている場合のみ生成。
-	// 未送信（nil）のときは既存の payment_splits を保持する（EMR-63: 未送信フィールドは変更しない）。
-	if input.BillingAmount == nil || *input.BillingAmount <= 0 || effectiveBillingAmount <= 0 {
-		return nil
-	}
-	method := model.PaymentMethodCash
-	if input.PaymentMethod != nil {
-		method = *input.PaymentMethod
-	}
-	var received, change int64
-	if input.ReceivedAmount != nil {
-		received = *input.ReceivedAmount
-	}
-	if input.ChangeAmount != nil {
-		change = *input.ChangeAmount
-	}
-	return []model.PaymentSplit{
-		{
-			ClinicID:       input.ClinicID,
-			BillingID:      input.ID,
-			Method:         method,
-			Amount:         effectiveBillingAmount,
-			ReceivedAmount: received,
-			ChangeAmount:   change,
-			PaidBy:         input.StaffID,
-		},
-	}
-}
-
 func accountingUpdateFromInput(input *UpdateAccountingInput) AccountingUpdate {
 	return AccountingUpdate{
 		MedicalRecordID:   input.MedicalRecordID,
 		HospitalizationID: input.HospitalizationID,
 		OwnerID:           input.OwnerID,
 		PetID:             input.PetID,
-		Subtotal:          input.Subtotal,
-		TaxTotal:          input.TaxTotal,
-		TotalAmount:       input.TotalAmount,
-		HasInsurance:      input.HasInsurance,
 		ScheduledDate:     input.ScheduledDate,
 		Memo:              input.Memo,
 	}
@@ -300,43 +57,13 @@ func (cmd AccountingUpdate) toFields() map[string]any {
 	if cmd.PetID != nil {
 		fields["pet_id"] = *cmd.PetID
 	}
-	if cmd.Subtotal != nil {
-		fields["subtotal"] = *cmd.Subtotal
-	}
-	if cmd.TaxTotal != nil {
-		fields["tax_total"] = *cmd.TaxTotal
-	}
-	if cmd.TotalAmount != nil {
-		fields["total_amount"] = *cmd.TotalAmount
-	}
-	if cmd.HasInsurance != nil {
-		fields["has_insurance"] = *cmd.HasInsurance
-	}
 	if cmd.ScheduledDate != nil {
 		fields["scheduled_date"] = *cmd.ScheduledDate
 	}
 	if cmd.Memo != nil {
 		fields["memo"] = *cmd.Memo
 	}
-	if cmd.Status != nil {
-		fields["status"] = *cmd.Status
-	}
-	if cmd.CompletedAt != nil {
-		fields["completed_at"] = *cmd.CompletedAt
-	}
-	// EMR-253: takeover 確定時のみ設定（buildAccountingUpdate = 汎用 PATCH 経路は出さない）。
-	if cmd.CompletionRequestID != nil {
-		fields["completion_request_id"] = *cmd.CompletionRequestID
-	}
-	if cmd.CompletionRequestHash != nil {
-		fields["completion_request_hash"] = *cmd.CompletionRequestHash
-	}
 	return fields
-}
-
-// buildAccountingUpdate は汎用 PATCH 用。status / completed_at は出さない。
-func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
-	return accountingUpdateFromInput(input).toFields()
 }
 
 // validateAccountingRelatedFKs は会計の関連 FK（medical_record / hospitalization / owner / pet）の
