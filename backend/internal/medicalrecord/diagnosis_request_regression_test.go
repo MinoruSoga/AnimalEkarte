@@ -485,3 +485,38 @@ func TestUpdateMedicalRecord_LegacyDiagnosisFields_Returns400(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
+
+// R4-A-01 / R4-SPEC-01: status キーは旧単一診断フィールドより優先する。両方を含む POST は、status の値
+// （null・"draft"）に関わらず 400 ではなく固定 422 medical_record_status_retired で、service を呼ばない。
+func TestCreateMedicalRecord_StatusKeyTakesPrecedenceOverLegacyDiagnosisField(t *testing.T) {
+	for name, value := range map[string]string{"null": `null`, "string draft": `"draft"`} {
+		t.Run(name, func(t *testing.T) {
+			svc := &mockMedicalRecordService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					t.Fatal("Create must not be called when status is present")
+					return nil, nil
+				},
+				createSubRecordsFn: func(_ context.Context, _, _ uint64, _ CreateSubRecordsInput) error {
+					t.Fatal("CreateSubRecords must not be called when status is present")
+					return nil
+				},
+			}
+			w := postCreateMedicalRecord(t, newHandlerWithMedicalRecordSvc(svc, &mockClinicalPlanService{}),
+				`{"owner_id":"10","pet_id":"20","diagnosis_type_id":3,"status":`+value+`}`)
+			assert.Equal(t, http.StatusUnprocessableEntity, w.Code, w.Body.String())
+			assert.Contains(t, w.Body.String(), apperrors.CodeMedicalRecordStatusRetired)
+		})
+	}
+}
+
+// PATCH も POST と同じ順序（status キーが旧診断フィールドより先）。service を呼ばない。
+func TestUpdateMedicalRecord_StatusKeyTakesPrecedenceOverLegacyDiagnosisField(t *testing.T) {
+	for name, value := range map[string]string{"null": `null`, "string draft": `"draft"`} {
+		t.Run(name, func(t *testing.T) {
+			h := newHandlerWithMedicalRecordSvc(failingUpdateService(t), &mockClinicalPlanService{})
+			w := patchMedicalRecordRaw(t, h, `{"diagnosis_name_id":9,"status":`+value+`}`)
+			assert.Equal(t, http.StatusUnprocessableEntity, w.Code, w.Body.String())
+			assert.Contains(t, w.Body.String(), apperrors.CodeMedicalRecordStatusRetired)
+		})
+	}
+}
