@@ -799,6 +799,13 @@ func TestHospitalizationService_Create_RejectsDeceasedOrUnresolvedPet(t *testing
 		{name: "reader failure", readErr: errors.New("db down")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			readerCalls := 0
+			reader := stubPetLifeReader{fn: func(_ context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error) {
+				readerCalls++
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(5), petID)
+				return tc.state, tc.readErr
+			}}
 			repo := &mockHospitalizationRepository{
 				createFn: func(_ context.Context, _ *model.Hospitalization) error {
 					t.Fatal("hospitalization must not be created unless the pet is confirmed alive")
@@ -809,10 +816,11 @@ func TestHospitalizationService_Create_RejectsDeceasedOrUnresolvedPet(t *testing
 				assertOwnerInClinicFn:  func(_ context.Context, _, _ uint64) error { return nil },
 				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
 			}, &mockPetRepository{}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{},
-				WithPetLifeStateReader(stubPetLifeState(tc.state, tc.readErr)))
+				WithPetLifeStateReader(reader))
 
+			// CageID は nil のままにする。非 nil だと createHospitalizationInTx が先に occupancy_unknown で拒否し、
+			// 死亡 reader に到達しない。
 			hosp, err := svc.Create(context.Background(), 1, &CreateHospitalizationInput{
-				CageID:              func() *uint64 { v := uint64(10); return &v }(),
 				OwnerID:             2,
 				PetID:               5,
 				HospitalizationType: model.HospitalizationTypeInpatient,
@@ -826,11 +834,15 @@ func TestHospitalizationService_Create_RejectsDeceasedOrUnresolvedPet(t *testing
 				assert.ErrorIs(t, err, tc.readErr)
 			}
 			assert.Nil(t, hosp)
+			assert.Equal(t, 1, readerCalls, "pet life state reader must be consulted exactly once")
+			assert.False(t, apperrors.IsConflict(err), "must not stop at the cage occupancy guard: %v", err)
 		})
 	}
 }
 
 // 入院 write は reader 未配線のとき生存扱いにせず内部エラーで拒否する（nil は alive ではない）。
+// CageID は nil のままにする。非 nil だと createHospitalizationInTx が先に occupancy_unknown で拒否し、
+// 未配線 guard（ValidatePetNotDeceased の reader == nil 分岐）に到達しない。
 func TestHospitalizationService_Create_FailsClosedWithoutPetLifeStateReader(t *testing.T) {
 	now := time.Now()
 	repo := &mockHospitalizationRepository{
@@ -842,10 +854,9 @@ func TestHospitalizationService_Create_FailsClosedWithoutPetLifeStateReader(t *t
 	svc := NewHospitalizationService(repo, &mockReservationRepository{
 		assertOwnerInClinicFn:  func(_ context.Context, _, _ uint64) error { return nil },
 		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
-	}, &mockPetRepository{}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
+	}, &mockPetRepository{}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
 
 	hosp, err := svc.Create(context.Background(), 1, &CreateHospitalizationInput{
-		CageID:              func() *uint64 { v := uint64(10); return &v }(),
 		OwnerID:             2,
 		PetID:               5,
 		HospitalizationType: model.HospitalizationTypeInpatient,
@@ -856,6 +867,11 @@ func TestHospitalizationService_Create_FailsClosedWithoutPetLifeStateReader(t *t
 	assert.Error(t, err)
 	assert.False(t, apperrors.IsInvalidInput(err))
 	assert.Nil(t, hosp)
+	assert.False(t, apperrors.IsConflict(err), "must not stop at the cage occupancy guard: %v", err)
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "INTERNAL", appErr.Code)
+	assert.Equal(t, "pet life state reader is required", appErr.Message)
 }
 
 func TestHospitalizationService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
