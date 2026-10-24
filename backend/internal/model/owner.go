@@ -35,6 +35,11 @@ type Owner struct {
 	UpdatedAt              time.Time      `gorm:"column:updated_at;type:timestamptz;not null;default:now();autoUpdateTime" json:"updated_at"`
 	DeletedAt              gorm.DeletedAt `gorm:"column:deleted_at;type:timestamptz" json:"-"`
 	Pets                   []Pet          `gorm:"foreignKey:ClinicID,OwnerID;references:ClinicID,ID" json:"pets,omitempty"`
+
+	// Basic / BasicSubject は commonbasic が現行 basic revision から埋める読み取り専用の一時フィールド。
+	// DB 列ではなく、nil の間は基本情報が未解決（旧 owners 列へのフォールバックはしない）。
+	Basic        *CommonOwnerBasicRevision `gorm:"-" json:"-"`
+	BasicSubject *CommonSubjectRef         `gorm:"-" json:"-"`
 }
 
 func (Owner) TableName() string { return "owners" }

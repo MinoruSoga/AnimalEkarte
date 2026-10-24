@@ -86,13 +86,15 @@ func (r *animalSpeciesRepository) update(ctx context.Context, id uint64, fields 
 	return nil
 }
 
+// Delete は未使用の動物種だけを 1 文で削除する。使用中の判定は common_pet_basic_revisions の
+// animal_species_id（FK は ON DELETE RESTRICT）で行い、現行でない revision と soft-delete 済み pet の
+// revision も使用中として扱う（履歴行が参照している限り FK で削除できないため）。
 func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Where("id = ?", id).
 		Where(`NOT EXISTS (
-			SELECT 1 FROM pets
-			WHERE pets.animal_species_id = animal_species.id
-			  AND pets.deleted_at IS NULL
+			SELECT 1 FROM common_pet_basic_revisions r
+			WHERE r.animal_species_id = animal_species.id
 		)`).
 		Delete(&model.AnimalSpecies{})
 	if result.Error != nil {

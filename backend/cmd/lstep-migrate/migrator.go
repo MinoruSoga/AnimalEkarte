@@ -12,6 +12,7 @@ import (
 	"golang.org/x/time/rate"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/owner"
 )
@@ -169,7 +170,8 @@ func (m *Migrator) filterOwners(owners []model.Owner) []model.Owner {
 
 // processOwner は1飼い主のタグ同期を実行して進捗を記録する。
 func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) ProgressRecord {
-	rec := ProgressRecord{OwnerID: owner.ID, OwnerName: owner.Name, Status: "success"}
+	ownerName := m.ownerDisplayName(ctx, owner.ID)
+	rec := ProgressRecord{OwnerID: owner.ID, OwnerName: ownerName, Status: "success"}
 	startedAt := time.Now()
 
 	if !m.cfg.DryRun {
@@ -195,7 +197,7 @@ func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) Progres
 	if m.cfg.DryRun {
 		m.logger.Info("[dry-run] result",
 			slog.Uint64("owner_id", owner.ID),
-			slog.String("name", owner.Name),
+			slog.String("name", ownerName),
 			slog.String("status", rec.Status),
 		)
 		return rec
@@ -209,6 +211,21 @@ func (m *Migrator) processOwner(ctx context.Context, owner *model.Owner) Progres
 		slog.Int("failed", rec.TagsFailed),
 	)
 	return rec
+}
+
+// ownerDisplayName は進捗レポート用の飼い主名を現行 basic revision から読む。
+// 解決できない owner は名前を空にして warn を残す。タグ同期は clinic_id と owner_id だけで動くため、
+// 氏名の欠落（未 binding など）で同期自体は止めない。
+func (m *Migrator) ownerDisplayName(ctx context.Context, ownerID uint64) string {
+	names, err := commonbasic.ReadOwnerNames(ctx, m.db, m.cfg.ClinicID, []uint64{ownerID})
+	if err != nil {
+		m.logger.Warn("owner basic information unresolved; report name left empty",
+			slog.Uint64("owner_id", ownerID),
+			slog.String("error", err.Error()),
+		)
+		return ""
+	}
+	return names[ownerID]
 }
 
 type ownerSyncFn struct {
