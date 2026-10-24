@@ -1,4 +1,4 @@
-# EMR-490 / 492 採択技術契約・runtime未実装
+# EMR-490 / 491 / 492 採択技術契約・runtime未実装
 
 <a id="compatibility-scope-20261024"></a>
 ## 2026-10-24 現在の適用範囲（492）
@@ -36,7 +36,7 @@ contact queryとcommon queryを別DTO・別検索処理にする。contactは同
 
 identity_decisionsはスタッフが実際に候補確認した場合の候補ref・確認時basic revision・same_person/different_peopleを保持。連絡先警告が出たというだけで追加必須確認を課さない。same_personなら新owner createは止めて既存owner/new petまたはuse-in-clinicへ戻す。different_peopleは通常形式検証へ進む。
 
-全pet検証→最外TXでowner common subject/基本revision/local owner/immutable clinic binding→pet writerのambient参加で全pet subject/revision/local/binding→既存で必要な確認履歴・receiptを一度にcommit。一匹でも失敗なら全部rollback。成功receiptにowner_id・入力順client_pet_refからpet_idへの対応・各common subject/revision IDを保存する。client_pet_refは当該request内の一意なopaque tokenで、動物名から対応を復元しない。一般登録へ新たな必須監査規則は足さない（既存PATH-OWNER-PET-REGISTERは一般audit必須ではない）。既存で必須の監査とC06成功receiptの原子性は維持する。
+全pet検証後、graph gate/下位検証を経た最外TXでserver UUID確定→local owner→immutable clinic binding→common subject→初revision、petもlocal→binding→subject→revisionのSQL順で保存し、必要確認履歴・receiptを一度にcommit。説明上のsubject/revision順をSQL順へ転用しない。binding→subject FKはdeferred、binding→local FKはimmediate、subject RLSは認可clinic binding存在を要求する。一匹でも失敗なら全部rollback。成功receiptにowner_id・入力順client_pet_refからpet_idへの対応・各common subject/revision IDを保存する。client_pet_refは当該request内の一意なopaque tokenで、動物名から対応を復元しない。一般登録へ新たな必須監査規則は足さない（既存PATH-OWNER-PET-REGISTERは一般audit必須ではない）。既存で必須の監査とC06成功receiptの原子性は維持する。
 
 ### 1.2 confirmation storageの実際の限界
 
@@ -192,9 +192,9 @@ Preconditionsは登録candidate expected_basic_revision、use-in-clinic owner/pe
 
 metadataは§3.1に従いbindingと同短TXで生成し、失敗/unknown/未成功にも残す。operation_binding_id/clinic_idはNOT NULL、operation_binding_id PK、UNIQUE(operation_binding_id,clinic_id)、FOREIGN KEY(operation_binding_id,clinic_id)→operation_bindings(id,clinic_id) ON DELETE RESTRICT、CHECK clinic_id>0。owner_useのcommon_owner_id/common_pet_ids/pet_set_digestはNOT NULL、pet配列はUUID昇順・重複なし（空配列可）、digestはlowerhex64で当該配列commitmentと一致させる。pet IDsを不可逆digestだけにせず元target metadataへ保存し、未成功lookupでも各petの現在認可を再検査できるようにする。master target_kindはtype/group、target_idはNULLまたは正値。familyがcreate/reorderならtarget_id=NULL、他familyなら非NULLの整合をclaim factoryで検査する。reorder原targetは認証clinicの当該master集合で、成功ID集合から後付けで推測しない。
 
-RLSはENABLE/FORCEし、USING/WITH CHECKは同じambient transactionで検証設定したclinic_idとの一致。API実行roleにBYPASSRLSを付与せず、HTTP bodyでRLS contextを設定しない。immutable triggerでUPDATE/DELETEを拒否し、通常writerにはINSERT/SELECTだけ。claim hook以外からINSERTしない。本人/権限の現在検査はRLSのclinic一致だけで代用しない。cross-clinic common読取は各認可済bindingの既存readerを使用し、anchorのRLSを全院へ広げない。
+新anchor表RLSは最新[unified-db方針](../db-contracts/unified-db-20261019.md)どおりENABLE・非FORCEとし、USING/WITH CHECKは同じambient transactionで検証設定したclinic_idとの一致。API実行roleにBYPASSRLSを付与せず、HTTP bodyでRLS contextを設定しない。immutable triggerでUPDATE/DELETEを拒否し、通常writerにはINSERT/SELECTだけ。claim hook以外からINSERTしない。本人/権限の現在検査はRLSのclinic一致だけで代用しない。cross-clinic common読取は各認可済bindingの既存readerを使用し、anchorのRLSを全院へ広げない。
 
-lookupはscopeのbinding→保存anchor→元targetの現在認可（新規登録は元actorの現在owners:createによる限定receipt、その他は既定view）→保存receipt。新規未成功は元認証clinic/actor/familyが原target。成功時は結果IDが同clinicに実在し当該operationの作成/利用結果と一致することも検査する。useはanchorの原common ownerと全common_pet_idsの現在候補認可、masterは元type/group（削除済でも権限検査可能な原行）又はclinic集合の現在master:viewを検査。別URL/別対象で元結果を漏らさず、pre-C06不一致は現在認可後の既存409 ErrorResponse、C06保存済Content fingerprint不一致はoperation-key-conflict、fingerprint一致後のApply依存変化はdependency-changed、期待版CAS不一致はversion-conflict。欠落anchor/解決不能は非開示で止め、成功receiptから別targetを捏造しない。
+lookupはscopeのbinding→保存anchor→元targetの現在認可（新規登録は元actorの現在owners:createによる限定receipt、basic saveは§10のroute別edit/view、use/masterは各既定grant）→保存receipt。新規未成功は元認証clinic/actor/familyが原target。成功時は結果IDが同clinicに実在し当該operationの作成/利用結果と一致することも検査する。useはanchorの原common ownerと全common_pet_idsの現在候補認可、masterは元type/group（削除済でも権限検査可能な原行）又はclinic集合の現在master:viewを検査。別URL/別対象で元結果を漏らさず、pre-C06不一致は現在認可後の既存409 ErrorResponse、C06保存済Content fingerprint不一致はoperation-key-conflict、fingerprint一致後のApply依存変化はdependency-changed、期待版CAS不一致はversion-conflict。欠落anchor/解決不能は非開示で止め、成功receiptから別targetを捏造しない。
 
 ## 7. audit sinkと失敗時原子性
 
@@ -214,11 +214,11 @@ reorderは各対象IDの前後sort_order/versionを1対象1audit行として同�
 
 492はold/new group ID昇順→対象type ID昇順→appointment ID昇順。group操作はgroup ID→所属type ID昇順で状態/集合を検査。reorderは対象kindのID昇順で保護し、保存順序は入力順を用いる。通常予約のstaff/clinic/pet/lifecycle上位資源をmaster側で後取りせず、graph gate下の既存master→appointment participant順を使う。rename participantは別TX/再claim/外部作用なし。全writerがgateへ参加するまで「競合安全実装済み」としない。
 
-未実装の受領物は、489 claim metadata hook/ContextGate/結果DTO、490/491のcommon readerとambient登録/利用writer、492のmaster handler/reader/rename participant、型生成とOpenAPI更新、既存DDLに対するanchor追加の統合、実001/RLS/deferred trigger/並行性/応答断試験。これは技術契約の選定残ではなくruntime実装・検証残。試験NOT_RUN、外部書込なし、491更新なし。
+未実装の受領物は、489のContextGateとclaim後command再構成、供給済みclaim metadata hook/結果DTOへのconsumer接続、490/491のcommon readerとambient登録/利用writer、492のmaster handler/reader/rename participant、型生成とOpenAPI更新、既存DDLに対するanchor追加の統合、実001/RLS/deferred trigger/並行性/応答断試験。これは技術契約の選定残ではなくruntime実装・検証残。試験NOT_RUN、外部書込なし、491更新なし。
 
 ## 9. 初回claimと再構成・公開結果の最終補正
 
-既存bindingがある登録要求では、認証clinic/actor/intent/keyから元anchorをreadし現在認可後、そのcygram_rule_versionでcommandを再構成する。初回だけserverの選定ruleを候補にし、claim winnerがbinding＋anchorへ同時保存する。競合loserはwinner metadataを読み直し、その版でContent/fingerprintを再構成して比較する。候補版で先に異内容と判定してはならない。claim hookはimmutable metadata保存だけで、業務rowのlock/基本改訂保存/独立TXを行わない。新しいregistryは追加しない。
+既存bindingがある登録要求では、認証clinic/actor/intent/keyから元anchorをreadし、当該consumerのserver固定認可modeで現在認可後、そのcygram_rule_versionでcommandを再構成する。§10のclaim後再構成はwinner/loser双方でMatches前に適用する。初回だけserverの選定ruleを候補にし、claim winnerがbinding＋anchorへ同時保存する。競合loserはwinner metadataを読み直し、その版でContent/fingerprintを再構成して比較する。候補版で先に異内容と判定してはならない。claim hookはimmutable metadata保存だけで、業務rowのlock/基本改訂保存/独立TXを行わない。新しいregistryは追加しない。
 
 未成功binding・プロセス再起動・現行rule更新後も元版を使う。元版の算法/固定表を利用できない場合は処理を止める（result-unavailable、結果詳細なし）。最新ruleへ黙って置換した新revisionや新key救済を行わない。rule版の変更を業務内容変更として新操作にするのは旧結果が確定し、改めてその操作を開始するときだけ。初回claim metadata取得を含むfactory/489受領interfaceはこの動作を実現する必要があり、現在の実装成立を宣言しない。
 
@@ -229,4 +229,78 @@ reorderは各対象IDの前後sort_order/versionを1対象1audit行として同�
 
 ## 統合レビュー共通補正：shared Request の限定 immutable payload
 
-本節のimmutable typed commandは[採択済みQの共通契約](../../design/shared/operation-participation.md#verified-command-selected-20261021)に従い、Applyがreq.VerifiedCommandだけから再構成する。Qはrequest-memoryのみでowner-private耐久保管とは別、CAS/fenceはPreconditions、Contentは既定の短いstring mapを維持する。489のQ必要subsetは未実装依存であり、別command/DTO/pointerのcaptureで迂回せず、既存Content-only consumerは変更しない。
+本節のimmutable typed commandは[採択済みQの共通契約](../../design/shared/operation-participation.md#verified-command-selected-20261021)に従い、Applyがreq.VerifiedCommandだけから再構成する。Qはrequest-memoryのみでowner-private耐久保管とは別、CAS/fenceはPreconditions、Contentは既定の短いstring mapを維持する。489のQ必要subsetは実装済みで本consumer接続は未実装であり、別command/DTO/pointerのcaptureで迂回せず、既存Content-only consumerは変更しない。
+
+
+<a id="owner-basic-save-491-20261025"></a>
+## 10. EMR-491 Q1〜Q10の技術回答・最初のwriter成功単位
+
+固定調査main `6e3a3a30a207b84bef334e2515373355ad659997`。549 comment0f4dab56-55be-4ace-91f2-fd51b747275aのQ1〜Q10に対する採択技術回答。mainへのマージは設計採用で、runtime供給/activation/受入と別。進行状態はPlane。追加業務判断待ちを設けず、first writerは既存自院bindingのowner GET/PATCH＋owner.basic_revision.saveだけ。登録/pet全writerを混ぜない。#861 readerと未接続経路F1〜F6は有限復旧であり恒久422を完成形にしない。
+
+### Q1 登録graph gateと既存save
+
+登録/use-in-clinicはreservation-graph:write:v1必須、no-op登録案は棄却。既存bindingのbasic-only saveだけno-op gate。489 optional ContextGate.GateContextが返すderived ctxをbinding/認可/savepoint/Apply/audit/result/unknownへ同ambient TXで伝播しnil ctx/Tx不一致拒否、marker捏造/nested TXなし。固定main runner.go:322はGate(ctx)だけで拡張未接続。登録は受領前F3/F6、既存saveはContextGateを待たせない。
+
+### Q2 direct POST /pets
+
+owner_kind=pet、intent=pet.registerを選定。既存単一pet POST /pets、owners:create、対象自院owner検証を保持し複数pet APIなし。bodyは既存許可create field＋operation_key、immutable commandは親local_owner_id/common_owner_idと単一pet入力・既知unitを固定。専用GET /pet-registration-operations/{key}で元actor/clinic/familyの現在owners:create＋元親owner現在対象認可、成功pet/binding/operation一致を検査。anchorはoperation binding/clinic/親local-common owner refs、claim時業務row FKなし。owner.register-with-petsとは別familyで、命名待ちの恒久F6にせずanchor/graph/participant受領後activation。
+
+### Q3 連絡先重複警告
+
+001:8888–8891でphone/email unique撤去済み、末尾のlocal基本列DROPを新revision uniqueへ移植せず追加DROP migrationなし。ensureOwnerEmailUnique/PhoneUniqueの重複だけの409を除き形式/認可/対象検証保持。490 contact-candidates/queryは同院/現在view下の警告で登録と別。失敗を0件にせずdifferent_people登録可、staff same_personは新規停止。自動merge/追加必須確認なし。
+
+### Q4 nullable wireと登録初期入力
+
+nullable basicはJSON null（pointer、omitemptyなし）。省略/明示null/値を区別し必須NOT NULLへnull拒否。readでstatus/gender/dangerをalive/unknown/lowへ補完しない。新規UIが生存/低/去勢不明を明示create payloadへ送信しgenderは空未指定、既存editのNULL/presenceは保持。pet-form-dataの既存欠落にも作用するdanger fallbackを置換し開く/保存だけでlowにしない。旧DDL defaultsからserver欠損を埋めずstatus未記録はD6 unknown。PetPhysicalSectionの既知kg入力はregistration_weight＋unit=kgを同command/revisionへ、weightなしは両NULL。既存revision unit=NULLをkg補完せず未契約他unitを増やさない。
+
+### Q5 Cygramとrule固定
+
+正本[60固定表](../../spec/domains/owners-pets/lifecycle.md#saigram-calculation-reference-20261018)、UTC暦日差・非負modのpure calculator。技術ruleラベルcygram-2026-07-16-v1、closed result={personality_number,type_number,type_code,group,orientation}を選定し算法変更なし。有効DOB変更は再計算＋同revision、nullはDOB/result/rule消去、省略は現3値保持（省略現在値をContentへ埋めない）。派生result/ruleをclient編集不可。登録anchorはDOB省略/nullでも選定rule固定。basic-save anchorのrule NULLはDOB省略/nullのみ、有効変更はfactoryが非NULLを保証。初期データの有効DOB計算は別の実データ作業。
+
+同key再送/claim loserは保存anchor現在認可→保存ruleで再構成しMatches。最新ruleで先にconflict判定不可。保存rule=NULLへ有効DOBを追加したincomingは現在認可後key-conflict/zero domain writes、最新ruleを足さずunavailableとも偽らない。保存rule非NULLでincoming DOB省略/nullでもincoming presence保持、保存DOBを注入せず異内容conflict。実保存非NULL算法が利用不能時だけresult-unavailable。
+
+### Q6 first sliceのmixed拒否
+
+first owner.basic_revision.saveはbasic-only。mixedはclaim前400 mixed_owner_patch_not_supportedで全拒否、UI保存を分離し自動二連続PATCHなし。local-onlyは既存許可scopeの専用writer、旧基本列fallback/C06成功偽装なし。後続mixedは全changes commitment＋local/current-basicのCAS/lock/audit/receipt同TXを先に選定する。ownersにVersion列はなくsubject版だけでlocal競合まで守ったとしない。死亡/復活/LINE/移管/副飼主は別intent。
+
+### Q7 commitmentとQ
+
+§5.3のlowerhex HMAC-SHA256(K_version,UTF8(JCS(projection)))。生PIIをContent/log/cacheへ複写せずSHA-only/current鍵自動選択なし。外側Fingerprinter.Computeのcanonical framingとJCS payload-HMACを区別。owner領域が供給責務を持つ小さいpure helperと489/compositionによるconfig注入でよく、共有operation API追加は必須でない。owner/pet双方が利用する場合は既存中立commonbasic等の責務へ配置でき、petからowner import等の循環依存を要求しない。具体的な製品配置変更は本docs作業で行わない。鍵生成/変更は今回対象外。64fields/256bytes上限維持、ApplyはVerifiedCommandだけで再構成・再検証し別DTO captureなし。
+
+新command_schemaはowner-basic-save-v1 / pet-register-v1。basic projection={schema,intent,local_owner_id,common_owner_id,changes全presence/null/value,有効DOB変更時cygram_rule_version}。pet-registerは親refs/単一pet入力/既知unit。CAS/actor/clinic/key/server生成・transport timestampは外、業務birth_date等はchangesとして**hash内**。鍵版はschema固定で外側C06鍵版と別。
+
+### Q8 exact decode
+
+JSON numberをRawMessage/json.NumberからExactNumericへ直接decode、float64往復/wire string化なし。1.20/1.2/12e-1は同canonical、別decimalをfloat等値へ潰さない。discount_rateはnumeric(5,2)保存尺度だがcommitmentは保存丸め前、registration_weightはscaleなしnumeric。#857はopen Draftの必要ParseExactNumeric/CanonicalString等subsetを固定headで受領、又は既存ExactNumeric.UnmarshalJSONの指数/末尾0/null/overflowを照合して最小adapterを接続。parser二重ownerを作らずhelper依存を新業務質問にしない。
+
+### Q9 監査
+
+一般登録へ一律LogEntryTx義務なし。different_people同院確認だけowner_identity_confirmations、useはbinding provenance＋既定audit。same_person拒否のため空ownerなし。basic saveは必須audit_logs：action=owner.basic_revision.save/resource=owner/resource_id=local ID、actor/clinic/DB時刻、metadata=operation binding/key/intent/schema、old/newはrevision refs/subject versions/changed-field namesのみ。PII正本はtyped immutable revisionsで二重複写なし。LogEntryTx失敗はrevision/receipt全rollback。GET/replayで監査増殖なし。
+
+### Q10 anchorsと回復
+
+main001に登録/use/basic anchorsは未供給。446/466の001最終定義/model/ERD subsetで供給し新migration方式を選ばない。ClaimMetadataWriterは既存実装済み、winnerがbindingと同短TXでimmutable anchor INSERT、loser読取、Apply rollback後もanchor残存。basic新表owner_basic_operation_anchors(operation_binding_id PK,clinic_id,local_owner_id,common_owner_id,cygram_rule_version nullable)。binding+clinic即時FK、業務row FKなし、immutable、ENABLE非FORCE clinic RLS。GET /owners/{id}/basic-revision-operations/{key}は保存anchor→元対象現在view/clinic/binding→path照合、認可後不一致409 target_mismatch。欠落anchorをURL/Contentで補修せずlost response回復未接続でactivationしない。
+
+### first saveのclosed DTO・TX・結果
+
+GET/PATCH /owners/:id。PATCH exact envelope={operation_key,common_owner_id,expected_subject_version,expected_basic_revision_id,changes}。changes allowlist=name/name_kana/birth_date/company/postal_code/address1/address2/home_postal_code/home_address1/home_address2/phone/company_phone/email。既存必須validation、nullable presence/null/value。derived Cygram/source/actor/provenance client入力禁止。未知field/重複member/不正UTF8/複数JSON値/空changesは400、mixedはclaim前400。新臨床条件/汎用edit sessionなし。Content={command_schema:owner-basic-save-v1,command_digest,digest_key_version,common_owner_id,local_owner_id}、Preconditionsはsubject版/current revision IDと実在fenceだけ。Applyがlock/CAS後current revisionからfull次版を組成し未変更保持することはContentの差替えでない。
+
+owner localはremarks/is_dangerous/discount_rate/membership/DM、pet localはowner_id/pet_number/insurance_id等。commonはtyped revisionだけ、LINEは504 owner_line_binding_*、履歴/資金はorigin clinic/local ID。登録weightはvitalと別、staff-privateをLINE allowlistに追加しない。
+
+owner入口edit→元anchor現在認可/保存rule→factory→短claim(binding+anchor)→postclaim再構成→最外業務TX/no-op Gate→binding NOWAIT→現在認可/replay/unknown→subject FOR UPDATE（取得不可Busy）→待機後binding/pointer/同subject再読→subject版/current revision CAS→次revision INSERT→必須audit→operation_results→commit。refs={common_owner_id,local_owner_id,basic_revision_id}、committed_versions={basic_revision,subject}。このfirst sliceは同subjectへちょうど1revision INSERT、deferred pointer UPDATE一回、他subject UPDATEゼロに限定しsubject=locked_version+1、新revisionはINSERT値。001 entity_version_guard:10236–10241/common_basic_publish:10827–10838が根拠。app pointer/version二重UPDATE不可、receipt前SET CONSTRAINTS IMMEDIATE不可、汎用複数revision/subject engineへ式を拡張しない。deferred/commit失敗は全rollback、実001でreceiptとcommit後pointer/version一致を検証。応答断は既存Runner結果照合。
+
+公開C06は成功だけrefs/committed_versions/recorded_at、非成功status/key。succeeded/replayed/not-succeeded200、operation-in-progress202、result-unavailable503、key/version/dependency/edit-right409、validation400、scope missing404、not-authorized403。generic store errorと記録済unknownは内部区別し未保存と断言しない。
+
+### owner consumer限定の認可mode
+
+AuthorizeLookupはinterface名でview固定ではない。serverがrequest-scoped immutable modeをrouteから固定しbodyに選ばせない。**owner consumer**の新claim前に認証actor/clinic/必要writeを検査する。basic PATCHのpostclaim/replay/unknown/失敗後結果はowners:edit＋保存anchor元scope/binding（暗黙view追加なし）、GET basic lookupはowners:view＋同scope/binding。登録POST/GET回復は元actor/clinic/familyの現在owners:create、成功結果の当該operation対応を照合し追加viewなし。useは既定create＋元common候補view維持。これは共有全familyへwrite grantを要求する規則でなく、506の成功再送/lookupの現在accounting:viewや既存manualarticleを変更しない。zero-writeはzero domain writesでありcommit済claim/anchorは残り得る、初回hook失敗は同時rollback。
+
+### 登録SQL/RLS順・有限slice・受入
+
+subject RLSは認可binding存在が条件。graph/下位検証後UUID→local→binding（subject FK deferred/local FK immediate）→subject→初revision、petも同順。新subject initial1→唯一first publishで版2をreceiptへ（実001検証）。実RLS role検証必須、無効化/迂回なし。全pet事前validation、一匹失敗全rollback、入力順client_pet_ref対応を保存し名前で復元しない。useは既存uniqueで同bindingへ収束し新UUID複製なし。
+
+R readerは#861 current reader/consumer/DTOを閉じ#845 D6へ追加しない。W0は446/466 anchors＋489 ContextGate/再構成、basic saveはContextGate待ちでなくanchor/reconstructor必要subset。W1はbasic GET/PATCH/lookup/closed command/commitment/Cygram/監査/DI/caller一成功単位。W2 pet basicは別familyで死亡/復活/移管を通常PATCHへ混ぜない。W3登録はowner複数petと単一POST /pets別family、graph/anchor/exact/candidate auth/Cygram/receiptを共同ambient参加で閉じuseは別slice。
+
+単一editor調整はcomposition_owner_pet.go、operation config、api.yaml、tygo.yaml、generated owner/pet DTO、FE transforms owner/pet。#857 exact owner/http_owner、#859 owner/LINE/constructor、#860 nullable/sharedkernel、#861 owner/pet/trimming/identitylink/speciesとの必要hunkを受領headごとに再照合。mergeable表示を未公開childの無衝突証拠としない。
+
+受入定義（全NOT_RUN）：同key replayでrevision/audit不増、CAS retryとpresence/rule異Content分離、二院同subject競合/待機後再読/別subject拒否/失権非開示、revision/audit/result/deferred failure rollbackとreceipt整合、DOB省略/null/有効/不正・5例/60表/負mod/閏日/timezone・旧rule/claim loser、NULL不補完/kg対未記録unit/exact丸め前commitment/scaleなしweight、二匹目失敗/親scope/same-person停止/different-people可/別key use収束/anchor欠落。残は実装依存で業務本人判断待ち0。実装・DB・試験・鍵操作の許可を本設計から増やさない。

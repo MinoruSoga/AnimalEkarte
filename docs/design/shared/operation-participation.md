@@ -148,10 +148,30 @@ HTTP status（403/404/409等）への対応は各ownerの既存非開示方針�
 <a id="verified-command-selected-20261021"></a>
 ## 採択済みQ：Requestの限定immutable command（2026-10-21）
 
-本節のimmutable typed commandは、採択済みQのoperation.Request.VerifiedCommandから取得する。共通constructorはschemaとcanonical bytesをdeep-copyし、pure projectorによる既定Content全key一致を検証する。Runnerはclaim/fingerprint前とApply直前に再検証し、Applyはreq.VerifiedCommandだけからtyped入力を再構成する。participantが別command/DTO/pointerを捕捉してwriteする方式は採用しない。Qはrequest-memoryのみで、CAS/fenceはPreconditions、Contentは既定の短いstring mapを維持する。489のQ必要subsetが実装されるまで本consumerを現C06へ直接接続可能と扱わず、既存Content-only consumerは変更しない。
+本節のimmutable typed commandは、採択済みQのoperation.Request.VerifiedCommandから取得する。共通constructorはschemaとcanonical bytesをdeep-copyし、pure projectorによる既定Content全key一致を検証する。Runnerはclaim/fingerprint前とApply直前に再検証し、Applyはreq.VerifiedCommandだけからtyped入力を再構成する。participantが別command/DTO/pointerを捕捉してwriteする方式は採用しない。Qはrequest-memoryのみで、CAS/fenceはPreconditions、Contentは既定の短いstring mapを維持する。Q必要subsetは実装済みだが、本consumerのprojector/Apply接続が未供給のまま接続可能とは扱わず、既存Content-only consumerは変更しない。
 
 VerifiedCommandはoperation package所有のoptional immutable値とし、constructorがschemaとcanonical command bytesを保持し、getterはdetached copyだけを返す。payloadをbinding/receipt/logへ保存する共通耐久機構にはしない。各consumerの既定hash/HMAC・schema・鍵版・正規化を変更しない。owner-private耐久commandを持つconsumerは現在元target認可後に保存bytesをdecode・再canonical化・hash検証してQへ載せ、Applyの別payload参照で迂回しない。
 
 これは親採択の技術契約で、本人がAPI/物理方式を直接指定した意味ではない。489が共通Request/Runnerの必要subsetを一箇所で実装するまでruntime適合済みとはしない。既存Content-only/v1 consumerを一律変更せず、実装・試験はNOT_RUN。
 
 2026-10-23追記（採択本文は変更しない）：必要subsetは`operation` packageの一箇所へ実装済み（§5.1の該当行）。consumer接続とruntime適合は未了で、本節の「接続可能と扱わない」条件は各consumerの接続・検証まで維持する。
+
+
+<a id="claimed-command-reconstruction-20261025"></a>
+## optional claim後command再構成：491必要subset（選定・未実装）
+
+[491 first saveと登録の契約](../../work/emr/emr-490-492-selected-wire-contract-20261021.md#owner-basic-save-491-20261025)に必要な任意拡張を選定する。固定main `6e3a3a30a207b84bef334e2515373355ad659997` のRunnerはincoming fingerprint→ClaimBinding→Matchesのまま。既存ClaimMetadataWriterだけではclaim競合loserの保存ruleによる再構成を満たさない。Q/ClaimMetadataWriter/Gate(ctx) errorは供給済み、ContextGateと以下のinterface/hookは今回選定・未実装である。
+
+```go
+type ClaimedCommandReconstructor interface {
+    ReconstructClaimedCommand(ctx context.Context, b Binding, req Request) (Request, error)
+}
+```
+
+ClaimBindingの短TX完了後、Matches前にwinner/loser双方へ適用。Runnerはまず保存anchorからResolveLookupTarget(ctx,b,nil)→現在AuthorizeLookupを通す。認可modeはserverが固定する各consumerの採択済みmodeを使用し、共有全familyの一律view/write条件を新設しない。491 PATCHのedit、GETのview、登録のcreateはowner consumer限定。506の既成功同key再送/lookupは現在accounting:view、初回/未成功Applyはwriteという別採択境界を変更しない。
+
+callbackはimmutable anchorを読みreq.VerifiedCommandのclient内容を保持し保存server選定ruleでcommand/commitment再構成。scope/key/intent/target refs/client changes/Preconditions/schemaを現在defaultへ変更不可。Runnerはrequest/envelope同一性とVerifiedCommand projectionを再検証し、winnerは保存fingerprint再現、loserはwinner ruleで比較、異client入力はkey conflict。未参加participantは従来経路。
+
+続いて業務TX→必要ContextGate→binding NOWAIT→現在認可/replay/unknown→Apply。claim lock保持中にgraphを取得しない。callbackはreceipt返却/業務writeなし。anchor欠落・保存rule利用不能・cancelは停止し既commit claimを保持、新key救済なし。hook失敗はbinding/anchor同時rollback。factoryの事前readよりclaimで確定したwinner metadataを最終正本とする。zero-writeはdomain writesゼロで、既commit binding/anchorの消去を意味しない。
+
+ContextGateのoptional GateContextが返すderived ctxはbinding/認可/savepoint/Apply/audit/result/unknownまで同ambient TXへ伝播しnil/Tx不一致拒否、marker捏造/nested TXなし。これは既存error-only Gateの実装を未実装へ戻すものではない。登録でno-op Gate代用不可、既存basic-only saveへgraphを一律追加しない。実装/consumer/実001/RLS/deferred/並行受入はNOT_RUN、鍵や設定変更は行わない。
