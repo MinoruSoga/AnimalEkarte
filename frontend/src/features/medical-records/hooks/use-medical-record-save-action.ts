@@ -9,6 +9,7 @@ import type {
   ClinicalPlanDiagnosisRow,
 } from "../api/clinical-plan";
 import type { ClinicalPlanDraft } from "./use-apply-clinical-plan";
+import { findCachedDiagnosisLabels, type DiagnosisOptionLabels } from "../lib/diagnosis-option-labels";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 
@@ -100,18 +101,26 @@ function toNumericId(value: string | null): number | null {
   return id;
 }
 
+/** 選択中の区分・名称 ID について、UI が表示しているマスタ名を返す関数（保存時のスナップショット用）。 */
+type DiagnosisLabelResolver = (
+  categoryId: number | null,
+  nameId: number | null,
+) => DiagnosisOptionLabels;
+
 /**
  * 1 つの slot の送信行を決める（EMR-495）。
  * - 代表行 = その slot の先頭行。BE は slot, sort_order, id 昇順で返す（ListDiagnoses）。
  * - UI の区分・名称が代表行と同じ: 読込済みの全行を値のまま返す（複数行・スナップショット・sort_order を保持）。
  * - 異なり、両方未選択: その slot の行を持たない（クリア）。
- * - 異なり、選択あり: 新しい 1 行へ置換する。スナップショットは BE が現在のマスタから補完しないため null で送る。
+ * - 異なり、選択あり: 新しい 1 行へ置換する。スナップショットは BE が現在のマスタから補完しないため、
+ *   UI が表示している区分名・病名を送る（react-query キャッシュ、無ければ未変更の代表行のスナップショット、判明しなければ null）。
  */
 function buildSlotDiagnoses(
   slot: ClinicalPlanDiagnosisSlot,
   categoryId: number | null,
   nameId: number | null,
   loadedRows: ClinicalPlanDiagnosisRow[],
+  findLabels: DiagnosisLabelResolver,
 ): SlotDiagnoses {
   const slotRows = loadedRows.filter((row) => row.diagnosis_slot === slot);
   const representative: ClinicalPlanDiagnosisRow | undefined = slotRows[0];
@@ -131,6 +140,18 @@ function buildSlotDiagnoses(
     };
   }
   if (categoryId === null && nameId === null) return { changed: true, rows: [] };
+  // 新規選択の行: UI が実際に表示しているマスタ名をスナップショットにする。判明しない値は推測せず null。
+  const cachedLabels = findLabels(categoryId, nameId);
+  const categoryNameSnapshot =
+    cachedLabels.categoryName ??
+    (categoryId !== null && categoryId === loadedCategoryId
+      ? (representative?.category_name_snapshot ?? null)
+      : null);
+  const diagnosisNameSnapshot =
+    cachedLabels.diagnosisName ??
+    (nameId !== null && nameId === loadedNameId
+      ? (representative?.diagnosis_name_snapshot ?? null)
+      : null);
   return {
     changed: true,
     rows: [
@@ -138,8 +159,8 @@ function buildSlotDiagnoses(
         diagnosis_slot: slot,
         diagnosis_type_id: categoryId,
         diagnosis_name_id: nameId,
-        diagnosis_name_snapshot: null,
-        category_name_snapshot: null,
+        diagnosis_name_snapshot: diagnosisNameSnapshot,
+        category_name_snapshot: categoryNameSnapshot,
         sort_order: 0,
       },
     ],
@@ -154,11 +175,24 @@ function buildSlotDiagnoses(
  */
 function buildClinicalPlanDiagnoses(
   source: ClinicalPlanDiagnosisSource,
+  findLabels: DiagnosisLabelResolver,
 ): ClinicalPlanDiagnosisInput[] | undefined {
   const loadedRows = source.existingClinicalPlanDiagnoses ?? [];
   const slots = [
-    buildSlotDiagnoses(1, source.diagnosis1CategoryId, source.diagnosis1NameId, loadedRows),
-    buildSlotDiagnoses(2, source.diagnosis2CategoryId, source.diagnosis2NameId, loadedRows),
+    buildSlotDiagnoses(
+      1,
+      source.diagnosis1CategoryId,
+      source.diagnosis1NameId,
+      loadedRows,
+      findLabels,
+    ),
+    buildSlotDiagnoses(
+      2,
+      source.diagnosis2CategoryId,
+      source.diagnosis2NameId,
+      loadedRows,
+      findLabels,
+    ),
   ];
   if (!slots.some((slotDiagnoses) => slotDiagnoses.changed)) return undefined;
   return slots.flatMap((slotDiagnoses) => slotDiagnoses.rows);
@@ -369,7 +403,10 @@ export function useMedicalRecordSaveAction({
               diagnosis_details: snapshot.assessment,
               // EMR-495: 診断は diagnoses 行配列。変更した slot だけ置換し、変えていない slot の読込済み行は
               // 値のまま送り返す。どの slot も変えていなければ undefined（キーを送らない = 変更なし）。
-              diagnoses: buildClinicalPlanDiagnoses(snapshot),
+              // 新規選択の診断は、保存時に UI が表示しているマスタ名（react-query キャッシュ）をスナップショットに載せる。
+              diagnoses: buildClinicalPlanDiagnoses(snapshot, (categoryId, nameId) =>
+                findCachedDiagnosisLabels(queryClient, categoryId, nameId),
+              ),
               // BUG-416③: clinical_plan 楽観ロック。undefined を送ると BE は
               // バージョンチェックをスキップする（後方互換）ため常に送信する。
               version: snapshot.existingClinicalPlanVersion,

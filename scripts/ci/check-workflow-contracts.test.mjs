@@ -772,7 +772,7 @@ test("clinical-plan inventory matches the bounded current PATCH contract", () =>
     [
       "diagnosisRows",
       "diagnoses",
-      /diagnoses:\s*buildClinicalPlanDiagnoses\(snapshot\)/,
+      /diagnoses:\s*buildClinicalPlanDiagnoses\(snapshot,\s*\(categoryId,\s*nameId\)\s*=>\s*findCachedDiagnosisLabels\(queryClient,\s*categoryId,\s*nameId\),?\s*\)/,
     ],
     [
       "assessment",
@@ -897,12 +897,12 @@ test("clinical-plan inventory matches the bounded current PATCH contract", () =>
   }
   assert.match(
     buildDiagnoses[0],
-    /buildSlotDiagnoses\(1,\s*source\.diagnosis1CategoryId,\s*source\.diagnosis1NameId,\s*loadedRows\)/,
+    /buildSlotDiagnoses\(\s*1,\s*source\.diagnosis1CategoryId,\s*source\.diagnosis1NameId,\s*loadedRows,\s*findLabels,?\s*\)/,
     "diagnosis 1 maps to slot 1",
   );
   assert.match(
     buildDiagnoses[0],
-    /buildSlotDiagnoses\(2,\s*source\.diagnosis2CategoryId,\s*source\.diagnosis2NameId,\s*loadedRows\)/,
+    /buildSlotDiagnoses\(\s*2,\s*source\.diagnosis2CategoryId,\s*source\.diagnosis2NameId,\s*loadedRows,\s*findLabels,?\s*\)/,
     "diagnosis 2 maps to slot 2",
   );
   assert.match(
@@ -919,7 +919,7 @@ test("clinical-plan inventory matches the bounded current PATCH contract", () =>
     /category_name_snapshot:\s*row\.category_name_snapshot,/,
     /sort_order:\s*row\.sort_order,/,
     /if \(categoryId === null && nameId === null\) return \{ changed: true, rows: \[\] \};/,
-    /diagnosis_name_snapshot:\s*null,\s*category_name_snapshot:\s*null,\s*sort_order:\s*0,/,
+    /diagnosis_name_snapshot:\s*diagnosisNameSnapshot,\s*category_name_snapshot:\s*categoryNameSnapshot,\s*sort_order:\s*0,/,
   ]) {
     assert.match(buildSlot[0], rule, String(rule));
   }
