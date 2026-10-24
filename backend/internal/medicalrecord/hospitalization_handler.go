@@ -141,17 +141,14 @@ func (h *HospitalizationHandler) CreateHospitalization(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	hospitalization, err := h.service.Create(ctx, clinicID, svcInput)
+	result, err := h.service.Create(ctx, clinicID, svcInput)
 	if err != nil {
 		respondHospitalizationCageWriteError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d", hospitalization.ID))
-	resp, ok := h.singleHospitalizationResponse(c, clinicID, hospitalization)
-	if !ok {
-		return
-	}
-	c.JSON(http.StatusCreated, resp)
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d", result.ID))
+	// 滞在 projection は service が作成と同一 tx 内で導出済み。commit 後に読み直さない。
+	c.JSON(http.StatusCreated, toHospitalizationResponse(result.Hospitalization, result.Stay))
 }
 
 // UpdateHospitalization godoc
@@ -178,16 +175,13 @@ func (h *HospitalizationHandler) UpdateHospitalization(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	hosp, err := h.service.Update(ctx, clinicID, id, &svcInput)
+	result, err := h.service.Update(ctx, clinicID, id, &svcInput)
 	if err != nil {
 		respondHospitalizationCageWriteError(c, err)
 		return
 	}
-	resp, ok := h.singleHospitalizationResponse(c, clinicID, hosp)
-	if !ok {
-		return
-	}
-	c.JSON(http.StatusOK, resp)
+	// 滞在 projection は service が更新と同一 tx 内で導出済み。commit 後に読み直さない。
+	c.JSON(http.StatusOK, toHospitalizationResponse(result.Hospitalization, result.Stay))
 }
 
 // DischargeWithBilling godoc
@@ -246,13 +240,11 @@ func (h *HospitalizationHandler) SwapCages(c *gin.Context) {
 		respondHospitalizationCageWriteError(c, err)
 		return
 	}
-	pair := []model.Hospitalization{*first, *second}
-	projections, err := h.service.StayProjections(c.Request.Context(), clinicID, pair)
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, CageSwapResponse{Hospitalizations: hospitalizationResponses(pair, projections)})
+	// 滞在 projection は service が入れ替えと同一 tx 内で導出済み。commit 後に読み直さない（入力順のまま返す）。
+	c.JSON(http.StatusOK, CageSwapResponse{Hospitalizations: []HospitalizationResponse{
+		toHospitalizationResponse(first.Hospitalization, first.Stay),
+		toHospitalizationResponse(second.Hospitalization, second.Stay),
+	}})
 }
 
 // DeleteHospitalization godoc

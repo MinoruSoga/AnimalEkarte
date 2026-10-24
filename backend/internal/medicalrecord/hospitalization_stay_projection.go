@@ -103,7 +103,38 @@ func lifecycleOf(state StayCageEffectiveState) string {
 // StayProjections returns the stay projection for each given hospitalization (keyed by hospitalization ID).
 // Rows without a readable stay case, or when no effective-state reader is wired, are "unknown";
 // a database failure is returned as an error, never turned into "unknown".
+// 読み取り経路用。書き込み tx の中では writtenStayProjectionInTx / writtenStayProjectionsInTx を使う。
 func (s *hospitalizationService) StayProjections(ctx context.Context, clinicID uint64, rows []model.Hospitalization) (map[uint64]HospitalizationStayProjection, error) {
+	return s.projectStays(ctx, clinicID, rows, true)
+}
+
+// writtenStayProjectionsInTx は書き込み tx が書いたばかりの行の滞在 projection を、その同じ tx（txCtx）の中で導出する。
+// 滞在行・移動履歴・書き込み自体を 1 つの状態として読み、読み取りが失敗したら error を返して書き込みごと
+// ロールバックさせる（commit 済みの書き込みを後続の読み取り失敗でエラー応答にしない）。
+// ケージの read snapshot runner は使わない: runner は repeatable read 以外の ambient tx を拒否するが、
+// 書き込み tx は repeatable read ではなく、かつ tx 自身の書き込みを読めなければならないため。
+func (s *hospitalizationService) writtenStayProjectionsInTx(txCtx context.Context, clinicID uint64, written ...*model.Hospitalization) (map[uint64]HospitalizationStayProjection, error) {
+	rows := make([]model.Hospitalization, 0, len(written))
+	for _, row := range written {
+		if row == nil {
+			return nil, apperrors.WrapInternalServerError("written hospitalization is required to derive its stay projection")
+		}
+		rows = append(rows, *row)
+	}
+	return s.projectStays(txCtx, clinicID, rows, false)
+}
+
+// writtenStayProjectionInTx は writtenStayProjectionsInTx の 1 行版。
+func (s *hospitalizationService) writtenStayProjectionInTx(txCtx context.Context, clinicID uint64, written *model.Hospitalization) (HospitalizationStayProjection, error) {
+	projections, err := s.writtenStayProjectionsInTx(txCtx, clinicID, written)
+	if err != nil {
+		return HospitalizationStayProjection{}, err
+	}
+	return projections[written.ID], nil
+}
+
+// projectStays は読み取り経路（useSnapshot=true）と書き込み tx（useSnapshot=false）が共有する導出本体。
+func (s *hospitalizationService) projectStays(ctx context.Context, clinicID uint64, rows []model.Hospitalization, useSnapshot bool) (map[uint64]HospitalizationStayProjection, error) {
 	result := make(map[uint64]HospitalizationStayProjection, len(rows))
 	stayIDs := make([]uint64, 0, len(rows))
 	for i := range rows {
@@ -139,7 +170,9 @@ func (s *hospitalizationService) StayProjections(ctx context.Context, clinicID u
 		return nil
 	}
 	// One snapshot for stay row + movement history when the cage repository can provide it.
-	if runner, ok := s.cageRepo.(cageOccupancySnapshotRunner); ok {
+	// 書き込み tx（useSnapshot=false）は runner を通さず ambient tx で読む（runner は repeatable read 以外を拒否し、
+	// tx 自身の書き込みも見えなければならないため）。
+	if runner, ok := s.cageRepo.(cageOccupancySnapshotRunner); ok && useSnapshot {
 		if err := runner.WithCageOccupancyReadSnapshot(ctx, read); err != nil {
 			return nil, err
 		}
@@ -155,6 +188,11 @@ func (s *hospitalizationService) StayProjections(ctx context.Context, clinicID u
 	for i := range rows {
 		row := rows[i]
 		if row.StayCaseID == nil {
+			continue
+		}
+		// 滞在の患者が入院行の患者と食い違う場合、その滞在は別の患者の予定・実績・状態なので採用しない。
+		// 履歴の読み取り失敗ではなく参照の不整合なので、エラーにせず unknown のままにする。
+		if stay, ok := stays[*row.StayCaseID]; ok && stay.PetID != row.PetID {
 			continue
 		}
 		view := unknownHospitalizationStay()

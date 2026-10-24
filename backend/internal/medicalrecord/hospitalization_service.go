@@ -130,16 +130,26 @@ func applyHospitalizationInsuranceToggle(fields map[string]any, input *UpdateHos
 	}
 }
 
+// HospitalizationWriteResult は入院の書き込み（Create / Update / SwapCages）の結果。
+// Stay は書き込みと同一トランザクション内で導出した滞在 projection で、導出に失敗すると書き込みごと
+// ロールバックされる（commit 済みの書き込みをエラー応答として返さない）。
+// *model.Hospitalization を埋め込むため、行のフィールドはそのまま参照できる。
+type HospitalizationWriteResult struct {
+	*model.Hospitalization
+	Stay HospitalizationStayProjection
+}
+
 type HospitalizationService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, lifecycleState, plannedEntryFrom, plannedEntryTo *string, page, limit int) ([]model.Hospitalization, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	// StayProjections returns the read-only stay view (type, planned dates, effective lifecycle) per hospitalization ID.
 	StayProjections(ctx context.Context, clinicID uint64, rows []model.Hospitalization) (map[uint64]HospitalizationStayProjection, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error)
+	// Create / Update / SwapCages は書き込み結果に同一 tx 内で導出した滞在 projection を添えて返す（commit 後の再読込は不要）。
+	Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*HospitalizationWriteResult, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*HospitalizationWriteResult, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	DischargeWithBilling(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
-	SwapCages(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*model.Hospitalization, *model.Hospitalization, error)
+	SwapCages(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*HospitalizationWriteResult, *HospitalizationWriteResult, error)
 }
 
 type hospitalizationService struct {
@@ -278,7 +288,7 @@ func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint6
 	return result, nil
 }
 
-func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
+func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*HospitalizationWriteResult, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
@@ -317,8 +327,16 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
 	}
+	// 滞在 projection は作成と同じ tx（txCtx）の中で導出する。失敗すれば作成ごとロールバックされ、
+	// commit 済みの作成をエラーとして返して重複再送を誘発することがない。
+	var stay HospitalizationStayProjection
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		return s.createHospitalizationInTx(txCtx, clinicID, input, hospitalization)
+		if err := s.createHospitalizationInTx(txCtx, clinicID, input, hospitalization); err != nil {
+			return err
+		}
+		var err error
+		stay, err = s.writtenStayProjectionInTx(txCtx, clinicID, hospitalization)
+		return err
 	}); err != nil {
 		return nil, err
 	}
@@ -326,10 +344,10 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		slog.Uint64("hospitalization_id", hospitalization.ID),
 		slog.Uint64("clinic_id", hospitalization.ClinicID),
 		slog.Int("treatment_plan_count", len(input.TreatmentPlans)))
-	return hospitalization, nil
+	return &HospitalizationWriteResult{Hospitalization: hospitalization, Stay: stay}, nil
 }
 
-func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*HospitalizationWriteResult, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
@@ -349,6 +367,7 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
 	}
 	var hosp *model.Hospitalization
+	var stay HospitalizationStayProjection
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		existing, err := s.hospRepo.LockByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
@@ -356,6 +375,11 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		}
 		if existing == nil {
 			return apperrors.WrapNotFound("hospitalization", strconv.FormatUint(id, 10))
+		}
+		// 滞在に紐づく入院の患者（pet_id）は stay_cases.pet_id と一致していなければならない。入院行だけの
+		// 付け替えは滞在側の予定・実績を別の患者に見せてしまうため、黙って更新せず明示的に拒否する。
+		if input.PetID != nil && *input.PetID != existing.PetID && existing.StayCaseID != nil && *existing.StayCaseID != 0 {
+			return apperrors.WrapConflict("滞在に紐づく入院の患者は、この API では変更できません")
 		}
 		if input.CageID != nil || input.ClearCageID {
 			var cageStale bool
@@ -407,14 +431,16 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		if err != nil {
 			return apperrors.Wrap(err, "failed to update hospitalization")
 		}
-		return nil
+		// 滞在 projection は更新と同じ tx 内で導出する。失敗すれば更新ごとロールバックされる。
+		stay, err = s.writtenStayProjectionInTx(txCtx, clinicID, hosp)
+		return err
 	}); err != nil {
 		return nil, err
 	}
 	slog.InfoContext(ctx, "hospitalization updated",
 		slog.Uint64("hospitalization_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return hosp, nil
+	return &HospitalizationWriteResult{Hospitalization: hosp, Stay: stay}, nil
 }
 
 // hospitalizationAuditAction* are local action strings so this unit stays within owned paths

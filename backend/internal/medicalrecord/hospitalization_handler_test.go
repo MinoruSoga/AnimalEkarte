@@ -39,6 +39,7 @@ type mockHospitalizationService struct {
 	deleteFn               func(ctx context.Context, clinicID, id uint64) error
 	dischargeWithBillingFn func(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
 	swapCagesFn            func(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*model.Hospitalization, *model.Hospitalization, error)
+	writeStay              *HospitalizationStayProjection
 }
 
 func (m *mockHospitalizationService) List(
@@ -70,14 +71,22 @@ func (m *mockHospitalizationService) GetByID(ctx context.Context, clinicID, id u
 
 func (m *mockHospitalizationService) Create(
 	ctx context.Context, clinicID uint64, input *CreateHospitalizationInput,
-) (*model.Hospitalization, error) {
-	return m.createFn(ctx, clinicID, input)
+) (*HospitalizationWriteResult, error) {
+	row, err := m.createFn(ctx, clinicID, input)
+	if err != nil {
+		return nil, err
+	}
+	return m.withStay(row), nil
 }
 
 func (m *mockHospitalizationService) Update(
 	ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput,
-) (*model.Hospitalization, error) {
-	return m.updateFn(ctx, clinicID, id, input)
+) (*HospitalizationWriteResult, error) {
+	row, err := m.updateFn(ctx, clinicID, id, input)
+	if err != nil {
+		return nil, err
+	}
+	return m.withStay(row), nil
 }
 
 func (m *mockHospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -92,8 +101,25 @@ func (m *mockHospitalizationService) DischargeWithBilling(
 
 func (m *mockHospitalizationService) SwapCages(
 	ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64,
-) (*model.Hospitalization, *model.Hospitalization, error) {
-	return m.swapCagesFn(ctx, clinicID, idA, idB, expectedCageIDs)
+) (*HospitalizationWriteResult, *HospitalizationWriteResult, error) {
+	first, second, err := m.swapCagesFn(ctx, clinicID, idA, idB, expectedCageIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+	return m.withStay(first), m.withStay(second), nil
+}
+
+// withStay は書き込み結果に添える滞在 projection を付ける。writeStay 未指定なら「滞在不明」
+// （履歴を持たない行に実 service が返す値）。書き込み経路は StayProjections を呼ばない。
+func (m *mockHospitalizationService) withStay(row *model.Hospitalization) *HospitalizationWriteResult {
+	if row == nil {
+		return nil
+	}
+	stay := unknownHospitalizationStay()
+	if m.writeStay != nil {
+		stay = *m.writeStay
+	}
+	return &HospitalizationWriteResult{Hospitalization: row, Stay: stay}
 }
 
 func newHandlerWithHospitalizationSvc(svc HospitalizationService) *HospitalizationHandler {
@@ -1088,6 +1114,81 @@ func TestSwapCages(t *testing.T) {
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
 			}
+		})
+	}
+}
+
+// 書き込み経路（作成・更新・ケージ入れ替え）は service が返した滞在 projection をそのまま描画し、
+// commit 後に StayProjections を呼び直さない。再読込の失敗で commit 済みの書き込みをエラー応答にしないため。
+func TestHospitalizationWriteHandlers_RenderReturnedStayWithoutRereading(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	admitted := HospitalizationStayProjection{Lifecycle: lifecycleAdmitted}
+	newSvc := func(t *testing.T) *mockHospitalizationService {
+		t.Helper()
+		svc := &mockHospitalizationService{
+			stayProjectionsFn: func(context.Context, uint64, []model.Hospitalization) (map[uint64]HospitalizationStayProjection, error) {
+				t.Error("write paths must not re-read the stay projection after the write")
+				return nil, fmt.Errorf("post-commit projection read")
+			},
+			createFn: func(_ context.Context, clinicID uint64, _ *CreateHospitalizationInput) (*model.Hospitalization, error) {
+				return &model.Hospitalization{ID: 10, ClinicID: clinicID}, nil
+			},
+			updateFn: func(_ context.Context, clinicID, id uint64, _ *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+				return &model.Hospitalization{ID: id, ClinicID: clinicID}, nil
+			},
+			swapCagesFn: func(_ context.Context, clinicID, idA, idB uint64, _ [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+				return &model.Hospitalization{ID: idA, ClinicID: clinicID}, &model.Hospitalization{ID: idB, ClinicID: clinicID}, nil
+			},
+		}
+		svc.writeStay = &admitted
+		return svc
+	}
+
+	for _, tc := range []struct {
+		name   string
+		method string
+		body   map[string]any
+		params gin.Params
+		call   func(h *HospitalizationHandler, c *gin.Context)
+		want   int
+	}{
+		{
+			name:   "create",
+			method: http.MethodPost,
+			body:   map[string]any{"owner_id": 1, "pet_id": 2, "stay_kind": "inpatient", "planned_entry_at": "2026-05-28T00:00:00Z", "planned_exit_at": "2026-05-30T00:00:00Z"},
+			call:   (*HospitalizationHandler).CreateHospitalization,
+			want:   http.StatusCreated,
+		},
+		{
+			name:   "update",
+			method: http.MethodPatch,
+			body:   map[string]any{"memo": "x"},
+			params: gin.Params{{Key: "id", Value: "1"}},
+			call:   (*HospitalizationHandler).UpdateHospitalization,
+			want:   http.StatusOK,
+		},
+		{
+			name:   "cage swap",
+			method: http.MethodPost,
+			body:   map[string]any{"hospitalization_ids": []uint64{7, 3}, "expected_cage_ids": []uint64{17, 13}},
+			call:   (*HospitalizationHandler).SwapCages,
+			want:   http.StatusOK,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bodyBytes, err := json.Marshal(tc.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(tc.method, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = tc.params
+			setClinicID(c)
+
+			tc.call(newHandlerWithHospitalizationSvc(newSvc(t)), c)
+
+			assert.Equal(t, tc.want, w.Code)
+			assert.Contains(t, w.Body.String(), `"lifecycle_state":"admitted"`)
 		})
 	}
 }

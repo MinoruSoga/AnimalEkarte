@@ -114,6 +114,7 @@ func TestHospitalizationUpdateCage_ValidatesSubjectBeforeSelfExclusion(t *testin
 		t.Run(tc.name, func(t *testing.T) {
 			tx := &gorm.DB{}
 			var calls []string
+			written := false
 			row := &model.Hospitalization{ID: 11, ClinicID: 7, StayCaseID: &stayID}
 			if tc.noStay {
 				row.StayCaseID = nil
@@ -130,6 +131,12 @@ func TestHospitalizationUpdateCage_ValidatesSubjectBeforeSelfExclusion(t *testin
 				},
 				read: func(ctx context.Context, clinic uint64, ids []uint64) ([]StayCageEffectiveState, error) {
 					check(ctx, clinic)
+					if written {
+						// 書き込み後の projection 導出（同一 tx で滞在 1 件を再読込する）。
+						require.Equal(t, []uint64{stayID}, ids)
+						calls = append(calls, "projection")
+						return []StayCageEffectiveState{cageWriteState(clinic, stayID, tc.state)}, nil
+					}
 					require.Equal(t, []string{"cage"}, calls)
 					require.Equal(t, []uint64{stayID}, ids)
 					calls = append(calls, "stay")
@@ -162,6 +169,7 @@ func TestHospitalizationUpdateCage_ValidatesSubjectBeforeSelfExclusion(t *testin
 				updateFieldsFn: func(ctx context.Context, clinic, _ uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 					check(ctx, clinic)
 					calls = append(calls, "write")
+					written = true
 					return row, nil
 				},
 			}
@@ -185,7 +193,7 @@ func TestHospitalizationUpdateCage_ValidatesSubjectBeforeSelfExclusion(t *testin
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, []string{"cage", "stay", "others", "write"}, calls)
+			require.Equal(t, []string{"cage", "stay", "others", "write", "projection"}, calls)
 		})
 	}
 }
@@ -244,6 +252,7 @@ func TestHospitalizationSwapCages_BothSubjectsBeforeExclusion(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tx := &gorm.DB{}
 			var calls []string
+			written := false
 			rows := map[uint64]*model.Hospitalization{
 				11: {ID: 11, ClinicID: 7, PetID: 21, CageID: &cageA, StayCaseID: &stayA},
 				12: {ID: 12, ClinicID: 7, PetID: 22, CageID: &cageB, StayCaseID: &stayB},
@@ -256,6 +265,12 @@ func TestHospitalizationSwapCages_BothSubjectsBeforeExclusion(t *testing.T) {
 				},
 				read: func(ctx context.Context, clinic uint64, ids []uint64) ([]StayCageEffectiveState, error) {
 					require.Same(t, tx, persistence.TxFromContext(ctx))
+					if written {
+						// 書き込み後の projection 導出（同一 tx で 2 件の滞在を 1 回で再読込する）。
+						require.Equal(t, []uint64{stayA, stayB}, ids)
+						calls = append(calls, "projection")
+						return []StayCageEffectiveState{cageWriteState(clinic, stayA, StayCageAdmitted), cageWriteState(clinic, stayB, StayCageAdmitted)}, nil
+					}
 					require.Equal(t, []string{"cage10", "cage20"}, calls)
 					require.Equal(t, []uint64{stayA, stayB}, ids)
 					calls = append(calls, "both stays")
@@ -277,6 +292,7 @@ func TestHospitalizationSwapCages_BothSubjectsBeforeExclusion(t *testing.T) {
 					findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) { return rows[id], nil },
 					updateFieldsFn: func(_ context.Context, _, id uint64, _ UpdateHospitalizationInput) (*model.Hospitalization, error) {
 						calls = append(calls, "write")
+						written = true
 						return rows[id], nil
 					},
 				},
@@ -294,7 +310,7 @@ func TestHospitalizationSwapCages_BothSubjectsBeforeExclusion(t *testing.T) {
 				}
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, []string{"cage10", "cage20", "both stays", "others", "others", "write", "write"}, calls)
+				require.Equal(t, []string{"cage10", "cage20", "both stays", "others", "others", "write", "write", "projection"}, calls)
 			}
 			require.Equal(t, cageA, *rows[11].CageID)
 			require.Equal(t, cageB, *rows[12].CageID)
