@@ -43,13 +43,19 @@ type LiffMyReservationsResult struct {
 }
 
 type liffService struct {
-	settingRepo         lineReservationSettingFinder
-	typeLiffRepo        ReservationTypeLiffRepository
-	typeRepo            reservationTypeFinder
-	staffRepo           ReservationStaffRepository
-	scheduleRepo        ReservationScheduleRepository
-	adminRepo           ReservationAdminRepository
-	reservationRepo     ReservationRepository
+	settingRepo     lineReservationSettingFinder
+	typeLiffRepo    ReservationTypeLiffRepository
+	typeRepo        reservationTypeFinder
+	staffRepo       ReservationStaffRepository
+	scheduleRepo    ReservationScheduleRepository
+	adminRepo       ReservationAdminRepository
+	reservationRepo ReservationRepository
+	// tx は EMR-491 D6 の死亡 reader を ambient transaction 内で呼ぶための境界
+	// （pet pre-resolve と owner/pet attach。nil は fail-closed でスキップ）。
+	tx Transactor
+	// savepoints は死亡 reader の直前に ambient tx へ savepoint を張るための seam。
+	// nil なら persistence.TxFromContext の GORM tx を使う（本番）。テストが差し替える。
+	savepoints          func(ctx context.Context) lifeStateSavepointer
 	customerRepo        LiffLineCustomerRepository
 	ownerRepo           liffOwnerRepo
 	validators          ReservationValidators
@@ -101,6 +107,7 @@ func NewLiffServiceWithType(
 		scheduleRepo:        scheduleRepo,
 		adminRepo:           adminRepo,
 		reservationRepo:     reservationRepo,
+		tx:                  tx,
 		customerRepo:        customerRepo,
 		ownerRepo:           ownerRepo,
 		validators:          NewReservationValidators(tx, reservationRepo, typeRepo, staffRepo, trimmingCourseRepo, trimmingOptionRepo, trimmingDetailRepo, holidayFinder),

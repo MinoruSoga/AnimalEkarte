@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateMedicalRecordImageInput は診療画像作成の Input DTO
@@ -38,7 +39,7 @@ type MedicalRecordImageService interface {
 type medicalRecordImageService struct {
 	repo             MedicalRecordImageRepository
 	medRec           medicalRecordLocker
-	pets             petFinder
+	pets             sharedkernel.PetLifeStateReader
 	examinations     medicalRecordImageExaminationFinder
 	staffs           clinicalStaffLocker
 	staffAssignments clinicalStaffAssignmentLocker
@@ -69,7 +70,7 @@ func NewMedicalRecordImageService(repo MedicalRecordImageRepository, medRec medi
 func NewMedicalRecordImageServiceWithRelationValidation(
 	repo MedicalRecordImageRepository,
 	medRec medicalRecordLocker,
-	pets petFinder,
+	pets sharedkernel.PetLifeStateReader,
 	examinations medicalRecordImageExaminationFinder,
 	staffs clinicalStaffLocker,
 	staffAssignments clinicalStaffAssignmentLocker,

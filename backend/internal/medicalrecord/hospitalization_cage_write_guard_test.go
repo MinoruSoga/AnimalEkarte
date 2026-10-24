@@ -73,8 +73,9 @@ func TestHospitalizationCreateCage_CagelessCreateStillPersists(t *testing.T) {
 		transactor:      &mockTransactor{},
 		reservationRepo: &mockReservationRepository{},
 		petRepo: &mockPetRepository{findByIDFn: func(_ context.Context, clinic, id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, ClinicID: clinic, Status: model.PetStatusAlive}, nil
+			return &model.Pet{ID: id, ClinicID: clinic}, nil
 		}},
+		petLife: stubPetLifeReader{},
 		hospRepo: &mockHospitalizationRepository{createFn: func(_ context.Context, row *model.Hospitalization) error {
 			require.Nil(t, row.CageID)
 			writes++

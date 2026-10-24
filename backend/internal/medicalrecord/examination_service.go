@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateExaminationInput は検査作成の入力DTO
@@ -140,7 +141,7 @@ type examinationService struct {
 	auditTx          AuditTxLogger
 	transactor       Transactor
 	relations        ClinicalRelationVerifier
-	petStatuses      examinationPetByIDInClinicFinder
+	petStatuses      sharedkernel.PetLifeStateReader
 	// usageTracker records import-linked clinical use / manual mutation receipts (TASK-032).
 	// Nil-safe: treated as noop when unset (legacy tests / composition without lab receipts).
 	usageTracker LabImportUsageTracker
@@ -187,7 +188,7 @@ func NewExaminationService(
 	referenceRanges, _ := repo.(ExamReferenceRangeResolver)
 	revisions, _ := repo.(ExaminationRevisionRepository)
 	revisionWorkflow, _ := repo.(ExaminationRevisionWorkflowRepository)
-	petStatuses, _ := relations.(examinationPetByIDInClinicFinder)
+	petStatuses, _ := relations.(sharedkernel.PetLifeStateReader)
 	return &examinationService{
 		repo: repo, medRec: medRec, examTypeRepo: examTypeRepo, referenceRanges: referenceRanges,
 		revisions: revisions, revisionWorkflow: revisionWorkflow,

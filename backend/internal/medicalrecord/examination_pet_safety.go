@@ -10,18 +10,6 @@ import (
 
 const examinationDeceasedPetMessage = "死亡したペットには検査記録を登録できません"
 
-type examinationPetByIDInClinicFinder interface {
-	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
-}
-
-type examinationPetByIDAdapter struct {
-	repo examinationPetByIDInClinicFinder
-}
-
-func (a examinationPetByIDAdapter) FindByID(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
-	return a.repo.FindPetByIDInClinic(ctx, clinicID, petID)
-}
-
 func effectiveExaminationPetID(explicitPetID *uint64, record *model.MedicalRecord) *uint64 {
 	if explicitPetID != nil {
 		return explicitPetID
@@ -34,19 +22,19 @@ func effectiveExaminationPetID(explicitPetID *uint64, record *model.MedicalRecor
 
 func validateExaminationPetNotDeceased(
 	ctx context.Context,
-	petRepo examinationPetByIDInClinicFinder,
+	petLife sharedkernel.PetLifeStateReader,
 	clinicID uint64,
 	petID *uint64,
 ) error {
 	if petID == nil {
 		return nil
 	}
-	if petRepo == nil {
+	if petLife == nil {
 		return apperrors.WrapInternalServerError("examination pet status verifier is required")
 	}
 	return sharedkernel.ValidatePetNotDeceased(
 		ctx,
-		examinationPetByIDAdapter{repo: petRepo},
+		petLife,
 		clinicID,
 		*petID,
 		examinationDeceasedPetMessage,

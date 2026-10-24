@@ -13,6 +13,7 @@ package reservation
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ── in-memory fakes (deterministic, single-threaded) ────────────────────────
@@ -79,16 +81,16 @@ func (f *fakeTypeFinder) FindByID(_ context.Context, _, _ uint64) (*model.Reserv
 	return f.typ, f.err
 }
 
-// fakePetFinder satisfies petByIDInClinicFinder.
-type fakePetFinder struct {
-	pet   *model.Pet
+// fakePetLifeStateReader satisfies sharedkernel.PetLifeStateReader (EMR-491 D6 death reader).
+type fakePetLifeStateReader struct {
+	state sharedkernel.PetLifeState
 	err   error
 	calls int
 }
 
-func (f *fakePetFinder) FindPetByIDInClinic(_ context.Context, _, _ uint64) (*model.Pet, error) {
+func (f *fakePetLifeStateReader) ReadPetLifeState(_ context.Context, _, _ uint64) (sharedkernel.PetLifeState, error) {
 	f.calls++
-	return f.pet, f.err
+	return f.state, f.err
 }
 
 // fakeOwnerPetVerifier satisfies sharedkernel.OwnerPetLinkVerifier.
@@ -287,33 +289,47 @@ func TestC15_TypeCapacityBoundary(t *testing.T) {
 // ── C15: write-order guards on owner/pet linkage and deceased pets ───────────
 
 func TestC15_DeceasedPetWriteRejected(t *testing.T) {
-	deceasedAt := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
 	petID := uint64(555)
+	unresolved := apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recorded")
+	readerDown := errors.New("SECCHK20261009READERDOWN")
 	cases := []struct {
-		name      string
-		petID     *uint64
-		pet       *model.Pet
-		wantErr   bool
-		wantCalls int
+		name        string
+		petID       *uint64
+		state       sharedkernel.PetLifeState
+		err         error
+		wantErr     bool
+		wantInvalid bool
+		wantCalls   int
 	}{
-		{"nil petID skips lookup", nil, nil, false, 0},
-		{"alive pet passes", &petID, &model.Pet{ID: petID, Status: model.PetStatusAlive}, false, 1},
-		{"deceased status rejected", &petID, &model.Pet{ID: petID, Status: model.PetStatusDeceased}, true, 1},
-		{"alive status with deceased_at rejected (inconsistency = deceased)", &petID, &model.Pet{ID: petID, Status: model.PetStatusAlive, DeceasedAt: &deceasedAt}, true, 1},
+		{name: "nil petID skips lookup", petID: nil, wantCalls: 0},
+		{name: "alive pet passes", petID: &petID, state: sharedkernel.PetLifeStateAlive, wantCalls: 1},
+		{name: "deceased rejected as business rule", petID: &petID, state: sharedkernel.PetLifeStateDeceased, wantErr: true, wantInvalid: true, wantCalls: 1},
+		{name: "unresolved life state is an error, never alive", petID: &petID, err: unresolved, wantErr: true, wantCalls: 1},
+		{name: "reader failure propagates, never alive", petID: &petID, err: readerDown, wantErr: true, wantCalls: 1},
+		{name: "empty state is not alive", petID: &petID, wantErr: true, wantCalls: 1},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			finder := &fakePetFinder{pet: tc.pet}
-			err := reservation.ValidateReservationPetNotDeceased(context.Background(), finder, 1, tc.petID)
+			reader := &fakePetLifeStateReader{state: tc.state, err: tc.err}
+			err := reservation.ValidateReservationPetNotDeceased(context.Background(), reader, 1, tc.petID)
 			if tc.wantErr {
 				require.Error(t, err)
-				assert.True(t, apperrors.IsInvalidInput(err), "expected invalid-input rejection, got %v", err)
+				assert.Equal(t, tc.wantInvalid, apperrors.IsInvalidInput(err), "unexpected error class: %v", err)
+				if tc.err != nil {
+					assert.ErrorIs(t, err, tc.err)
+				}
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, tc.wantCalls, finder.calls)
+			assert.Equal(t, tc.wantCalls, reader.calls)
 		})
 	}
+
+	t.Run("nil reader fails closed", func(t *testing.T) {
+		err := reservation.ValidateReservationPetNotDeceased(context.Background(), nil, 1, &petID)
+		require.Error(t, err)
+		assert.False(t, apperrors.IsInvalidInput(err))
+	})
 }
 
 func TestC15_OwnerPetLinkCrossTenantRejected(t *testing.T) {

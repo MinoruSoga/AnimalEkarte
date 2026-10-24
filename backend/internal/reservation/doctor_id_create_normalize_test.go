@@ -120,7 +120,7 @@ func TestReservationService_CreateBatch_NormalizesZeroDoctorID(t *testing.T) {
 		},
 		findPetOwnerInClinicFn: func(_ context.Context, _ uint64, _ uint64) (uint64, error) { return 1, nil },
 		findPetByIDInClinicFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, OwnerID: 1, Status: model.PetStatusAlive}, nil
+			return &model.Pet{ID: id, OwnerID: 1}, nil
 		},
 	}
 	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)

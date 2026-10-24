@@ -6,8 +6,11 @@ import (
 	"log/slog"
 	"strings"
 
+	"gorm.io/gorm"
+
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // CreateReservation は予約を確定する。staffID=0 の場合は no_staff_mode に従って自動割当する。
@@ -168,11 +171,81 @@ func (s *liffService) resolveReservationOwnerPet(
 		return
 	}
 	// EMR-235: 作成へ pet_id を載せる前に DB で死亡状態を再確認する（fail-closed）。
-	if err := ValidateReservationPetNotDeceased(ctx, s.reservationRepo, clinicID, petID); err != nil {
-		slog.WarnContext(ctx, "skipping pre-resolved pet_id: deceased re-check failed (best-effort)", "error", err)
+	// EMR-491 D6: 死亡 reader は ambient transaction 必須のため、短い tx の中で読む
+	// （権威的な再検証は ValidateAndCreate の書込 tx 内で別途行われる）。
+	if err := s.withLifeStateTx(ctx, func(txCtx context.Context) error {
+		return ValidateReservationPetNotDeceased(txCtx, s.reservationRepo, clinicID, petID)
+	}); err != nil {
+		s.logLifeStateSkip(ctx, "skipping pre-resolved pet_id: deceased re-check failed (best-effort)", err)
 		return
 	}
 	input.PetID = petID
+}
+
+// withLifeStateTx は死亡 reader を呼ぶための ambient transaction を張る。tx 依存が未配線なら
+// 内部エラー（reader の「tx なし」エラーに頼らず、生存扱い・黙殺はしない）。
+func (s *liffService) withLifeStateTx(ctx context.Context, fn func(txCtx context.Context) error) error {
+	if s.tx == nil {
+		return apperrors.WrapInternalServerError("reservation transaction dependency is required")
+	}
+	return s.tx.WithTx(ctx, fn)
+}
+
+// logLifeStateSkip は best-effort スキップの理由を記録する。tx 依存の未配線は構成不備なので
+// error レベルで残し、reader の判定（deceased / unresolved / 失敗）は warn のままにする。
+func (s *liffService) logLifeStateSkip(ctx context.Context, msg string, err error) {
+	if s.tx == nil {
+		slog.ErrorContext(ctx, msg+": transaction dependency missing", "error", err)
+		return
+	}
+	slog.WarnContext(ctx, msg, "error", err)
+}
+
+// liffLifeStateSavepoint は死亡 reader の直前に張る固定の savepoint 名。
+const liffLifeStateSavepoint = "liff_attach_life_state_guard"
+
+// lifeStateSavepointer は ambient tx 上の savepoint 操作の最小面（*gorm.DB を包む adapter か test double）。
+type lifeStateSavepointer interface {
+	SavePoint(name string) error
+	RollbackTo(name string) error
+}
+
+type gormLifeStateSavepointer struct{ tx *gorm.DB }
+
+func (g gormLifeStateSavepointer) SavePoint(name string) error  { return g.tx.SavePoint(name).Error }
+func (g gormLifeStateSavepointer) RollbackTo(name string) error { return g.tx.RollbackTo(name).Error }
+
+func (s *liffService) lifeStateSavepointer(ctx context.Context) lifeStateSavepointer {
+	if s.savepoints != nil {
+		return s.savepoints(ctx)
+	}
+	if tx := persistence.TxFromContext(ctx); tx != nil {
+		return gormLifeStateSavepointer{tx: tx}
+	}
+	return nil
+}
+
+// petAliveUnderSavepoint は ambient tx 上で savepoint を張ってから死亡 reader を呼ぶ。
+// reader が SQL レベルで失敗（lock_timeout 等）すると PostgreSQL は共有 tx 全体を中止状態にし、
+// 後続の attach update は回復できない。reader がエラーを返したら savepoint まで巻き戻して tx を
+// 回復させ、pet_id だけをスキップして owner_id の attach は続行する（false, nil）。
+// savepoint の作成・巻き戻し自体に失敗した場合は tx が使えないためエラーを返し、呼び出し側は何も書かない。
+func (s *liffService) petAliveUnderSavepoint(ctx context.Context, clinicID uint64, petID *uint64) (bool, error) {
+	sp := s.lifeStateSavepointer(ctx)
+	if sp == nil {
+		return false, apperrors.WrapInternalServerError("ambient transaction savepoint is unavailable")
+	}
+	if err := sp.SavePoint(liffLifeStateSavepoint); err != nil {
+		return false, apperrors.Wrap(err, "failed to create life state savepoint")
+	}
+	if guardErr := ValidateReservationPetNotDeceased(ctx, s.reservationRepo, clinicID, petID); guardErr != nil {
+		if err := sp.RollbackTo(liffLifeStateSavepoint); err != nil {
+			return false, apperrors.Wrap(err, "failed to roll back to life state savepoint")
+		}
+		s.logLifeStateSkip(ctx, "skipping pet_id attach: pet deceased re-check failed (best-effort)", guardErr)
+		return false, nil
+	}
+	return true, nil
 }
 
 // tryAttachReservationOwnerPet は line_customer の owner 紐付け状態に応じて、
@@ -198,20 +271,33 @@ func (s *liffService) tryAttachReservationOwnerPet(
 		return
 	}
 
-	fields := map[string]any{
-		"owner_id": customer.Owner.ID,
-	}
-	if petID := resolveReservationPetID(customer, customerFields); petID != nil {
-		// EMR-235: preload スナップショットはロックなしで、登録と attach の間に
-		// 死亡が記録されうるため、pet_id 書込前に DB で再確認する（fail-closed）。
-		if err := ValidateReservationPetNotDeceased(ctx, s.reservationRepo, clinicID, petID); err != nil {
-			slog.WarnContext(ctx, "skipping pet_id attach: pet deceased re-check failed (best-effort)", "error", err)
-		} else {
-			fields["pet_id"] = *petID
-		}
-	}
+	petID := resolveReservationPetID(customer, customerFields)
 
-	updated, err := s.reservationRepo.update(ctx, clinicID, appt.ID, fields)
+	// EMR-491 D6: 死亡 reader（共通 subject の FOR SHARE ロック）と attach の書込を同一 ambient
+	// transaction に載せ、判定から書込までロックを保持する。reservationRepo.update は
+	// persistence.DBOrTx(...).Transaction で ambient tx に savepoint として参加する。
+	var updated *model.Reservation
+	err = s.withLifeStateTx(ctx, func(txCtx context.Context) error {
+		fields := map[string]any{
+			"owner_id": customer.Owner.ID,
+		}
+		if petID != nil {
+			// EMR-235: preload スナップショットはロックなしで、登録と attach の間に
+			// 死亡が記録されうるため、pet_id 書込前に DB で再確認する（fail-closed）。
+			// deceased / unresolved / reader 失敗のときだけ pet_id をスキップし owner_id は付与する。
+			alive, err := s.petAliveUnderSavepoint(txCtx, clinicID, petID)
+			if err != nil {
+				// savepoint の作成・巻き戻しに失敗: tx が中止状態かもしれないので何も書かずに中断する。
+				return err
+			}
+			if alive {
+				fields["pet_id"] = *petID
+			}
+		}
+		var updateErr error
+		updated, updateErr = s.reservationRepo.update(txCtx, clinicID, appt.ID, fields)
+		return updateErr
+	})
 	if err != nil {
 		slog.WarnContext(ctx, "failed to attach owner/pet to line reservation (best-effort)", "error", err)
 		return

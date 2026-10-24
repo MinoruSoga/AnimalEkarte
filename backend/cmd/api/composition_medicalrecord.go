@@ -16,6 +16,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/pet"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 	"github.com/animal-ekarte/backend/internal/staff"
 )
 
@@ -28,6 +29,7 @@ type medicalRecordCompositionDependencies struct {
 	LineCustomers    lstep.LineCustomerRepository
 	Reservations     reservation.ReservationStore
 	Pets             pet.CompleteRepository
+	PetLife          sharedkernel.PetLifeStateReader
 	Staff            staff.Repository
 	StaffAssignments staff.StaffClinicAssignmentRepository
 	Inventory        inventory.Repository

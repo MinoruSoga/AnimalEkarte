@@ -262,7 +262,7 @@ func newMedicalRecordClinicalServices(
 		images: medicalrecord.NewMedicalRecordImageServiceWithRelationValidation(
 			r.medicalRecordImages,
 			r.medicalRecords,
-			d.Pets,
+			d.PetLife,
 			r.examinations,
 			d.Staff,
 			d.StaffAssignments,
@@ -296,6 +296,7 @@ func newMedicalRecordHospitalServices(
 			d.Transactor,
 			auditTx,
 			medicalrecord.WithTreatmentPlanRepository(r.treatmentPlans),
+			medicalrecord.WithPetLifeStateReader(d.PetLife),
 		),
 		plans: medicalrecord.NewHospitalizationPlanService(r.hospitalizationPlans),
 		dailyRecords: medicalrecord.NewDailyRecordServiceWithRelationValidation(

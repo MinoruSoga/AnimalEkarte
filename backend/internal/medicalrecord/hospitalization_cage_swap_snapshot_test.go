@@ -20,7 +20,7 @@ func (swapSnapshotPetRepository) FindByID(context.Context, uint64, uint64) (*mod
 }
 
 func (swapSnapshotPetRepository) LockByIDForUpdate(_ context.Context, clinicID, id uint64) (*model.Pet, error) {
-	return &model.Pet{ID: id, ClinicID: clinicID, Status: model.PetStatusAlive}, nil
+	return &model.Pet{ID: id, ClinicID: clinicID}, nil
 }
 
 type swapSnapshotCageRepository struct {

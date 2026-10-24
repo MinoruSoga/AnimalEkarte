@@ -13,10 +13,10 @@ package medicalrecord
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,6 +27,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 	petdomain "github.com/animal-ekarte/backend/internal/pet"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func TestHospitalizationSwapCages_SwapsTwoHospitalizations(t *testing.T) {
@@ -273,11 +274,11 @@ func TestHospitalizationSwapCages_DischargedSideRejected(t *testing.T) {
 	assert.Equal(t, cage2.ID, *reloadedB.CageID)
 }
 
-// Codex PR606 #26: 死亡ペットを含む交換もロック下の死亡検証で拒否する。
-// 死亡契約は status=deceased OR deceased_at != nil（sharedkernel.IsPetDeceased）。
+// Codex PR606 #26 / EMR-491 D6: 死亡ペットを含む交換は同一 tx の死亡 reader 判定で拒否する。
+// 死亡は共通 subject の現行 revision が持つため、reader（test double）が deceased を返す状況を再現する。
 func TestHospitalizationSwapCages_DeceasedPetRejected(t *testing.T) {
 	db := setupHospitalizationRepoTestDB(t)
-	svc := newCageGuardHospitalizationService(t, db)
+	svc := newCageGuardHospitalizationServiceWithLife(t, db, stubPetLifeState(sharedkernel.PetLifeStateDeceased, nil))
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
@@ -287,9 +288,6 @@ func TestHospitalizationSwapCages_DeceasedPetRejected(t *testing.T) {
 	cage2 := makeCageMaster(t, db, clinicID, "スワップ元 dead2")
 	hospA := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage1.ID, model.HospitalizationStatusAdmitted)
 	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage2.ID, model.HospitalizationStatusAdmitted)
-
-	// 入院作成後に死亡へ遷移（表示→PATCH 間の状態変化を模す）。
-	require.NoError(t, db.Model(pet).Update("status", model.PetStatusDeceased).Error)
 
 	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
 	require.Error(t, err, "死亡ペットを含む交換は拒否")
@@ -304,36 +302,59 @@ func TestHospitalizationSwapCages_DeceasedPetRejected(t *testing.T) {
 	assert.Equal(t, cage2.ID, *reloadedB.CageID)
 }
 
-// Codex PR606 #26 再指摘: 死亡契約は status=deceased OR deceased_at != nil。
-// status=alive のまま deceased_at だけ埋まった半死亡行もロック下判定で拒否する。
-func TestHospitalizationSwapCages_HalfDeadPetRejected(t *testing.T) {
-	db := setupHospitalizationRepoTestDB(t)
-	svc := newCageGuardHospitalizationService(t, db)
-	ctx := context.Background()
-	const clinicID = uint64(1)
+// EMR-491 D6: 生死を確定できない（unresolved）/ reader 失敗の pet は生存扱いにせず、
+// 業務拒否（INVALID_INPUT）ではなくエラーとして交換を拒否し、半スワップを残さない。
+func TestHospitalizationSwapCages_UnresolvedOrFailedLifeStateRejected(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{name: "unresolved", err: apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recorded")},
+		{name: "reader failure", err: errors.New("db down")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := setupHospitalizationRepoTestDB(t)
+			svc := newCageGuardHospitalizationServiceWithLife(t, db, stubPetLifeState("", tc.err))
+			ctx := context.Background()
+			const clinicID = uint64(1)
 
-	owner := makeTestOwner(t, db, clinicID, "swap飼主 halfdead")
-	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "swapペット halfdead")
-	cage1 := makeCageMaster(t, db, clinicID, "スワップ元 hd1")
-	cage2 := makeCageMaster(t, db, clinicID, "スワップ元 hd2")
-	hospA := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage1.ID, model.HospitalizationStatusAdmitted)
-	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage2.ID, model.HospitalizationStatusAdmitted)
+			owner := makeTestOwner(t, db, clinicID, "swap飼主 unresolved")
+			pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "swapペット unresolved")
+			cage1 := makeCageMaster(t, db, clinicID, "スワップ元 unres1")
+			cage2 := makeCageMaster(t, db, clinicID, "スワップ元 unres2")
+			hospA := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage1.ID, model.HospitalizationStatusAdmitted)
+			hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage2.ID, model.HospitalizationStatusAdmitted)
 
-	// status は alive のまま deceased_at のみ埋まった不整合行（EMR-328 形状）。
-	deceasedAt := time.Now().UTC()
-	require.NoError(t, db.Model(pet).Update("deceased_at", deceasedAt).Error)
+			gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
+			require.Error(t, err, "生存を確認できないペットを含む交換は拒否")
+			assert.Nil(t, gotA)
+			assert.Nil(t, gotB)
+			assert.ErrorIs(t, err, tc.err)
+			assert.False(t, errors.Is(err, apperrors.ErrInvalidInput), "unknown は deceased の業務拒否ではない: %v", err)
 
-	gotA, gotB, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
-	require.Error(t, err, "deceased_at のみの半死亡ペットを含む交換は拒否")
+			var reloadedA, reloadedB model.Hospitalization
+			require.NoError(t, db.First(&reloadedA, hospA.ID).Error)
+			assert.Equal(t, cage1.ID, *reloadedA.CageID)
+			require.NoError(t, db.First(&reloadedB, hospB.ID).Error)
+			assert.Equal(t, cage2.ID, *reloadedB.CageID)
+		})
+	}
+}
+
+// 死亡 reader 未配線の SwapCages は生存扱いにせず 500 fail-closed で拒否する。
+func TestHospitalizationSwapCages_WithoutPetLifeStateReaderFailsClosed(t *testing.T) {
+	svc := NewHospitalizationService(
+		nil, nil, swapSnapshotPetRepository{}, nil,
+		nil, nil, nil,
+		&mockTransactor{},
+	)
+
+	gotA, gotB, err := svc.SwapCages(context.Background(), 1, 1, 2, [2]uint64{1, 2})
+	require.Error(t, err)
 	assert.Nil(t, gotA)
 	assert.Nil(t, gotB)
-	assert.True(t, errors.Is(err, apperrors.ErrInvalidInput), "半死亡ペットは INVALID_INPUT: %v", err)
-
-	var reloadedA, reloadedB model.Hospitalization
-	require.NoError(t, db.First(&reloadedA, hospA.ID).Error)
-	assert.Equal(t, cage1.ID, *reloadedA.CageID)
-	require.NoError(t, db.First(&reloadedB, hospB.ID).Error)
-	assert.Equal(t, cage2.ID, *reloadedB.CageID)
+	status, _, _ := httpapi.ResolveErrorResponse(err)
+	assert.Equal(t, http.StatusInternalServerError, status, "fail-closed は 500: %v", err)
 }
 
 // Codex PR606 #26 再指摘: 注入された petRepo が行ロック面を持たない場合は
@@ -344,6 +365,7 @@ func TestHospitalizationSwapCages_PetRepoWithoutRowLockFailsClosed(t *testing.T)
 		nil, nil, &mockPetRepository{}, nil,
 		nil, nil, nil,
 		&mockTransactor{},
+		WithPetLifeStateReader(stubPetLifeReader{}),
 	)
 
 	gotA, gotB, err := svc.SwapCages(context.Background(), 1, 1, 2, [2]uint64{1, 2})
@@ -354,94 +376,82 @@ func TestHospitalizationSwapCages_PetRepoWithoutRowLockFailsClosed(t *testing.T)
 	assert.Equal(t, http.StatusInternalServerError, status, "fail-closed は 500: %v", err)
 }
 
-// swapPetLockBarrier は実 pet リポジトリを包み、LockByIDForUpdate がペット行ロックを
-// 取得した直後にテストへ通知して proceed まで待機させる。
-// スワップ tx がロックを保持している間に並行ライフサイクル更新をぶつけ、
-// 死亡判定が交換 transaction のロック範囲に参加していることを実 DB で証明する。
-type swapPetLockBarrier struct {
-	petdomain.CompleteRepository
-	locked  chan struct{}
-	proceed chan struct{}
-	once    sync.Once
+// swapEventLog は SwapCages 内の呼び出し順序を記録する。
+type swapEventLog struct {
+	mu     sync.Mutex
+	events []string
 }
 
-func (b *swapPetLockBarrier) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
-	p, err := b.CompleteRepository.LockByIDForUpdate(ctx, clinicID, id)
+func (l *swapEventLog) add(event string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.events = append(l.events, event)
+}
+
+func (l *swapEventLog) snapshot() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]string(nil), l.events...)
+}
+
+// loggingPetLocker は実 pet リポジトリのローカル行ロックを包み、ロック取得を記録する。
+type loggingPetLocker struct {
+	petdomain.CompleteRepository
+	log *swapEventLog
+}
+
+func (l *loggingPetLocker) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+	p, err := l.CompleteRepository.LockByIDForUpdate(ctx, clinicID, id)
 	if err == nil {
-		b.once.Do(func() { close(b.locked) })
-		<-b.proceed
+		l.log.add(fmt.Sprintf("lock:%d", id))
 	}
 	return p, err
 }
 
-// Codex PR606 #26 再指摘: 死亡判定はスワップ tx の行ロック下で走るため、
-// ロック保持中に発行された死亡更新はブロックされ、判定をすり抜けられない。
-// スワップ commit 後にのみ死亡登録が適用される（直列化）。
-func TestHospitalizationSwapCages_PetDeathCheckSerializesConcurrentDeath(t *testing.T) {
+// loggingLifeReader は死亡 reader 呼び出しを、ambient tx の有無つきで記録する（常に alive）。
+type loggingLifeReader struct {
+	log *swapEventLog
+}
+
+func (r loggingLifeReader) ReadPetLifeState(ctx context.Context, _ uint64, petID uint64) (sharedkernel.PetLifeState, error) {
+	r.log.add(fmt.Sprintf("life:%d tx=%t", petID, persistence.TxFromContext(ctx) != nil))
+	return sharedkernel.PetLifeStateAlive, nil
+}
+
+// EMR-491 D6: スワップは対象ペットを pet_id 昇順に、ローカル行ロックの直後に、同じ ambient tx の中で
+// 死亡 reader 判定する（ローカル行ロックだけでは死亡判定は成立しない）。
+func TestHospitalizationSwapCages_LifeStateReadAfterLocalLockInsideTx(t *testing.T) {
 	db := setupHospitalizationRepoTestDB(t)
-	petRepo := petdomain.NewRepository(db)
-	barrier := &swapPetLockBarrier{
-		CompleteRepository: petRepo,
-		locked:             make(chan struct{}),
-		proceed:            make(chan struct{}),
-	}
+	log := &swapEventLog{}
 	svc := NewHospitalizationService(
 		NewHospitalizationRepository(db),
 		reservation.NewReservationRepository(db),
-		barrier,
+		&loggingPetLocker{CompleteRepository: petdomain.NewRepository(db), log: log},
 		NewCageRepository(db),
 		nil, nil, nil,
 		persistence.NewTransactor(db),
+		WithPetLifeStateReader(loggingLifeReader{log: log}),
 	)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	owner := makeTestOwner(t, db, clinicID, "swap飼主 serial")
-	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "swapペット serial")
-	cage1 := makeCageMaster(t, db, clinicID, "スワップ元 ser1")
-	cage2 := makeCageMaster(t, db, clinicID, "スワップ元 ser2")
-	hospA := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage1.ID, model.HospitalizationStatusAdmitted)
-	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, pet.ID, &cage2.ID, model.HospitalizationStatusAdmitted)
+	owner := makeTestOwner(t, db, clinicID, "swap飼主 order")
+	petLow := makeSpeciesAndPet(t, db, clinicID, owner.ID, "swapペット order low")
+	petHigh := makeSpeciesAndPet(t, db, clinicID, owner.ID, "swapペット order high")
+	cage1 := makeCageMaster(t, db, clinicID, "スワップ元 ord1")
+	cage2 := makeCageMaster(t, db, clinicID, "スワップ元 ord2")
+	// 入院 A は pet が大きい方、B は小さい方: 入力順に関わらず pet_id 昇順で判定される。
+	hospA := makeCageHospitalization(t, db, clinicID, owner.ID, petHigh.ID, &cage1.ID, model.HospitalizationStatusAdmitted)
+	hospB := makeCageHospitalization(t, db, clinicID, owner.ID, petLow.ID, &cage2.ID, model.HospitalizationStatusAdmitted)
 
-	swapDone := make(chan error, 1)
-	go func() {
-		_, _, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
-		swapDone <- err
-	}()
+	_, _, err := svc.SwapCages(ctx, clinicID, hospA.ID, hospB.ID, [2]uint64{*hospA.CageID, *hospB.CageID})
+	require.NoError(t, err)
 
-	// スワップ tx がペット行ロックを取得するまで待つ（生存スナップショットで判定中）。
-	select {
-	case <-barrier.locked:
-	case <-time.After(5 * time.Second):
-		t.Fatal("スワップがペット行ロックを取得しなかった（死亡判定が tx に参加していない）")
-	}
-
-	// ロック保持中に並行の死亡登録を発行する。
-	deathDone := make(chan error, 1)
-	go func() {
-		deathDone <- petRepo.RecordDeath(ctx, clinicID, pet.ID, time.Now().UTC(), "concurrent death")
-	}()
-
-	// ペット行ロックを保持している間は死亡更新は完了しない（判定のすり抜け不可）。
-	select {
-	case err := <-deathDone:
-		t.Fatalf("死亡更新が行ロック保持中に完了した（死亡判定が直列化されていない）: %v", err)
-	case <-time.After(300 * time.Millisecond):
-	}
-
-	close(barrier.proceed)
-
-	require.NoError(t, <-swapDone, "生存スナップショットで判定したスワップは成功")
-	require.NoError(t, <-deathDone, "スワップ commit 後の死亡登録は成功")
-
-	// ケージは交換済みで、死亡登録はスワップ後に適用されている。
-	var reloadedA, reloadedB model.Hospitalization
-	require.NoError(t, db.First(&reloadedA, hospA.ID).Error)
-	assert.Equal(t, cage2.ID, *reloadedA.CageID)
-	require.NoError(t, db.First(&reloadedB, hospB.ID).Error)
-	assert.Equal(t, cage1.ID, *reloadedB.CageID)
-
-	var reloadedPet model.Pet
-	require.NoError(t, db.First(&reloadedPet, pet.ID).Error)
-	assert.Equal(t, model.PetStatusDeceased, reloadedPet.Status, "スワップ commit 後に死亡登録が適用される")
+	require.Less(t, petLow.ID, petHigh.ID)
+	assert.Equal(t, []string{
+		fmt.Sprintf("lock:%d", petLow.ID),
+		fmt.Sprintf("life:%d tx=true", petLow.ID),
+		fmt.Sprintf("lock:%d", petHigh.ID),
+		fmt.Sprintf("life:%d tx=true", petHigh.ID),
+	}, log.snapshot(), "ローカル行ロック直後に同一 tx で死亡 reader を pet_id 昇順に呼ぶ")
 }

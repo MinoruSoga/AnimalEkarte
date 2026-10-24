@@ -11,6 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // mockHospitalizationRepository は HospitalizationRepository のテスト用モック実装
@@ -194,7 +195,7 @@ func TestHospitalizationService_List(t *testing.T) {
 					return tt.repoItems, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -262,7 +263,7 @@ func TestHospitalizationService_GetByID(t *testing.T) {
 					return tt.repoItem, tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 			item, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -415,7 +416,7 @@ func TestHospitalizationService_Create(t *testing.T) {
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 					return &model.Pet{ID: id}, nil
 				},
-			}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
+			}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 			hosp, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
@@ -505,7 +506,7 @@ func TestHospitalizationService_Update(t *testing.T) {
 					return &model.Hospitalization{ID: 1, ClinicID: 1, Status: model.HospitalizationStatusAdmitted}, nil
 				},
 			}
-			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 			hosp, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -527,7 +528,7 @@ func TestHospitalizationService_Update_InputNil(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+	svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	hosp, err := svc.Update(context.Background(), 1, 1, nil)
 
@@ -547,7 +548,7 @@ func TestHospitalizationService_Update_FindByIDError(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+	svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	hosp, err := svc.Update(context.Background(), 1, 999, &UpdateHospitalizationInput{Status: &statusAdmitted})
 
@@ -672,7 +673,7 @@ func TestHospitalizationService_Delete(t *testing.T) {
 				},
 			}
 			// MRB-05: Delete requires auditTx (fail-closed).
-			svc := NewHospitalizationServiceWithAudit(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, okCarePlanAuditTx{})
+			svc := NewHospitalizationServiceWithAudit(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, okCarePlanAuditTx{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -701,7 +702,7 @@ func TestHospitalizationService_Delete_FindByIDError(t *testing.T) {
 			return 0, nil
 		},
 	}
-	svc := NewHospitalizationServiceWithAudit(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, okCarePlanAuditTx{})
+	svc := NewHospitalizationServiceWithAudit(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, okCarePlanAuditTx{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	err := svc.Delete(context.Background(), 1, 999)
 
@@ -772,7 +773,7 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 					return &model.Pet{ID: id}, nil
 				},
-			}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
+			}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 			hosp, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -784,26 +785,78 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 	}
 }
 
-func TestHospitalizationService_Create_RejectsDeceasedPet(t *testing.T) {
+// EMR-491 D6: deceased は業務拒否（InvalidInput）、unresolved / reader 失敗は生存扱いにせずエラーで拒否する。
+func TestHospitalizationService_Create_RejectsDeceasedOrUnresolvedPet(t *testing.T) {
 	now := time.Now()
-	deceasedAt := now.Add(-24 * time.Hour)
+	for _, tc := range []struct {
+		name        string
+		state       sharedkernel.PetLifeState
+		readErr     error
+		wantInvalid bool
+	}{
+		{name: "deceased", state: sharedkernel.PetLifeStateDeceased, wantInvalid: true},
+		{name: "unresolved", readErr: apperrors.Wrap(sharedkernel.ErrPetLifeStateUnresolved, "pet status is not recorded")},
+		{name: "reader failure", readErr: errors.New("db down")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			readerCalls := 0
+			reader := stubPetLifeReader{fn: func(_ context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error) {
+				readerCalls++
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, uint64(5), petID)
+				return tc.state, tc.readErr
+			}}
+			repo := &mockHospitalizationRepository{
+				createFn: func(_ context.Context, _ *model.Hospitalization) error {
+					t.Fatal("hospitalization must not be created unless the pet is confirmed alive")
+					return nil
+				},
+			}
+			svc := NewHospitalizationService(repo, &mockReservationRepository{
+				assertOwnerInClinicFn:  func(_ context.Context, _, _ uint64) error { return nil },
+				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
+			}, &mockPetRepository{}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{},
+				WithPetLifeStateReader(reader))
+
+			// CageID は nil のままにする。非 nil だと createHospitalizationInTx が先に occupancy_unknown で拒否し、
+			// 死亡 reader に到達しない。
+			hosp, err := svc.Create(context.Background(), 1, &CreateHospitalizationInput{
+				OwnerID:             2,
+				PetID:               5,
+				HospitalizationType: model.HospitalizationTypeInpatient,
+				StartDate:           now,
+				EndDate:             now.Add(24 * time.Hour),
+			})
+
+			assert.Error(t, err)
+			assert.Equal(t, tc.wantInvalid, apperrors.IsInvalidInput(err), "unexpected error class: %v", err)
+			if tc.readErr != nil {
+				assert.ErrorIs(t, err, tc.readErr)
+			}
+			assert.Nil(t, hosp)
+			assert.Equal(t, 1, readerCalls, "pet life state reader must be consulted exactly once")
+			assert.False(t, apperrors.IsConflict(err), "must not stop at the cage occupancy guard: %v", err)
+		})
+	}
+}
+
+// 入院 write は reader 未配線のとき生存扱いにせず内部エラーで拒否する（nil は alive ではない）。
+// CageID は nil のままにする。非 nil だと createHospitalizationInTx が先に occupancy_unknown で拒否し、
+// 未配線 guard（ValidatePetNotDeceased の reader == nil 分岐）に到達しない。
+func TestHospitalizationService_Create_FailsClosedWithoutPetLifeStateReader(t *testing.T) {
+	now := time.Now()
 	repo := &mockHospitalizationRepository{
 		createFn: func(_ context.Context, _ *model.Hospitalization) error {
-			t.Fatal("hospitalization must not be created for a deceased pet")
+			t.Fatal("hospitalization must not be created without a pet life state reader")
 			return nil
 		},
 	}
 	svc := NewHospitalizationService(repo, &mockReservationRepository{
 		assertOwnerInClinicFn:  func(_ context.Context, _, _ uint64) error { return nil },
 		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
-	}, &mockPetRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
-		},
-	}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
+	}, &mockPetRepository{}, acceptAnyCageRepo(), nil, nil, nil, &mockTransactor{})
 
 	hosp, err := svc.Create(context.Background(), 1, &CreateHospitalizationInput{
-		CageID:              func() *uint64 { v := uint64(10); return &v }(),
 		OwnerID:             2,
 		PetID:               5,
 		HospitalizationType: model.HospitalizationTypeInpatient,
@@ -812,12 +865,16 @@ func TestHospitalizationService_Create_RejectsDeceasedPet(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.False(t, apperrors.IsInvalidInput(err))
 	assert.Nil(t, hosp)
+	assert.False(t, apperrors.IsConflict(err), "must not stop at the cage occupancy guard: %v", err)
+	var appErr *apperrors.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.Equal(t, "INTERNAL", appErr.Code)
+	assert.Equal(t, "pet life state reader is required", appErr.Message)
 }
 
 func TestHospitalizationService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
-	deceasedAt := time.Now().Add(-24 * time.Hour)
 	newPetID := uint64(9)
 	repo := &mockHospitalizationRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
@@ -831,11 +888,8 @@ func TestHospitalizationService_Update_RejectsDeceasedPetReplacement(t *testing.
 	svc := NewHospitalizationService(repo, &mockReservationRepository{
 		assertOwnerInClinicFn:  func(_ context.Context, _, _ uint64) error { return nil },
 		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
-	}, &mockPetRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-			return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
-		},
-	}, nil, nil, nil, nil, &mockTransactor{})
+	}, &mockPetRepository{}, nil, nil, nil, nil, &mockTransactor{},
+		WithPetLifeStateReader(stubPetLifeState(sharedkernel.PetLifeStateDeceased, nil)))
 
 	hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{PetID: &newPetID})
 
@@ -985,7 +1039,7 @@ func TestBuildHospitalizationUpdate_SetCageIDAndOmitKeepsCage(t *testing.T) {
 
 func TestHospitalizationService_Update_RejectsClearAndSetCageID(t *testing.T) {
 	cageID := uint64(3)
-	svc := NewHospitalizationService(&mockHospitalizationRepository{}, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+	svc := NewHospitalizationService(&mockHospitalizationRepository{}, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{ClearCageID: true, CageID: &cageID})
 
@@ -995,7 +1049,7 @@ func TestHospitalizationService_Update_RejectsClearAndSetCageID(t *testing.T) {
 }
 
 func TestHospitalizationService_Update_ClearCageRequiresExpectedCageID(t *testing.T) {
-	svc := NewHospitalizationService(&mockHospitalizationRepository{}, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+	svc := NewHospitalizationService(&mockHospitalizationRepository{}, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 	hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{ClearCageID: true})
 	assert.Nil(t, hosp)
@@ -1037,7 +1091,7 @@ func TestHospitalizationService_Update_ClearCageStaleExpectationConflicts(t *tes
 					return &result, nil
 				},
 			}
-			svc := NewHospitalizationService(hospRepo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
+			svc := NewHospitalizationService(hospRepo, nil, nil, nil, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 			got, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{ClearCageID: true, ExpectedCageID: &expected})
 
@@ -1112,7 +1166,7 @@ func TestHospitalizationService_Update_CageCompareAndSet(t *testing.T) {
 					return &model.Cage{ID: id}, nil
 				},
 			}
-			svc := NewHospitalizationService(hospRepo, nil, nil, cageRepo, nil, nil, nil, &mockTransactor{})
+			svc := NewHospitalizationService(hospRepo, nil, nil, cageRepo, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 
 			got, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -1183,7 +1237,7 @@ func TestHospitalizationService_Update_ClearCageOnReactivation(t *testing.T) {
 					return &result, nil
 				},
 			}
-			svc := NewHospitalizationService(hospRepo, nil, nil, cageRepo, nil, nil, nil, &mockTransactor{})
+			svc := NewHospitalizationService(hospRepo, nil, nil, cageRepo, nil, nil, nil, &mockTransactor{}, WithPetLifeStateReader(stubPetLifeReader{}))
 			input, err := (&updateHospitalizationRequest{Status: &tt.status, ClearCageID: true, ExpectedCageID: &oldCageID}).toServiceInput()
 			require.NoError(t, err)
 
@@ -1233,7 +1287,7 @@ func newDischargeTestDeps(hospRepo HospitalizationRepository, carePlanRepo CareP
 }
 
 func (d *dischargeTestDeps) svc() HospitalizationService {
-	return NewHospitalizationServiceWithAudit(d.hosp, d.reservation, nil, nil, d.carePlan, d.accounting, d.billingItem, &mockTransactor{}, d.audit)
+	return NewHospitalizationServiceWithAudit(d.hosp, d.reservation, nil, nil, d.carePlan, d.accounting, d.billingItem, &mockTransactor{}, d.audit, WithPetLifeStateReader(stubPetLifeReader{}))
 }
 
 func TestHospitalizationService_DischargeWithBilling_NotFound(t *testing.T) {

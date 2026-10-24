@@ -13,76 +13,113 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type stubPetByIDFinder struct {
-	pet *model.Pet
-	err error
+type stubPetLifeStateReader struct {
+	state PetLifeState
+	err   error
+	calls int
 }
 
-func (s *stubPetByIDFinder) FindByID(_ context.Context, _, _ uint64) (*model.Pet, error) {
-	return s.pet, s.err
+func (s *stubPetLifeStateReader) ReadPetLifeState(_ context.Context, _, _ uint64) (PetLifeState, error) {
+	s.calls++
+	return s.state, s.err
 }
 
-func TestValidatePetNotDeceased(t *testing.T) {
+func petStatusPtr(status model.PetStatus) *model.PetStatus { return &status }
+
+// TestClassifyPetLifeState は EMR-491 D6 真理値表の純粋関数テスト。
+// deceased_at != nil OR status=deceased -> deceased。status=alive かつ deceased_at=nil だけが alive。
+// それ以外（NULL / 未知 status かつ deceased_at=nil）は alive にせず unresolved エラー。
+func TestClassifyPetLifeState(t *testing.T) {
 	deceasedAt := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
-	msg := "死亡したペットは予約できません"
-
-	// Death contract: status=deceased OR deceased_at != nil (no date invention).
 	cases := []struct {
-		name        string
-		pet         *model.Pet
-		wantErr     bool
-		wantInvalid bool
+		name       string
+		status     *model.PetStatus
+		deceasedAt *time.Time
+		want       PetLifeState
+		wantErr    bool
 	}{
-		{
-			name: "alive/null passes",
-			pet:  &model.Pet{ID: 5, Status: model.PetStatusAlive},
-		},
-		{
-			name:        "deceased/null is invalid input",
-			pet:         &model.Pet{ID: 5, Status: model.PetStatusDeceased},
-			wantErr:     true,
-			wantInvalid: true,
-		},
-		{
-			name:        "deceased/dated is invalid input",
-			pet:         &model.Pet{ID: 5, Status: model.PetStatusDeceased, DeceasedAt: &deceasedAt},
-			wantErr:     true,
-			wantInvalid: true,
-		},
-		{
-			name:        "alive/dated is invalid input",
-			pet:         &model.Pet{ID: 5, Status: model.PetStatusAlive, DeceasedAt: &deceasedAt},
-			wantErr:     true,
-			wantInvalid: true,
-		},
+		{name: "alive / nil date is alive", status: petStatusPtr(model.PetStatusAlive), want: PetLifeStateAlive},
+		{name: "deceased / nil date is deceased", status: petStatusPtr(model.PetStatusDeceased), want: PetLifeStateDeceased},
+		{name: "deceased / dated is deceased", status: petStatusPtr(model.PetStatusDeceased), deceasedAt: &deceasedAt, want: PetLifeStateDeceased},
+		{name: "alive + date is deceased (inconsistent row is not alive)", status: petStatusPtr(model.PetStatusAlive), deceasedAt: &deceasedAt, want: PetLifeStateDeceased},
+		{name: "NULL status + date is deceased", deceasedAt: &deceasedAt, want: PetLifeStateDeceased},
+		{name: "unknown status + date is deceased", status: petStatusPtr(model.PetStatus("unknown")), deceasedAt: &deceasedAt, want: PetLifeStateDeceased},
+		{name: "NULL status + nil date is unresolved", wantErr: true},
+		{name: "unknown status + nil date is unresolved", status: petStatusPtr(model.PetStatus("unknown")), wantErr: true},
+		{name: "empty status + nil date is unresolved", status: petStatusPtr(model.PetStatus("")), wantErr: true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ValidatePetNotDeceased(context.Background(), &stubPetByIDFinder{pet: tc.pet}, 1, 5, msg)
-			if !tc.wantErr {
-				assert.NoError(t, err)
+			got, err := ClassifyPetLifeState(tc.status, tc.deceasedAt)
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, ErrPetLifeStateUnresolved)
+				assert.Empty(t, got, "unresolved must not carry a life state")
+				assert.NotEqual(t, PetLifeStateAlive, got)
 				return
 			}
-			require.Error(t, err)
-			if tc.wantInvalid {
-				assert.True(t, apperrors.IsInvalidInput(err))
-				assert.Contains(t, err.Error(), msg)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
 		})
 	}
+}
 
-	t.Run("nil pet is not found", func(t *testing.T) {
-		err := ValidatePetNotDeceased(context.Background(), &stubPetByIDFinder{pet: nil}, 1, 5, msg)
+func TestValidatePetNotDeceased(t *testing.T) {
+	msg := "死亡したペットは予約できません"
+
+	t.Run("alive passes", func(t *testing.T) {
+		reader := &stubPetLifeStateReader{state: PetLifeStateAlive}
+		assert.NoError(t, ValidatePetNotDeceased(context.Background(), reader, 1, 5, msg))
+		assert.Equal(t, 1, reader.calls)
+	})
+
+	t.Run("deceased is invalid input with the caller message", func(t *testing.T) {
+		err := ValidatePetNotDeceased(context.Background(), &stubPetLifeStateReader{state: PetLifeStateDeceased}, 1, 5, msg)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.Contains(t, err.Error(), msg)
+	})
+
+	t.Run("not found stays not found", func(t *testing.T) {
+		err := ValidatePetNotDeceased(context.Background(), &stubPetLifeStateReader{err: apperrors.WrapNotFound("pet", "5")}, 1, 5, msg)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
-	t.Run("find error is wrapped", func(t *testing.T) {
-		err := ValidatePetNotDeceased(context.Background(), &stubPetByIDFinder{
-			err: errors.New("db down"),
+	t.Run("unresolved is an error and never passes", func(t *testing.T) {
+		err := ValidatePetNotDeceased(context.Background(), &stubPetLifeStateReader{
+			err: apperrors.Wrap(ErrPetLifeStateUnresolved, "pet status is not recorded"),
 		}, 1, 5, msg)
 		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrPetLifeStateUnresolved)
+		assert.False(t, apperrors.IsInvalidInput(err), "unknown is not a deceased business rejection")
+		assert.NotContains(t, err.Error(), msg)
+	})
+
+	t.Run("reader failure is wrapped and propagated", func(t *testing.T) {
+		cause := errors.New("db down")
+		err := ValidatePetNotDeceased(context.Background(), &stubPetLifeStateReader{err: cause}, 1, 5, msg)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, cause)
 		assert.Contains(t, err.Error(), "failed to verify pet status")
+	})
+
+	t.Run("empty state is rejected rather than treated as alive", func(t *testing.T) {
+		err := ValidatePetNotDeceased(context.Background(), &stubPetLifeStateReader{}, 1, 5, msg)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrPetLifeStateUnresolved)
+	})
+
+	t.Run("unrecognized state is rejected rather than treated as alive", func(t *testing.T) {
+		err := ValidatePetNotDeceased(context.Background(), &stubPetLifeStateReader{state: PetLifeState("alive ")}, 1, 5, msg)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrPetLifeStateUnresolved)
+	})
+
+	t.Run("nil reader fails closed", func(t *testing.T) {
+		err := ValidatePetNotDeceased(context.Background(), nil, 1, 5, msg)
+		require.Error(t, err)
+		assert.False(t, apperrors.IsInvalidInput(err))
 	})
 }
 

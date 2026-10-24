@@ -11,6 +11,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func requireReservationRowLockTransaction(ctx context.Context) error {
@@ -237,8 +238,9 @@ func (r *reservationRepository) FindPetOwnerInClinic(ctx context.Context, clinic
 	return pet.OwnerID, nil
 }
 
-// FindPetByIDInClinic は clinic スコープでペットを読み、死亡 write ガード（SD-10）に必要な列を返す。
-// transaction 内では行を共有ロックし、検証後から write までの deceased_at 変更を防ぐ。
+// FindPetByIDInClinic は clinic スコープでペットの所属（id / clinic_id / owner_id）を読む。
+// 旧 pets.deceased_at / pets.status は廃止済みで読まない。死亡判定は ReadPetLifeState を使う（EMR-491 D6）。
+// transaction 内では行を共有ロックし、検証後から write までの owner 変更を防ぐ。
 func (r *reservationRepository) FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error) {
 	var pet model.Pet
 	db := persistence.DBOrTx(ctx, r.db).Model(&model.Pet{})
@@ -246,13 +248,23 @@ func (r *reservationRepository) FindPetByIDInClinic(ctx context.Context, clinicI
 		db = db.Clauses(clause.Locking{Strength: "SHARE"})
 	}
 	err := db.
-		Select("pets.id", "pets.clinic_id", "pets.owner_id", "pets.deceased_at", "pets.status").
+		Select("pets.id", "pets.clinic_id", "pets.owner_id").
 		Where("pets.id = ? AND pets.clinic_id = ? AND pets.deleted_at IS NULL", petID, clinicID).
 		First(&pet).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", petID))
 	}
 	return &pet, nil
+}
+
+// ReadPetLifeState は共通 subject の現行 revision から clinic スコープのペットの生死を返す
+// （SD-10 死亡 write ガード）。reader は ambient transaction 内で subject 行を FOR SHARE ロックし、
+// tx 外・not found・unresolved・I/O 失敗はエラーを返す（生存扱いにしない）。
+func (r *reservationRepository) ReadPetLifeState(ctx context.Context, clinicID, petID uint64) (sharedkernel.PetLifeState, error) {
+	if r.petLife == nil {
+		return "", apperrors.WrapInternalServerError("pet life state reader is required")
+	}
+	return r.petLife.ReadPetLifeState(ctx, clinicID, petID)
 }
 
 // AssertLineCustomerInClinic は line_customers を clinic スコープで存在確認する（AUD-001）。

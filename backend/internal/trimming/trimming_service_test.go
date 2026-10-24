@@ -12,6 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // --- mock: trimming が消費する reservation read + intent operation ---
@@ -28,7 +29,7 @@ type mockTrimmingReservationRepository struct {
 	countConflictsFn     func(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
 	countByTypeFn        func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 	findPetOwnerFn       func(ctx context.Context, clinicID, petID uint64) (uint64, error)
-	findPetByIDFn        func(petID uint64) (*model.Pet, error)
+	petLifeStateFn       func(petID uint64) (sharedkernel.PetLifeState, error)
 	createFn             func(ctx context.Context, appt *model.Reservation) error
 	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
 	deleteFn             func(ctx context.Context, clinicID, id uint64) error
@@ -152,11 +153,12 @@ func (m *mockTrimmingReservationRepository) FindPetOwnerInClinic(ctx context.Con
 	return 0, nil
 }
 
-func (m *mockTrimmingReservationRepository) FindPetByIDInClinic(_ context.Context, _, petID uint64) (*model.Pet, error) {
-	if m.findPetByIDFn != nil {
-		return m.findPetByIDFn(petID)
+// ReadPetLifeState は EMR-491 D6 の死亡 reader のモック。既定は alive（明示した test double）。
+func (m *mockTrimmingReservationRepository) ReadPetLifeState(_ context.Context, _, petID uint64) (sharedkernel.PetLifeState, error) {
+	if m.petLifeStateFn != nil {
+		return m.petLifeStateFn(petID)
 	}
-	return &model.Pet{ID: petID, Status: model.PetStatusAlive}, nil
+	return sharedkernel.PetLifeStateAlive, nil
 }
 
 // コンパイル時インターフェース適合チェック
