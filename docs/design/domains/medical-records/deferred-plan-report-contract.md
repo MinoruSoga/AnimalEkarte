@@ -18,7 +18,7 @@ response exact `{schema_version:"1",owner_id,pet_id,acquired_at,items,next_curso
 
 ## 有界paginationと非漏えい
 
-page最大50候補を走査し、その時点で認可/current stateを検査する。表示50件を埋める無制限scanなし。空itemsでも未走査があればnext_cursorと「未確認の予定があります」。次pageは利用者の「続きを表示」だけ、自動全件取得なし。全体件数/日数の業務上限は設けない。
+lookaheadを含め最大51候補を取得・検証し、最初の最大50候補を処理して最大50itemsを返す。51番目はhas_more用だが認可/必須field検査の対象であり、不正ならpage全体をfail closedにする。表示50件を埋める無制限scanなし。空itemsでも未走査があればnext_cursorと「未確認の予定があります」。次pageは利用者の「続きを表示」だけ、自動全件取得なし。全体件数/日数の業務上限は設けない。
 
 seedはtrusted clinic＋要求owner/petの現在access。不認可403/404なら候補照会前に停止。初回upper_plan_item_idはWHERE clinic_id=currentClinic AND pet_id=selectedPet ORDER BY id DESC LIMIT1だけで取得し、record/owner JOINや全record認可filterなし。(clinic_id,pet_id,id)索引末尾1件を読む。upperは初回/毎pageの同じ短read snapshotで元record現在認可・owner/pet/clinic対応を検証してからcursorへ入れる。真に0候補ならitems=[]/next_cursor=null/has_more=false。継続upper削除/読取不能は一般再読込要求又は既存403/404、ID/cursorをechoしない。必須linkage破損503と認可失敗を分ける。
 
