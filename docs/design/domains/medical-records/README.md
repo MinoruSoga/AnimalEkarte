@@ -37,3 +37,7 @@
 ## 死亡後の既存バイタル訂正
 
 [診療録所属の既存vital訂正契約](posthumous-vital-correction-contract.md#posthumous-vital-scope)を2026-10-24に限定技術選定した。同一認証済み適格医師の明示確認、元/訂正後の既知実測instant、CAS WHERE＋手動vital版加算、最小anchor/完全成功履歴と必須audit/C06、reservation-graph必須gateとlocal-pet先行順を定める。D04未来予約取消は全死亡workflowの必須別接点で、subject-only kernelを全死亡対応と呼ばない。life snapshot・医師designation・ContextGate・writer閉包・API/保存供給/実装は未完。childなし入力・別職員準備・日次/import等の後続境界を[作業計画](../../../work/emr/posthumous-contract-plan-20261023.md#posthumous-plan-other-owners)に保持し、tests/build/codegen/実DB等はNOT_RUN。
+
+[EMR-451 H01 ペット別履歴](patient-history-contract.md)はカルテ内履歴だけの認可集合・確認済みsubject/binding・終了証拠・bounded検索の技術引渡し。一般一覧や他履歴callerへ一律拡張しない。
+
+[後日予定report契約](deferred-plan-report-contract.md)は共通planの現在deferredを有界pageで参照し、診療履歴の終了限定と分離する。

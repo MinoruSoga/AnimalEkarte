@@ -358,3 +358,7 @@ preview版を出力時にも照合し、版変化は再取得、0件確認は空
 Completeの医師確認gateは[medical-records側の本人決定・最終DDL接続](../medical-records/technical-spec.md#doctor-confirm-gate-and-price-ack-20261019)へ従う。廃止済み`billing_confirmations.status`を残す旧最小gate案は使用せず、`doctor_review_sets`・`doctor_review_records`・会計の確認参照と現在の対象集合／臨床世代を照合する。金額了承は既存`billing_price_acknowledgements`＋`billing_change_events`へ接続する。確認後の金額変更は警告了承で可能・医師再確認不要とし、薬剤処置追加削除／数量変更は医師再確認まで請求確定・精算を停止する。確認前の準備／金額未確定表示は可。会計からプランを自動書換えしない。旧調査案の再掲は本人回答の撤回ではない。保存形状の存在をComplete・全writer・画面の実装／実機合格とせず、API／業務処理・DDLは今回変更しない。
 
 具体的なgateのtransaction参加・operation_bindings/operation_resultsへの接続設計はEMR-462の着手前に確定する。保存形状の選定と、後続のgate実装方式が未確定であることを分けて扱う。
+
+## 締め設定の原値保全への引渡し
+
+[分入力・保存済み秒値保全契約](closing-time-edit-contract.md)は標準時刻のdirty-only PATCHと既存権限/秒previewの限定適合。非00秒救済UIや締め集計仕様の変更を追加しない。文書採用と実装・受入を区別する。
