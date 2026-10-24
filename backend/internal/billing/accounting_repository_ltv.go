@@ -16,7 +16,7 @@ import (
 // 受領額（payment_funds）や返金からの代替集計は作らない。順位づけ（FindOwnersByAnnualRevenue）は今期の対象外で、基準が揃っても 422 のまま。
 // resume: 確定 writer が接続され、確定額の reader を実装したとき（順位づけを除く）。
 const (
-	ltvPendingMessage                   = "飼主の累計売上・1回来院の最大額は、請求確定額（確定時の算定固定と確定日）の読取が未接続のため利用できません"
+	ltvPendingMessage                  = "飼主の累計売上・1回来院の最大額は、請求確定額（確定時の算定固定と確定日）の読取が未接続のため利用できません"
 	annualRevenueRankingPendingMessage = "飼主の直近365日売上の順位づけは、今期の対象外のため利用できません"
 )
 
