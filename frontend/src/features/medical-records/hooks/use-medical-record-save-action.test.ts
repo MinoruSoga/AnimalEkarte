@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useMedicalRecordSaveAction } from "./use-medical-record-save-action";
 import { DEFAULT_CHIEF_COMPLAINT, DEFAULT_TREATMENT_POLICY } from "./use-medical-record-form-model";
 import type { ClinicalPlanDiagnosisRow } from "../api/clinical-plan";
+import { queryKeys } from "@/lib/query-keys";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -325,8 +326,9 @@ describe("useMedicalRecordSaveAction EMR-495 diagnoses payload", () => {
         diagnosis_slot: 2,
         diagnosis_type_id: 4,
         diagnosis_name_id: 10,
+        // 区分は変えていないので読込済みの区分スナップショットを引き継ぎ、病名は表示名が分からないため null。
         diagnosis_name_snapshot: null,
-        category_name_snapshot: null,
+        category_name_snapshot: "皮膚",
         sort_order: 0,
       },
     ]);
@@ -361,6 +363,79 @@ describe("useMedicalRecordSaveAction EMR-495 diagnoses payload", () => {
     });
 
     expect(payload.diagnoses).toEqual([]);
+  });
+
+  // 診断セレクタが react-query に載せる選択肢（get-diagnosis-options.ts と同じキー）を模したキャッシュ。
+  function queryClientWithDiagnosisOptions() {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    queryClient.setQueryData(queryKeys.masters.category("diagnosis-types"), [
+      { id: 3, name: "消化器" },
+      { id: 5, name: "呼吸器" },
+    ]);
+    queryClient.setQueryData(queryKeys.masters.diagnosisNames(5), [{ id: 20, name: "気管支炎" }]);
+    return queryClient;
+  }
+
+  it("診断1 を新しく選択すると選択中の区分名・病名をスナップショットとして送り、変えていない診断2 は読込済み行のまま送る", async () => {
+    const payload = await savedPayload({
+      ...loadedSelection,
+      diagnosis1CategoryId: 5,
+      diagnosis1NameId: 20,
+      queryClient: queryClientWithDiagnosisOptions(),
+    });
+
+    expect(payload.diagnoses).toEqual([
+      {
+        diagnosis_slot: 1,
+        diagnosis_type_id: 5,
+        diagnosis_name_id: 20,
+        diagnosis_name_snapshot: "気管支炎",
+        category_name_snapshot: "呼吸器",
+        sort_order: 0,
+      },
+      slot2Row,
+    ]);
+  });
+
+  it("選択した ID に対応する表示名が分からない場合は推測せず null を送る", async () => {
+    const payload = await savedPayload({
+      ...loadedSelection,
+      diagnosis1CategoryId: 6,
+      diagnosis1NameId: 21,
+      queryClient: queryClientWithDiagnosisOptions(),
+    });
+
+    expect(payload.diagnoses).toEqual([
+      {
+        diagnosis_slot: 1,
+        diagnosis_type_id: 6,
+        diagnosis_name_id: 21,
+        diagnosis_name_snapshot: null,
+        category_name_snapshot: null,
+        sort_order: 0,
+      },
+      slot2Row,
+    ]);
+  });
+
+  it("区分を変えずに病名だけ変え区分名がキャッシュに無いときは、病名はキャッシュから・区分名は読込済みスナップショットから送る", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(queryKeys.masters.diagnosisNames(4), [{ id: 10, name: "湿疹" }]);
+    const payload = await savedPayload({ ...loadedSelection, diagnosis2NameId: 10, queryClient });
+
+    expect(payload.diagnoses).toEqual([
+      ...slot1Rows,
+      {
+        diagnosis_slot: 2,
+        diagnosis_type_id: 4,
+        diagnosis_name_id: 10,
+        diagnosis_name_snapshot: "湿疹",
+        category_name_snapshot: "皮膚",
+        sort_order: 0,
+      },
+    ]);
   });
 });
 
