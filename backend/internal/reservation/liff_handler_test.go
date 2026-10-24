@@ -202,9 +202,11 @@ func TestGetLiffSettings(t *testing.T) {
 		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/settings", nil)
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "active")
-		var body map[string]any
+		var body map[string]json.RawMessage
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-		assert.Equal(t, "1234567890-abcdefgh", body["liff_id"])
+		var liffID string
+		require.NoError(t, json.Unmarshal(body["liff_id"], &liffID))
+		assert.Equal(t, "1234567890-abcdefgh", liffID)
 	})
 
 	t.Run("liff_id 未設定の医院は空文字で返す（キーは常に出す）", func(t *testing.T) {
@@ -215,10 +217,12 @@ func TestGetLiffSettings(t *testing.T) {
 		})
 		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/settings", nil)
 		assert.Equal(t, http.StatusOK, w.Code)
-		var body map[string]any
+		var body map[string]json.RawMessage
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
-		liffID, ok := body["liff_id"]
+		rawLiffID, ok := body["liff_id"]
 		assert.True(t, ok, "liff_id key must always be present")
+		var liffID string
+		require.NoError(t, json.Unmarshal(rawLiffID, &liffID))
 		assert.Equal(t, "", liffID)
 	})
 
