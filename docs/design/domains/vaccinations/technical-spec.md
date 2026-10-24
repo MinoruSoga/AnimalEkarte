@@ -207,3 +207,26 @@ repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語�
 履歴参照と有効出力を分離する既決を維持し、再発行で旧訂正版の有効出力を復活させない。master改定で過去の構成・版やartifactを書き換えず、資料待ちを推測実装で埋めない。実装コード・api.yaml・DDLは本追補で変更しない。
 
 [RV4・再発行日採択技術契約](../../../work/emr/emr-486-487-rv-batch-reissue-contract-20261021.md)をmaster構成版・batch/edition・初版日lineage・normal selector=2互換の具体契約とする。既存v1は保持し、selector=2 reader/parser/validatorとwriterの接続は未実装。4名称・見本・紙寸法・mappingおよび実renderer/store資産は資料待ち／実装依存のまま、文書採択をruntime完了としない。
+
+<a id="patient-vaccination-label-contract-20261024"></a>
+## 患者情報の種類別名称色：配置と属性契約（EMR-564）
+
+基準main `c0ee0914e723791c59cfa971cbb1ad84cff171db`。[業務正本・3AC](../../../spec/domains/vaccinations/lifecycle.md#vaccination-type-label-color-20261017)の表示対象を具体化する。既存masterの任意label_colorと固定paletteは2026-10-24 05:18:23 UTCの本人「ok」（Sentinel_05a62545c458819189f1ce3e688bca1d）で採用。現実のmaster値を設定する許可ではない。製品/DB/試験はNOT_RUN。
+
+患者詳細の正本は[飼主フォーム](../../../spec/screens/04-owners-form.md)の `/owners/:id?pet=:petId` → PetEditModal。ここに永続petだけのread-only PatientVaccinationListを一箇所置く配置案とする。PatientInfoCardは基本属性カードで接種一覧ではなく、カルテ履歴/OwnerReportのmatrixも対象配置の証明にしない。旧画像の右下固定、新しい管理画面、LINE/証明書/独立接種画面への横展開を要求しない。
+
+一覧は保存済み名称/実施日/次予定。vaccinations:viewで取得しowners editから権限を作らない。canEditでdisabledとなるfieldsetの外に独立regionを置き、pet submit/接種write/master編集を起動しない。未保存petは取得しない。既存GET `/v1/vaccinations?pet_id=...&page=...&limit=...` を使い、scope key・現在認可・患者切替/遅延応答・取得状態を保持する。取得失敗は正常空でなく、取得上限だけで全履歴としない。
+
+種類identityは保存vaccination.vaccine_id。同名・parent_id・speciesから種類を推定せず、現在master名しかない旧行を当時名称snapshotとしない。配色は現在表示設定であり、臨床値/日付/当時名称を変更しない。
+
+### 採用した色属性・producer/consumer
+
+推奨は既存vaccinesへnullable text `label_color`、許容 `blue|purple|green|orange`、NULLは未設定。既存BADGEの同名tokenへ一対一対応し、NULLはBADGE.muted＋名称。予約group/危険度/期限色を流用せず、ID hash/modulo・名称正規表現・任意hex/CSSを採らない。既存master編集paneに未設定/青/紫/緑/橙の5択、初期未設定。独立分類enum/配色管理画面・医学的推奨/警告を追加しない。方式/固定palette/既存pane追加は上記本人承認済みで、全vaccineへの実設定許可を含まない。
+
+producer案: master GETはlabel_colorを必ずNULL又は4値で返す。POST省略/NULLは未設定、PATCH省略保持/NULL clear/4値set、その他/空文字/未知keyは400。既存vaccine.version必須CAS・同TX更新、競合409/zero-write。既存master-medical:create/edit/viewを維持し、vaccinations:viewへwriteを開放しない。
+
+consumer案: 認可済み接種responseのvaccine要約に同じlabel_colorを追加し、master一覧/他医院設定を開示しない。master relation不明/非可視は正常未設定NULLと区別し元名称/日付を保持する。無効保存tokenは設定不正＋neutral、他色へ救済しない。pure rendererは4tokenだけを受け、既存警告は別要素と文言で維持。**未閉鎖:** relation未知と正常NULLを区別するresponseの具体field/unionは受領稿で未定義。既存wireにあると推定せず、API ownerとの閉鎖事項として残す。
+
+### 有限成功単位
+
+同一実装PRはmaster任意属性writer/CAS/reader→接種要約projection→実reader→選択患者詳細一覧→名称色/既存警告分離。neutral一色だけで3AC完了にしない。Readyには属性/固定paletteの承認、同PR producer/consumerの列/schema/ownerと3AC対応が必要。新UI未実装そのものは停止理由にせず、本人承認は受領済み、残る同PRの型・供給責務を閉じる。異種/同種/同名別ID、色なし/未知/不正、警告併存、失権/切替/遅延、記録不変と対象外面不変のfixtureはNOT_RUN。

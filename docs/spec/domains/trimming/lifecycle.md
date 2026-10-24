@@ -276,3 +276,6 @@ FR-trimming-zero-performance-abort: 同じ予約・専用記録について、�
 ## 2026-10-23開始・終了の技術接続
 
 [開始・終了の限定契約](../../../design/domains/trimming/trimming-start-end-contract.md#trimming-start-end-closed-wire)で468単一writer、T4 schema2の実担当者（actor/予約指名と別）、閉じたstart/end fingerprintと最小準備readproofを選定。準備はmetadataのみで記録作成/本文save/状態変更なし。現在認可/版検査を維持し、同key成功はproof再検証前に扱う。途中保存/開始に実担当者・料金の新gateを加えず、終了の既決9ACを保持。共有供給/実装/試験/全9AC受入/activationは未完（NOT_RUN）。
+
+
+実績ゼロ中止は[EMR-561限定技術契約](../../../design/domains/trimming/technical-spec.md#zero-performance-abort-561-20261024)で状態・非施術料金source・原子保存を具体化する。

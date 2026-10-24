@@ -150,6 +150,8 @@ D21 Owner Reportの接種履歴sectionはスタッフ閲覧専用で、接種情
 <a id="vaccination-type-label-color-20261017"></a>
 ## 患者情報の予防接種一覧：種類別の名称ラベル色（No.32本人採用）
 
+患者詳細内の読取配置と種類identityは[技術案](../../../design/domains/vaccinations/technical-spec.md#patient-vaccination-label-contract-20261024)へ。既存masterの任意label_color属性と青/紫/緑/橙の固定palette、未設定neutralは2026-10-24 05:18:23 UTCの本人「ok」（Sentinel_05a62545c458819189f1ce3e688bca1d）で承認済み。名称保持・患者詳細一覧限定・新管理画面なし。実master値の設定許可ではない。実装/試験は未完。
+
 旧画像で飼主・患者情報画面の右下に示された予防接種一覧（予防接種名称／実施日／次予定）に相当する表示を対象とし、ワクチン名称のラベルを種類別の色にする。名称の文字を保持し、色だけを識別手段にしない。種類の識別と、期限切れ等の警告表示の意味は区別する。
 
 根拠は[Backlog Phase1 No.32 F33:G33](https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit#gid=0&range=F33:G33)から参照する[添付画像A3](https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit#gid=900461027&range=A3)、B3 image11.jpg内の手書き「ワクチンの種類ごとに 色分けしてほしい」と、質問Sentinel_3d606eb2b4c881918cc68cdd21d5d3f7への本人Sentinel_960f144c476081919e58c9db0c7f4ec3の2026-10-17 22:33:33 UTC「採用します」。同質問の「ワクチン名称のラベルを種類別の色にし、期限切れなどの警告表示とは分ける形」を今回採用した。元画像の対応・注記は親側の確認結果を参照し、Macで画像原本を独立再視認したとはしない。
