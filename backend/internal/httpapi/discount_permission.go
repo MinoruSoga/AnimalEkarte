@@ -70,3 +70,32 @@ func RequireDiscountCreateInt(c *gin.Context, hasPermission PermissionChecker, v
 	}
 	return apperrors.WrapForbidden("割引フィールドの作成権限がありません")
 }
+
+// RequireDiscountEditExact は discount_rate 等の exact 数値フィールドの編集権限を、新旧値が数値として異なる場合にのみ要求する。
+// 比較は model.ExactNumeric.Equal の厳密比較で epsilon を使わない（10 と 10.00 は同値、0.1 と 0.10001 は別値）。
+// 比較できない値（NaN など）は変更とみなして権限を要求する（fail-closed）。未移行の float64 caller は RequireDiscountEditFloat を使う。
+func RequireDiscountEditExact(c *gin.Context, hasPermission PermissionChecker, newVal *model.ExactNumeric, oldVal model.ExactNumeric) error {
+	if newVal == nil {
+		return nil
+	}
+	if newVal.Equal(oldVal) {
+		return nil
+	}
+	if hasPermission(c, string(model.ResourceDiscount), "edit") {
+		return nil
+	}
+	return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
+}
+
+// RequireDiscountCreateExact は新規作成時にゼロ以外の exact 数値を指定する場合に create 権限を要求する。
+// 未指定は呼出し側が 0 として渡す。NULL・NaN など 0 と確認できない値は権限を要求する（fail-closed）。
+// 未移行の float64 caller は RequireDiscountCreateFloat を使う。
+func RequireDiscountCreateExact(c *gin.Context, hasPermission PermissionChecker, val model.ExactNumeric) error {
+	if val.IsZero() {
+		return nil
+	}
+	if hasPermission(c, string(model.ResourceDiscount), "create") {
+		return nil
+	}
+	return apperrors.WrapForbidden("割引フィールドの作成権限がありません")
+}

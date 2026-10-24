@@ -132,7 +132,12 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 			httpapi.RespondError(c, err)
 			return
 		}
-		if err := httpapi.RequireDiscountEditFloat(c, httpapi.PermissionChecker(h.hasPermission), req.DiscountRate, existing.DiscountRate); err != nil {
+		newRate, err := model.ExactNumericFromFloat64(*req.DiscountRate)
+		if err != nil {
+			httpapi.RespondError(c, apperrors.WrapInvalidInput("discount_rate が不正です"))
+			return
+		}
+		if err := httpapi.RequireDiscountEditExact(c, httpapi.PermissionChecker(h.hasPermission), &newRate, existing.DiscountRate); err != nil {
 			httpapi.RespondError(c, err)
 			return
 		}
