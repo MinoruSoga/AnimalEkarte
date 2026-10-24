@@ -200,7 +200,7 @@ func buildScheduleOverride(entry *model.ShiftEntry, breaks []model.ShiftEntryBre
 	if !sharedkernel.RequiresTimeSlot(entry.ShiftType) || entry.StartsAt == nil || entry.EndsAt == nil {
 		return override
 	}
-	workStart, workEnd, onDay := clipToDayHHMM(*entry.StartsAt, *entry.EndsAt, dayStart, dayEnd)
+	workStart, workEnd, onDay := clipToDayHHMM(*entry.StartsAt, *entry.EndsAt, dayStart, dayEnd, roundMinuteUp, roundMinuteDown)
 	if !onDay {
 		// 当日に掛からない勤務行（勤務日と starts_at の暦日が食い違う旧データ等）は空の勤務窓にし、営業時間へ戻さない。
 		workStart, workEnd = "0000", "0000"
@@ -211,17 +211,42 @@ func buildScheduleOverride(entry *model.ShiftEntry, breaks []model.ShiftEntryBre
 		if b.StartsAt == nil || b.EndsAt == nil {
 			continue
 		}
-		if start, end, overlaps := clipToDayHHMM(*b.StartsAt, *b.EndsAt, dayStart, dayEnd); overlaps {
+		if start, end, overlaps := clipToDayHHMM(*b.StartsAt, *b.EndsAt, dayStart, dayEnd, roundMinuteDown, roundMinuteUp); overlaps {
 			override.Breaks = append(override.Breaks, BreakPeriod{Start: start, End: end})
 		}
 	}
 	return override
 }
 
+// minuteRounding は秒・秒未満を含む時刻を "HHMM"（分単位）へ丸めるときの方向を表す。
+type minuteRounding int
+
+const (
+	// roundMinuteDown は秒・秒未満を切り捨てる（ちょうどの分はそのまま）。
+	roundMinuteDown minuteRounding = iota
+	// roundMinuteUp は秒・秒未満があるときだけ次の分へ切り上げる（ちょうどの分はそのまま）。
+	roundMinuteUp
+)
+
+// roundToMinute は t を JST の分境界へ丸める。ちょうどの分の時刻は変えない。
+func roundToMinute(t time.Time, mode minuteRounding) time.Time {
+	j := t.In(config.JST)
+	floor := time.Date(j.Year(), j.Month(), j.Day(), j.Hour(), j.Minute(), 0, 0, config.JST)
+	if mode == roundMinuteUp && floor.Before(j) {
+		return floor.Add(time.Minute)
+	}
+	return floor
+}
+
 // clipToDayHHMM は [startsAt, endsAt) を評価日 [dayStart, dayEnd) へ切り出し、JST の "HHMM" の組で返す。
+// 秒・秒未満を含む境界は、使える時間を広げない向きに分単位へ丸める（startRound / endRound で指定する）。
+//   - 勤務: 開始は切り上げ、終了は切り捨て（勤務窓を狭める）
+//   - 休憩: 開始は切り捨て、終了は切り上げ（休憩を広げる）
+//
+// ちょうどの分の境界は変えない。丸めた結果、切り出し後の区間が空になったときも ok=false とする。
 // 当日に掛からないときは ok=false。翌 0:00 は "HHMM" で表せない（2400 は下流の解析で拒否される）ため "2359" とする。
 // 末尾 1 分の丸めでコース所要時間を収める枠が増えることはない。
-func clipToDayHHMM(startsAt, endsAt, dayStart, dayEnd time.Time) (start, end string, ok bool) {
+func clipToDayHHMM(startsAt, endsAt, dayStart, dayEnd time.Time, startRound, endRound minuteRounding) (start, end string, ok bool) {
 	if !startsAt.Before(dayEnd) || !endsAt.After(dayStart) {
 		return "", "", false
 	}
@@ -229,9 +254,23 @@ func clipToDayHHMM(startsAt, endsAt, dayStart, dayEnd time.Time) (start, end str
 	if clippedStart.Before(dayStart) {
 		clippedStart = dayStart
 	}
-	start = clippedStart.In(config.JST).Format("1504")
+	roundedStart := roundToMinute(clippedStart, startRound)
+	if !roundedStart.Before(dayEnd) {
+		// 開始の切り上げが翌 0:00 に達した = 当日に使える区間が残らない。
+		return "", "", false
+	}
+	start = roundedStart.In(config.JST).Format("1504")
 	if !endsAt.Before(dayEnd) {
 		return start, "2359", true
 	}
-	return start, endsAt.In(config.JST).Format("1504"), true
+	roundedEnd := roundToMinute(endsAt, endRound)
+	if clippedStart.Before(endsAt) && !roundedStart.Before(roundedEnd) {
+		// 丸めで空になった区間（例: 勤務 09:00:10〜09:00:50）は可用時間を足さない。
+		return "", "", false
+	}
+	if !roundedEnd.Before(dayEnd) {
+		// 終了の切り上げが翌 0:00 に達した場合も、既存の末尾規約どおり "2359" とする。
+		return start, "2359", true
+	}
+	return start, roundedEnd.In(config.JST).Format("1504"), true
 }
