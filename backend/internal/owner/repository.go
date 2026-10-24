@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -541,67 +540,19 @@ func (r *ownerRepository) LockLineLinkOwner(
 	return &owner, nil
 }
 
-// UpdateLineUserID は飼主の LINE User ID を更新する。nil を渡すと連携解除。
-func (r *ownerRepository) UpdateLineUserID(ctx context.Context, clinicID, id uint64, lineUserID *string) error {
-	update := func(txCtx context.Context) error {
-		var locked model.Owner
-		lockErr := persistence.DBOrTx(txCtx, r.db).
-			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Select("id", "line_user_id").
-			Scopes(persistence.ClinicScope(clinicID)).
-			Where("id = ? AND deleted_at IS NULL", id).
-			First(&locked).Error
-		if lockErr != nil {
-			return apperrors.FromGORM(lockErr, "owner", fmt.Sprintf("%d", id))
-		}
-		recipients := make([]string, 0, 2)
-		if locked.LineUserID != nil && *locked.LineUserID != "" {
-			recipients = append(recipients, *locked.LineUserID)
-		}
-		if lineUserID != nil && *lineUserID != "" {
-			recipients = append(recipients, *lineUserID)
-		}
-		sort.Strings(recipients)
-		for i, recipient := range recipients {
-			if i > 0 && recipients[i-1] == recipient {
-				continue
-			}
-			if err := persistence.AcquireLineRecipientLock(txCtx, clinicID, recipient); err != nil {
-				return err
-			}
-		}
-		if lineUserID != nil && *lineUserID != "" {
-			var conflicts int64
-			if err := persistence.DBOrTx(txCtx, r.db).
-				Model(&model.Owner{}).
-				Scopes(persistence.ClinicScope(clinicID)).
-				Where("line_user_id = ? AND deleted_at IS NULL AND id <> ?", *lineUserID, id).
-				Count(&conflicts).Error; err != nil {
-				return apperrors.Wrap(err, "failed to check line user id uniqueness")
-			}
-			if conflicts > 0 {
-				return apperrors.WrapConflict("line user id is already linked to another owner")
-			}
-		}
-		result := persistence.DBOrTx(txCtx, r.db).
-			Model(&model.Owner{}).
-			Scopes(persistence.ClinicScope(clinicID)).
-			Where("id = ? AND deleted_at IS NULL", id).
-			Update("line_user_id", lineUserID)
-		if result.Error != nil {
-			return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
-		}
-		if result.RowsAffected != 1 {
-			return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
-		}
-		return nil
+// UpdateLineUserID は飼主の LINE User ID の更新（連携・解除）を受け付ける。
+// owners.line_user_id は drop 済みで、置換先 owner_line_binding_states の writer はこの branch に無い。
+// 成功を装わないため、飼主の存在確認だけ行い、書き込みの前に line_binding_pending（422）で停止する。
+func (r *ownerRepository) UpdateLineUserID(ctx context.Context, clinicID, id uint64, _ *string) error {
+	var owner model.Owner
+	if err := persistence.DBOrTx(ctx, r.db).
+		Select("id").
+		Scopes(persistence.ClinicScope(clinicID)).
+		Where("id = ? AND deleted_at IS NULL", id).
+		First(&owner).Error; err != nil {
+		return apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}
-	if persistence.TxFromContext(ctx) != nil {
-		return update(ctx)
-	}
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return update(persistence.WithTxValue(ctx, tx))
-	})
+	return apperrors.WrapUnprocessableWithCode(apperrors.CodeLineBindingPending, "LINE 連携の保存は準備中のため、この操作はできません")
 }
 
 func (r *ownerRepository) FindByIDs(ctx context.Context, clinicID uint64, ids []uint64) ([]*model.Owner, error) {
