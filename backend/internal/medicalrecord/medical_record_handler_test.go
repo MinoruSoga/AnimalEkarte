@@ -492,16 +492,23 @@ func TestCreateMedicalRecord(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "returns 400 for invalid status",
+			// EMR-549 B1: status キーが存在すれば値に関わらず固定 422。service は呼ばれない。
+			name: "returns 422 when status key is present",
 			body: func() map[string]any {
 				b := validBody()
-				b["status"] = "unknown_status"
+				b["status"] = "draft"
 				return b
 			}(),
-			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
-			mrSvc:      &mockMedicalRecordService{},
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			mrSvc: &mockMedicalRecordService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					t.Fatal("service must not be called when status is present on create")
+					return nil, nil
+				},
+			},
 			cpSvc:      &mockClinicalPlanService{},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
+			wantBody:   "medical_record_status_retired",
 		},
 		{
 			name:     "returns 500 on service error",

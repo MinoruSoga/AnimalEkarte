@@ -251,9 +251,6 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 		slog.Uint64("record_id", id),
 		slog.Uint64("clinic_id", clinicID))
 
-	// 監査ログ: update（best-effort）。
-	s.logMedicalRecordChangeBestEffort(ctx, clinicID, input.ActorID, "update", id, existing, record, "audit log failed for medical record update")
-
 	return record, nil
 }
 

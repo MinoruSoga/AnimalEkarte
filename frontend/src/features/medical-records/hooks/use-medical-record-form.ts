@@ -76,6 +76,7 @@ export function useMedicalRecordForm(recordId?: string) {
     treatmentPolicyBaseline: read.existingRecord?.notes || DEFAULT_TREATMENT_POLICY,
     existingRecordVersion: read.existingRecord?.version,
     existingClinicalPlanVersion: read.clinicalPlanVersion,
+    existingClinicalPlanDiagnoses: read.clinicalPlanDiagnoses,
     onClinicalPlanSaved: read.onClinicalPlanSaved,
     setManualErrors: ui.setManualErrors,
     queryClient,

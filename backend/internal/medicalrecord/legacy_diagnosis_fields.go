@@ -72,10 +72,10 @@ func rejectLegacyDiagnosisFields(keys map[string]json.RawMessage) error {
 	return apperrors.WrapInvalidInput(legacyDiagnosisFieldsMessage + "（" + strings.Join(found, ", ") + "）")
 }
 
-// rejectStatusKeyOnUpdate は更新 body に status キーが存在すれば、値（null・文字列・数値・真偽・配列・object）に
+// rejectStatusKey は作成・更新 body に status キーが存在すれば、値（null・文字列・数値・真偽・配列・object）に
 // 関わらず固定エラー（422 medical_record_status_retired）を返す。存在判定はキーで行い、値の型や null には依存しない
-// （`*string` へのバインドでは null が未送信に見え、数値等はバインド 400 になるため。R2-01）。
-func rejectStatusKeyOnUpdate(keys map[string]json.RawMessage) error {
+// （`*string` へのバインドでは null が未送信に見え、数値等はバインド 400 になるため。R2-01。POST は EMR-549 B1）。
+func rejectStatusKey(keys map[string]json.RawMessage) error {
 	if _, present := keys["status"]; present {
 		return apperrors.WrapMedicalRecordStatusRetired(medicalRecordStatusFieldRetiredMessage)
 	}

@@ -2,41 +2,56 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
-import type { ClinicalPlan } from "../api/clinical-plan";
+import type { ClinicalPlan, ClinicalPlanDiagnosisRow } from "../api/clinical-plan";
 import { useApplyClinicalPlan } from "./use-apply-clinical-plan";
+
+function diagnosisRow(
+  slot: number,
+  typeId: string | null,
+  nameId: string | null,
+  overrides: Partial<ClinicalPlanDiagnosisRow> = {},
+): ClinicalPlanDiagnosisRow {
+  return {
+    id: `d-${slot}-${nameId ?? "none"}`,
+    version: 1,
+    diagnosis_slot: slot,
+    diagnosis_type_id: typeId,
+    diagnosis_name_id: nameId,
+    diagnosis_name_snapshot: null,
+    category_name_snapshot: null,
+    sort_order: 0,
+    ...overrides,
+  };
+}
 
 function clinicalPlan(overrides: Partial<ClinicalPlan> = {}): ClinicalPlan {
   return {
     id: "cp-10",
     medical_record_id: "10",
     physical_exam: "v1 身体所見",
-    diagnosis_type_id: "3",
-    diagnosis_name_id: "7",
-    diagnosis_2_type_id: "4",
-    diagnosis_2_name_id: "9",
+    // 診断1 = 区分3/名称7、診断2 = 区分4/名称9（BE は slot, sort_order, id 昇順で返す）
+    diagnoses: [diagnosisRow(1, "3", "7"), diagnosisRow(2, "4", "9")],
     diagnosis_details: "v1 診断詳細",
     treatment_policy: "v1 治療方針",
     created_at: "2026-09-05T00:00:00Z",
     updated_at: "2026-09-05T00:00:00Z",
-    diagnosis_type: null,
-    diagnosis_name: null,
-    diagnosis_2_type: null,
-    diagnosis_2_name: null,
     version: 1,
     ...overrides,
   };
 }
 
 function draftFrom(plan: ClinicalPlan) {
+  const slot1Row = plan.diagnoses.find((row) => row.diagnosis_slot === 1);
+  const slot2Row = plan.diagnoses.find((row) => row.diagnosis_slot === 2);
+  const toNumber = (id: string | null | undefined) => (id == null ? null : Number(id));
   return {
     physicalExam: plan.physical_exam,
     plan: plan.treatment_policy,
     assessment: plan.diagnosis_details,
-    diagnosis1CategoryId: plan.diagnosis_type_id === null ? null : Number(plan.diagnosis_type_id),
-    diagnosis1NameId: plan.diagnosis_name_id === null ? null : Number(plan.diagnosis_name_id),
-    diagnosis2CategoryId:
-      plan.diagnosis_2_type_id === null ? null : Number(plan.diagnosis_2_type_id),
-    diagnosis2NameId: plan.diagnosis_2_name_id === null ? null : Number(plan.diagnosis_2_name_id),
+    diagnosis1CategoryId: toNumber(slot1Row?.diagnosis_type_id),
+    diagnosis1NameId: toNumber(slot1Row?.diagnosis_name_id),
+    diagnosis2CategoryId: toNumber(slot2Row?.diagnosis_type_id),
+    diagnosis2NameId: toNumber(slot2Row?.diagnosis_name_id),
   };
 }
 
@@ -89,10 +104,7 @@ describe("useApplyClinicalPlan", () => {
       physical_exam: "B の身体所見",
       treatment_policy: "B の治療方針",
       diagnosis_details: "B の診断詳細",
-      diagnosis_type_id: "11",
-      diagnosis_name_id: "12",
-      diagnosis_2_type_id: "13",
-      diagnosis_2_name_id: "14",
+      diagnoses: [diagnosisRow(1, "11", "12"), diagnosisRow(2, "13", "14")],
     });
     const { result, rerender } = renderHook(({ plan }) => useClinicalPlanHarness("10", plan), {
       initialProps: { plan: v1 },
@@ -121,10 +133,7 @@ describe("useApplyClinicalPlan", () => {
       physical_exam: "v2 身体所見",
       treatment_policy: "v2 治療方針",
       diagnosis_details: "v2 診断詳細",
-      diagnosis_type_id: "11",
-      diagnosis_name_id: "12",
-      diagnosis_2_type_id: "13",
-      diagnosis_2_name_id: "14",
+      diagnoses: [diagnosisRow(1, "11", "12"), diagnosisRow(2, "13", "14")],
     });
     const { result, rerender } = renderHook(({ plan }) => useClinicalPlanHarness("10", plan), {
       initialProps: { plan: v1 },
@@ -211,10 +220,7 @@ describe("useApplyClinicalPlan", () => {
 
   it("同一 version の遅延診断 hydrate は未編集の診断 snapshot にのみ取り込む", async () => {
     const withoutDiagnosis = clinicalPlan({
-      diagnosis_type_id: null,
-      diagnosis_name_id: null,
-      diagnosis_2_type_id: null,
-      diagnosis_2_name_id: null,
+      diagnoses: [],
     });
     const withDiagnosis = clinicalPlan();
     const { result, rerender } = renderHook(({ plan }) => useClinicalPlanHarness("10", plan), {
@@ -235,10 +241,7 @@ describe("useApplyClinicalPlan", () => {
 
   it("ユーザーが先に選んだ診断は、同一 version の遅延 hydrate で上書きしない", async () => {
     const withoutDiagnosis = clinicalPlan({
-      diagnosis_type_id: null,
-      diagnosis_name_id: null,
-      diagnosis_2_type_id: null,
-      diagnosis_2_name_id: null,
+      diagnoses: [],
     });
     const withDiagnosis = clinicalPlan();
     const { result, rerender } = renderHook(({ plan }) => useClinicalPlanHarness("10", plan), {
@@ -312,6 +315,42 @@ describe("useApplyClinicalPlan", () => {
     await waitFor(() => {
       expect(result.current.plan).toBe("");
       expect(result.current.clinicalPlanVersion).toBeUndefined();
+    });
+  });
+
+  it("診断は slot ごとに返却順の先頭行を代表として hydrate し、baseline には全行を保持する", async () => {
+    const rows = [
+      diagnosisRow(1, "3", "7", { id: "d-1", sort_order: 0 }),
+      diagnosisRow(1, "3", "8", { id: "d-2", sort_order: 1 }),
+      diagnosisRow(2, "4", "9", { id: "d-3" }),
+    ];
+    const v1 = clinicalPlan({ diagnoses: rows });
+    const { result } = renderHook(() => useClinicalPlanHarness("10", v1));
+
+    await waitFor(() => {
+      expect(result.current.diagnosis1NameId).toBe(7);
+      expect(result.current.diagnosis2NameId).toBe(9);
+      expect(result.current.clinicalPlanDiagnoses).toEqual(rows);
+    });
+  });
+
+  it("own PATCH response の診断行を次の baseline 診断行として採用する", async () => {
+    const v1 = clinicalPlan();
+    const savedRows = [diagnosisRow(1, "3", "7"), diagnosisRow(2, "4", "10")];
+    const saved = clinicalPlan({ version: 2, diagnoses: savedRows });
+    const { result } = renderHook(() => useClinicalPlanHarness("10", v1));
+
+    await waitFor(() => {
+      expect(result.current.clinicalPlanVersion).toBe(1);
+    });
+    act(() => {
+      result.current.onClinicalPlanSaved(saved, draftFrom(v1));
+    });
+
+    await waitFor(() => {
+      expect(result.current.diagnosis2NameId).toBe(10);
+      expect(result.current.clinicalPlanDiagnoses).toEqual(savedRows);
+      expect(result.current.clinicalPlanVersion).toBe(2);
     });
   });
 });

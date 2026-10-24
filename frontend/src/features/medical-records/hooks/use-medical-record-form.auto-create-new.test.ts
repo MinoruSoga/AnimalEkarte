@@ -230,9 +230,10 @@ describe("useMedicalRecordForm — 新規作成 auto-create effect (新規予約
           pet_id: mockPet.id,
           owner_id: mockPet.ownerId,
           appointment_id: "appointment-1",
-          status: "draft",
         }),
       );
+      // EMR-549（PO 決定 B1）: POST /v1/medical-records に status を送らない（サーバーは status キーを固定 422 で拒否する）。
+      expect(mockMutateAsync.mock.calls[0]?.[0]).not.toHaveProperty("status");
     });
   });
 

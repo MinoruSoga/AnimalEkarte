@@ -1684,9 +1684,9 @@ func TestMedicalRecordService_Create_AuditLog(t *testing.T) {
 	assert.Contains(t, auditSvc.calls, "create", "create 操作が audit に記録されること")
 }
 
-// TestMedicalRecordService_Update_AuditLog はカルテ更新時に audit "update" が記録されることを確認する。
+// TestMedicalRecordService_Update_AuditLog はカルテ更新時に audit "update" が更新と同じ tx（LogEntryTx）で記録されることを確認する。
 func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
-	auditSvc := &mockAuditService{}
+	auditTx := &mockTreatmentAuditTxLogger{}
 	repo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
@@ -1704,7 +1704,7 @@ func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
 		},
 	}
 	reservationRepo := &mockReservationRepoForMedicalRecord{}
-	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, auditSvc, nil, &mockTransactor{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, auditTx, &mockTransactor{})
 
 	staffID := uint64(7)
 	_, err := svc.Update(context.Background(), 1, 10, UpdateMedicalRecordInput{
@@ -1712,7 +1712,14 @@ func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
 		ActorID:  &staffID,
 	})
 	assert.NoError(t, err)
-	assert.Contains(t, auditSvc.calls, "update", "update 操作が audit に記録されること")
+	require.Len(t, auditTx.entries, 1, "update 操作が更新と同じ tx の監査（LogEntryTx）に 1 件記録されること")
+	entry := auditTx.entries[0]
+	assert.Equal(t, "update", entry.Action)
+	assert.Equal(t, "medical_record", entry.Resource)
+	require.NotNil(t, entry.ActorID)
+	assert.Equal(t, staffID, *entry.ActorID)
+	require.NotNil(t, entry.ResourceID)
+	assert.Equal(t, uint64(10), *entry.ResourceID)
 }
 
 // TestMedicalRecordService_AuditFailure_NonFatal は監査ログ書き込み失敗がメイン処理を止めないことを確認する。

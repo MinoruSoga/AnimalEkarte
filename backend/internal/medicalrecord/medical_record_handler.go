@@ -107,7 +107,7 @@ func (h *MedicalRecordHandler) CreateMedicalRecord(c *gin.Context) {
 		return
 	}
 	var input createMedicalRecordRequest
-	if err := bindJSONGuarded(c, &input, rejectLegacyDiagnosisFields); err != nil {
+	if err := bindJSONGuarded(c, &input, rejectStatusKey, rejectLegacyDiagnosisFields); err != nil {
 		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}
@@ -151,7 +151,7 @@ func (h *MedicalRecordHandler) UpdateMedicalRecord(c *gin.Context) {
 		return
 	}
 	var input updateMedicalRecordRequest
-	if err := bindJSONGuarded(c, &input, rejectLegacyDiagnosisFields, rejectStatusKeyOnUpdate); err != nil {
+	if err := bindJSONGuarded(c, &input, rejectStatusKey, rejectLegacyDiagnosisFields); err != nil {
 		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}

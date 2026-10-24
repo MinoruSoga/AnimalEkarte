@@ -29,10 +29,7 @@ Owner: clinical_plan PATCH child resource. The parent medical-record and inquiry
 | UI/system state             | wire key            | R/O | 型        | 制約・特記                           | F 重点 |
 | :-------------------------- | :------------------ | :-- | :-------- | :----------------------------------- | :----- |
 | physicalExam                | physical_exam       | O   | text      | 身体検査所見                         | F0 F4  |
-| diagnosis1CategoryId        | diagnosis_type_id   | O   | select FK | 診断1区分                            | F0 F4  |
-| diagnosis1NameId            | diagnosis_name_id   | O   | select FK | 診断1名称。区分連動                  | F0 F4  |
-| diagnosis2CategoryId        | diagnosis_2_type_id | O   | select FK | 診断2区分                            | F0 F4  |
-| diagnosis2NameId            | diagnosis_2_name_id | O   | select FK | 診断2名称。区分連動                  | F0 F4  |
+| diagnosisRows               | diagnoses           | O   | array     | 診断行の配列（診断1 = diagnosis_slot 1、診断2 = 2）。各行のキー: diagnosis_slot / diagnosis_type_id / diagnosis_name_id / diagnosis_name_snapshot / category_name_snapshot / sort_order。読込済みの代表行（slot ごとの返却順の先頭）と UI の区分・名称が同じ slot は、読込済みの全行（複数行・スナップショット・sort_order）を値のまま送る。異なる slot は新しい 1 行（スナップショット null・sort_order 0）に置換し、両方未選択ならその slot の行は送らない。どの slot も変わらなければ diagnoses を送らない（変更なし）。両 slot をユーザーがクリアしたときだけ `[]`（全行クリア） | F0 F4  |
 | assessment                  | diagnosis_details   | O   | text      | 診断詳細                             | F0 F4  |
 | plan                        | treatment_policy    | O   | text      | 治療方針                             | F0 F4  |
 | existingClinicalPlanVersion | version             | S   | number    | CAS system version; not user-entered（返却 version を次の PATCH へ送る。省略 legacy path は CAS 対象外） | F0 F4  |
