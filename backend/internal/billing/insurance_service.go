@@ -107,6 +107,7 @@ func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *C
 	if err := ValidateCoverageRate(coverageRate); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate coverage rate")
 	}
+	sortOrder := input.SortOrder // request の sort_order は非 pointer（省略 = 0 の旧来の挙動）。保存時は指定された値として書く。
 	insurance := &model.Insurance{
 		ClinicID:     clinicID,
 		Name:         input.Name,
@@ -114,7 +115,7 @@ func (s *insuranceService) Create(ctx context.Context, clinicID uint64, input *C
 		Description:  input.Description,
 		CoverageRate: coverageRate,
 		ContactPhone: input.ContactPhone,
-		SortOrder:    input.SortOrder,
+		SortOrder:    &sortOrder,
 	}
 	if err := s.repo.Create(ctx, insurance); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create insurance")

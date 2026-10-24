@@ -30,17 +30,18 @@ const (
 // --- Input DTOs ---
 
 // CreateBillingItemInput は billing_item 作成の入力DTO
+// （IsInsuranceApplicable・SortOrder は request が非 pointer のため「省略 = false / 0」の旧来の挙動を維持している）
 type CreateBillingItemInput struct {
 	ClinicID              uint64
 	BillingID             uint64
 	Category              string // Service 内で model.ItemCategory に変換
 	Name                  string
-	UnitPrice             int64
-	Quantity              float64
-	DiscountRate          float64
+	UnitPrice             model.ExactNumeric
+	Quantity              model.ExactNumeric
+	DiscountRate          model.ExactNumeric
 	DiscountAmount        int64
-	TaxType               string // "" = デフォルト "excluded"
-	TaxRate               float64
+	TaxType               string              // "" = デフォルト "excluded"
+	TaxRate               *model.ExactNumeric // nil または 0 は旧来の互換でデフォルト 0.10（明示 0% は保存できない既存挙動）
 	IsInsuranceApplicable bool
 	Source                string // "" = デフォルト "manual"
 	OtherReason           *string
@@ -63,12 +64,12 @@ type CreateBillingItemInput struct {
 type UpdateBillingItemInput struct {
 	// EMR-229: 社販処理の目安として項目名に年月等を追記できるよう name 更新を許可する。
 	Name                  *string
-	UnitPrice             *int64
-	Quantity              *float64
-	DiscountRate          *float64
+	UnitPrice             *model.ExactNumeric
+	Quantity              *model.ExactNumeric
+	DiscountRate          *model.ExactNumeric
 	DiscountAmount        *int64
 	TaxType               *model.TaxType
-	TaxRate               *float64
+	TaxRate               *model.ExactNumeric
 	IsInsuranceApplicable *bool
 	// #115 / BUG-463: 締め後編集（handler がレジ締め済み判定を注入）
 	StaffID         *uint64
@@ -115,6 +116,90 @@ func buildBillingItemUpdate(input *UpdateBillingItemInput) map[string]any {
 	return fields
 }
 
+// billingSourceItemPendingMessage は請求元（provenance）を持つ明細の作成を拒否する固定エラーの文言（EMR-505 / Q7）。
+const billingSourceItemPendingMessage = "診療・予防接種・検査・トリミング・入院に由来する請求明細の作成は、請求元の紐付け（billing_source_bindings）が未接続のため利用できません。手入力の明細は作成できます"
+
+// rejectSourceBearingCreate は請求元を持つ明細の作成を、読み書きの前に固定エラー（422 finance_consumer_pending）で拒否する。
+// 対象は treatment・vaccination・exam・appointment・trimming のいずれかの id、または manual 以外の source。
+// 請求元の保存は billing_source_bindings へ移り（明細側の列は 001_init.sql:10891 で廃止）、その writer が未接続（EMR-481）のため、
+// 廃止列へ書くことも、由来のない明細として黙って作ることもしない。resume: 481 の treatment subset が merge されたとき。
+func rejectSourceBearingCreate(input *CreateBillingItemInput) error {
+	hasProvenance := input.TreatmentID != nil ||
+		input.VaccinationID != nil ||
+		input.ExamID != nil ||
+		input.AppointmentID != nil ||
+		input.TrimmingCourseID != nil ||
+		input.TrimmingOptionID != nil
+	if hasProvenance || (input.Source != "" && input.Source != string(model.ItemSourceManual)) {
+		return apperrors.WrapFinanceConsumerPending(billingSourceItemPendingMessage)
+	}
+	return nil
+}
+
+// exactInRange は n が有限で lower 以上 upper 以下かを返す。比較は exact で、丸めない。
+func exactInRange(n model.ExactNumeric, lower, upper int64) bool {
+	low, lowOK := n.Cmp(model.ExactNumericFromInt64(lower))
+	high, highOK := n.Cmp(model.ExactNumericFromInt64(upper))
+	return lowOK && highOK && low >= 0 && high <= 0
+}
+
+// validateBillingItemPrice は単価が有限の 0 以上であることを検査する。
+func validateBillingItemPrice(unitPrice model.ExactNumeric) error {
+	if sign, ok := unitPrice.Cmp(model.ExactNumericFromInt64(0)); !ok || sign < 0 {
+		return apperrors.WrapInvalidInput(sharedkernel.ErrMsgPriceZeroOrMore)
+	}
+	return nil
+}
+
+// validateBillingItemQuantity は数量が有限の正の値であることを検査する。
+func validateBillingItemQuantity(quantity model.ExactNumeric) error {
+	if sign, ok := quantity.Cmp(model.ExactNumericFromInt64(0)); !ok || sign <= 0 {
+		return apperrors.WrapInvalidInput("数量は正の値である必要があります")
+	}
+	return nil
+}
+
+// validateBillingItemDiscountRate は割引率（百分率）が有限の 0 以上 100 以下であることを検査する。
+func validateBillingItemDiscountRate(rate model.ExactNumeric) error {
+	if !exactInRange(rate, 0, 100) {
+		return apperrors.WrapInvalidInput("割引率は0以上100以下で指定してください")
+	}
+	return nil
+}
+
+// validateBillingItemTaxRate は税率（割合）が有限の 0 以上 1 以下であることを検査する。
+func validateBillingItemTaxRate(rate model.ExactNumeric) error {
+	if !exactInRange(rate, 0, 1) {
+		return apperrors.WrapInvalidInput("税率は0以上1以下で指定してください")
+	}
+	return nil
+}
+
+// validateUpdateBillingItemDecimals は update で指定された（非 nil の）10進フィールドを検査する。
+func validateUpdateBillingItemDecimals(input *UpdateBillingItemInput) error {
+	if input.UnitPrice != nil {
+		if err := validateBillingItemPrice(*input.UnitPrice); err != nil {
+			return err
+		}
+	}
+	if input.Quantity != nil {
+		if err := validateBillingItemQuantity(*input.Quantity); err != nil {
+			return err
+		}
+	}
+	if input.DiscountRate != nil {
+		if err := validateBillingItemDiscountRate(*input.DiscountRate); err != nil {
+			return err
+		}
+	}
+	if input.TaxRate != nil {
+		if err := validateBillingItemTaxRate(*input.TaxRate); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func validateCreateBillingItemInput(input *CreateBillingItemInput) error {
 	if input == nil {
 		return apperrors.WrapInvalidInput("請求明細は必須です")
@@ -125,41 +210,51 @@ func validateCreateBillingItemInput(input *CreateBillingItemInput) error {
 	if input.Name == "" {
 		return apperrors.WrapInvalidInput("商品名は必須です")
 	}
-	if input.UnitPrice < 0 {
-		return apperrors.WrapInvalidInput(sharedkernel.ErrMsgPriceZeroOrMore)
+	if err := validateBillingItemPrice(input.UnitPrice); err != nil {
+		return err
 	}
-	if input.Quantity <= 0 {
-		return apperrors.WrapInvalidInput("数量は正の値である必要があります")
+	if err := validateBillingItemQuantity(input.Quantity); err != nil {
+		return err
 	}
-	return nil
+	if err := validateBillingItemDiscountRate(input.DiscountRate); err != nil {
+		return err
+	}
+	if input.TaxRate != nil {
+		if err := validateBillingItemTaxRate(*input.TaxRate); err != nil {
+			return err
+		}
+	}
+	return rejectSourceBearingCreate(input)
 }
 
-func resolveBillingItemDefaults(input *CreateBillingItemInput) (model.TaxType, float64, model.ItemSource, error) {
+func resolveBillingItemDefaults(input *CreateBillingItemInput) (model.TaxType, model.ExactNumeric, model.ItemSource, error) {
 	// カテゴリバリデーション
 	if err := validateItemCategory(input.Category); err != nil {
-		return "", 0, "", apperrors.Wrap(err, "failed to validate item category")
+		return "", model.ExactNumeric{}, "", apperrors.Wrap(err, "failed to validate item category")
 	}
 
 	// TaxType デフォルト設定とバリデーション
 	taxType := model.TaxTypeExcluded
 	if input.TaxType != "" {
 		if err := sharedkernel.ValidateTaxType(input.TaxType); err != nil {
-			return "", 0, "", apperrors.Wrap(err, "failed to validate tax type")
+			return "", model.ExactNumeric{}, "", apperrors.Wrap(err, "failed to validate tax type")
 		}
 		taxType = model.TaxType(input.TaxType)
 	}
 
-	// TaxRate デフォルト設定
-	taxRate := sharedkernel.DefaultTaxRate
-	if input.TaxRate > 0 {
-		taxRate = input.TaxRate
+	// TaxRate: nil または 0 は 0.10 にする。旧来の互換（旧実装は `input.TaxRate > 0` でなければ既定 0.10）をそのまま
+	// 維持しており、明示された 0% の税率は保存できない。業務上の誤りの可能性があるため仕様判断が出るまで変更しない。
+	// 0.10 は float64 の sharedkernel.DefaultTaxRate ではなく exact で作る（EMR-505 フォローアップ）。
+	taxRate := model.ExactNumericFromScaledInt64(10, 2)
+	if input.TaxRate != nil && !input.TaxRate.IsZero() {
+		taxRate = *input.TaxRate
 	}
 
 	// Source デフォルト設定とバリデーション
 	source := model.ItemSourceManual
 	if input.Source != "" {
 		if err := validateItemSource(input.Source); err != nil {
-			return "", 0, "", apperrors.Wrap(err, "failed to validate item source")
+			return "", model.ExactNumeric{}, "", apperrors.Wrap(err, "failed to validate item source")
 		}
 		source = model.ItemSource(input.Source)
 	}
@@ -170,7 +265,7 @@ func resolveBillingItemDefaults(input *CreateBillingItemInput) (model.TaxType, f
 func applyBillingItemOtherMetadata(input *CreateBillingItemInput, item *model.BillingItem) error {
 	item.OtherReason = nil
 	item.CreatedBy = nil
-	if item.Source != model.ItemSourceManual ||
+	if item.Source == nil || *item.Source != model.ItemSourceManual ||
 		item.Category != model.ItemCategoryOther ||
 		input.MerchandiseItemID != nil {
 		return nil
@@ -257,7 +352,7 @@ type UnbilledDetails struct {
 	Items             []model.BillingItem
 	Warnings          []UnbilledWarning
 	Revision          string
-	OwnerDiscountRate float64
+	OwnerDiscountRate model.ExactNumeric
 }
 
 type billingItemService struct {
@@ -274,14 +369,6 @@ type billingItemService struct {
 	auditTx        billingAuditTxLogger // #115 / BUG-463: 締め後編集 fail-closed 監査
 	// closeRepo は W-013 締め後明細変更の append-only adjustment 台帳用（任意 DI）。
 	closeRepo CashRegisterCloseRepository
-}
-
-type unbilledTrimmingItemFinder interface {
-	FindUnbilledTrimmingItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
-}
-
-type ungroupedTrimmingCounter interface {
-	CountNonAccountingTrimmingByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
 }
 
 // billingItemServiceOption は BillingItemService 構築時の任意依存注入。
@@ -317,34 +404,57 @@ func NewBillingItemServiceWithCampaign(repo BillingItemRepository, billingRepo a
 	return s
 }
 
-// rejectIfBillingFinalized は確定/取消済み会計への明細変更を Conflict で拒否する（BUG-463 / DeleteItem と同型）。
+// 請求の claim_state（billings.claim_state）。001_init.sql:9454 の
+// CHECK (claim_state IN ('draft','finalized','cancelled')) に対応する。列は NULL を許す（同行）ため、
+// NULL・未知の値は「状態不明」として扱い、明細の変更を許可しない。
+const (
+	billingClaimStateDraft     = "draft"
+	billingClaimStateFinalized = "finalized"
+	billingClaimStateCancelled = "cancelled"
+)
+
+// billingClaimState は請求の claim_state を返す。NULL または請求なしは空文字（状態不明）。
+func billingClaimState(billing *model.Billing) string {
+	if billing == nil || billing.ClaimState == nil {
+		return ""
+	}
+	return *billing.ClaimState
+}
+
+// rejectIfBillingFinalized は draft 以外の請求への明細変更を Conflict で拒否する（BUG-463 / DeleteItem と同型）。
+// finalized・cancelled は旧来の completed・cancelled と同じ文言。NULL・未知の claim_state は許可せず、状態不明として拒否する。
 func rejectIfBillingFinalized(billing *model.Billing, action string) error {
 	if billing == nil {
 		return apperrors.WrapInternalServerError("locked billing is nil")
 	}
-	if billing.Status == model.BillingStatusCompleted ||
-		billing.Status == model.BillingStatusCancelled {
+	switch billingClaimState(billing) {
+	case billingClaimStateDraft:
+		return nil
+	case billingClaimStateFinalized, billingClaimStateCancelled:
 		return apperrors.WrapConflict(fmt.Sprintf("確定済みまたは取消済みの会計明細は%sできません", action))
+	default:
+		return apperrors.WrapConflict(fmt.Sprintf("会計の請求状態（claim_state）を確認できないため、明細を%sできません", action))
 	}
-	return nil
 }
 
-// rejectUnlessCompletedCorrectionAllowed は UpdateItem 用。
-// cancelled は常に拒否。completed は post_close_reason 付きの訂正のみ許可（BUG-009）。
-func rejectUnlessCompletedCorrectionAllowed(billing *model.Billing, action string, reason *string) error {
+// rejectItemUpdateUnlessDraft は UpdateItem 用。draft のときだけ更新を許可する。
+// 確定済み（finalized）の明細訂正は、変更イベントと新しい算定版を作る correct の操作（EMR-483 / 505 / 506）にあたり、
+// その writer が未接続のため、旧来の「理由付き訂正」（BUG-009）は固定エラー（422）で拒否する。
+// cancelled と状態不明（NULL・未知）は Conflict。
+func rejectItemUpdateUnlessDraft(billing *model.Billing, action string) error {
 	if billing == nil {
 		return apperrors.WrapInternalServerError("locked billing is nil")
 	}
-	if billing.Status == model.BillingStatusCancelled {
-		return apperrors.WrapConflict(fmt.Sprintf("確定済みまたは取消済みの会計明細は%sできません", action))
-	}
-	if billing.Status == model.BillingStatusCompleted {
-		if reason == nil || strings.TrimSpace(*reason) == "" {
-			return apperrors.WrapInvalidInput("確定済み会計の明細修正には修正理由（post_close_reason）が必要です")
-		}
+	switch billingClaimState(billing) {
+	case billingClaimStateDraft:
 		return nil
+	case billingClaimStateFinalized:
+		return apperrors.WrapFinanceConsumerPending(fmt.Sprintf("確定済み会計の明細%sは、訂正の変更イベントと新しい算定版（correct）が未接続のため利用できません", action))
+	case billingClaimStateCancelled:
+		return apperrors.WrapConflict(fmt.Sprintf("確定済みまたは取消済みの会計明細は%sできません", action))
+	default:
+		return apperrors.WrapConflict(fmt.Sprintf("会計の請求状態（claim_state）を確認できないため、明細を%sできません", action))
 	}
-	return nil
 }
 
 func requirePostCloseReason(isPostClose bool, reason *string) error {
@@ -356,6 +466,5 @@ func requirePostCloseReason(isPostClose bool, reason *string) error {
 
 // createItemAmbientOpts は CreateItem / Complete 共有の ambient tx 内明細作成オプション。
 type createItemAmbientOpts struct {
-	recalculate     bool // false のとき totals 再計算を呼び出し側に委ねる（Complete が最後に一括再計算）
 	recordPostClose bool // false のとき締め後監査は command 単位で Complete が記録する
 }
