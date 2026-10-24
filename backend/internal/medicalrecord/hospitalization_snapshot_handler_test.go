@@ -151,3 +151,33 @@ func TestListHospitalizationsSnapshotBoundary(t *testing.T) {
 		})
 	}
 }
+
+// B-R2-SPEC-01: the retired list names are refused by key presence on the paginated and the snapshot path;
+// an empty or repeated value must not pass as an unfiltered list.
+func TestListHospitalizationsRefusesRetiredQueryKeyRegardlessOfValue(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, prefix := range []string{"page=1&limit=20&", "snapshot=true&"} {
+		for _, key := range []string{"status", "start_date", "end_date"} {
+			for _, raw := range []string{key + "=", key + "=&" + key + "=2026-10-24"} {
+				query := prefix + raw
+				t.Run(query, func(t *testing.T) {
+					listCalled := false
+					svc := &snapshotHospitalizationService{mockHospitalizationService: &mockHospitalizationService{
+						listFn: func(context.Context, uint64, *uint64, *uint64, *string, *string, *string, int, int) ([]model.Hospitalization, int64, error) {
+							listCalled = true
+							return nil, 0, nil
+						},
+					}}
+					rec := httptest.NewRecorder()
+					c, _ := gin.CreateTestContext(rec)
+					c.Request = httptest.NewRequest(http.MethodGet, "/hospitalizations?"+query, nil)
+					setClinicID(c)
+					newHandlerWithHospitalizationSvc(svc).ListHospitalizations(c)
+					require.Equal(t, http.StatusBadRequest, rec.Code)
+					require.False(t, listCalled)
+					require.False(t, svc.called)
+				})
+			}
+		}
+	}
+}

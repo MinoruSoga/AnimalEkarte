@@ -79,9 +79,9 @@ func TestListHospitalizationQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 		{name: "planned_entry_to", query: listHospitalizationQuery{PlannedEntryTo: "2026/05/31"}},
 		{name: "lifecycle_state", query: listHospitalizationQuery{LifecycleState: "released"}},
 		// The pre-stay names are refused, not ignored: ignoring would return an unfiltered list.
-		{name: "retired status", query: listHospitalizationQuery{RetiredStatus: "admitted"}},
-		{name: "retired start_date", query: listHospitalizationQuery{RetiredStartDate: "2026-05-01"}},
-		{name: "retired end_date", query: listHospitalizationQuery{RetiredEndDate: "2026-05-31"}},
+		{name: "retired status", query: listHospitalizationQuery{RetiredStatus: true}},
+		{name: "retired start_date", query: listHospitalizationQuery{RetiredStartDate: true}},
+		{name: "retired end_date", query: listHospitalizationQuery{RetiredEndDate: true}},
 	}
 
 	for _, tt := range tests {
@@ -97,6 +97,28 @@ func TestListHospitalizationQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 				t.Fatalf("error = %v, want invalid input", err)
 			}
 		})
+	}
+}
+
+// Retired names are refused by key presence: an empty or repeated value must not pass as "no filter".
+func TestListHospitalizationQuery_RefusesRetiredKeyRegardlessOfValue(t *testing.T) {
+	for _, key := range []string{"status", "start_date", "end_date"} {
+		for _, raw := range []string{key + "=", key, key + "=&" + key + "=2026-10-24"} {
+			t.Run(raw, func(t *testing.T) {
+				values, err := url.ParseQuery(raw)
+				if err != nil {
+					t.Fatalf("ParseQuery(%q) error = %v", raw, err)
+				}
+				q := newListHospitalizationQuery(values)
+				filters, err := q.toServiceFilters()
+				if !apperrors.IsInvalidInput(err) {
+					t.Fatalf("error = %v, want invalid input", err)
+				}
+				if filters != (listHospitalizationFilters{}) {
+					t.Fatalf("filters = %#v, want zero value", filters)
+				}
+			})
+		}
 	}
 }
 

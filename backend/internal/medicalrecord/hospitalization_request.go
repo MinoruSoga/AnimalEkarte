@@ -17,10 +17,11 @@ type listHospitalizationQuery struct {
 	PlannedEntryFrom string
 	PlannedEntryTo   string
 	// RetiredStatus / RetiredStartDate / RetiredEndDate are the pre-stay query names. They are read only
-	// to be refused: ignoring them would silently return an unfiltered list.
-	RetiredStatus    string
-	RetiredStartDate string
-	RetiredEndDate   string
+	// to be refused: ignoring them would silently return an unfiltered list. They record key presence,
+	// not value: `?status=` and `?start_date=&start_date=2026-10-24` are refused as well.
+	RetiredStatus    bool
+	RetiredStartDate bool
+	RetiredEndDate   bool
 }
 
 func newListHospitalizationQuery(values url.Values) listHospitalizationQuery {
@@ -30,10 +31,16 @@ func newListHospitalizationQuery(values url.Values) listHospitalizationQuery {
 		LifecycleState:   values.Get("lifecycle_state"),
 		PlannedEntryFrom: values.Get("planned_entry_from"),
 		PlannedEntryTo:   values.Get("planned_entry_to"),
-		RetiredStatus:    values.Get("status"),
-		RetiredStartDate: values.Get("start_date"),
-		RetiredEndDate:   values.Get("end_date"),
+		RetiredStatus:    hasQueryKey(values, "status"),
+		RetiredStartDate: hasQueryKey(values, "start_date"),
+		RetiredEndDate:   hasQueryKey(values, "end_date"),
 	}
+}
+
+// hasQueryKey reports whether key is present at all, whatever its (empty or repeated) values are.
+func hasQueryKey(values url.Values, key string) bool {
+	_, ok := values[key]
+	return ok
 }
 
 type listHospitalizationFilters struct {
@@ -45,10 +52,14 @@ type listHospitalizationFilters struct {
 }
 
 func (q *listHospitalizationQuery) toServiceFilters() (listHospitalizationFilters, error) {
-	for name, value := range map[string]string{"status": q.RetiredStatus, "start_date": q.RetiredStartDate, "end_date": q.RetiredEndDate} {
-		if value != "" {
+	retired := []struct {
+		name    string
+		present bool
+	}{{"status", q.RetiredStatus}, {"start_date", q.RetiredStartDate}, {"end_date", q.RetiredEndDate}}
+	for _, r := range retired {
+		if r.present {
 			return listHospitalizationFilters{}, apperrors.WrapInvalidInput(
-				name + " は廃止されました。lifecycle_state / planned_entry_from / planned_entry_to を使用してください")
+				r.name + " は廃止されました。lifecycle_state / planned_entry_from / planned_entry_to を使用してください")
 		}
 	}
 	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
