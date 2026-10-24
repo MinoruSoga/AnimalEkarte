@@ -35,11 +35,16 @@ func (h *Handler) ListOwners(c *gin.Context) {
 
 	owners, total, err := h.service.List(c.Request.Context(), clinicIDs, page, limit, query.Search)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondOwnerError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(httpapi.MapSlice(owners, toOwnerResponse), total, page, limit))
+	items, err := toOwnerResponses(owners)
+	if err != nil {
+		respondOwnerError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(items, total, page, limit))
 }
 
 // GetOwner godoc
@@ -59,10 +64,10 @@ func (h *Handler) GetOwner(c *gin.Context) {
 	}
 	owner, err := h.service.GetByIDForClinics(c.Request.Context(), clinicIDs, id)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondOwnerError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toOwnerResponse(owner))
+	respondOwner(c, http.StatusOK, owner)
 }
 
 // CreateOwner godoc
@@ -102,11 +107,11 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 	input := req.toServiceInput()
 	owner, err := h.service.CreateWithPets(c.Request.Context(), clinicID, &input)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondOwnerError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/owners/%d", owner.ID))
-	c.JSON(http.StatusCreated, toOwnerResponse(owner))
+	respondOwner(c, http.StatusCreated, owner)
 }
 
 // UpdateOwner godoc
@@ -120,8 +125,8 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 		return
 	}
 	var req updateOwnerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	if err := bindUpdateOwnerRequest(c, &req); err != nil {
+		respondOwnerError(c, err)
 		return
 	}
 
@@ -145,10 +150,10 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 	}
 	owner, err := h.service.Update(c.Request.Context(), clinicID, id, input)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondOwnerError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toOwnerResponse(owner))
+	respondOwner(c, http.StatusOK, owner)
 }
 
 // UpdateOwnerLineUserID godoc
@@ -197,7 +202,7 @@ func (h *Handler) UpdateOwnerDeliveryExclusion(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toOwnerResponse(owner))
+	respondOwner(c, http.StatusOK, owner)
 }
 
 // UpdateOwnerDeliveryCaution godoc
@@ -222,7 +227,7 @@ func (h *Handler) UpdateOwnerDeliveryCaution(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toOwnerResponse(owner))
+	respondOwner(c, http.StatusOK, owner)
 }
 
 // UpdateOwnerTransferStatus godoc
@@ -247,7 +252,7 @@ func (h *Handler) UpdateOwnerTransferStatus(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toOwnerResponse(owner))
+	respondOwner(c, http.StatusOK, owner)
 }
 
 // UpdateOwnerLineIDConfirm godoc
@@ -267,7 +272,7 @@ func (h *Handler) UpdateOwnerLineIDConfirm(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toOwnerResponse(owner))
+	respondOwner(c, http.StatusOK, owner)
 }
 
 // DeleteOwner godoc

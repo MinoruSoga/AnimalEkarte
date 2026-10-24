@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/commonbasic"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/textsearch"
@@ -93,6 +94,9 @@ func NewRepository(db *gorm.DB, petRegistrar PetRegistrar) Repository {
 	return &ownerRepository{db: db, petRegistrar: petRegistrar}
 }
 
+// ownerBasicAlias は検索で結ぶ現行 owner basic revision の JOIN 別名。
+const ownerBasicAlias = "owner_basic"
+
 func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error) {
 	owners := make([]model.Owner, 0)
 	var total int64
@@ -103,12 +107,15 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 	}
 
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.Owner{}).Scopes(persistence.ClinicScopeIn(clinicIDs))
+		// owners の列は常に修飾する（clinic_id は binding、created_at は subject の列と衝突する）。
+		q := r.db.WithContext(ctx).Model(&model.Owner{}).Where("owners.clinic_id IN ?", clinicIDs)
 		if search != "" {
+			// 氏名・連絡先は owner の現行 basic revision の列なので、検索のときだけ LEFT JOIN で結ぶ。
+			// binding・現行 revision の無い owner は述語に一致せず検索結果に現れない
+			// （検索なしの一覧は JOIN せず、Hydrate が未解決の owner を unresolved として検出する）。
 			// name / name_kana はカナ+空白を畳んだ translate() 式1腕で検索する
-			// （生値・空白差・カナ差の旧複数腕を包含し、GIN 式インデックスが効く）。
-			// name の空白除去腕は姓名の空白有無を吸収する。式リテラルは
-			// idx_owners_name_compact_fold_trgm と一致させる。
+			// （生値・空白差・カナ差の旧複数腕を包含する）。
+			// name の空白除去腕は姓名の空白有無を吸収する。
 			// phone と email は従来どおり正規化済み pattern で比較する。
 			// 空白のみは fail-closed で 0 件 (BUG-001)。
 			qSearch := textsearch.NormalizeQuerySpaces(search)
@@ -118,12 +125,13 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 			}
 			normalizedPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(qSearch)) + "%"
 			compactPattern := "%" + textsearch.EscapeLike(textsearch.NormalizeKana(textsearch.CompactSearchText(search))) + "%"
-			q = q.Where(
-				`(`+textsearch.FoldedExpr("name")+` ILIKE ? ESCAPE '\'`+
-					` OR `+textsearch.FoldedExpr("name_kana")+` ILIKE ? ESCAPE '\'`+
-					` OR phone ILIKE ? ESCAPE '\'`+
-					` OR email ILIKE ? ESCAPE '\'`+
-					` OR regexp_replace(`+textsearch.FoldedExpr("name")+`, '`+textsearch.SpaceStripRegexp+`', '', 'g') ILIKE ? ESCAPE '\')`,
+			nameExpr := textsearch.FoldedExpr(ownerBasicAlias + ".name")
+			q = commonbasic.JoinCurrentOwnerBasic(q, "owners", ownerBasicAlias, true).Where(
+				`(`+nameExpr+` ILIKE ? ESCAPE '\'`+
+					` OR `+textsearch.FoldedExpr(ownerBasicAlias+".name_kana")+` ILIKE ? ESCAPE '\'`+
+					` OR `+ownerBasicAlias+`.phone ILIKE ? ESCAPE '\'`+
+					` OR `+ownerBasicAlias+`.email ILIKE ? ESCAPE '\'`+
+					` OR regexp_replace(`+nameExpr+`, '`+textsearch.SpaceStripRegexp+`', '', 'g') ILIKE ? ESCAPE '\')`,
 				normalizedPattern,
 				normalizedPattern,
 				normalizedPattern,
@@ -138,12 +146,15 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
 	}
 	if err := buildBase().
+		Select("owners.*").
 		Preload("Pets", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Pets.AnimalSpecies").
 		Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Scopes(persistence.Paginate(page, limit)).Order("created_at DESC").
+		Scopes(persistence.Paginate(page, limit)).Order("owners.created_at DESC").
 		Find(&owners).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
+	}
+	if err := hydrateOwnerBasics(ctx, r.db, clinicIDs, commonbasic.Ptrs(owners)); err != nil {
+		return nil, 0, err
 	}
 	return owners, total, nil
 }
@@ -176,37 +187,60 @@ func (r *ownerRepository) findOwnerByIDWithDB(
 	var owner model.Owner
 	err := db.WithContext(ctx).
 		Preload("Pets", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Pets.AnimalSpecies").
 		Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pets.Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Scopes(persistence.ClinicScopeIn(clinicIDs)).Where("id = ?", id).First(&owner).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}
-	return &owner, nil
-}
-
-func (r *ownerRepository) FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error) {
-	var owner model.Owner
-	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).First(&owner, "email = ?", email).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, apperrors.FromGORM(err, "owner", email)
+	if err := hydrateOwnerBasics(ctx, db, clinicIDs, []*model.Owner{&owner}); err != nil {
+		return nil, err
 	}
 	return &owner, nil
 }
 
+// hydrateOwnerBasics は owners と入れ子の pets（動物種を含む）へ現行 basic revision を載せる。
+// 1 件でも解決できなければ全体が unresolved（422）で、空値や旧列へのフォールバックはしない。
+// 入れ子の pets は owners と同じ clinicIDs で preload 済みであること。
+func hydrateOwnerBasics(ctx context.Context, db *gorm.DB, clinicIDs []uint64, owners []*model.Owner) error {
+	if err := commonbasic.HydrateOwners(ctx, db, clinicIDs, owners); err != nil {
+		return err
+	}
+	var pets []*model.Pet
+	for _, owner := range owners {
+		for i := range owner.Pets {
+			pets = append(pets, &owner.Pets[i])
+		}
+	}
+	return commonbasic.HydratePets(ctx, db, clinicIDs, pets)
+}
+
+func (r *ownerRepository) FindByEmail(ctx context.Context, clinicID uint64, email string) (*model.Owner, error) {
+	return r.findFirstByBasicColumn(ctx, clinicID, "email", email)
+}
+
 // FindByPhone は clinic_id + phone に一致するオーナーを返す。見つからない場合は nil を返す。
 func (r *ownerRepository) FindByPhone(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error) {
+	return r.findFirstByBasicColumn(ctx, clinicID, "phone", phone)
+}
+
+// findFirstByBasicColumn は現行 basic revision の column が value に一致する最初の飼主を返す。
+// 見つからなければ nil を返す。column は SQL へ直接埋め込むため、コンパイル時定数だけを渡すこと。
+func (r *ownerRepository) findFirstByBasicColumn(ctx context.Context, clinicID uint64, column, value string) (*model.Owner, error) {
 	var owner model.Owner
-	err := r.db.WithContext(ctx).Scopes(persistence.ClinicScope(clinicID)).First(&owner, "phone = ?", phone).Error
+	err := commonbasic.JoinCurrentOwnerBasic(r.db.WithContext(ctx).Model(&model.Owner{}), "owners", ownerBasicAlias, true).
+		Select("owners.*").
+		Where("owners.clinic_id = ?", clinicID).
+		Where(ownerBasicAlias+"."+column+" = ?", value).
+		First(&owner).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		return nil, apperrors.FromGORM(err, "owner", phone)
+		return nil, apperrors.FromGORM(err, "owner", value)
+	}
+	if err := commonbasic.HydrateOwners(ctx, r.db, []uint64{clinicID}, []*model.Owner{&owner}); err != nil {
+		return nil, err
 	}
 	return &owner, nil
 }
@@ -220,9 +254,10 @@ func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint6
 		return nil, nil
 	}
 	var owners []model.Owner
-	err := r.db.WithContext(ctx).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("name = ? AND phone = ? AND deleted_at IS NULL", name, phone).
+	err := commonbasic.JoinCurrentOwnerBasic(r.db.WithContext(ctx).Model(&model.Owner{}), "owners", ownerBasicAlias, true).
+		Select("owners.*").
+		Where("owners.clinic_id = ?", clinicID).
+		Where(ownerBasicAlias+".name = ? AND "+ownerBasicAlias+".phone = ? AND owners.deleted_at IS NULL", name, phone).
 		Limit(2). // 2件以上あるかだけ判定すればよい
 		Find(&owners).Error
 	if err != nil {
@@ -231,79 +266,18 @@ func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint6
 	if len(owners) != 1 {
 		return nil, nil // 0件 or 複数件 → 自動紐付け不可
 	}
+	if err := commonbasic.HydrateOwners(ctx, r.db, []uint64{clinicID}, []*model.Owner{&owners[0]}); err != nil {
+		return nil, err
+	}
 	return &owners[0], nil
 }
 
-func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
-	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		txCtx := persistence.WithTxValue(ctx, tx)
-		// 1. 飼主を作成
-		if err := tx.Omit(clause.Associations).Create(owner).Error; err != nil {
-			if mapped := mapOwnerUniqueConstraintErr(err); mapped != nil {
-				return mapped
-			}
-			return apperrors.FromGORM(err, "owner", "")
-		}
-		if r.petRegistrar == nil {
-			return apperrors.WrapInternalServerError("owner registration pet registrar is not configured")
-		}
-		// 2. ペット側の write owner に、同じ ambient transaction 内で
-		// owner-registration intent だけを委譲する。
-		if _, err := r.petRegistrar.CreateForOwnerRegistration(txCtx, PetRegistrationIntent{
-			ClinicID: owner.ClinicID,
-			OwnerID:  owner.ID,
-			Pets:     ownerRegistrationPetDrafts(pets),
-		}); err != nil {
-			return err
-		}
-		loaded, err := r.findOwnerByIDWithDB(
-			txCtx,
-			tx,
-			[]uint64{owner.ClinicID},
-			owner.ID,
-		)
-		if err != nil {
-			return apperrors.Wrap(err, "reload owner after create")
-		}
-		*owner = *loaded
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to create owner with pets")
-	}
-	return nil
-}
-
-func ownerRegistrationPetDrafts(pets []model.Pet) []PetRegistrationDraft {
-	drafts := make([]PetRegistrationDraft, 0, len(pets))
-	for i := range pets {
-		pet := pets[i]
-		drafts = append(drafts, PetRegistrationDraft{
-			AnimalSpeciesID: pet.AnimalSpeciesID,
-			Name:            pet.Name,
-			NameKana:        pet.NameKana,
-			Breed:           pet.Breed,
-			Color:           pet.Color,
-			BloodType:       pet.BloodType,
-			MicrochipNumber: pet.MicrochipNumber,
-			Gender:          pet.Gender,
-			Status:          pet.Status,
-			BirthDate:       pet.BirthDate,
-			Weight:          pet.Weight,
-			NeuteredDate:    pet.NeuteredDate,
-			NeuteredStatus:  pet.NeuteredStatus,
-			AcquisitionType: pet.AcquisitionType,
-			DangerLevel:     pet.DangerLevel,
-			DangerReason:    pet.DangerReason,
-			Food:            pet.Food,
-			Environment:     pet.Environment,
-			Phone:           pet.Phone,
-			InsuranceID:     pet.InsuranceID,
-			Remarks:         pet.Remarks,
-			NameOrigin:      pet.NameOrigin,
-			MeetingStory:    pet.MeetingStory,
-		})
-	}
-	return drafts
+// CreateWithPets は飼主とペットの新規登録 writer が未接続の間、書き込みの前に固定 422（F3）で拒否する。
+// owners 行だけを作ると共通 subject・binding・basic revision の無い孤児になり、以降の読み取りがすべて
+// unresolved になる。model.Pet は基本情報の列を持たないため、pets 引数からペットの基本情報も復元できない。
+// writer を接続するときは、PetRegistrationDraft を受け取る経路へ置き換える。
+func (r *ownerRepository) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {
+	return errOwnerRegistrationPending()
 }
 
 func (r *ownerRepository) UpdateAndFind(
@@ -640,6 +614,9 @@ func (r *ownerRepository) FindByIDs(ctx context.Context, clinicID uint64, ids []
 		Where("id IN ?", ids).
 		Find(&owners).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "owner", "")
+	}
+	if err := commonbasic.HydrateOwners(ctx, r.db, []uint64{clinicID}, owners); err != nil {
+		return nil, err
 	}
 	return owners, nil
 }
