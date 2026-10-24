@@ -188,6 +188,27 @@ const (
 	CodeLineWebhookRoutingPending = "line_webhook_routing_pending"
 )
 
+// EMR-505 / EMR-549 U4: 置換先の保存は存在するが、財務系（算定固定・請求元 binding・受領配賦など）の
+// writer / reader がまだ接続されていない操作を fail-closed で拒否する 422 の安定コード（family code）。
+// 操作ごとの違いは message で示し、成功を装わない。
+const CodeFinanceConsumerPending = "finance_consumer_pending"
+
+// CodeCalculationUnsupported は算定器が扱えない入力（内税・非課税・税区分の混在・税率未設定など、
+// 規則が未決定の入力を含む）を拒否する 422 の安定コード（EMR-505 / EMR-TAX-SCOPE-20261021）。
+const CodeCalculationUnsupported = "calculation_unsupported"
+
+// WrapFinanceConsumerPending は財務系 consumer が未接続の操作を拒否する固定エラー（422）を返す。
+// message は操作ごとの利用者向け文言。code は CodeFinanceConsumerPending 固定。
+func WrapFinanceConsumerPending(message string) error {
+	return WrapUnprocessableWithCode(CodeFinanceConsumerPending, message)
+}
+
+// WrapCalculationUnsupported は算定器が扱えない入力を拒否する固定エラー（422）を返す。
+// code は CodeCalculationUnsupported 固定。
+func WrapCalculationUnsupported(message string) error {
+	return WrapUnprocessableWithCode(CodeCalculationUnsupported, message)
+}
+
 // HasCode は err の連鎖に AppError があり、その Code が code と一致するかを返す。
 func HasCode(err error, code string) bool {
 	var appErr *AppError

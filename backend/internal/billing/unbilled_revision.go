@@ -16,34 +16,29 @@ const AccountingCodeUnbilledConflict = "UNBILLED_ITEMS_CHANGED"
 
 // unbilledRevisionAlgorithm は集約フィンガープリントの方式版。
 // 正規化対象フィールドやエンコードを変える場合は接頭辞を上げる。
-const unbilledRevisionAlgorithm = "u2"
+// u3: 明細の出所 id（廃止列）を外し、数値を正規の10進文字列にし、NULL を値と区別する（EMR-505）。
+const unbilledRevisionAlgorithm = "u3"
 
 // unbilledRevisionItem は revision に含める候補行の請求意味集合。
-// クライアントに表示される請求意味（種別・名称・金額・税・保険・出所リンク）を網羅し、
-// 追加・削除・変更のいずれも検出する。ID は treatment 由来なら treatment ID、
-// billing_items 由来なら行 ID（FE の provenance key と同じ識別粒度）。
+// クライアントに表示される請求意味（種別・名称・金額・税・保険）を網羅し、
+// 追加・削除・変更のいずれも検出する。ID は候補行の ID（出所の列は廃止され、請求元は billing_source_bindings へ移った）。
+// 数値は正規の10進文字列、NULL は null で表し、未設定と 0 を区別する。
 type unbilledRevisionItem struct {
 	ID                    uint64  `json:"id"`
 	Category              string  `json:"category"`
 	Name                  string  `json:"name"`
-	UnitPrice             int64   `json:"unit_price"`
-	Quantity              float64 `json:"quantity"`
-	DiscountRate          float64 `json:"discount_rate"`
+	UnitPrice             string  `json:"unit_price"`
+	Quantity              string  `json:"quantity"`
+	DiscountRate          string  `json:"discount_rate"`
 	DiscountAmount        int64   `json:"discount_amount"`
 	TaxType               string  `json:"tax_type"`
-	TaxRate               float64 `json:"tax_rate"`
+	TaxRate               *string `json:"tax_rate"`
 	IsInsuranceApplicable *bool   `json:"is_insurance_applicable"`
-	Source                string  `json:"source"`
+	Source                *string `json:"source"`
 	OtherReason           string  `json:"other_reason"`
 	MerchandiseItemID     uint64  `json:"merchandise_item_id"`
-	TreatmentID           uint64  `json:"treatment_id"`
 	MedicalRecordID       uint64  `json:"medical_record_id"`
-	VaccinationID         uint64  `json:"vaccination_id"`
-	ExamID                uint64  `json:"exam_id"`
-	AppointmentID         uint64  `json:"appointment_id"`
-	TrimmingCourseID      uint64  `json:"trimming_course_id"`
-	TrimmingOptionID      uint64  `json:"trimming_option_id"`
-	SortOrder             int     `json:"sort_order"`
+	SortOrder             *int    `json:"sort_order"`
 }
 
 func toUnbilledRevisionItem(item *model.BillingItem) unbilledRevisionItem {
@@ -51,14 +46,14 @@ func toUnbilledRevisionItem(item *model.BillingItem) unbilledRevisionItem {
 		ID:                    item.ID,
 		Category:              string(item.Category),
 		Name:                  item.Name,
-		UnitPrice:             item.UnitPrice,
-		Quantity:              item.Quantity,
-		DiscountRate:          item.DiscountRate,
+		UnitPrice:             revisionDecimal(item.UnitPrice),
+		Quantity:              revisionDecimal(item.Quantity),
+		DiscountRate:          revisionDecimal(item.DiscountRate),
 		DiscountAmount:        item.DiscountAmount,
 		TaxType:               string(item.TaxType),
-		TaxRate:               item.TaxRate,
+		TaxRate:               revisionOptionalDecimal(item.TaxRate),
 		IsInsuranceApplicable: item.IsInsuranceApplicable,
-		Source:                string(item.Source),
+		Source:                revisionOptionalSource(item.Source),
 		SortOrder:             item.SortOrder,
 	}
 	if item.OtherReason != nil {
@@ -67,28 +62,38 @@ func toUnbilledRevisionItem(item *model.BillingItem) unbilledRevisionItem {
 	if item.MerchandiseItemID != nil {
 		ri.MerchandiseItemID = *item.MerchandiseItemID
 	}
-	if item.TreatmentID != nil {
-		ri.TreatmentID = *item.TreatmentID
-	}
 	if item.MedicalRecordID != nil {
 		ri.MedicalRecordID = *item.MedicalRecordID
 	}
-	if item.VaccinationID != nil {
-		ri.VaccinationID = *item.VaccinationID
-	}
-	if item.ExamID != nil {
-		ri.ExamID = *item.ExamID
-	}
-	if item.AppointmentID != nil {
-		ri.AppointmentID = *item.AppointmentID
-	}
-	if item.TrimmingCourseID != nil {
-		ri.TrimmingCourseID = *item.TrimmingCourseID
-	}
-	if item.TrimmingOptionID != nil {
-		ri.TrimmingOptionID = *item.TrimmingOptionID
-	}
 	return ri
+}
+
+// revisionDecimal は fingerprint 用に ExactNumeric を正規の10進文字列にする（10.0 と 10 は同じ値）。
+// 表せない値（NaN・非有限など）は固定の印にし、有効な数値とは区別する。
+func revisionDecimal(value model.ExactNumeric) string {
+	text, err := value.CanonicalString()
+	if err != nil {
+		return "invalid"
+	}
+	return text
+}
+
+// revisionOptionalDecimal は NULL を null のまま（未設定と 0 を区別して）fingerprint に載せる。
+func revisionOptionalDecimal(value *model.ExactNumeric) *string {
+	if value == nil {
+		return nil
+	}
+	text := revisionDecimal(*value)
+	return &text
+}
+
+// revisionOptionalSource は NULL の source を manual などに補わず null のまま載せる。
+func revisionOptionalSource(source *model.ItemSource) *string {
+	if source == nil {
+		return nil
+	}
+	text := string(*source)
+	return &text
 }
 
 // computeUnbilledRevision は unbilled 集約の決定的フィンガープリントを返す（EMR-196②）。

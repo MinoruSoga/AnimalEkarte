@@ -21,6 +21,11 @@ type insuranceResponse struct {
 }
 
 func toInsuranceResponse(ins *model.Insurance) insuranceResponse {
+	// sort_order は表示順であり業務値ではないため、NULL は 0 として返す（EMR-505 / Q12。変換はこの mapper に限る）。
+	sortOrder := 0
+	if ins.SortOrder != nil {
+		sortOrder = *ins.SortOrder
+	}
 	return insuranceResponse{
 		ID:           ins.ID,
 		ClinicID:     ins.ClinicID,
@@ -29,7 +34,7 @@ func toInsuranceResponse(ins *model.Insurance) insuranceResponse {
 		Description:  ins.Description,
 		CoverageRate: ins.CoverageRate,
 		ContactPhone: ins.ContactPhone,
-		SortOrder:    ins.SortOrder,
+		SortOrder:    sortOrder,
 		CreatedAt:    httpapi.LocalTime(ins.CreatedAt),
 		UpdatedAt:    httpapi.LocalTime(ins.UpdatedAt),
 	}

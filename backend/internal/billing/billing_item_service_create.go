@@ -7,7 +7,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // validateBillingItemOwnership は billing および trimming マスタFKのテナント所有権を検証する。
@@ -17,29 +16,21 @@ func (s *billingItemService) validateBillingItemOwnership(ctx context.Context, i
 		return apperrors.Wrap(err, "billing not found or belongs to different clinic")
 	}
 
-	// X-4: クロステナント write 防止: trimming_course_id/trimming_option_id が
-	// caller の clinic に属することを検証する(#124/#125 と同型の master FK 所有権チェック)。
-	if input.TrimmingCourseID != nil {
-		if _, err := s.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID); err != nil {
-			return apperrors.Wrap(err, "failed to verify trimming course ownership")
-		}
-	}
-	if input.TrimmingOptionID != nil {
-		if _, err := s.trimmingOptionRepo.FindByID(ctx, input.ClinicID, *input.TrimmingOptionID); err != nil {
-			return apperrors.Wrap(err, "failed to verify trimming option ownership")
-		}
-	}
+	// trimming_course_id / trimming_option_id を伴う明細の作成は validateCreateBillingItemInput で拒否済み（EMR-505 / Q7）のため、
+	// trimming マスタの所有権検証（X-4）は不要になった。
 	return nil
 }
 
-// resolveOwnerDiscountRate は会計に紐付く飼主の割引率を返す。ownerRepo 未配線または取得失敗は 0。
-func (s *billingItemService) resolveOwnerDiscountRate(ctx context.Context, clinicID uint64, ownerID *uint64) float64 {
+// resolveOwnerDiscountRate は会計に紐付く飼主の割引率(%)を ExactNumeric のまま返す（float64 を経由しない）。
+// ownerRepo 未配線・飼主未解決・取得失敗は 0（従来どおりの best-effort。割引なしで続行する）。
+func (s *billingItemService) resolveOwnerDiscountRate(ctx context.Context, clinicID uint64, ownerID *uint64) model.ExactNumeric {
+	noDiscount := model.ExactNumericFromInt64(0)
 	if ownerID == nil || s.ownerRepo == nil {
-		return 0
+		return noDiscount
 	}
 	owner, err := s.ownerRepo.FindByID(ctx, clinicID, *ownerID)
 	if err != nil || owner == nil {
-		return 0
+		return noDiscount
 	}
 	return owner.DiscountRate
 }
@@ -55,9 +46,8 @@ func (s *billingItemService) resolveAutoDiscount(
 	billing *model.Billing,
 	category model.ItemCategory,
 	merchandiseItemID *uint64,
-	unitPrice int64,
-	quantity float64,
-) (int64, float64) {
+	unitPrice, quantity model.ExactNumeric,
+) (int64, model.ExactNumeric) {
 	ownerRate := s.resolveOwnerDiscountRate(ctx, clinicID, billing.OwnerID)
 	var campaign *model.Campaign
 	if s.campaignRepo != nil {
@@ -70,7 +60,12 @@ func (s *billingItemService) resolveAutoDiscount(
 			campaign = c
 		}
 	}
-	itemSubtotal := int64(float64(unitPrice) * quantity)
+	itemSubtotal, err := discountBaseAmount(unitPrice, quantity)
+	if err != nil {
+		// 割引の基数を確定できない行には自動割引を付けない（best-effort。割引額 0 として続行する）。
+		slog.WarnContext(ctx, "discount base unavailable; skipping auto discount", "error", err, "clinic_id", clinicID, "billing_id", billing.ID)
+		return 0, model.ExactNumericFromInt64(0)
+	}
 	return ResolveItemDiscount(itemSubtotal, campaign, ownerRate)
 }
 
@@ -91,7 +86,6 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	var item *model.BillingItem
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		created, err := s.createItemInAmbientTx(txCtx, input, createItemAmbientOpts{
-			recalculate:     true,
 			recordPostClose: true,
 		})
 		if err != nil {
@@ -129,43 +123,15 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 		return nil, err
 	}
 
-	needsResolve := input.AppointmentID == nil && (input.TrimmingCourseID != nil || input.TrimmingOptionID != nil)
-	if tx := persistence.TxFromContext(ctx); needsResolve && tx != nil {
-		resolved, resolveErr := resolveUniqueTrimmingAppointmentID(
-			tx.WithContext(ctx), input.ClinicID, billing.PetID, input.TrimmingCourseID, input.TrimmingOptionID,
-		)
-		if resolveErr != nil {
-			return nil, resolveErr
-		}
-		input.AppointmentID = resolved
-		item.AppointmentID = resolved
-	}
-
-	category, err := s.repo.ValidateCreateReferences(
-		ctx,
-		input.ClinicID,
-		input.BillingID,
-		input.MerchandiseItemID,
-		input.TreatmentID,
-		input.AppointmentID,
-		input.TrimmingCourseID,
-		input.TrimmingOptionID,
-	)
+	// 請求元（treatment・appointment・trimming）を伴う作成は validateCreateBillingItemInput で拒否済み（Q7）のため、
+	// ここで検証する参照は merchandise_item_id だけ。provenance の引数には nil を渡す。
+	category, err := s.repo.ValidateCreateReferences(ctx, input.ClinicID, input.BillingID, input.MerchandiseItemID, nil, nil, nil, nil)
 	if err != nil {
 		slog.WarnContext(ctx, "billing item references rejected", "error", err)
 		return nil, apperrors.Wrap(err, "failed to validate billing item references")
 	}
 	if input.MerchandiseItemID != nil {
 		item.Category = category
-	}
-	if input.ExamID != nil && input.VaccinationID != nil {
-		return nil, invalidBillingItemReferenceCombination()
-	}
-	if err := applyExamBillingProvenance(ctx, s.repo, input, item); err != nil {
-		return nil, err
-	}
-	if err := s.applyVaccinationBillingItemCreate(ctx, input, item); err != nil {
-		return nil, err
 	}
 
 	if err := applyBillingItemOtherMetadata(input, item); err != nil {
@@ -177,7 +143,7 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 		}
 	}
 
-	if item.DiscountAmount == 0 && input.VaccinationID == nil && input.ExamID == nil {
+	if item.DiscountAmount == 0 {
 		// EMR-229: 自動割引が掛かった場合は適用率も discount_rate に記録し、
 		// 画面で「飼主マスタの割引率が入っている」状態を再現できるようにする。
 		if amount, appliedRate := s.resolveAutoDiscount(
@@ -195,17 +161,7 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 	}
 
 	if err := s.repo.Create(ctx, item); err != nil {
-		if apperrors.IsAlreadyExists(err) &&
-			(input.TreatmentID != nil || input.VaccinationID != nil || input.ExamID != nil) {
-			return nil, apperrors.WrapConflict("この明細は既に会計に登録されています")
-		}
 		return nil, apperrors.Wrap(err, "failed to create billing item")
-	}
-
-	if opts.recalculate {
-		if err := s.recalculateTotals(ctx, input.ClinicID, input.BillingID, false); err != nil {
-			return nil, apperrors.Wrap(err, "failed to recalculate billing totals")
-		}
 	}
 
 	if opts.recordPostClose {
@@ -220,9 +176,12 @@ func (s *billingItemService) createItemInAmbientTx(ctx context.Context, input *C
 func newBillingItemFromCreateInput(
 	input *CreateBillingItemInput,
 	taxType model.TaxType,
-	taxRate float64,
+	taxRate model.ExactNumeric,
 	source model.ItemSource,
 ) *model.BillingItem {
+	// request の IsInsuranceApplicable・SortOrder は非 pointer（省略 = false / 0 の旧来の挙動）。明細へは指定された値として書く。
+	isInsuranceApplicable := input.IsInsuranceApplicable
+	sortOrder := input.SortOrder
 	return &model.BillingItem{
 		BillingID:             input.BillingID,
 		Category:              model.ItemCategory(input.Category),
@@ -232,61 +191,22 @@ func newBillingItemFromCreateInput(
 		DiscountRate:          input.DiscountRate,
 		DiscountAmount:        input.DiscountAmount,
 		TaxType:               taxType,
-		TaxRate:               taxRate,
-		IsInsuranceApplicable: input.IsInsuranceApplicable,
-		Source:                source,
+		TaxRate:               &taxRate,
+		IsInsuranceApplicable: &isInsuranceApplicable,
+		Source:                &source,
 		MerchandiseItemID:     input.MerchandiseItemID,
-		TreatmentID:           input.TreatmentID,
-		VaccinationID:         input.VaccinationID,
-		ExamID:                input.ExamID,
-		AppointmentID:         input.AppointmentID,
-		TrimmingCourseID:      input.TrimmingCourseID,
-		TrimmingOptionID:      input.TrimmingOptionID,
-		SortOrder:             input.SortOrder,
+		SortOrder:             &sortOrder,
+		ClinicID:              input.ClinicID,
 	}
-}
-
-func (s *billingItemService) applyVaccinationBillingItemCreate(
-	ctx context.Context,
-	input *CreateBillingItemInput,
-	item *model.BillingItem,
-) error {
-	if input.VaccinationID == nil {
-		return nil
-	}
-	if input.MerchandiseItemID != nil ||
-		input.TreatmentID != nil ||
-		input.AppointmentID != nil ||
-		input.TrimmingCourseID != nil ||
-		input.TrimmingOptionID != nil ||
-		input.ExamID != nil {
-		return invalidBillingItemReferenceCombination()
-	}
-	_, err := s.repo.ValidateVaccinationCreateReference(
-		ctx,
-		input.ClinicID,
-		input.BillingID,
-		*input.VaccinationID,
-	)
-	if err != nil {
-		return err
-	}
-	item.Category = model.ItemCategoryVaccine
-	item.Source = model.ItemSourceMedicalRecord
-	item.VaccinationID = input.VaccinationID
-	clinicID := input.ClinicID
-	item.ClinicID = &clinicID
-	return nil
 }
 
 // CreateItemForComplete は BUG-018 Complete 用の ambient-tx 明細作成。
-// unbilled / post-close は command 側が一度だけ行う。totals 再計算は skip し caller が最後にまとめる。
+// unbilled / post-close は command 側が一度だけ行う。合計は保存しない（RecalculateTotalsForComplete は算定のみ）。
 func (s *billingItemService) CreateItemForComplete(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
 	if err := validateCreateBillingItemInput(input); err != nil {
 		return nil, err
 	}
 	return s.createItemInAmbientTx(ctx, input, createItemAmbientOpts{
-		recalculate:     false,
 		recordPostClose: false,
 	})
 }
@@ -300,15 +220,18 @@ func (s *billingItemService) DeleteItemsForComplete(ctx context.Context, clinicI
 	return nil
 }
 
-// RecalculateTotalsForComplete は Complete 用に items から totals を再計算して billings に書く。
+// RecalculateTotalsForComplete は Complete 用に items から合計を算定して返す。
+// billings のヘッダ合計列は廃止された（001_init.sql:10889-10891）ため保存せず、算定のみを行う。算定結果の保存は
+// 算定固定（snapshot）の writer が担う。held for EMR-462/506: このインターフェース（accounting_complete.go:136）の整理は 506 が行う。
+// 内税・非課税など算定器が扱えない明細は calculation_unsupported（422）を返し、0 で埋めない。
 func (s *billingItemService) RecalculateTotalsForComplete(ctx context.Context, clinicID, billingID uint64) (subtotal, taxTotal, totalAmount int64, err error) {
 	items, err := s.repo.FindByBillingID(ctx, clinicID, billingID)
 	if err != nil {
 		return 0, 0, 0, apperrors.Wrap(err, "failed to find billing items for complete totals")
 	}
-	subtotal, taxTotal, totalAmount = CalculateBillingTotals(items)
-	if err := s.repo.UpdateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount); err != nil {
-		return 0, 0, 0, apperrors.Wrap(err, "failed to update billing totals for complete")
+	result, err := CalculateItemsTotals(items)
+	if err != nil {
+		return 0, 0, 0, err
 	}
-	return subtotal, taxTotal, totalAmount, nil
+	return result.Subtotal, result.TaxTotal, result.TotalAmount, nil
 }

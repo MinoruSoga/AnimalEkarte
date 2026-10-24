@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"math"
+	"math/big"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -115,14 +115,29 @@ func clinicTaxRates(clinic *model.Clinic) accountingReportTaxRates {
 	standard := int64(10)
 	reduced := int64(8)
 	if clinic != nil {
-		if clinic.StandardTaxRate > 0 {
-			standard = int64(math.Round(clinic.StandardTaxRate * 100))
+		if percent, ok := taxRatePercentBucket(clinic.StandardTaxRate); ok {
+			standard = percent
 		}
-		if clinic.ReducedTaxRate > 0 {
-			reduced = int64(math.Round(clinic.ReducedTaxRate * 100))
+		if percent, ok := taxRatePercentBucket(clinic.ReducedTaxRate); ok {
+			reduced = percent
 		}
 	}
 	return accountingReportTaxRates{StandardPercent: standard, ReducedPercent: reduced}
+}
+
+// taxRatePercentBucket は税率（割合。0.10 は 10%）を、月次・締めレポートの税率別集計が使う整数パーセントの区分へ換算する。
+// 旧実装の math.Round(rate*100) と同じ 1 パーセント未満四捨五入（0.5 は切上げ）を exact で行い、float64 を経由しない。
+// 区分は集計の分類キーで金額ではない。NULL・非有限・0 以下の税率は換算できないため ok=false（呼出し側が既定の 10・8 を使う。旧実装と同じ）。
+func taxRatePercentBucket(rate model.ExactNumeric) (int64, bool) {
+	value, ok := calcRat(rate)
+	if !ok || value.Sign() <= 0 {
+		return 0, false
+	}
+	percent, err := calcInt64(ratRoundHalfUp(new(big.Rat).Mul(value, big.NewRat(100, 1))))
+	if err != nil {
+		return 0, false
+	}
+	return percent, true
 }
 
 func isReducedTaxRate(rowRate int64, rates accountingReportTaxRates) bool {

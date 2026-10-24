@@ -34,10 +34,9 @@ type BillingItemRepository interface {
 	// 個別 Delete と同じ原子的更新（vaccination/exam provenance + denormalized clinic_id を解放）。
 	// 0 件（明細なし）は正常系として nil を返す。
 	DeleteAllByBillingID(ctx context.Context, clinicID, billingID uint64) error
+	// UpdateBillingTotals は廃止列への書込みだったため、何も書かず固定エラーを返す（held for EMR-506。呼出しとともに削除する）。
+	// medicalrecord の退院会計（hospitalization_discharge_tx.go）が interface 経由でまだ呼ぶため宣言だけ残している。
 	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
-	// UpdateBillingTotalsForCompletedCorrection は確定済み会計の明細訂正時のみ totals 再計算を許可する（BUG-009）。
-	// cancelled は引き続き拒否。通常経路は UpdateBillingTotals を使う。
-	UpdateBillingTotalsForCompletedCorrection(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 	// HasItemByOwnerSince は指定飼い主の請求アイテムに names いずれかが存在するか返す（FEAT-379）。
 	HasItemByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 	// HasFoodPurchaseByOwnerSince は names 指定時は名前で、未指定時は category=food で判定する（FEAT-379）。
@@ -100,7 +99,7 @@ type billingItemBillingReference struct {
 	MedicalRecordID *uint64
 	OwnerID         *uint64
 	PetID           *uint64
-	Status          model.BillingStatus
+	ClaimState      *string
 }
 
 type billingItemMedicalRecordReference struct {
@@ -139,8 +138,8 @@ func invalidBillingItemReferenceCombination() error {
 // ValidateCreateReferences validates every request-derived billing_items FK
 // against the authenticated clinic and its parent graph. It must run in the
 // same transaction as Create so that row locks keep the validated graph stable
-// until persistence commits. The billing parent is locked FOR UPDATE because
-// the same transaction recalculates and updates its totals.
+// until persistence commits. The billing parent is locked FOR UPDATE so that the
+// claim_state checked here cannot change before the item is inserted.
 func (r *billingItemRepository) ValidateCreateReferences(
 	ctx context.Context,
 	clinicID, billingID uint64,
@@ -155,16 +154,16 @@ func (r *billingItemRepository) ValidateCreateReferences(
 	var billingRef billingItemBillingReference
 	if err := tx.
 		Table("billings").
-		Select("medical_record_id", "owner_id", "pet_id", "status").
+		Select("medical_record_id", "owner_id", "pet_id", "claim_state").
 		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", billingID, clinicID).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Take(&billingRef).Error; err != nil {
 		return "", apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
 	}
-	// BUG-463: defense in depth — finalized billings must not accept new items.
-	if billingRef.Status == model.BillingStatusCompleted ||
-		billingRef.Status == model.BillingStatusCancelled {
-		return "", apperrors.WrapConflict("確定済みまたは取消済みの会計明細は登録できません")
+	// BUG-463: defense in depth — only draft billings accept new items. A NULL or unknown claim_state
+	// (001_init.sql:9454) is rejected as well, with the same polarity as the service guard rejectIfBillingFinalized.
+	if err := rejectIfBillingFinalized(&model.Billing{ClaimState: billingRef.ClaimState}, "登録"); err != nil {
+		return "", err
 	}
 
 	var merchandiseRef billingItemMerchandiseReference
@@ -316,18 +315,16 @@ func (r *billingItemRepository) update(ctx context.Context, clinicID, id uint64,
 	return nil
 }
 
-// Delete は clinic 述語を EXISTS subquery で強制し、soft-delete と同じ原子的更新で
-// vaccination provenanceを解放する。これにより削除した接種イベントを再度取り込める。
+// Delete は clinic 述語を EXISTS subquery で強制する soft-delete。更新するのは deleted_at だけ。
+// 請求元の解放は billing_source_bindings 側の操作になり（明細側の vaccination_id・exam_id 列は 001_init.sql:10891 で廃止）、
+// clinic_id は NOT NULL（同 6199）で、trigger が親請求から再設定する（同 6251）ため NULL 化してはならない。
 func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.BillingItem{}).
 		Where("billing_items.id = ?", id).
 		Where("EXISTS (SELECT 1 FROM billings WHERE billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL)", clinicID).
 		Updates(map[string]any{
-			"vaccination_id": nil,
-			"exam_id":        nil,
-			"clinic_id":      nil,
-			"deleted_at":     time.Now(),
+			"deleted_at": time.Now(),
 		})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing_item", fmt.Sprintf("%d", id))
@@ -339,10 +336,8 @@ func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64)
 }
 
 // DeleteAllByBillingID は EMR-253: takeover 対象 billing の既存明細を一括 soft-delete する。
-// 個別 Delete と同じ原子的更新で vaccination/exam provenance と denormalized clinic_id を解放する
-// （解放により削除済み接種/検査イベントを再度取り込める）。
-// billing_items.clinic_id が NULL の行（退院会計は clinic 未設定で挿し得る）も、EXISTS 副問合せで
-// 親 billings の clinic scope を強制して拾う。0 件（明細なし）は正常系。
+// 個別 Delete と同じく更新するのは deleted_at だけ（廃止列と clinic_id の扱いは Delete を参照）。
+// EXISTS 副問合せで親 billings の clinic scope を強制する。0 件（明細なし）は正常系。
 func (r *billingItemRepository) DeleteAllByBillingID(ctx context.Context, clinicID, billingID uint64) error {
 	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.BillingItem{}).
@@ -350,10 +345,7 @@ func (r *billingItemRepository) DeleteAllByBillingID(ctx context.Context, clinic
 		Where("billing_items.deleted_at IS NULL").
 		Where("EXISTS (SELECT 1 FROM billings WHERE billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL)", clinicID).
 		Updates(map[string]any{
-			"vaccination_id": nil,
-			"exam_id":        nil,
-			"clinic_id":      nil,
-			"deleted_at":     time.Now(),
+			"deleted_at": time.Now(),
 		})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "billing_item", fmt.Sprintf("billing_id=%d", billingID))
@@ -361,87 +353,21 @@ func (r *billingItemRepository) DeleteAllByBillingID(ctx context.Context, clinic
 	return nil
 }
 
-func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
-	// BUG-463: exclude completed/cancelled so totals cannot be rewritten after finalization
-	// even if a caller bypasses service-level status guards.
-	return r.updateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount, false)
+// UpdateBillingTotals は廃止列（billings.subtotal・tax_total・total_amount。001_init.sql:10889-10891）への書込みだったため、
+// 何も書かず固定エラーを返す。合計は算定器（CalculateBilling）の結果として算定固定（snapshot）に保存する設計で、その writer は
+// 未接続。medicalrecord の退院会計（hospitalization_discharge_tx.go）が interface 経由でまだ呼ぶため宣言だけ残す。held for EMR-506。
+func (r *billingItemRepository) UpdateBillingTotals(_ context.Context, _, _ uint64, _, _, _ int64) error {
+	return apperrors.WrapFinanceConsumerPending("会計ヘッダの合計の保存は、算定固定（snapshot）の writer が未接続のため利用できません")
 }
 
-// UpdateBillingTotalsForCompletedCorrection は BUG-009: 理由付き確定済み明細訂正の totals 再計算専用。
-func (r *billingItemRepository) UpdateBillingTotalsForCompletedCorrection(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
-	return r.updateBillingTotals(ctx, clinicID, billingID, subtotal, taxTotal, totalAmount, true)
+// HasItemByOwnerSince は FEAT-379 の LSTEP タグ判定用で、billings.completed_at（廃止列）を基準にしていた。
+// 置換する基準日（確定イベントの日時か、受領日か）は PO 判断待ち（Q9）で、DDL に決定済みの置換列はない。
+// 推測せず、false も返さず、固定エラーで拒否する（呼出しの LSTEP タグ同期は error を伝播する）。held for EMR-506/509。
+func (r *billingItemRepository) HasItemByOwnerSince(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) {
+	return false, apperrors.WrapFinanceConsumerPending("請求履歴に基づくタグ判定は、請求確定日の基準（確定イベント・受領日）が未決定のため利用できません")
 }
 
-func (r *billingItemRepository) updateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64, allowCompleted bool) error {
-	q := persistence.DBOrTx(ctx, r.db).
-		Model(&model.Billing{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ?", billingID)
-	if allowCompleted {
-		// cancelled のみ除外（completed は訂正経路で許可）
-		q = q.Where("status <> ?", model.BillingStatusCancelled)
-	} else {
-		q = q.Where("status NOT IN (?, ?)", model.BillingStatusCompleted, model.BillingStatusCancelled)
-	}
-	result := q.Updates(map[string]any{
-		"subtotal":     subtotal,
-		"tax_total":    taxTotal,
-		"total_amount": totalAmount,
-	})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "billing", fmt.Sprintf("%d", billingID))
-	}
-	if result.RowsAffected == 0 {
-		// Distinguish finalized (Conflict) from missing/out-of-scope (NotFound).
-		var row struct {
-			Status model.BillingStatus
-		}
-		err := persistence.DBOrTx(ctx, r.db).
-			Model(&model.Billing{}).
-			Scopes(persistence.ClinicScope(clinicID)).
-			Select("status").
-			Where("id = ?", billingID).
-			Take(&row).Error
-		if err != nil {
-			return apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))
-		}
-		if row.Status == model.BillingStatusCancelled || (!allowCompleted && row.Status == model.BillingStatusCompleted) {
-			return apperrors.WrapConflict("確定済みまたは取消済みの会計合計は更新できません")
-		}
-		return apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
-	}
-	return nil
-}
-
-func (r *billingItemRepository) HasItemByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
-	if len(names) == 0 {
-		return false, nil
-	}
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.BillingItem{}).
-		Joins("JOIN billings ON billings.id = billing_items.billing_id").
-		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.completed_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
-		Where("billing_items.name IN ? AND billing_items.deleted_at IS NULL", names).
-		Count(&count).Error
-	if err != nil {
-		return false, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("clinic:%d owner:%d", clinicID, ownerID))
-	}
-	return count > 0, nil
-}
-
-func (r *billingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {
-	q := r.db.WithContext(ctx).Model(&model.BillingItem{}).
-		Joins("JOIN billings ON billings.id = billing_items.billing_id").
-		Where("billings.clinic_id = ? AND billings.owner_id = ? AND billings.completed_at >= ? AND billings.deleted_at IS NULL", clinicID, ownerID, since).
-		Where("billing_items.deleted_at IS NULL")
-	if len(names) > 0 {
-		q = q.Where("billing_items.name IN ?", names)
-	} else {
-		q = q.Where("billing_items.category = ?", string(model.ItemCategoryFood))
-	}
-	var count int64
-	if err := q.Count(&count).Error; err != nil {
-		return false, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("clinic:%d owner:%d", clinicID, ownerID))
-	}
-	return count > 0, nil
+// HasFoodPurchaseByOwnerSince は HasItemByOwnerSince と同じ理由で保留する（names 未指定時の category=food 判定を含む）。
+func (r *billingItemRepository) HasFoodPurchaseByOwnerSince(_ context.Context, _, _ uint64, _ time.Time, _ []string) (bool, error) {
+	return false, apperrors.WrapFinanceConsumerPending("請求履歴に基づくタグ判定は、請求確定日の基準（確定イベント・受領日）が未決定のため利用できません")
 }
