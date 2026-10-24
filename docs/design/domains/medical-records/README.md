@@ -41,3 +41,7 @@
 [EMR-451 H01 ペット別履歴](patient-history-contract.md)はカルテ内履歴だけの認可集合・確認済みsubject/binding・終了証拠・bounded検索の技術引渡し。一般一覧や他履歴callerへ一律拡張しない。
 
 [後日予定report契約](deferred-plan-report-contract.md)は共通planの現在deferredを有界pageで参照し、診療履歴の終了限定と分離する。
+
+[EMR-572 空誤作成の非表示・同ID復元](empty-record-visibility-contract.md)は専用guard・可視性event・C06の限定契約。通常DELETE/予約cleanupを再開しない。
+
+[EMR-573 他ペット未納](../accounting/other-pet-unpaid-contract.md)はカルテheaderから元請求へ繋ぐ限定read。請求作成/入金を起動しない。

@@ -38,3 +38,5 @@
 ## 既存会計の医師確認・差戻し
 
 [Confirm/Return契約](doctor-review-confirm-return-contract.md#review-actions-scope)は2026-10-24に限定技術選定。先行の[内部signature](doctor-review-internal-projection.md#review-internal-scope)を変えず、既存billingの現在集合read・明示確認・理由付き差戻し・保存signature/履歴・C06/元target read・旧writer迂回排除を閉じる。billing参照の版更新はstorage guard一回で手動加算なし。共通gate/医師predicate/current provider/writer閉包/API・DDL・model供給/実装・受入は未完。準備billing・Complete・金銭/在庫・生前分C・退院Dは別packetで、全体Ready/実装完了とはしない。
+
+[EMR-573 他ペット未納ヘッダー](other-pet-unpaid-contract.md)は金額を公開しない三値read、全期間候補、元請求の既存精算入口までの限定契約。新金銭writerや独自pet配賦を追加しない。
