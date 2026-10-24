@@ -80,7 +80,7 @@ func TestAccountingService_Create_RejectsCrossClinicRelatedFKs(t *testing.T) {
 				}
 			},
 		}
-		return NewAccountingService(repo, mrRepo, hospRepo, resRepo, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{})
+		return NewAccountingService(repo, mrRepo, hospRepo, resRepo, nil, &mockTransactor{}, &mockAuditService{}, &mockPaymentMethodMasterRepository{}, WithPetLifeStateReader(alivePetLifeReader()))
 	}
 
 	base := func() *CreateAccountingInput {

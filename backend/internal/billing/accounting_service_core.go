@@ -57,10 +57,6 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 			return nil, err
 		}
 	}
-	// BUG-001: 死亡ペットへの新規会計作成は BE で物理ブロック（入院登録と同型）。
-	if err := s.assertAccountingPetNotDeceased(ctx, input.ClinicID, input.PetID); err != nil {
-		return nil, err
-	}
 	// 作成は draft のヘッダだけを書く。請求状態は claim_state（NULL は状態不明として明細ガードが拒否する）で、
 	// 合計・確定日時・保険有無・支払いはヘッダに持たず、算定固定（snapshot）の writer が接続されるまで保存しない。
 	claimState := billingClaimStateDraft
@@ -82,6 +78,11 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		return nil, err
 	}
 	createFn := func(txCtx context.Context) error {
+		// BUG-001 / EMR-491 D6: 死亡 reader は ambient tx を要求し subject 行を FOR SHARE ロックするため、
+		// 書込と同じ WithTx 内で判定する（tx 外で呼ぶと reader が内部エラーを返し fail-closed になる）。
+		if err := s.assertAccountingPetNotDeceased(txCtx, input.ClinicID, input.PetID); err != nil {
+			return err
+		}
 		if err := s.lockCloseBoundaries(txCtx, input.ClinicID, input.ScheduledDate); err != nil {
 			return err
 		}

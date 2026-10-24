@@ -202,34 +202,25 @@ type accountingService struct {
 	// held for EMR-462: Complete は固定エラーで拒否するため現在は読まれない（配線互換のため残す）。
 	itemWriter   completeItemWriter
 	totalsWriter completeTotalsWriter
+	// petLife は EMR-491 D6 の死亡 write ガード用 reader（pet.LifeStateReader を cmd/api で注入。nil は fail-closed）。
+	petLife sharedkernel.PetLifeStateReader
 }
 
 type accountingReservationRepository interface {
 	sharedkernel.OwnerPetLinkVerifier
-	// FindPetByIDInClinic は BUG-001 死亡ペット write ガード用（DeceasedAt 判定）。
-	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
 }
 
 // accountingDeceasedPetMessage は会計 Create/Complete が死亡ペットを拒否するときの安定メッセージ（BUG-001）。
 const accountingDeceasedPetMessage = "死亡したペットは会計を作成できません"
 
-// accountingPetByIDAdapter は FindPetByIDInClinic を sharedkernel.PetByIDFinder へ適合する。
-type accountingPetByIDAdapter struct {
-	repo accountingReservationRepository
-}
-
-func (a accountingPetByIDAdapter) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
-	return a.repo.FindPetByIDInClinic(ctx, clinicID, id)
-}
-
-// assertAccountingPetNotDeceased は petID 非 nil のとき死亡ペットへの会計 Create/Complete を fail-closed で拒否する（BUG-001）。
-// 入院登録と同様、FE 選択 UI だけでは API 直叩きを防げないため BE でも検証する。
-// reservationRepo 未配線時は判定不能のためスキップ（本番配線では常に注入。unbilledGuard と同様）。
+// assertAccountingPetNotDeceased は petID 非 nil のとき死亡ペットへの会計 Create を fail-closed で拒否する（BUG-001 / EMR-491 D6）。
+// 生死は petLife（pet.LifeStateReader）が共通 subject の現行 revision から読む。reader は ambient tx を要求し subject 行を FOR SHARE ロックするため、
+// 呼び出し側は書込と同じ WithTx 内で呼ぶこと。reader 未配線（nil）・tx 外・未解決・読取失敗はすべて拒否し、生存扱いのフォールバックは置かない。
 func (s *accountingService) assertAccountingPetNotDeceased(ctx context.Context, clinicID uint64, petID *uint64) error {
-	if petID == nil || s.reservationRepo == nil {
+	if petID == nil {
 		return nil
 	}
-	return sharedkernel.ValidatePetNotDeceased(ctx, accountingPetByIDAdapter{repo: s.reservationRepo}, clinicID, *petID, accountingDeceasedPetMessage)
+	return sharedkernel.ValidatePetNotDeceased(ctx, s.petLife, clinicID, *petID, accountingDeceasedPetMessage)
 }
 
 type accountingServiceOption func(*accountingService)
@@ -245,6 +236,13 @@ func WithCashRegisterCloseRepository(repo CashRegisterCloseRepository) accountin
 func WithUnbilledWriteGuard(guard unbilledWriteGuard) accountingServiceOption {
 	return func(s *accountingService) {
 		s.unbilledGuard = guard
+	}
+}
+
+// WithPetLifeStateReader は EMR-491 D6 の死亡 write ガードが使う reader を配線する（未配線のまま pet 付き Create を呼ぶと fail-closed で拒否される）。
+func WithPetLifeStateReader(reader sharedkernel.PetLifeStateReader) accountingServiceOption {
+	return func(s *accountingService) {
+		s.petLife = reader
 	}
 }
 

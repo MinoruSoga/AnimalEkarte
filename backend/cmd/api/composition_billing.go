@@ -13,6 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/owner"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 	"github.com/animal-ekarte/backend/internal/staff"
 	"github.com/animal-ekarte/backend/internal/trimming"
 )
@@ -23,6 +24,7 @@ type billingCompositionDependencies struct {
 	MedicalRecords   medicalrecord.MedicalRecordRepository
 	Hospitalizations medicalrecord.HospitalizationRepository
 	Reservations     reservation.ReservationStore
+	PetLife          sharedkernel.PetLifeStateReader
 	TagSync          lstep.LstepTagSyncService
 	StaffAssignments staff.StaffClinicAssignmentRepository
 	Treatments       medicalrecord.TreatmentRepository

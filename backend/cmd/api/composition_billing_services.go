@@ -50,6 +50,8 @@ func newBillingCoreServices(
 			billing.WithCashRegisterCloseRepository(r.cashRegisterCloses),
 			// BUG-013: blocking unbilled warning がある pet の会計作成を拒否
 			billing.WithUnbilledWriteGuard(billingItems),
+			// EMR-491 D6: 死亡 write ガード。Create の WithTx 内で subject 行を FOR SHARE ロックして生死を読む（nil は fail-closed）
+			billing.WithPetLifeStateReader(d.PetLife),
 			// BUG-018: complete command の ambient-tx 明細・totals collaborator
 			billing.WithCompleteItemWriter(billingItems),
 			billing.WithCompleteTotalsWriter(billingItems),

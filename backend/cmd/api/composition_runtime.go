@@ -357,6 +357,7 @@ func newRuntimeBillingComposition(
 			MedicalRecords:   repositories.medicalRecord.medicalRecords,
 			Hospitalizations: repositories.medicalRecord.hospitalizations,
 			Reservations:     repositories.reservation.Reservations,
+			PetLife:          pet.NewLifeStateReader(),
 			TagSync:          lstepApplication.TagSync,
 			StaffAssignments: repositories.staff.Assignments,
 			Treatments:       repositories.medicalRecord.treatments,
