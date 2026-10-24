@@ -201,3 +201,85 @@ AC prefixはAC-trimming-。現在はFR8件／AC55件（従来53件＋予約時�
 ## 2026-10-23開始・終了の技術接続
 
 [開始・終了の限定契約](trimming-start-end-contract.md#trimming-start-end-closed-wire)で468単一writer、T4 schema2の実担当者（actor/予約指名と別）、閉じたstart/end fingerprintと最小準備readproofを選定。準備はmetadataのみで記録作成/本文save/状態変更なし。現在認可/版検査を維持し、同key成功はproof再検証前に扱う。途中保存/開始に実担当者・料金の新gateを加えず、終了の既決9ACを保持。共有供給/実装/試験/全9AC受入/activationは未完（NOT_RUN）。
+
+<a id="zero-performance-abort-561-20261024"></a>
+## EMR-561 実績ゼロ中止の限定契約
+
+基準main `c0ee0914e723791c59cfa971cbb1ad84cff171db`。FR-trimming-zero-performance-abortの6AC（record/charge/no-charge/existing-money/performed-excluded/failure）を具体化する技術選定であり、実装済みではない。541/482の保存済みT4全量reader、468単一lifecycle writer、489/467のC06を再利用する。明示開始後・現在in_consultation・同appointment/detail・完全な現在実施集合0だけが対象。planned T3を実績へ変換せずunknownを0にしない。過去実績を削除して0に見せず、本開始cycleの実施由来/取消履歴不明は停止する。実績ありは通常記録/料金調整、通常終了の実担当条件は不変。中止actorは認証staffで実担当必須を新設しない。
+
+### 状態・結果とwriter閉包
+
+terminal `aborted` とimmutable outcome `aborted_zero` を分離する。中止commit時は請求なしがstatus=aborted、請求ありがstatus=accounting。後のD10完了でcompletedになっても中止outcomeを保持し施術完了へ読み替えない。支払完了はD10事実でだけ表示。通常completed/no_show/開始前cancel/開始Undo/架空course・optionへ変換しない。通常PATCH/create/LIFF/終了/cancelはabortedを生成できず、汎用restore/再受付/Undoで結果を消さない。既存専用訂正ownerへ渡し新restore業務は作らない。
+
+| 同一実装PRのowner/consumer | 必要変更subset |
+|:---|:---|
+| 468/445/446 | model/reservation.go、予約enum、request/service_update/intent_repository、admin cancel/restore、repository、event/anchor。通常write拒否とcurrent読取 |
+| 561/541 | trimming request/save/create/delete、use-trimming-form/TrimmingForm、raw response/transformで中止を保持 |
+| D02/468 | reception/api/transforms.ts、status caller、kanbanで診療中列から除外し中止閲覧/既存別請求導線へ |
+| D01 | types/index.ts、reservation transforms/status helpers/colors、detail/actions/week-view。新状態を予約中へfallbackしない |
+| LIFF | models/schema/my-reservations DTO/labelでdecodeするが中止操作・理由・料金を新公開しない |
+| 468 availability/next-visit | liff_service_availability_delegate/slots、reservation_next_visit_query、pet_owner_transfer、trimming_next_visit_tag_sync。進行中/未来予約から除外し元予定時刻/snapshotは保持 |
+| 481/484 | 通常施術候補からゼロ実績を除外し専用source枝だけを読む。会計bridgeはoutcome保持 |
+
+541のW01–W06/W15、batch-no-show、finance bridge、identity変更の該当writerへ閉包を適用し468がfile/symbolを確定する。検索50件だけで閉包完成としない。未参加旧経路を互換目的で残さない。2026-10-24 05:18:23 UTCの本人「ok」（Sentinel_05a62545c458819189f1ce3e688bca1d）により当日の予約表へ「中止（実施なし）」掲載を採用。開始前取消/no_showと区別し予定枠・保存中止事実を保持、charge有無/後のaccounting/completedで落とさない。
+
+### command・C06・保存
+
+POST `/v1/reservations/{appointment_id}/abort-trimming`、intent=reservation.abort_trimming_zero、Idempotency-Key非zero UUID。trusted clinic/actor、closed body `{expected_version,record_ref,reason,charge}`。record_refは541同形 `{owner:"trimming",kind:"appointment_trimming_detail",id,revision}`、ID/版はcanonical positive signed-int64 decimal string。reasonはblank-only拒否、元文字列をtrim改変しない。chargeは `{decision:"none"}` 又は `{decision:"charge",input_amount}`、金額はcanonical非負整数円stringで未入力と0を分離、0 chargeも実在source。負額返金・税・保険・割引・実担当・施術明細・任意status・本文saveはcommandへ入れない。
+
+既存GET `/v1/reservations/operations/{operationKey}?intent=reservation.abort_trimming_zero` を拡張し別receipt serviceを作らない。詳細GET `/v1/reservations/{id}/trimming-abort-operations/{key}/details` は元anchor/current view認可後immutable `{status,operation_key,result_refs,committed_versions,recorded_at,outcome,reason,charge}`。current statusは通常GETから分離。POST/replayは541のreservations:edit＋trimming:view/edit、view-only結果照会はGET。master管理/カルテcreate/accounting:editを中止条件に追加しない。
+
+Content exact `{schema:"trimming-zero-abort.v1",intent,appointment_id,record_ref,reason,charge}` のJCS UTF-8 SHA256を既存短map `{schema_version:"1",resource_kind:"appointment",target_ref:appointment_id,payload_sha256}` へ写像。expected_versionはCAS-only。record_ref.revisionは確認した実施集合のContentでもあり新版確認は新command/key。元keyのreason/金額を変更しない。
+
+新規trimming_abort_resultsはid bigint PK、clinic_id/appointment_id/detail_id/detail_revision_id/detail_revision/start_event_id/operation_id、reason、charge_decision、input_amount nullable、recorded_by/at。clinic付きFK RESTRICT、reason非blank、none⇔amount NULL、charge⇔amount非NULLかつ0以上、immutable/RLS。UNIQUE(clinic,appointment,start_event)とUNIQUE(clinic,operation)。serverが現在有効な開始eventを解決しclient指定不可、別key同cycleでも二重中止を防ぐ。
+
+appointment.trimming_abort_result_id nullable bigint（defaultなし）をcurrent outcome正本とし、同表のUNIQUE(id,clinic,appointment)へ複合FK。status=abortedは参照必須かつnone、chargeありの中止commit時はaccounting。後続D10がcompletedへ進める際は中止outcome参照を保持して許可し、chargeありを恒久的にaccountingへ拘束するguardは置かない。receiptからcurrentを推定しない。結果/状態/event/audit/receiptは同TX、T4本文・実施集合は上書きせず検査したrevisionを固定する。
+
+料金sourceはabort result id、revision=1。架空trimming_service_linesを作らず、billing_source_bindingsへkind=trimming_abort_chargeとnullable trimming_abort_result_idを追加し当kindだけそのFKを非NULL、他kindはNULL。既存trimming course XOR optionのFKへ押込まない。clinic付きresult FKとsource版1/charge一致guard、active UNIQUE(clinic,result) WHERE claim_released_at IS NULL。既存release/operation/reasonを継承。後の料金訂正はD10原source保持で行い中止再送で確定金額を変更しない。
+
+短claim→最外業務TX→ContextGate reservation-graph:write:v1（派生ctx伝播）→binding NOWAIT→元target現在認可/成功replay→booking/pet/appointment→detail/current T4全集合。開始event/同clinic-pet-detail binding/期待appointment版/現在revisionとline_count=0を再検査。結果・料金source・468状態/version/event・必須audit/receiptを同commitし、失敗全rollback。会計準備jobでsourceを別commitにしない。detail版は検査した固定版で増やさない。
+
+既存12状態/HTTPを継承：succeeded/replayed/not-succeeded=200、operation-in-progress=202、result-unavailable=503、operation-key-conflict/version-conflict/dependency-changed/edit-right-lost=409、validation=400、scope-not-found=404、not-authorized=403。成功refsはappointment_id/detail_id/abort_result_id、versionsはappointment/detail、recorded_at。不明は同key lookup・入力保持、新key/新予約/自動Undoなし。
+
+### 非施術sourceの会計取込
+
+中止成功は結果＋個別料金source保存まででbilling item/確定/支払をpushしない。noneは今回候補0件だけで既存請求/未収/預り/他診療を空にしない。chargeは専用sourceと原額を返し通常performed readinessを要求しない。この例外を通常施術へ拡張しない。支払・返金・預り・既存請求改訂を中止commandから呼ばない。
+
+上記本人承認によりスタッフが会計時に税区分・税率を明示確認する。未確認はunknown/unconfirmed、rate/type=null、中止記録を保持するが税額確定/importは停止。固定0/10%・非課税・保険falseを推測せず、482のcourse/master税を捏造しない。405の入院manual-other先例だけで実装済みとしない。中止の新mandatory入力ではなく会計確認である。
+
+候補GET `/v1/billing-items/trimming-abort-charge-candidates?pet_id={id}` はaccounting:view、同院/owner/pet。response `{pet_id,revision,items}`、item `{source,appointment_id,detail_id,input_amount,tax_confirmation_required:true}`、source `{kind:"trimming_abort_charge",id,revision:"1"}`。候補一覧revisionとimportのunbilled_revisionはsource集合/current適格性/active claimをJCS UTF-8で直列化したSHA-256のlowercase64hexであり、時刻でもpositive-int64版でもない。理由全文を不要配信しない。noneは0件、charge0は候補あり。
+
+POST `/v1/accountings/{billing_id}/trimming-abort-charge-imports` は現在accounting:create、Idempotency-Key、body `{source,tax_confirmation,preconditions}`。tax_confirmation exact `{type,rate}`、type=included|excluded|exempt、rateは既決D10 canonical非負有限decimal string、exemptは明示0。新上限/固定率なし。preconditionsはbilling_version/appointment_version/unbilled_revision。IDとbilling/appointment/sourceの数値版はcanonical positive-int64 decimal string、unbilled_revisionは上記lowercase64hexとして明確に分離する。source revisionはContent、他前提はCAS。原額/元source版・税確認値をContentへ束縛する。
+
+serverが認証actor/時刻をTaxInput `{status:known,type,rate,origin:staff_confirmed,master:null,confirmed_by,confirmed_at}` に記録。505 original_projectionは `{kind:"trimming_abort_charge_v1",values:{source,appointment_id,detail_id,input_amount}}`、applied_pricingは `{schema_version:1,input_unit_price:input_amount,quantity:"1",tax:TaxInput}`。quantity=1は単一個別額の計算上の値で実施回数でない。原額と会計適用値を分離し483原入力snapshot/505算定を同TX使用。保険/割引はその会計の保存済み明示入力を保持しsource既定で上書きしない。
+
+billing owner同外TXで現在billing/source/active bindingを検査、item＋専用binding＋505固定計算版/current_calculation_id＋audit＋C06 receiptを一括commit。refs billing_id/billing_item_id/calculation_id、versions billing/item/binding/source/calculation（source=1）。同key同内容replay、別key同active sourceはdependency-changed、原額/税変更は新Contentで旧key拒否。既存billing lookupへintent=billing.trimming_abort_charge_import、元target現在accounting:view。未知税は400 validationでzero-write、405固有422を転用しない。
+
+charge保存直後は「中止保存済み／会計引渡し未完了（税確認待ち）」、noneは「中止保存済み／今回の新規請求なし」。import成功は現在binding readerで取込済みを表示し、中止receiptを書換えない。請求/入金確定はD10の別状態。
+
+### 有限成功単位
+
+561統合、541 current T4 validator、468 lifecycle、482 reader/料金接点、481 binding/import、484通常候補除外、489/467 gate、445 wire、446/466 storageを同PRへ結ぶ。shared schema/router/modelは単一editor。フォーム→command→結果/source→lookup→受付/予約/施術/LIFF表示→481/505取込までで6ACを閉じる。full parent Done・通常終了9AC全部・全480/全会計は開始条件でない。ContextGate共有拡張/派生ctxとconsumer接続の未供給は既存489必要subsetとして区別し、既存Gate(ctx) error/Q/ClaimMetadataWriterを未実装へ戻さない。
+
+fixtureは0/未知/実績あり/planned only、別clinic/detail、理由なし、charge0/未入力、none＋既存金銭、同key異内容、別key同cycle、同時T4保存、失権、途中失敗、二重import、後会計終了でも中止保持、旧writer拒否。全てNOT_RUN。設計Readyと実装・動作完了は別。
+
+<a id="reservation-daily-print-562-20261024"></a>
+## EMR-562 指定日トリミング予約表
+
+[画面正本・6AC](../../../spec/screens/16-trimming-list.md)を実現する。責任562（親448）、read owner trimming/reservation、FE TrimmingList。入口は一覧header「日次予約表」、既存期間/keyword/page/担当filterと独立したJST1日picker。初期当日でも対象日を必ず表示。A4横・余白10mm、担当名安定順＋IDで縦group、同名別IDは別group、担当者未定は最後。group内は予定開始→予定終了→appointment ID順。
+
+列は予定開始/終了・担当者・飼主名・ペット名・コース・追加オプション・状態。医院名/対象日/取得時刻をheader、件数をpreview。長名/optionsは折返して全内容、行途中分割回避、groupが跨頁なら担当/列見出し再表示。ページ高超の1行だけ「続き」で分割し欠落を作らない。HTML previewとprint CSSは同じメモリprojection。ブラウザ印刷/利用者のPDF保存だけでserver PDF・Library/DB保存・発行履歴・外部送信なし。dialog終了を印刷成功としない。0件previewは対象予約なし、取消/失敗は元状態不変。
+
+現GET trimmingsの名称fieldは予定source適合の証拠でない。get-trimmings.tsはpage1、transformは状態/時刻/optionを落とし、toTrimmingResponseは実施detail Course/Optionsを読む。専用GET `/v1/trimmings/reservation-print?date=YYYY-MM-DD` を/:id前に登録、dateだけ、trusted clinicと既存trimming:view行scope。GETでcreate/価格補完/時間snapshot生成なし。
+
+read-only REPEATABLE READ一回で全量取得する。DB chunkも同snapshot、HTTP offset page寄せ集めを完全としない。上限/timeoutはincomplete errorで部分print不可。予定start_timeのJST半開区間、同院・trimming分類・非deleted。跨日終了は日付付き、終了日で翌日に二重掲載せずintended_dateや仮時刻を予約へ変換しない。
+
+response exact `{schema,date,timezone,generated_at,total,rows}`、schema=trimming-reservation-print.v1、timezone=Asia/Tokyo、total=rows.length。row exact `{appointment_id,appointment_version,start_time,end_time,staff,owner,pet,booking,status,outcome}`。ID/版canonical正十進string、時刻offset付きRFC3339、updated_atを版としない。staff `{id,name}` 又はnull（担当未定）、IDあり名前read失敗は整合error。owner/petも `{id,name}` 又は既知未設定null（未登録）、取得不明/異院/参照不整合は停止。raw customer_fields/別pet名へfallbackしない。
+
+booking共通keys `{revision_id,course,options,provenance}`。provenance=recordedはrevision_id正ID必須、course `{id,name}` 又は明示未定null、options完全配列（なし[]）。legacy_unknownは既存参照あればrevision_id正ID/なければnull、course/optionsともnull。部分的な実施detailを混ぜず、明示未定・なしと不明を区別。T3 trimming_booking_revisions/revision_optionsの保存採用identityだけから予定集合を構成し、T4/billing/現master候補へ置換しない。名称snapshotなしは同identityの現在名称として明示し当時名としない。master無効化で行を落とさず、消失/名称不明は「名称不明（ID）」と取得失敗を分離。旧detailを予定と証明できるadapterだけ検証して採用、単純fallbackなし。
+
+statusは保存raw、outcomeは保存中止のnullable投影。pending/confirmed=未受付、checked_in=受付済、in_consultation=施術中、accounting=会計待ち、completed=既存完了。施術/入金完了は対応保存事実がある時だけ。cancelled/no_showは帳票だけ除外、tentativeは未予約intentなので除外。未受付・経過時間からno_showを生成せずunknown statusは出力停止。上記05:18:23本人承認により開始後実績ゼロ中止はaborted/chargeありaccounting/後続completedのいずれも保存outcomeから「中止（実施なし）」掲載し、予定枠・事実を保持、金銭/状態への副作用なし。
+
+context=(clinic,auth generation,date,request generation)固定。切替/失権でpreview破棄、遅延応答不採用。更新操作で新snapshotを表示してから同modelを印刷し、print中の暗黙GET差替えなし。現在認可再検査が必要なら全projectionを再取得し表示も更新。全量/total/参照整合確認までprint不可。403認可、400日付、200 rows=[]正常空、reader失敗/整合不明は503相当の印刷不能。GET operation key/永続receipt不要。
+
+562同PRにdate/入口/preview/CSS、T3＋identity名＋raw状態の同snapshot adapter/型/APIを収容。指定日境界・担当未定/複数・跨日・0件・複数page量・長文改頁・状態各種・失敗/切替・予約/施術/会計/snapshot zero-mutationを6ACへ対応。共有API hunk責務とreader subset受領でReady候補、UI未実装/NOT_RUNだけで停止せず448/541/480/468全Done待ちなし。供給未照合のT3/名前readerは実interfaceと保存正本を有限照合。全実行NOT_RUN。

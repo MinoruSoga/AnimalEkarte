@@ -205,22 +205,30 @@ D16はD10の請求snapshot／差分と実移動event、D12の締めsnapshotを�
 実装受入では同key同内容／別内容、初回commit後応答消失、照会未検出中の遅延commit、期待版競合、認可失効、監査保存失敗、旧値不明を各intentで試し、本節の成功または停止結果を確認する。新endpoint／DDL／実grant設定・既存writerの改修・移行実行・実機試験は未実施だが、これらを理由に意味契約自体を未決へ戻さない。
 
 <a id="discharge-report-projection-proposal"></a>
-## D12退院帳票の行粒度・固定読取の詳細設計案
+## EMR-566 実退院帳票の限定技術契約（2026-10-24）
 
-[実退院JST日・掲載4項目の正本](../../../spec/domains/cash-register/business-rules.md)と[C06提案境界](../../shared/integration-contracts.md#detail-design-proposals-20261018)に接続する。正本が設計事項として残した行粒度は、同名患者の重複排除ではなく**clinic＋入院滞在ID＋有効な退院事実の1行**を提案する。再入院は別滞在、同じ退院の再読取・同操作再送は同じ事実。既存正本で許可される訂正だけをD05の現在有効性・履歴からprojectionし、現在statusだけで架空の退院日時を作らない。本案で退院取消／再開という新writer・業務遷移は採用しない。取消事実を扱うのは許可されたsourceが実際に提供する場合だけで、未提供はUNKNOWNとして照合へ残す。
+[実退院日・4項目の6AC](../../../spec/domains/cash-register/business-rules.md)を実現し、訂正sourceは[499単一core契約](../hospitalization/technical-spec.md#effective-stay-correction-566-20261024)だけを消費する。基準main `c0ee0914e723791c59cfa971cbb1ad84cff171db` の現sourceと今回の未実装供給を区別する。請求用ケア明細やhospitalizations退役Status/StartDate/EndDateをsourceへ戻さない。
 
-| owner／読取段階 | 提案契約 |
+`ReadEffectiveDischarges(ctx,authClinicID,DischargeQuery{jstDate}) -> EffectiveDischargePage` は一貫したread snapshotでstay・全movement chain・identity/nameを取得する。**chain解決後**の有効discharge.actual_atをJST対象日00:00以上・翌日00:00未満のUTC区間で抽出する。raw dischargeを日付で先に絞らず、訂正の日跨ぎ・void元行を取り漏らさない候補集合を使う。初版は日単位一括応答とし恣意的上限で切らない。
+
+本帳票は、同院の既存入院記録に帰属する入院の実退院を対象とする。ホテル退室は今回の対象へ追加しない。499共通coreのホテル対応は帳票掲載の許可を意味しない。入院帰属不明は推測せずunknownとして照合する。既知のホテル退室は帳票対象外であり、欠損・取得不明の警告件数へ混ぜない。stay_caseなし旧行はunknownで旧日付を補修しない。
+
+行identityは `stay_case_id:discharge_root_event_id`。clinic/stay/kind/hospitalization/固定owner/pet identityとsource evidence（stay_version、movement_head_revision、projection_contract_version=1）を結ぶ。actual_discharge_atとactual_admission_atはoffset付きRFC3339で両方known必須。入院日は後者のJST日付。owner_name/pet_nameは各fieldにknown/unknownを付けnullableとし不明は「不明」、空文字や現在日時で補わない。固定stay identityに紐づく同じ読取snapshotの名称であり、現在主飼主へ付け替えず過去名称snapshot保持とも装わない。
+
+`coverage=complete|partial` と `unresolved_stays` 理由を返す。実退院日不明を対象日の行へ割り当てず、「対象日への該当判定ができない滞在あり」と非金銭注記する。該当判定不能を0件にせず、技術内部詳細や無権限identityを公開しない。取得失敗を正常空・正常partialへ変換せず別日cacheへfallbackしない。
+
+| route（共通service） | 現在認可 |
 |:---|:---|
-| D05 source | 型付きstay/退院事実ID・各版、実退院日時、入院日、元owner/pet refと当該表示値の版、有効／訂正関係を返す。期間内全件取得の完全性を返し、ページ先頭だけで完成としない |
-| D12抽出 | 認可されたclinic＋JST対象日について、実退院instantをJST日へ写像して抽出。予定退院日・請求日・受領日を使わない。滞在/退院identityで一度だけ選択 |
-| 表示・順序 | 退院日時・飼主名・ペット名・入院日の4項目。内部identity/版は照合用で、新しい表示列・担当医・金額列を追加しない。順序案は実退院日時→滞在ID→事実IDの安定順 |
-| プレビュー／出力 | query（clinic/日付/権限scope）と取得したsource版集合・projection版を固定し、同じ4項目を画面／印刷へ。版が進めば更新ありを返して再取得し、混在版の帳票を成功にしない |
-| 訂正後の再集計 | 元退院事実と訂正後有効版を追跡し新projectionへ。以前の締め・出力履歴を上書きせず、D05/D10の原実績・請求・実入金にwriteしない |
-| 失敗 | 読取不能／ページ欠落／source関連不明は部分取得を明示して出力停止。確認済み0件は空一覧として出力可。別日／別医院のcacheへfallbackしない |
+| GET /v1/accountings/discharges?date=YYYY-MM-DD | ResourceAccounting、accounting:view |
+| GET /v1/cash-register/discharges?date=YYYY-MM-DD | ResourceCashRegisterClose、cash-register-close:view |
 
-本adapterはread-onlyで、退院・請求・入金・在庫・通知・証明書発行を起動しない。`backend/internal/medicalrecord/hospitalization_discharge_tx.go`の請求用ケア明細（quantity=1等）は別の金銭projectionであり、退院一覧の行粒度・金額の根拠へ流用しない。既存の締め営業区分や繰越表示を日付抽出から書換えない。
+両routeはdate必須・Asia/Tokyo固定・trusted clinic scope。既存billing/routes.goの各日次／締めgrantを継承しOR権限・新write権限を作らない。responseはdate、timezone、interval_start/end、read_at、projection_contract_version、rows、coverage、warnings。財務total/payment/doctorは含めない。表示4項目は退院日時・飼主名・ペット名・入院日だけ。
 
-DC-F01：JST 00:00前後、予定日と実退院日が異なる、同名別pet・同日再入院。DC-F02：同じ退院の再送・既存許可済み訂正・日付を跨ぐ訂正で重複／架空行なし。未提供の取消sourceから架空の取消・再開を生成しない。DC-F03：複数ページ・読取失敗・0件・医院切替遅延・preview後版変更。DC-F04：再印刷／再集計でも売上／入金の二重加算・新writeなし。これらは既存の帳票ACの技術検証案で未実行。
+両画面とDailyAccountingPrintArea／ClosePrintAreaは同じ応答rowsを使用し、印刷だけ別filter・別時刻再取得をしない。通常再表示は訂正後sourceを反映するが、歴史的締めsnapshotの不変再発行は新設しない。未精算・会計なしも掲載し、金銭集計SQL・total・営業日帰属は不変。printは退院・支払・締め確定を書かない。
+
+566同一実装PRは499訂正source subset共同供給→query/API→両画面・両print→unknown/取得失敗表示と認可まで。557の通常writer完成、499全体Done、税・会計票全体を開始gateにしない。557停止解除や実データE2E達成とは報告しない。Readyは同PR責務と契約の成立、完成時の採用SHA・producer symbol→reader→画面/print証拠と別である。
+
+六ACのfixture期待値はJST直前/00:00/末尾/翌日00:00、支払別日・未精算・会計なし、訂正日跨ぎ・退院void・入院void不整合・複数訂正・NULL・不明identity・他院、read-onlyと印刷前後金銭不変、取得失敗を正常空/partialにしないこと、両route各grant拒否時の無権限identity非公開。定義のみで全実行NOT_RUN。
 
 ## 完了判断と未実行
 
