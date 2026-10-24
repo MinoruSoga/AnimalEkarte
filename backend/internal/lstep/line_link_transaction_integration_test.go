@@ -42,13 +42,31 @@ func TestLineLinkService_AuditFailureRollsBackOwnerAndTokenInDatabase(t *testing
 		nil,
 	)
 	auditErr := errors.New("forced audit failure")
+
+	// LinkAccount は ID Token 検証の前に LIFF ID から LINE Login チャンネル ID を解決するため、
+	// 監査書き込みまで到達させる正規の認証情報リーダーを注入する。
+	credentialRepo := &mockLineChannelCredentialRepo{
+		findByClinicServiceKeyFn: func(
+			_ context.Context,
+			clinicID uint64,
+			service, keyName string,
+		) (*model.ClinicIntegration, error) {
+			return &model.ClinicIntegration{
+				ClinicID: clinicID,
+				Service:  service,
+				KeyName:  keyName,
+				KeyValue: "1234567890-auditRollback",
+			}, nil
+		},
+	}
 	service := &lineLinkService{
-		ownerRepo:         ownerdomain.NewRepository(db, nil),
-		lineLinkTokenRepo: NewLineLinkTokenRepository(db),
-		webhookRoutes:     &mockLineLinkSettingRepo{},
-		transactor:        persistence.NewTransactor(db),
-		auditTx:           failingLineLinkAuditTxLogger{err: auditErr},
-		httpClient:        jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
+		ownerRepo:          ownerdomain.NewRepository(db, nil),
+		lineLinkTokenRepo:  NewLineLinkTokenRepository(db),
+		lineCredentialRepo: credentialRepo,
+		webhookRoutes:      &mockLineLinkSettingRepo{},
+		transactor:         persistence.NewTransactor(db),
+		auditTx:            failingLineLinkAuditTxLogger{err: auditErr},
+		httpClient:         jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	}
 
 	got, err := service.LinkAccount(
