@@ -186,7 +186,7 @@ export function useMedicalRecordFormRead(input: {
   const recordClinicId = existingRecord?.clinicId;
   const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
 
-  const { clinicalPlanVersion, onClinicalPlanSaved } = useApplyClinicalPlan({
+  const { clinicalPlanVersion, clinicalPlanDiagnoses, onClinicalPlanSaved } = useApplyClinicalPlan({
     recordId,
     clinicalPlan,
     physicalExam: diagnosis.physicalExam,
@@ -228,6 +228,7 @@ export function useMedicalRecordFormRead(input: {
     recordClinicId,
     clinicalPlan,
     clinicalPlanVersion,
+    clinicalPlanDiagnoses,
     onClinicalPlanSaved,
     resolvedPetId,
   };

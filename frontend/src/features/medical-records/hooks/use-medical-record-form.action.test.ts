@@ -79,6 +79,21 @@ vi.mock("../api/clinical-plan", () => ({
   useUpdateClinicalPlan: () => noMutation,
   useGetClinicalPlan: (...args: unknown[]) => mockUseGetClinicalPlan(...args),
 }));
+
+// clinical-plan 応答の診断行（clinical_plan_response.go の closed shape）。
+function diagnosisRow(slot: 1 | 2, typeId: string, nameId: string) {
+  return {
+    id: `d-${slot}`,
+    version: 1,
+    diagnosis_slot: slot,
+    diagnosis_type_id: typeId,
+    diagnosis_name_id: nameId,
+    diagnosis_name_snapshot: null,
+    category_name_snapshot: null,
+    sort_order: 0,
+  };
+}
+
 vi.mock("@/hooks/use-reservation-types", () => ({
   useGetReservationTypesGrouped: vi.fn(() => ({
     data: [
@@ -392,10 +407,7 @@ describe("useMedicalRecordForm — formAction（useActionState）", () => {
         physical_exam: "既存所見",
         diagnosis_details: "既存の診断詳細",
         treatment_policy: "既存の治療方針",
-        diagnosis_type_id: "3",
-        diagnosis_name_id: "7",
-        diagnosis_2_type_id: "4",
-        diagnosis_2_name_id: "9",
+        diagnoses: [diagnosisRow(1, "3", "7"), diagnosisRow(2, "4", "9")],
         updated_at: "t1",
       },
       isLoading: false,
@@ -428,15 +440,17 @@ describe("useMedicalRecordForm — formAction（useActionState）", () => {
     });
     // useUpdateClinicalPlan は noMutation にモックされている（clinical-plan.ts の
     // vi.mock）。診断以外の治療方針テキストしか編集していないのに、hydrate が
-    // 効いていなければここに diagnosis_2_type_id: null が渡り保存済み診断2が消える。
+    // 効いていなければ診断1/2 が空と判定されて diagnoses: [] が渡り保存済み診断が消える。
+    // hydrate 済みで診断を触っていなければ diagnoses は送らない（= 変更なし）。
     expect(noMutation.mutateAsync).toHaveBeenCalledWith(
       expect.objectContaining({
-        diagnosis_2_type_id: 4,
-        diagnosis_2_name_id: 9,
         physical_exam: "既存所見",
         treatment_policy: "更新後の治療方針",
         version: 3,
       }),
+    );
+    expect(noMutation.mutateAsync).not.toHaveBeenCalledWith(
+      expect.objectContaining({ diagnoses: expect.anything() }),
     );
   });
 
@@ -482,10 +496,7 @@ describe("useMedicalRecordForm — formAction（useActionState）", () => {
         physical_exam: "v1 身体所見",
         diagnosis_details: "v1 診断詳細",
         treatment_policy: "v1 治療方針",
-        diagnosis_type_id: "3",
-        diagnosis_name_id: "7",
-        diagnosis_2_type_id: "4",
-        diagnosis_2_name_id: "9",
+        diagnoses: [diagnosisRow(1, "3", "7"), diagnosisRow(2, "4", "9")],
         updated_at: "v1",
       },
       isLoading: false,
@@ -509,10 +520,7 @@ describe("useMedicalRecordForm — formAction（useActionState）", () => {
         physical_exam: "B の身体所見",
         diagnosis_details: "B の診断詳細",
         treatment_policy: "B の治療方針",
-        diagnosis_type_id: "11",
-        diagnosis_name_id: "12",
-        diagnosis_2_type_id: "13",
-        diagnosis_2_name_id: "14",
+        diagnoses: [diagnosisRow(1, "11", "12"), diagnosisRow(2, "13", "14")],
         updated_at: "v2",
       },
       isLoading: false,

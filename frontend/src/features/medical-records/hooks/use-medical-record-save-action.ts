@@ -3,7 +3,11 @@ import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import type { ClinicalPlan } from "../api/clinical-plan";
+import type {
+  ClinicalPlan,
+  ClinicalPlanDiagnosisInput,
+  ClinicalPlanDiagnosisRow,
+} from "../api/clinical-plan";
 import type { ClinicalPlanDraft } from "./use-apply-clinical-plan";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
@@ -15,18 +19,31 @@ function deniedState(error: string): ActionState {
   return { success: false, error, timestamp: Date.now() };
 }
 
-function isOptionalClinicalPlanId(value: unknown): boolean {
-  return value == null || typeof value === "string";
+function isNullableString(value: unknown): boolean {
+  return value === null || typeof value === "string";
 }
 
-function isDiagnosisReference(value: unknown): boolean {
+// BE の診断行（clinical_plan_response.go）。ID 系は文字列 / null、slot と sort_order は数値。
+function isClinicalPlanDiagnosisRow(value: unknown): boolean {
   return (
-    value == null ||
-    (typeof value === "object" &&
-      "id" in value &&
-      (typeof value.id === "string" || typeof value.id === "number") &&
-      "name" in value &&
-      typeof value.name === "string")
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    "version" in value &&
+    typeof value.version === "number" &&
+    "diagnosis_slot" in value &&
+    typeof value.diagnosis_slot === "number" &&
+    "diagnosis_type_id" in value &&
+    isNullableString(value.diagnosis_type_id) &&
+    "diagnosis_name_id" in value &&
+    isNullableString(value.diagnosis_name_id) &&
+    "diagnosis_name_snapshot" in value &&
+    isNullableString(value.diagnosis_name_snapshot) &&
+    "category_name_snapshot" in value &&
+    isNullableString(value.category_name_snapshot) &&
+    "sort_order" in value &&
+    typeof value.sort_order === "number"
   );
 }
 
@@ -50,23 +67,101 @@ function isClinicalPlan(value: unknown): value is ClinicalPlan {
     typeof value.created_at === "string" &&
     "updated_at" in value &&
     typeof value.updated_at === "string" &&
-    "diagnosis_type_id" in value &&
-    isOptionalClinicalPlanId(value.diagnosis_type_id) &&
-    "diagnosis_name_id" in value &&
-    isOptionalClinicalPlanId(value.diagnosis_name_id) &&
-    "diagnosis_2_type_id" in value &&
-    isOptionalClinicalPlanId(value.diagnosis_2_type_id) &&
-    "diagnosis_2_name_id" in value &&
-    isOptionalClinicalPlanId(value.diagnosis_2_name_id) &&
-    "diagnosis_type" in value &&
-    isDiagnosisReference(value.diagnosis_type) &&
-    "diagnosis_name" in value &&
-    isDiagnosisReference(value.diagnosis_name) &&
-    "diagnosis_2_type" in value &&
-    isDiagnosisReference(value.diagnosis_2_type) &&
-    "diagnosis_2_name" in value &&
-    isDiagnosisReference(value.diagnosis_2_name)
+    "diagnoses" in value &&
+    Array.isArray(value.diagnoses) &&
+    value.diagnoses.every(isClinicalPlanDiagnosisRow)
   );
+}
+
+/** 診断 slot（BE の CHECK(diagnosis_slot IN (1,2)) と同じ値域）。 */
+type ClinicalPlanDiagnosisSlot = 1 | 2;
+
+interface ClinicalPlanDiagnosisSource {
+  diagnosis1CategoryId: number | null;
+  diagnosis1NameId: number | null;
+  diagnosis2CategoryId: number | null;
+  diagnosis2NameId: number | null;
+  /** 読込済み baseline の診断行（BE が slot, sort_order, id 昇順で返した順のまま）。 */
+  existingClinicalPlanDiagnoses?: ClinicalPlanDiagnosisRow[];
+}
+
+interface SlotDiagnoses {
+  /** UI の選択が読込済みの代表行と異なるか。true の slot だけが置換・クリア対象。 */
+  changed: boolean;
+  rows: ClinicalPlanDiagnosisInput[];
+}
+
+function toNumericId(value: string | null): number | null {
+  if (value === null) return null;
+  const id = Number(value);
+  if (!Number.isSafeInteger(id)) {
+    throw new Error(`診断行の ID を数値へ変換できません: ${value}`);
+  }
+  return id;
+}
+
+/**
+ * 1 つの slot の送信行を決める（EMR-495）。
+ * - 代表行 = その slot の先頭行。BE は slot, sort_order, id 昇順で返す（ListDiagnoses）。
+ * - UI の区分・名称が代表行と同じ: 読込済みの全行を値のまま返す（複数行・スナップショット・sort_order を保持）。
+ * - 異なり、両方未選択: その slot の行を持たない（クリア）。
+ * - 異なり、選択あり: 新しい 1 行へ置換する。スナップショットは BE が現在のマスタから補完しないため null で送る。
+ */
+function buildSlotDiagnoses(
+  slot: ClinicalPlanDiagnosisSlot,
+  categoryId: number | null,
+  nameId: number | null,
+  loadedRows: ClinicalPlanDiagnosisRow[],
+): SlotDiagnoses {
+  const slotRows = loadedRows.filter((row) => row.diagnosis_slot === slot);
+  const representative: ClinicalPlanDiagnosisRow | undefined = slotRows[0];
+  const loadedCategoryId = toNumericId(representative?.diagnosis_type_id ?? null);
+  const loadedNameId = toNumericId(representative?.diagnosis_name_id ?? null);
+  if (categoryId === loadedCategoryId && nameId === loadedNameId) {
+    return {
+      changed: false,
+      rows: slotRows.map((row) => ({
+        diagnosis_slot: slot,
+        diagnosis_type_id: toNumericId(row.diagnosis_type_id),
+        diagnosis_name_id: toNumericId(row.diagnosis_name_id),
+        diagnosis_name_snapshot: row.diagnosis_name_snapshot,
+        category_name_snapshot: row.category_name_snapshot,
+        sort_order: row.sort_order,
+      })),
+    };
+  }
+  if (categoryId === null && nameId === null) return { changed: true, rows: [] };
+  return {
+    changed: true,
+    rows: [
+      {
+        diagnosis_slot: slot,
+        diagnosis_type_id: categoryId,
+        diagnosis_name_id: nameId,
+        diagnosis_name_snapshot: null,
+        category_name_snapshot: null,
+        sort_order: 0,
+      },
+    ],
+  };
+}
+
+/**
+ * 診断行の PATCH 値を作る。診断1 → slot 1、診断2 → slot 2。
+ * どの slot も変わっていなければ undefined（= diagnoses キーを送らず「変更なし」）。
+ * 1 つでも変わっていれば、変えていない slot の読込済み行も含めた全集合を返す（BE は全置換のため）。
+ * 両 slot をユーザーがクリアした場合だけ `[]`（全行クリア）になる。
+ */
+function buildClinicalPlanDiagnoses(
+  source: ClinicalPlanDiagnosisSource,
+): ClinicalPlanDiagnosisInput[] | undefined {
+  const loadedRows = source.existingClinicalPlanDiagnoses ?? [];
+  const slots = [
+    buildSlotDiagnoses(1, source.diagnosis1CategoryId, source.diagnosis1NameId, loadedRows),
+    buildSlotDiagnoses(2, source.diagnosis2CategoryId, source.diagnosis2NameId, loadedRows),
+  ];
+  if (!slots.some((slotDiagnoses) => slotDiagnoses.changed)) return undefined;
+  return slots.flatMap((slotDiagnoses) => slotDiagnoses.rows);
 }
 
 interface UseMedicalRecordSaveActionArgs {
@@ -94,6 +189,8 @@ interface UseMedicalRecordSaveActionArgs {
   treatmentPolicyBaseline: string;
   existingRecordVersion?: number;
   existingClinicalPlanVersion?: number;
+  /** 読込済み baseline の診断行（変更していない slot の行をそのまま送り返すために保持する）。 */
+  existingClinicalPlanDiagnoses?: ClinicalPlanDiagnosisRow[];
   onClinicalPlanSaved?: (clinicalPlan: ClinicalPlan, submittedDraft: ClinicalPlanDraft) => void;
   setManualErrors: (errors: Record<string, string>) => void;
   queryClient: QueryClient;
@@ -109,10 +206,7 @@ interface UseMedicalRecordSaveActionArgs {
       physical_exam: string;
       treatment_policy: string;
       diagnosis_details: string;
-      diagnosis_type_id?: number;
-      diagnosis_name_id?: number;
-      diagnosis_2_type_id?: number | null;
-      diagnosis_2_name_id?: number | null;
+      diagnoses?: ClinicalPlanDiagnosisInput[];
       version?: number;
     }) => Promise<unknown>;
   };
@@ -140,6 +234,7 @@ export function useMedicalRecordSaveAction({
   treatmentPolicyBaseline,
   existingRecordVersion,
   existingClinicalPlanVersion,
+  existingClinicalPlanDiagnoses,
   onClinicalPlanSaved,
   setManualErrors,
   queryClient,
@@ -180,6 +275,7 @@ export function useMedicalRecordSaveAction({
     treatmentPolicyBaseline,
     existingRecordVersion,
     existingClinicalPlanVersion,
+    existingClinicalPlanDiagnoses,
   });
   useLayoutEffect(() => {
     saveSnapshotRef.current = {
@@ -201,6 +297,7 @@ export function useMedicalRecordSaveAction({
       treatmentPolicyBaseline,
       existingRecordVersion,
       existingClinicalPlanVersion,
+      existingClinicalPlanDiagnoses,
     };
   });
 
@@ -270,10 +367,9 @@ export function useMedicalRecordSaveAction({
               physical_exam: snapshot.physicalExam,
               treatment_policy: snapshot.plan,
               diagnosis_details: snapshot.assessment,
-              diagnosis_type_id: snapshot.diagnosis1CategoryId ?? undefined,
-              diagnosis_name_id: snapshot.diagnosis1NameId ?? undefined,
-              diagnosis_2_type_id: snapshot.diagnosis2CategoryId,
-              diagnosis_2_name_id: snapshot.diagnosis2NameId,
+              // EMR-495: 診断は diagnoses 行配列。変更した slot だけ置換し、変えていない slot の読込済み行は
+              // 値のまま送り返す。どの slot も変えていなければ undefined（キーを送らない = 変更なし）。
+              diagnoses: buildClinicalPlanDiagnoses(snapshot),
               // BUG-416③: clinical_plan 楽観ロック。undefined を送ると BE は
               // バージョンチェックをスキップする（後方互換）ため常に送信する。
               version: snapshot.existingClinicalPlanVersion,
