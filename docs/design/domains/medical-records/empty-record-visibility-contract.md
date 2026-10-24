@@ -1,6 +1,6 @@
 # EMR-572 空誤作成カルテの非表示・同ID復元
 
-基準main `4b7ea65a3b692073bb41c4be52bd2c1a9be99d74`。親452、[実行票572](https://app.plane.so/baritechllc/browse/EMR-572/)、個人割当なし。[FR-medical-records-empty-record-hide-restore・4AC](../../../spec/domains/medical-records/lifecycle.md#requirement-fr-medical-records-empty-record-hide-restore)だけの選定技術契約であり、まだmain採用/実装/受入済みでない。canonical DB再構築前提で旧復元・汎用DELETE互換・予約取消cleanupなし。
+基準main `4b7ea65a3b692073bb41c4be52bd2c1a9be99d74`。親452、[実行票572](https://app.plane.so/baritechllc/browse/EMR-572/)、個人割当なし。[FR-medical-records-empty-record-hide-restore・4AC](../../../spec/domains/medical-records/lifecycle.md#requirement-fr-medical-records-empty-record-hide-restore)だけの選定技術契約。mainへのマージを設計契約の採用とし、製品実装・受入の完了を意味しない。canonical DB再構築前提で旧復元・汎用DELETE互換・予約取消cleanupなし。
 
 根拠は[C06](../../shared/operation-participation.md)§§1.1–1.3と[495契約](../../../work/emr/emr-495-consultation-correction-contract-20261021.md)。固定main medical_record_crud.go:275–327の旧status/estimateだけのDelete・best-effort actor=nil監査を新操作へ流用しない。旧draft/finalizedを復活させない。ResourceMedicalRecordsのwireはmedical-records。
 

@@ -1,6 +1,6 @@
 # EMR-569 締め設定の分入力と保存済み秒値の保全
 
-2026-10-24、基準main `4b7ea65a3b692073bb41c4be52bd2c1a9be99d74`。採択済み締め設定の原値保持を具体化する技術選定であり実装済みではない。canonical DB再構築・old_db mappingも確定仕様へ適合する前提で、legacy救済・非00秒専用conversion UI・backfill/runtime修復は追加しない。実装受領先は親452の[EMR-569](https://app.plane.so/baritechllc/browse/EMR-569/)、採用docsリンク待ちの一時Backlog。509は境界保護、448は共有writer順、189は履歴参照。
+2026-10-24、基準main `4b7ea65a3b692073bb41c4be52bd2c1a9be99d74`。採択済み締め設定の原値保持を具体化する技術選定であり実装済みではない。canonical DB再構築・old_db mappingも確定仕様へ適合する前提で、legacy救済・非00秒専用conversion UI・backfill/runtime修復は追加しない。実装受領先は親452の[EMR-569](https://app.plane.so/baritechllc/browse/EMR-569/)。本契約のmain採用後、Planeに採用SHAを固定して着手プランの採用を記録する。進行状態はPlaneを正本とし、設計採用と製品供給・受入を区別する。509は境界保護、448は共有writer順、189は履歴参照。
 
 ## 標準入力のstate
 

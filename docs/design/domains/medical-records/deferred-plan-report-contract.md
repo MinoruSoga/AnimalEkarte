@@ -1,6 +1,6 @@
 # EMR-568 後日予定reportの限定技術契約
 
-2026-10-24、固定main `4b7ea65a3b692073bb41c4be52bd2c1a9be99d74`。既決D03/D21の後日予定参照を実現する設計引渡しで、実装/供給済みではない。[518保存契約](../../../work/emr/emr-518-storage-contract-20261020.md#51-medical_record_plan_items)と[516 owner-link契約](../../../work/emr/emr-516-517-plan-owner-link-contract-20261021.md)を再利用する。実装受領先は親452の[EMR-568](https://app.plane.so/baritechllc/browse/EMR-568/)。採用docsリンク待ちの一時Backlogであり、本文の技術選定とruntime供給を分離する。
+2026-10-24、固定main `4b7ea65a3b692073bb41c4be52bd2c1a9be99d74`。既決D03/D21の後日予定参照を実現する設計引渡しで、実装/供給済みではない。[518保存契約](../../../work/emr/emr-518-storage-contract-20261020.md#51-medical_record_plan_items)と[516 owner-link契約](../../../work/emr/emr-516-517-plan-owner-link-contract-20261021.md)を再利用する。実装受領先は親452の[EMR-568](https://app.plane.so/baritechllc/browse/EMR-568/)。本契約のmain採用後、Planeに採用SHAを固定して着手プランの採用を記録する。進行状態はPlaneを正本とし、設計採用と製品供給・受入を区別する。
 
 ## canonical sourceと対象
 
