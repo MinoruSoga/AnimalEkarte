@@ -68,44 +68,11 @@ func toAvailableSlotResponse(slot *model.ReservationTypeAvailableSlot) available
 	return resp
 }
 
-// ---- 職種紐付けレスポンス ----
-
-type occupationSummary struct {
-	ID   uint64 `json:"id"`
-	Name string `json:"name"`
-}
-
-type reservationTypeOccupationResponse struct {
-	ID                uint64             `json:"id"`
-	ClinicID          uint64             `json:"clinic_id"`
-	ReservationTypeID uint64             `json:"reservation_type_id"`
-	OccupationID      uint64             `json:"occupation_id"`
-	Occupation        *occupationSummary `json:"occupation,omitempty"`
-	CreatedAt         time.Time          `json:"created_at"`
-}
-
-func toReservationTypeOccupationResponse(o *model.ReservationTypeOccupation) reservationTypeOccupationResponse {
-	resp := reservationTypeOccupationResponse{
-		ID:                o.ID,
-		ClinicID:          o.ClinicID,
-		ReservationTypeID: o.ReservationTypeID,
-		OccupationID:      o.OccupationID,
-		CreatedAt:         httpapi.LocalTime(o.CreatedAt),
-	}
-	if o.Occupation != nil {
-		resp.Occupation = &occupationSummary{
-			ID:   o.Occupation.ID,
-			Name: o.Occupation.Name,
-		}
-	}
-	return resp
-}
-
 type ReservationTypeResponse struct {
 	ID          uint64                        `json:"id"`
 	ClinicID    uint64                        `json:"clinic_id"`
 	Name        string                        `json:"name"`
-	Color       string                        `json:"color"`
+	Color       *string                       `json:"color"`
 	Category    model.ReservationTypeCategory `json:"category"`
 	IsActive    bool                          `json:"is_active"`
 	Description string                        `json:"description"`
@@ -147,8 +114,8 @@ func ToReservationTypeResponse(st *model.ReservationType) ReservationTypeRespons
 		ID:                     st.ID,
 		ClinicID:               st.ClinicID,
 		Name:                   st.Name,
-		Color:                  st.Color,
-		Category:               st.Category,
+		Color:                  st.GroupColor(),
+		Category:               st.DerivedCategory(),
 		IsActive:               st.IsActive,
 		Description:            st.Description,
 		SortOrder:              sharedkernel.SortOrderValue(st.SortOrder),

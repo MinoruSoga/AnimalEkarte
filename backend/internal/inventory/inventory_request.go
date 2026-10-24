@@ -3,6 +3,7 @@ package inventory
 import (
 	"net/url"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -31,6 +32,13 @@ func (q listInventoryQuery) toServiceFilters() listInventoryFilters {
 	}
 }
 
+// errInventoryLastRestockedRetired は廃止された last_restocked の書込を拒否する（400）。
+// inventory_items.last_restocked は 001_init.sql L10885 で DROP 済みで、黙って捨てると保存済みと思い込ませる。
+// null は未送信と同じ扱いにする。
+func errInventoryLastRestockedRetired() error {
+	return apperrors.WrapInvalidInput("last_restocked は廃止されました。在庫の最終入荷日は保存されません")
+}
+
 // createInventoryRequest は在庫アイテム作成リクエスト。
 // SD-4: status は request body に含めても無視（OpenAPI readOnly）。
 // 公開 JSON の status は quantity/min_stock_level から導出する。
@@ -51,9 +59,8 @@ func (r *createInventoryRequest) toServiceInput() (*CreateInventoryInput, error)
 	if err != nil {
 		return nil, err
 	}
-	lastRestocked, err := httpapi.ParseDate(r.LastRestocked)
-	if err != nil {
-		return nil, err
+	if r.LastRestocked != nil {
+		return nil, errInventoryLastRestockedRetired()
 	}
 	return &CreateInventoryInput{
 		Name:          r.Name,
@@ -64,7 +71,6 @@ func (r *createInventoryRequest) toServiceInput() (*CreateInventoryInput, error)
 		Location:      r.Location,
 		ExpiryDate:    expiryDate,
 		Supplier:      r.Supplier,
-		LastRestocked: lastRestocked,
 	}, nil
 }
 
@@ -92,9 +98,8 @@ func (r *updateInventoryRequest) toServiceInput() (*UpdateInventoryInput, error)
 	if err != nil {
 		return nil, err
 	}
-	lastRestocked, err := httpapi.ParseDate(r.LastRestocked)
-	if err != nil {
-		return nil, err
+	if r.LastRestocked != nil {
+		return nil, errInventoryLastRestockedRetired()
 	}
 	return &UpdateInventoryInput{
 		Name:          r.Name,
@@ -105,6 +110,5 @@ func (r *updateInventoryRequest) toServiceInput() (*UpdateInventoryInput, error)
 		Location:      r.Location,
 		ExpiryDate:    expiryDate,
 		Supplier:      r.Supplier,
-		LastRestocked: lastRestocked,
 	}, nil
 }

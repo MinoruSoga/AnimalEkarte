@@ -21,7 +21,6 @@ type CreateInventoryInput struct {
 	Location      string
 	ExpiryDate    *time.Time
 	Supplier      string
-	LastRestocked *time.Time
 }
 
 // UpdateInventoryInput は在庫アイテム更新のサービス入力 DTO。
@@ -35,7 +34,6 @@ type UpdateInventoryInput struct {
 	Location      *string
 	ExpiryDate    *time.Time
 	Supplier      *string
-	LastRestocked *time.Time
 }
 
 func buildInventoryUpdate(input *UpdateInventoryInput) map[string]any {
@@ -63,9 +61,6 @@ func buildInventoryUpdate(input *UpdateInventoryInput) map[string]any {
 	}
 	if input.Supplier != nil {
 		fields["supplier"] = *input.Supplier
-	}
-	if input.LastRestocked != nil {
-		fields["last_restocked"] = *input.LastRestocked
 	}
 	// SD-4: status は client から書かない。一覧フィルタ・JSON は quantity/min 導出。
 	return fields
@@ -128,7 +123,6 @@ func (s *inventoryService) Create(ctx context.Context, clinicID uint64, input *C
 		Location:      input.Location,
 		ExpiryDate:    input.ExpiryDate,
 		Supplier:      input.Supplier,
-		LastRestocked: input.LastRestocked,
 	}
 
 	if err := s.repo.Create(ctx, clinicID, item); err != nil {

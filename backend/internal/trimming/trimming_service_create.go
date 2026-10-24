@@ -51,20 +51,12 @@ func (s *trimmingService) createTrimmingAppointmentInTx(
 	if err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to create trimming appointment")
 	}
-	if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
-		return nil, nil, err
-	}
 	detail := newTrimmingDetailFromCreateInput(clinicID, appt.ID, input, bwUnit)
 	if err := s.lockImageReferencesInTx(txCtx, clinicID, detail.StyleImage, detail.CompletedImage); err != nil {
 		return nil, nil, err
 	}
 	if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to create trimming detail")
-	}
-	if len(input.OptionIDs) > 0 {
-		if err := s.trimmingDetail.SetOptions(txCtx, clinicID, appt.ID, input.OptionIDs); err != nil {
-			return nil, nil, apperrors.Wrap(err, "failed to set trimming options")
-		}
 	}
 	result, err := s.GetByID(txCtx, clinicID, appt.ID)
 	if err != nil {
@@ -106,9 +98,6 @@ func (s *trimmingService) createTrimmingDetailForExistingInTx(
 		return nil, apperrors.WrapConflict("trimming detail already exists for this appointment; use PATCH to update")
 	} else if err != nil && !apperrors.IsNotFound(err) {
 		return nil, apperrors.Wrap(err, "failed to check existing trimming detail")
-	}
-	if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
-		return nil, err
 	}
 	if input.StaffID != nil {
 		if err := reservation.ValidateReservationStaffCapability(txCtx, s.reservationStaff, clinicID, input.StaffID, locked.ReservationTypeID); err != nil {
@@ -180,11 +169,6 @@ func (s *trimmingService) createTrimmingDetailForExistingInTx(
 	if err := s.trimmingDetail.Create(txCtx, detail); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create trimming detail")
 	}
-	if len(input.OptionIDs) > 0 {
-		if err := s.trimmingDetail.SetOptions(txCtx, clinicID, appointmentID, input.OptionIDs); err != nil {
-			return nil, apperrors.Wrap(err, "failed to set trimming options")
-		}
-	}
 	result, err := s.GetByID(txCtx, clinicID, appointmentID)
 	if err != nil {
 		return nil, err
@@ -212,10 +196,9 @@ func newTrimmingDetailFromCreateInput(
 	return &model.AppointmentTrimmingDetail{
 		ClinicID:        clinicID,
 		AppointmentID:   appointmentID,
-		CourseID:        input.CourseID,
 		StyleRequest:    input.StyleRequest,
 		BodyWeight:      input.BodyWeight,
-		BWUnit:          bwUnit,
+		BWUnit:          sharedkernel.Ptr(bwUnit),
 		BodyTemperature: input.BodyTemperature,
 		UsedShampoo:     input.UsedShampoo,
 		UsedRibbon:      input.UsedRibbon,

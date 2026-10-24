@@ -3,7 +3,6 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -19,15 +18,11 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 		slog.WarnContext(ctx, "autoCreateFromReservation: skipped — reservation is nil")
 		return
 	}
-	if reservation.ReservationType != nil && reservation.ReservationType.Category == model.ReservationTypeCategoryTrimming {
-		slog.InfoContext(ctx, "autoCreateFromReservation: skipped — trimming reservation",
-			slog.Uint64("reservation_id", reservation.ID))
-		return
-	}
-	if reservation.ReservationType != nil &&
-		(strings.Contains(reservation.ReservationType.Name, "入院") ||
-			strings.Contains(reservation.ReservationType.Name, "ホテル")) {
-		slog.InfoContext(ctx, "autoCreateFromReservation: skipped — hospitalization reservation",
+	// 通常カルテを自動作成するのは business_kind が general の予約区分だけ。trimming / inpatient / hotel と NULL（未分類）は
+	// 作成しない（001_init.sql L8893-8894: 旧 category は dispatch の fallback ではない。予約区分名の部分一致による
+	// 入院・ホテル判定は廃止した）。
+	if reservation.ReservationType != nil && !reservation.ReservationType.HasBusinessKind(model.ReservationBusinessKindGeneral) {
+		slog.InfoContext(ctx, "autoCreateFromReservation: skipped — reservation type is not a general business kind",
 			slog.Uint64("reservation_id", reservation.ID))
 		return
 	}

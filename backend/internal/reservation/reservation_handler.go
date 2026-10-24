@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -367,12 +366,10 @@ func shouldAutoCreateMedicalRecordForReservation(reservation *model.Reservation)
 	if !sharedkernel.PtrEquals(reservation.Status, model.ReservationStatusConfirmed) && !sharedkernel.PtrEquals(reservation.Status, model.ReservationStatusCheckedIn) {
 		return false
 	}
-	if reservation.ReservationType != nil && reservation.ReservationType.Category == model.ReservationTypeCategoryTrimming {
-		return false
-	}
-	if reservation.ReservationType != nil &&
-		(strings.Contains(reservation.ReservationType.Name, "入院") ||
-			strings.Contains(reservation.ReservationType.Name, "ホテル")) {
+	// 通常カルテを自動作成するのは business_kind が general の予約区分だけ。trimming / inpatient / hotel と
+	// NULL（未分類）は作成しない（001_init.sql L8893-8894: 旧 category は dispatch の fallback ではない。
+	// 予約区分名の部分一致による入院・ホテル判定は廃止した）。
+	if reservation.ReservationType != nil && !reservation.ReservationType.HasBusinessKind(model.ReservationBusinessKindGeneral) {
 		return false
 	}
 	return true

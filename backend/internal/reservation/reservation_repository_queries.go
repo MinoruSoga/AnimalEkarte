@@ -81,6 +81,8 @@ func (r *reservationRepository) CountByCustomerAndDateRange(ctx context.Context,
 }
 
 // FindAllByCategory はカテゴリでフィルタした予約一覧を返す（BE-119 トリミング管理 API）。
+// category 列は DROP 済みのため、category（'general' / 'trimming'）は business_kind の同名値と照合する。
+// business_kind が NULL（未分類）の予約区分はどのカテゴリにも一致しない（fail-closed）。
 func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error) {
 	reservations := make([]model.Reservation, 0)
 	var total int64
@@ -88,7 +90,7 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 	q := persistence.DBOrTx(ctx, r.db).Model(&model.Reservation{}).
 		Where("appointments.clinic_id = ?", clinicID).
 		Joins("JOIN reservation_types ON reservation_types.id = appointments.reservation_type_id AND reservation_types.clinic_id = appointments.clinic_id AND reservation_types.deleted_at IS NULL").
-		Where("reservation_types.category = ?", category)
+		Where("reservation_types.business_kind = ?", string(category))
 
 	if petID != nil || ownerID != nil {
 		q = q.Joins("JOIN pets filter_pets ON filter_pets.id = appointments.pet_id AND filter_pets.clinic_id = appointments.clinic_id AND filter_pets.deleted_at IS NULL")
@@ -125,8 +127,6 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
 		Preload("TrimmingDetail", "clinic_id = ?", clinicID).
-		Preload("TrimmingDetail.Course", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("TrimmingDetail.Options", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(persistence.Paginate(page, limit)).
 		Order("appointments.start_time DESC").
 		Find(&reservations).Error; err != nil {

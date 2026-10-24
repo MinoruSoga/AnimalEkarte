@@ -12,13 +12,11 @@ import (
 // CreateReservationTypeInput はサービス種別作成のための入力データ
 type CreateReservationTypeInput struct {
 	Name        string
-	Color       string
 	IsActive    bool
 	Description string
 	SortOrder   int
 	GroupID     *uint64
 	ParentID    *uint64
-	Category    string
 
 	// LINE予約用フィールド
 	ReservationDisplayName string
@@ -36,7 +34,6 @@ type CreateReservationTypeInput struct {
 // UpdateReservationTypeInput はサービス種別更新のための入力データ（ポインタ型でゼロ値を区別する）
 type UpdateReservationTypeInput struct {
 	Name          *string
-	Color         *string
 	IsActive      *bool
 	Description   *string
 	SortOrder     *int
@@ -44,7 +41,6 @@ type UpdateReservationTypeInput struct {
 	ClearGroupID  bool // true のとき group_id を NULL にクリアする
 	ParentID      *uint64
 	ClearParentID bool // true のとき parent_id を NULL にクリアする
-	Category      *string
 
 	// LINE予約用フィールド
 	ReservationDisplayName *string
@@ -106,28 +102,18 @@ type ReservationTypeAvailableSlotService interface { //nolint:revive // Reservat
 	DeleteAvailableSlot(ctx context.Context, clinicID, reservationTypeID, id uint64) error
 }
 
-// ReservationTypeOccupationService は診療科目ひもづけを担う。
-type ReservationTypeOccupationService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
-	ListOccupations(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
-	LinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error)
-	UnlinkOccupation(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
-}
-
 // ReservationTypeService は3つのサブインターフェースを合成した完全インターフェース。
 // handler 層はこのインターフェースを通じてすべての操作を行う。
 type ReservationTypeService interface { //nolint:revive // ReservationType is a domain entity name, cannot avoid stutter
 	ReservationTypeCoreService
 	ReservationTypeUnavailableTimeService
 	ReservationTypeAvailableSlotService
-	ReservationTypeOccupationService
 }
 
 type reservationTypeService struct {
 	repo                ReservationTypeRepository
 	unavailableTimeRepo ReservationTypeUnavailableTimeRepository
 	availableSlotRepo   ReservationTypeAvailableSlotRepository
-	occupationRepo      ReservationTypeOccupationRepository
-	baseOccupationRepo  occupationFinder
 	groupRepo           ReservationTypeGroupRepository
 }
 
@@ -137,8 +123,6 @@ type reservationTypeService struct {
 func NewReservationTypeService(
 	repo ReservationTypeRepository,
 	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
-	occupationRepo ReservationTypeOccupationRepository,
-	baseOccupationRepo occupationFinder,
 	groupRepo ReservationTypeGroupRepository,
 	availableSlotRepo ...ReservationTypeAvailableSlotRepository,
 ) ReservationTypeService {
@@ -150,8 +134,6 @@ func NewReservationTypeService(
 		repo:                repo,
 		unavailableTimeRepo: unavailableTimeRepo,
 		availableSlotRepo:   slotRepo,
-		occupationRepo:      occupationRepo,
-		baseOccupationRepo:  baseOccupationRepo,
 		groupRepo:           groupRepo,
 	}
 }

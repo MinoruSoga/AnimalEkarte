@@ -106,7 +106,7 @@ func (h *Handler) DeleteTrimmingOption(c *gin.Context) {
 		return
 	}
 	if err := h.svc.TrimmingOption.Delete(c.Request.Context(), clinicID, id); err != nil {
-		httpapi.RespondError(c, err)
+		respondTrimmingError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)

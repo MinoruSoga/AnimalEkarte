@@ -26,7 +26,6 @@ type reservationRepositories struct {
 	LineReservationSettings reservation.LineReservationSettingRepository
 	UnavailableTimes        reservation.ReservationTypeUnavailableTimeRepository
 	AvailableSlots          reservation.ReservationTypeAvailableSlotRepository
-	TypeOccupations         reservation.ReservationTypeOccupationRepository
 	Occupations             staff.OccupationRepository
 	ClinicHolidays          clinic.ClinicHolidayRepository
 	StaffAdminQueries       staff.SystemAdminStaffQuerier
@@ -49,7 +48,6 @@ func newReservationRepositories(
 		LineReservationSettings: reservation.NewLineReservationSettingRepository(db),
 		UnavailableTimes:        reservation.NewReservationTypeUnavailableTimeRepository(db),
 		AvailableSlots:          reservation.NewReservationTypeAvailableSlotRepository(db),
-		TypeOccupations:         reservation.NewReservationTypeOccupationRepository(db),
 		Occupations:             occupations,
 		ClinicHolidays:          clinic.NewClinicHolidayRepository(db),
 		StaffAdminQueries:       staffRepository,
@@ -161,8 +159,6 @@ func newReservationMasterServices(
 	reservationTypes := reservation.NewReservationTypeService(
 		repositories.ReservationTypes,
 		repositories.UnavailableTimes,
-		repositories.TypeOccupations,
-		repositories.Occupations,
 		repositories.ReservationTypeGroups,
 		repositories.AvailableSlots,
 	)
@@ -245,7 +241,6 @@ func newReservationLiffService(
 		notifier,
 		r.UnavailableTimes,
 		r.AvailableSlots,
-		r.TypeOccupations,
 		d.TrimmingCourses,
 		d.TrimmingOptions,
 		d.TrimmingDetails,
@@ -304,7 +299,6 @@ func (c reservationComposition) newHandler(
 ) *reservation.Handler {
 	return reservation.NewHandler(
 		reservation.NewReservationTypeHandler(
-			c.ReservationTypes,
 			c.ReservationTypes,
 			c.ReservationTypes,
 			c.ReservationTypes,

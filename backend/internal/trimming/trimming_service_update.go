@@ -10,9 +10,6 @@ import (
 )
 
 func applyTrimmingDetailFields(detail *model.AppointmentTrimmingDetail, input *UpdateTrimmingInput) {
-	if input.CourseID != nil {
-		detail.CourseID = input.CourseID
-	}
 	if input.StyleRequest != nil {
 		detail.StyleRequest = *input.StyleRequest
 	}
@@ -20,7 +17,7 @@ func applyTrimmingDetailFields(detail *model.AppointmentTrimmingDetail, input *U
 		detail.BodyWeight = input.BodyWeight
 	}
 	if input.BWUnit != nil {
-		detail.BWUnit = *input.BWUnit
+		detail.BWUnit = sharedkernel.Ptr(*input.BWUnit)
 	}
 	if input.BodyTemperature != nil {
 		detail.BodyTemperature = input.BodyTemperature
@@ -46,7 +43,6 @@ func (s *trimmingService) updateTrimmingInTx(
 	txCtx context.Context,
 	clinicID, id uint64,
 	input *UpdateTrimmingInput,
-	optionIDs []uint64,
 	appointmentUpdate reservation.UpdateTrimmingReservationInput,
 ) (*model.Reservation, *TrimmingReplacedImages, *trimmingNextVisitTagChange, error) {
 	if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
@@ -124,24 +120,12 @@ func (s *trimmingService) updateTrimmingInTx(
 	// 新値を掃除候補から漏らす）。
 	replaced := &TrimmingReplacedImages{Style: detail.StyleImage, Completed: detail.CompletedImage}
 	oldValue := trimmingAuditValue(locked, detail)
-	existingOptionIDs := make([]uint64, len(detail.Options))
-	for i := range detail.Options {
-		existingOptionIDs[i] = detail.Options[i].ID
-	}
-	if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, optionIDs, detail.CourseID, existingOptionIDs); err != nil {
-		return nil, nil, nil, err
-	}
 	applyTrimmingDetailFields(detail, input)
 	if err := s.lockImageReferencesInTx(txCtx, clinicID, detail.StyleImage, detail.CompletedImage); err != nil {
 		return nil, nil, nil, err
 	}
 	if err := s.trimmingDetail.Update(txCtx, detail); err != nil {
 		return nil, nil, nil, apperrors.Wrap(err, "failed to update trimming detail")
-	}
-	if input.OptionIDs != nil {
-		if err := s.trimmingDetail.SetOptions(txCtx, clinicID, id, *input.OptionIDs); err != nil {
-			return nil, nil, nil, apperrors.Wrap(err, "failed to set trimming options")
-		}
 	}
 	result, err := s.GetByID(txCtx, clinicID, id)
 	if err != nil {

@@ -247,6 +247,12 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if err := s.requireAuditTx(); err != nil {
 		return nil, err
 	}
+	// EMR-480 / EMR-549 C1: コース・オプションの保存先（trimming_booking_revisions 系）の writer が未接続のため、
+	// course_id / option_ids を含む作成は予約も詳細も書く前に 422 trimming_booking_pending で拒否する（部分保存しない）。
+	// 空の option_ids は書込ではないので通す。
+	if input.CourseID != nil || len(input.OptionIDs) > 0 {
+		return nil, apperrors.WrapTrimmingBookingPending()
+	}
 	if err := normalizeCreateTrimmingImages(clinicID, input); err != nil {
 		return nil, err
 	}
@@ -285,11 +291,6 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 			return nil, err
 		}
 	} else if err := sharedkernel.ValidateTimeRange(input.StartTime, input.EndTime); err != nil {
-		return nil, err
-	}
-	// Fail fast before opening the write transaction, then revalidate under SHARE locks inside the
-	// transaction to close the master-update TOCTOU window.
-	if err := s.validateTrimmingCourseAndOptions(ctx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
 		return nil, err
 	}
 	var apptID uint64

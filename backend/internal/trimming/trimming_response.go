@@ -56,6 +56,9 @@ type TrimmingResponse struct {
 	Options []TrimmingOptionSummaryResponse `json:"options"`
 }
 
+// toTrimmingResponse は予約のトリミング詳細を平らな DTO にする。コースとオプションは booking snapshot
+// （trimming_booking_revisions 系）にあり reader が未接続（EMR-480）のため常に unknown とする:
+// course_id / course は省略し、options は null。bw_unit が NULL（未記録）なら空文字で、"Kg" で補完しない。
 func toTrimmingResponse(appt *model.Reservation) TrimmingResponse {
 	resp := TrimmingResponse{
 		ID:                appt.ID,
@@ -71,46 +74,21 @@ func toTrimmingResponse(appt *model.Reservation) TrimmingResponse {
 		UpdatedAt:         localTime(appt.UpdatedAt),
 		Pet:               toPetSummary(appt.Pet),
 		Staff:             toStaffSummary(appt.Doctor),
-		Options:           make([]TrimmingOptionSummaryResponse, 0),
-		// TrimmingDetail が nil の異常データ向けデフォルト（モデルデフォルトと一致）
-		BWUnit: "Kg",
 	}
 
 	if appt.TrimmingDetail != nil {
 		d := appt.TrimmingDetail
 		resp.HasDetail = true
-		resp.CourseID = d.CourseID
 		resp.StyleRequest = d.StyleRequest
 		resp.BW = d.BodyWeight
-		resp.BWUnit = string(d.BWUnit)
+		resp.BWUnit = sharedkernel.TextOrEmpty(d.BWUnit)
 		resp.BT = d.BodyTemperature
 		resp.UsedShampoo = d.UsedShampoo
 		resp.UsedRibbon = d.UsedRibbon
 		resp.Remarks = d.Remarks
 		resp.StyleImage = d.StyleImage
 		resp.CompletedImage = d.CompletedImage
-
-		if d.Course != nil {
-			resp.Course = &TrimmingCourseSummaryResponse{
-				ID:    d.Course.ID,
-				Name:  d.Course.Name,
-				Price: coursePriceOrZero(d.Course.Price),
-			}
-		}
-		for i := range d.Options {
-			resp.Options = append(resp.Options, TrimmingOptionSummaryResponse{
-				ID:   d.Options[i].ID,
-				Name: d.Options[i].Name,
-			})
-		}
 	}
 
 	return resp
-}
-
-func coursePriceOrZero(price *int64) int64 {
-	if price == nil {
-		return 0
-	}
-	return *price
 }

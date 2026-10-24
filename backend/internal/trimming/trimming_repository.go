@@ -16,7 +16,6 @@ type AppointmentTrimmingDetailRepository interface {
 	FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.AppointmentTrimmingDetail, error)
 	Create(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
 	Update(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
-	SetOptions(ctx context.Context, clinicID, appointmentID uint64, optionIDs []uint64) error
 	ImageKeyInUse(ctx context.Context, clinicID uint64, key string, exceptAppointmentID uint64) (bool, error)
 }
 
@@ -37,8 +36,6 @@ func (r *appointmentTrimmingDetailRepository) FindByAppointmentID(ctx context.Co
 	// filter — matches MR-B1 appointments-parent pattern (clinic correlation only).
 	err := persistence.DBOrTx(ctx, r.db).
 		Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = appointment_trimming_details.clinic_id").
-		Preload("Course", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Options", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Where("appointment_trimming_details.clinic_id = ? AND appointment_trimming_details.appointment_id = ?", clinicID, appointmentID).
 		First(&detail).Error
 	if err != nil {
@@ -58,10 +55,9 @@ func (r *appointmentTrimmingDetailRepository) Create(ctx context.Context, detail
 // Updates(struct) はゼロ値フィールド（空文字等）をスキップするため、map を使用する。
 func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail *model.AppointmentTrimmingDetail) error {
 	fields := map[string]any{
-		"course_id":        detail.CourseID,
 		"style_request":    detail.StyleRequest,
 		"body_weight":      detail.BodyWeight,
-		"bw_unit":          string(detail.BWUnit),
+		"bw_unit":          bwUnitUpdateValue(detail.BWUnit),
 		"body_temperature": detail.BodyTemperature,
 		"used_shampoo":     detail.UsedShampoo,
 		"used_ribbon":      detail.UsedRibbon,
@@ -81,6 +77,14 @@ func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail
 		return apperrors.WrapNotFound("appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", detail.AppointmentID))
 	}
 	return nil
+}
+
+// bwUnitUpdateValue は bw_unit の更新値を返す。NULL（未記録）は NULL のまま書き戻し、"Kg" で補完しない。
+func bwUnitUpdateValue(unit *model.BodyWeightUnit) any {
+	if unit == nil {
+		return nil
+	}
+	return string(*unit)
 }
 
 // ImageKeyInUse はいずれかの trimming 詳細レコードが key を画像として参照して
@@ -139,44 +143,3 @@ func trimmingCourseImageKeyInUse(ctx context.Context, db *gorm.DB, clinicID uint
 	return trimmingCourseImageHistoryInUse(ctx, db, clinicID, key)
 }
 
-// SetOptions は appointment に紐づく trimming オプションを全置換する。
-// WithTx コンテキスト内から呼ばれた場合は外側のトランザクションに参加する（savepoint）。
-// 単独呼び出しの場合は Clear + Replace を単一トランザクションで実行する。
-func (r *appointmentTrimmingDetailRepository) SetOptions(ctx context.Context, clinicID, appointmentID uint64, optionIDs []uint64) error {
-	if err := persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		// Options の many2many join には foreignKey:AppointmentID を使うが、GORM の Association()
-		// は付随して自モデル行（appointment_trimming_details）の touch-update も行うため、
-		// primaryKey(ID) が設定された実インスタンスが必要（#212 の追加発現。AppointmentID のみの
-		// ゼロ値インスタンスを渡すと "WHERE conditions required" で失敗する）。
-		// clinic_id 述語は P4 の defense-in-depth（checkup_field_repository.go の
-		// ReplaceForCheckup / examination_repository.go の ReplaceItemsByExamID と同型パターン）:
-		// 呼び出し元（trimming_service.go / liff_service_reservations.go）は appointmentID を
-		// 事前に clinic 検証済みだが、repository 層でも再検証し fail-closed にする。
-		var detail model.AppointmentTrimmingDetail
-		// Parent appointments clinic correlation (SEC-SWEEP-02-TRIM-B1) on target-row
-		// lookup only — Clear/Replace write semantics are unchanged.
-		if err := tx.Select("appointment_trimming_details.id", "appointment_trimming_details.appointment_id").
-			Joins("JOIN appointments ON appointments.id = appointment_trimming_details.appointment_id AND appointments.clinic_id = appointment_trimming_details.clinic_id").
-			Where("appointment_trimming_details.appointment_id = ? AND appointment_trimming_details.clinic_id = ?", appointmentID, clinicID).
-			First(&detail).Error; err != nil {
-			return apperrors.FromGORM(err, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", appointmentID))
-		}
-		if err := tx.Model(&detail).Association("Options").Unscoped().Clear(); err != nil {
-			return apperrors.FromGORM(err, "appointment_trimming_option", fmt.Sprintf("appointment_id=%d", appointmentID))
-		}
-		if len(optionIDs) == 0 {
-			return nil
-		}
-		options := make([]model.TrimmingOption, 0, len(optionIDs))
-		for _, id := range optionIDs {
-			options = append(options, model.TrimmingOption{ID: id})
-		}
-		if err := tx.Model(&detail).Association("Options").Replace(options); err != nil {
-			return apperrors.FromGORM(err, "appointment_trimming_option", fmt.Sprintf("appointment_id=%d", appointmentID))
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to set trimming options")
-	}
-	return nil
-}
