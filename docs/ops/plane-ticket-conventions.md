@@ -4,6 +4,13 @@
 > **読者**: このリポジトリで作業する全員・全エージェント。
 > **タイミング**: Plane work item の作成・更新、着手プランの受領、session割当、前提merge後の再判定、完了報告時。
 
+<a id="mandatory-implementation-entry"></a>
+## 実装前必読 EMR-556
+
+[共通必読ルール票 EMR-556](https://app.plane.so/baritechllc/browse/EMR-556/)は、本規約を要約し[確定仕様の入口](../spec/domains/README.md)へ案内する。実装前にこの入口から対象領域の正本・FR/ACと採択技術契約を確認する。ルール本文の正本は本書、業務仕様の正本は各領域のdocs/specであり、ルール票を新しい業務仕様や全票のblocked_byにしない。
+
+[確定仕様優先・後方互換非要件](#specification-first-replacement)、[成功単位と着手契約](#scope-and-readiness-contract)、[検証status/NOT_RUN](#verification-and-readiness-status)に従う。既存コードを保存するために仕様を変えず、原値・履歴・現在認可・精度の保全は後方互換と別の要件として維持する。必読リンクの追加はDone/Cancelled等の再着手・状態変更・実行権限の付与ではない。
+
 ## 基本ルール
 
 - **実行 SoT は Plane**。workspace `baritechllc`、プロジェクト `EMR`。タスクの現在状態は Plane を見る。`todo.md` は出典・仕様履歴の記録であり、未完了タスク本文の置き場ではない（`bug.md` は空。製品 FAIL 台帳も Plane）。
@@ -165,6 +172,8 @@
 
 プレーンテキストで `【節名】` マーカーを使う（既存票と同じ書式）。1票あたり15〜30行を目安にし、長い根拠はリポジトリ内ファイルへのパス参照にする。種別が複数に見える場合は**実行者優先**で選ぶ — `role:human` の作業（人間が手順で実行するバグ修復・データパッチ等）は SOP 型を使い、`bug` ラベルは性質として併用する。
 
+新規票には下記の【実装前必読】を付ける。人間への質問がある場合はその直後、それ以外は本文先頭に置く。これはdocs内の起票テンプレートの規約であり、外部自動起票で必ずリンクが付く実装を完了したという意味ではない。
+
 ### 設計思想（採用根拠）
 
 チケットは「**境界付きの設計契約**」として書く — 実行者が既知の前提・採用済み契約を再発見せず、未決の設計判断を追加せず着手でき、成功単位・必要依存・完了条件が第三者にも検証可能であること（[着手前の採用SHA再確認](#scope-and-readiness-contract)は省略しない）を合格基準とする。以下の既知のプラクティスを採用根拠とする:
@@ -215,6 +224,7 @@
 
 ```text
 【人間への質問】（あれば本文先頭。形式は上記「人間への質問・決定待ち」節を参照）
+【実装前必読】EMR-556 https://app.plane.so/baritechllc/browse/EMR-556/ （正本入口: docs/spec/domains/README.md、運用正本: docs/ops/plane-ticket-conventions.md）
 【出典】（例: スプシNo.61 / UAT-XXX / 社内報告）
 【調査基準】採用main SHA/関連PR採用状態/確認file・symbol、実測と静的読解の区別
 【前提・依存】必要subset4状態/供給・共有owner/受領SHA/未選定と停止範囲
@@ -235,6 +245,7 @@
 
 ```text
 【人間への質問】（あれば本文先頭。形式は上記「人間への質問・決定待ち」節を参照）
+【実装前必読】EMR-556 https://app.plane.so/baritechllc/browse/EMR-556/ （正本入口: docs/spec/domains/README.md、運用正本: docs/ops/plane-ticket-conventions.md）
 【背景・目的】業務上の目的（依頼原文の要旨。ユーザーの声は要約せず原文引用。責任者が分かるなら明記）
 【調査基準】採用main SHA/関連PRのhead・採用状態、確認file/symbol
 【現状】今の実装/プロセスがどうなっているか。証拠として `path:line`・実測値・現行の振る舞いを書く
@@ -253,6 +264,7 @@
 
 ```text
 【人間への質問】（あれば本文先頭。形式は上記「人間への質問・決定待ち」節を参照）
+【実装前必読】EMR-556 https://app.plane.so/baritechllc/browse/EMR-556/ （正本入口: docs/spec/domains/README.md、運用正本: docs/ops/plane-ticket-conventions.md）
 【背景】なぜ調べるか
 【調査基準】採用main SHA/関連PR/既存調査と採用契約の確認範囲
 【前提・依存】調査に必要な資料/権限/未受領と停止範囲
@@ -266,7 +278,7 @@
 
 ### ハブ・親票
 
-目的・子票への導線・全体の受入口径のみ。集計対象から外すため `kind:case-hub`（+ `case-category:*`）を付ける。
+本文先頭に上記【実装前必読】を付け、目的・子票への導線・全体の受入口径のみを記す。必読リンクは全体受入とは別の共通案内である。集計対象から外すため `kind:case-hub`（+ `case-category:*`）を付ける。
 
 ハブ票の合格基準は4点のみ: 【目的】【子票一覧】【統合方針】【全体受入】。3問テストの個別要件（実装方針・手順の詳細等）は子票側に課し、ハブ票への過剰記載は避ける。
 
@@ -275,6 +287,7 @@
 環境設定・資格情報登録・外部サービス操作・リリース/切替作業など、**人間が手順に従って実行する作業**は SOP（標準作業手順書）構造で書く。「どの画面で・何を操作し・何が見えれば成功か」を実行者が迷わない粒度にする:
 
 ```text
+【実装前必読】EMR-556 https://app.plane.so/baritechllc/browse/EMR-556/ （正本入口: docs/spec/domains/README.md、運用正本: docs/ops/plane-ticket-conventions.md）
 【目的】この作業で達成されること・実行のトリガー条件
 【調査基準】手順/採用SHA・対象環境の確認時点（未確認は明記）
 【前提・依存】必要なアクセス権・アカウント・事前に揃える値・必要subset/依存チケット（EMR-N）
@@ -310,6 +323,16 @@ relationの作成/同期（relate）はcreate/update/comment/stateとは別操�
 
 <a id="claim-and-work-start"></a>
 ## claim / 作業開始時
+
+claim前の着手契約確認では、[実装前必読 EMR-556](#mandatory-implementation-entry)と対象正本を読み、次の内容を着手コメントにまとめる。本文/固定版計画に詳細があればリンクで特定し、同じ仕様を複製しない。既存の状態遷移・claim取得権限を増やさず、停止中/完了済み票への新たな着手許可にはしない。
+
+```text
+【参照正本】読んだrepo SHA・path/固定anchor、必読入口 EMR-556の参照確認
+【対象FR/AC】今回扱う確定仕様のID（該当なしは理由、未選定は未選定と記録）
+【今回scope】1session/1PRの成果・in/out・変更owner/claim、後続の受領先
+【依存】必要subsetの存在済み/今回同PR/別owner待ち/未選定、供給owner・受領SHA・停止範囲
+【検証status】予定する検証と実行許可、結果又はNOT_RUN・理由。未実装/未接続/未受領とは別記
+```
 
 - パケット claim protocol（AGENTS.md）の `<TASK-ID>` には Plane ID をそのまま使う: `claim/EMR-298`
 - **claim 取得 = state を `Running` に更新する**。`claim/EMR-N` ブランチの取得と Plane の state 遷移は1組で行い、片方だけの状態にしない。`Ready` / `本番切替対応` のいずれもclaim前に対象scopeの[着手契約](#scope-and-readiness-contract)成立を確認・記録してから、着手者が自己遷移してよい。`本番切替対応` は期限によるstateだけで契約成立とみなさず、Readyへの変更は不要で期限情報を保持する。`Backlog` / `Research` は対象scopeの[着手契約](#scope-and-readiness-contract)を満たしReadyへ昇格してからclaimする。調査先行も独立した調査成果のscope/必要subsetを定義し、未確定の実装全体を着手可能とはしない（`本番切替対応` から動かす場合も切替期限の情報は priority・target_date・本文に残る）。`Phase2` / `Needs Human` / `Blocked` の票は claim しない — 滞留・保留理由の解消が先
