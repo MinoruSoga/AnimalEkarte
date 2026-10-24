@@ -135,6 +135,7 @@ func TestCreateSubRecords_ExplicitEmptyDiagnosesClears(t *testing.T) {
 		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
 			return &model.ClinicalPlan{ID: 7}, nil
 		},
+		updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error { return nil },
 		replaceDiagnosesFn: func(_ context.Context, _, _ uint64, rows []ClinicalPlanDiagnosisInput) error {
 			replaced = append(replaced, rows)
 			return nil
