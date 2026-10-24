@@ -78,19 +78,17 @@ func (c *hospSnapshotConn) QueryContext(ctx context.Context, query string, args 
 	if c.fixture.failAt != "" && strings.Contains(query, c.fixture.failAt) {
 		return nil, errors.New("fixture read failed")
 	}
-	day := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
 	switch {
 	case strings.Contains(query, "count(*)"):
 		return &hospSnapshotRows{columns: []string{"count"}, values: [][]driver.Value{{c.fixture.count}}}, nil
 	case strings.Contains(query, `SELECT * FROM "hospitalizations"`):
 		return &hospSnapshotRows{
 			columns: []string{
-				"id", "clinic_id", "owner_id", "pet_id", "cage_id", "doctor_id",
-				"hospitalization_type", "status", "start_date", "end_date",
+				"id", "clinic_id", "owner_id", "pet_id", "cage_id", "doctor_id", "stay_case_id",
 			},
 			values: [][]driver.Value{
-				{int64(1), int64(1), int64(10), int64(5), int64(7), int64(3), "hospitalization", "admitted", day, day.Add(72 * time.Hour)},
-				{int64(2), int64(1), int64(10), int64(5), int64(7), int64(3), "hospitalization", "admitted", day, day.Add(72 * time.Hour)},
+				{int64(1), int64(1), int64(10), int64(5), int64(7), int64(3), int64(31)},
+				{int64(2), int64(1), int64(10), int64(5), int64(7), int64(3), int64(32)},
 			},
 		}, nil
 	case strings.Contains(query, `FROM "pets"`):
@@ -169,8 +167,8 @@ func hospSnapshotFixtureRepo(t *testing.T, fixture *hospSnapshotFixture) hospita
 func hospSnapshotFilters() listHospitalizationFilters {
 	petID := uint64(5)
 	ownerID := uint64(10)
-	status := "admitted"
-	return listHospitalizationFilters{PetID: &petID, OwnerID: &ownerID, Status: &status}
+	from := "2026-10-01"
+	return listHospitalizationFilters{PetID: &petID, OwnerID: &ownerID, PlannedEntryFrom: &from}
 }
 
 func TestHospitalizationSnapshotRepository(t *testing.T) {
@@ -198,7 +196,10 @@ func TestHospitalizationSnapshotRepository(t *testing.T) {
 		require.Contains(t, fixture.queries[1], "LIMIT $")
 		assert.NotContains(t, fixture.queries[1], "OFFSET")
 		assert.Contains(t, fixture.queries[0], "pet_id = $")
-		assert.Contains(t, fixture.queries[0], "status = $")
+		assert.Contains(t, fixture.queries[0], "planned_entry_at >= $")
+		assert.NotContains(t, fixture.queries[0], "start_date")
+		assert.NotContains(t, fixture.queries[1], "start_date")
+		assert.Contains(t, fixture.queries[1], "planned_entry_at", "list order uses the planned entry of the stay case")
 		require.Len(t, fixture.deadlines, len(fixture.queries))
 		for _, deadline := range fixture.deadlines {
 			assert.InDelta(t, 10, time.Until(deadline).Seconds(), 1)
@@ -218,7 +219,6 @@ func TestHospitalizationSnapshotRepository(t *testing.T) {
 		}
 		assert.Contains(t, bound, int64(5))
 		assert.Contains(t, bound, int64(10))
-		assert.Contains(t, bound, "admitted")
 	})
 	t.Run("overflow rolls back without fetching rows", func(t *testing.T) {
 		fixture := &hospSnapshotFixture{count: hospitalizationSnapshotMaxRows + 1}

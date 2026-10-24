@@ -274,15 +274,27 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 			return apperrors.Wrap(err, "create synthetic checkup")
 		}
 
+		// EMR-499 U1: kind and the planned interval live on stay_cases. No movement event is fabricated,
+		// so this synthetic stay has no effective state (neither reserved nor admitted).
+		plannedEntry := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, day.Location())
+		plannedExit := plannedEntry.Add(48 * time.Hour)
+		stay := &model.StayCase{
+			ClinicID:       clinicID,
+			OwnerID:        owner.ID,
+			PetID:          mainPet.ID,
+			StayKind:       "inpatient",
+			PlannedEntryAt: &plannedEntry,
+			PlannedExitAt:  &plannedExit,
+		}
+		if err := tx.Create(stay).Error; err != nil {
+			return apperrors.Wrap(err, "create synthetic stay case")
+		}
 		hospitalization := &model.Hospitalization{
-			ClinicID:            clinicID,
-			OwnerID:             owner.ID,
-			PetID:               mainPet.ID,
-			HospitalizationType: model.HospitalizationTypeInpatient,
-			StartDate:           day,
-			EndDate:             day.Add(24 * time.Hour),
-			Status:              model.HospitalizationStatusAdmitted,
-			DoctorID:            &staff.ID,
+			ClinicID:   clinicID,
+			OwnerID:    owner.ID,
+			PetID:      mainPet.ID,
+			StayCaseID: &stay.ID,
+			DoctorID:   &staff.ID,
 		}
 		if err := tx.Create(hospitalization).Error; err != nil {
 			return apperrors.Wrap(err, "create synthetic hospitalization")

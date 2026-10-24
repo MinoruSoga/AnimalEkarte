@@ -29,25 +29,40 @@ type mockHospitalizationService struct {
 		ctx context.Context,
 		clinicID uint64,
 		petID, ownerID *uint64,
-		status, startDate, endDate *string,
+		lifecycleState, plannedEntryFrom, plannedEntryTo *string,
 		page, limit int,
 	) ([]model.Hospitalization, int64, error)
+	stayProjectionsFn      func(ctx context.Context, clinicID uint64, rows []model.Hospitalization) (map[uint64]HospitalizationStayProjection, error)
 	getByIDFn              func(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	createFn               func(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error)
 	updateFn               func(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error)
 	deleteFn               func(ctx context.Context, clinicID, id uint64) error
 	dischargeWithBillingFn func(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
 	swapCagesFn            func(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*model.Hospitalization, *model.Hospitalization, error)
+	writeStay              *HospitalizationStayProjection
 }
 
 func (m *mockHospitalizationService) List(
 	ctx context.Context,
 	clinicID uint64,
 	petID, ownerID *uint64,
-	status, startDate, endDate *string,
+	lifecycleState, plannedEntryFrom, plannedEntryTo *string,
 	page, limit int,
 ) ([]model.Hospitalization, int64, error) {
-	return m.listFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	return m.listFn(ctx, clinicID, petID, ownerID, lifecycleState, plannedEntryFrom, plannedEntryTo, page, limit)
+}
+
+// StayProjections defaults to "unknown for every row" (no stay data), which is what a service without
+// movement history returns; tests that need a known lifecycle set stayProjectionsFn.
+func (m *mockHospitalizationService) StayProjections(ctx context.Context, clinicID uint64, rows []model.Hospitalization) (map[uint64]HospitalizationStayProjection, error) {
+	if m.stayProjectionsFn != nil {
+		return m.stayProjectionsFn(ctx, clinicID, rows)
+	}
+	result := make(map[uint64]HospitalizationStayProjection, len(rows))
+	for i := range rows {
+		result[rows[i].ID] = unknownHospitalizationStay()
+	}
+	return result, nil
 }
 
 func (m *mockHospitalizationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
@@ -56,14 +71,22 @@ func (m *mockHospitalizationService) GetByID(ctx context.Context, clinicID, id u
 
 func (m *mockHospitalizationService) Create(
 	ctx context.Context, clinicID uint64, input *CreateHospitalizationInput,
-) (*model.Hospitalization, error) {
-	return m.createFn(ctx, clinicID, input)
+) (*HospitalizationWriteResult, error) {
+	row, err := m.createFn(ctx, clinicID, input)
+	if err != nil {
+		return nil, err
+	}
+	return m.withStay(row), nil
 }
 
 func (m *mockHospitalizationService) Update(
 	ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput,
-) (*model.Hospitalization, error) {
-	return m.updateFn(ctx, clinicID, id, input)
+) (*HospitalizationWriteResult, error) {
+	row, err := m.updateFn(ctx, clinicID, id, input)
+	if err != nil {
+		return nil, err
+	}
+	return m.withStay(row), nil
 }
 
 func (m *mockHospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -78,8 +101,25 @@ func (m *mockHospitalizationService) DischargeWithBilling(
 
 func (m *mockHospitalizationService) SwapCages(
 	ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64,
-) (*model.Hospitalization, *model.Hospitalization, error) {
-	return m.swapCagesFn(ctx, clinicID, idA, idB, expectedCageIDs)
+) (*HospitalizationWriteResult, *HospitalizationWriteResult, error) {
+	first, second, err := m.swapCagesFn(ctx, clinicID, idA, idB, expectedCageIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+	return m.withStay(first), m.withStay(second), nil
+}
+
+// withStay は書き込み結果に添える滞在 projection を付ける。writeStay 未指定なら「滞在不明」
+// （履歴を持たない行に実 service が返す値）。書き込み経路は StayProjections を呼ばない。
+func (m *mockHospitalizationService) withStay(row *model.Hospitalization) *HospitalizationWriteResult {
+	if row == nil {
+		return nil
+	}
+	stay := unknownHospitalizationStay()
+	if m.writeStay != nil {
+		stay = *m.writeStay
+	}
+	return &HospitalizationWriteResult{Hospitalization: row, Stay: stay}
 }
 
 func newHandlerWithHospitalizationSvc(svc HospitalizationService) *HospitalizationHandler {
@@ -106,12 +146,12 @@ func TestListHospitalizations(t *testing.T) {
 			svc: &mockHospitalizationService{
 				listFn: func(
 					_ context.Context, clinicID uint64, petID, ownerID *uint64,
-					status, startDate, endDate *string, page, limit int,
+					lifecycleState, plannedEntryFrom, plannedEntryTo *string, page, limit int,
 				) ([]model.Hospitalization, int64, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Nil(t, petID)
 					assert.Nil(t, ownerID)
-					assert.Nil(t, status)
+					assert.Nil(t, lifecycleState)
 					assert.Equal(t, 1, page)
 					assert.Equal(t, 20, limit)
 					return []model.Hospitalization{{ID: 1, Memo: "経過観察"}}, 1, nil
@@ -122,23 +162,23 @@ func TestListHospitalizations(t *testing.T) {
 		},
 		{
 			name:     "passes filters through to service",
-			query:    "pet_id=2&owner_id=3&status=admitted&start_date=2026-05-01&end_date=2026-05-31",
+			query:    "pet_id=2&owner_id=3&lifecycle_state=admitted&planned_entry_from=2026-05-01&planned_entry_to=2026-05-31",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockHospitalizationService{
 				listFn: func(
 					_ context.Context, _ uint64, petID, ownerID *uint64,
-					status, startDate, endDate *string, _, _ int,
+					lifecycleState, plannedEntryFrom, plannedEntryTo *string, _, _ int,
 				) ([]model.Hospitalization, int64, error) {
 					require.NotNil(t, petID)
 					assert.Equal(t, uint64(2), *petID)
 					require.NotNil(t, ownerID)
 					assert.Equal(t, uint64(3), *ownerID)
-					require.NotNil(t, status)
-					assert.Equal(t, "admitted", *status)
-					require.NotNil(t, startDate)
-					assert.Equal(t, "2026-05-01", *startDate)
-					require.NotNil(t, endDate)
-					assert.Equal(t, "2026-05-31", *endDate)
+					require.NotNil(t, lifecycleState)
+					assert.Equal(t, "admitted", *lifecycleState)
+					require.NotNil(t, plannedEntryFrom)
+					assert.Equal(t, "2026-05-01", *plannedEntryFrom)
+					require.NotNil(t, plannedEntryTo)
+					assert.Equal(t, "2026-05-31", *plannedEntryTo)
 					return []model.Hospitalization{}, 0, nil
 				},
 			},
@@ -280,13 +320,12 @@ func TestCreateHospitalization(t *testing.T) {
 
 	validBody := func() map[string]any {
 		return map[string]any{
-			"owner_id":             1,
-			"pet_id":               2,
-			"hospitalization_type": "hospitalization",
-			"start_date":           "2026-05-28T00:00:00Z",
-			"end_date":             "2026-05-30T00:00:00Z",
-			"status":               "admitted",
-			"cage_id":              10,
+			"owner_id":         1,
+			"pet_id":           2,
+			"stay_kind":        "inpatient",
+			"planned_entry_at": "2026-05-28T00:00:00Z",
+			"planned_exit_at":  "2026-05-30T00:00:00Z",
+			"cage_id":          10,
 		}
 	}
 
@@ -309,12 +348,10 @@ func TestCreateHospitalization(t *testing.T) {
 					assert.Equal(t, uint64(1), input.OwnerID)
 					assert.Equal(t, uint64(2), input.PetID)
 					return &model.Hospitalization{
-						ID:                  10,
-						ClinicID:            clinicID,
-						OwnerID:             input.OwnerID,
-						PetID:               input.PetID,
-						HospitalizationType: input.HospitalizationType,
-						Status:              input.Status,
+						ID:       10,
+						ClinicID: clinicID,
+						OwnerID:  input.OwnerID,
+						PetID:    input.PetID,
 					}, nil
 				},
 			},
@@ -338,7 +375,7 @@ func TestCreateHospitalization(t *testing.T) {
 		},
 		{
 			name:       "returns 400 for invalid hospitalization_type",
-			body:       map[string]any{"owner_id": 1, "pet_id": 2, "hospitalization_type": "invalid", "start_date": "2026-05-28T00:00:00Z", "end_date": "2026-05-30T00:00:00Z"},
+			body:       map[string]any{"owner_id": 1, "pet_id": 2, "stay_kind": "invalid", "planned_entry_at": "2026-05-28T00:00:00Z", "planned_exit_at": "2026-05-30T00:00:00Z"},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockHospitalizationService{},
 			wantStatus: http.StatusBadRequest,
@@ -354,12 +391,11 @@ func TestCreateHospitalization(t *testing.T) {
 			// EMR-316: BUG-037 の必須化を撤回。cage_id 省略は「ケージ未割当」として受理する。
 			name: "creates cageless hospitalization when cage_id is omitted (EMR-316)",
 			body: map[string]any{
-				"owner_id":             1,
-				"pet_id":               2,
-				"hospitalization_type": "hospitalization",
-				"start_date":           "2026-05-28T00:00:00Z",
-				"end_date":             "2026-05-30T00:00:00Z",
-				"status":               "admitted",
+				"owner_id":         1,
+				"pet_id":           2,
+				"stay_kind":        "inpatient",
+				"planned_entry_at": "2026-05-28T00:00:00Z",
+				"planned_exit_at":  "2026-05-30T00:00:00Z",
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockHospitalizationService{
@@ -375,13 +411,12 @@ func TestCreateHospitalization(t *testing.T) {
 		{
 			name: "creates cageless hospitalization when cage_id is null (EMR-316)",
 			body: map[string]any{
-				"owner_id":             1,
-				"pet_id":               2,
-				"hospitalization_type": "hospitalization",
-				"start_date":           "2026-05-28T00:00:00Z",
-				"end_date":             "2026-05-30T00:00:00Z",
-				"status":               "admitted",
-				"cage_id":              nil,
+				"owner_id":         1,
+				"pet_id":           2,
+				"stay_kind":        "inpatient",
+				"planned_entry_at": "2026-05-28T00:00:00Z",
+				"planned_exit_at":  "2026-05-30T00:00:00Z",
+				"cage_id":          nil,
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockHospitalizationService{
@@ -397,13 +432,12 @@ func TestCreateHospitalization(t *testing.T) {
 		{
 			name: "returns 400 when cage_id is 0 (EMR-316)",
 			body: map[string]any{
-				"owner_id":             1,
-				"pet_id":               2,
-				"hospitalization_type": "hospitalization",
-				"start_date":           "2026-05-28T00:00:00Z",
-				"end_date":             "2026-05-30T00:00:00Z",
-				"status":               "admitted",
-				"cage_id":              0,
+				"owner_id":         1,
+				"pet_id":           2,
+				"stay_kind":        "inpatient",
+				"planned_entry_at": "2026-05-28T00:00:00Z",
+				"planned_exit_at":  "2026-05-30T00:00:00Z",
+				"cage_id":          0,
 			},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockHospitalizationService{},
@@ -413,18 +447,17 @@ func TestCreateHospitalization(t *testing.T) {
 		{
 			name: "returns 400 for inverted date range without wrapping AppError",
 			body: map[string]any{
-				"owner_id":             1,
-				"pet_id":               2,
-				"hospitalization_type": "hospitalization",
-				"start_date":           "2026-05-30T00:00:00Z",
-				"end_date":             "2026-05-28T00:00:00Z",
-				"status":               "admitted",
-				"cage_id":              10,
+				"owner_id":         1,
+				"pet_id":           2,
+				"stay_kind":        "inpatient",
+				"planned_entry_at": "2026-05-30T00:00:00Z",
+				"planned_exit_at":  "2026-05-28T00:00:00Z",
+				"cage_id":          10,
 			},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockHospitalizationService{},
 			wantStatus: http.StatusBadRequest,
-			wantBody:   `"error":"end_date は start_date 以降である必要があります"`,
+			wantBody:   `"error":"planned_exit_at は planned_entry_at より後である必要があります"`,
 		},
 		{
 			name:     "returns 500 on service error",
@@ -507,12 +540,12 @@ func TestCreateHospitalization_NestedDiscountForbidden(t *testing.T) {
 	}
 	h := NewHospitalizationHandler(svc, denyAllPermission)
 	body := map[string]any{
-		"owner_id":             1,
-		"pet_id":               2,
-		"hospitalization_type": "hospitalization",
-		"start_date":           "2026-05-28T00:00:00Z",
-		"end_date":             "2026-05-30T00:00:00Z",
-		"cage_id":              10,
+		"owner_id":         1,
+		"pet_id":           2,
+		"stay_kind":        "inpatient",
+		"planned_entry_at": "2026-05-28T00:00:00Z",
+		"planned_exit_at":  "2026-05-30T00:00:00Z",
+		"cage_id":          10,
 		"treatment_plans": []map[string]any{
 			{
 				"treatment_content": "adm",
@@ -546,6 +579,7 @@ func TestUpdateHospitalization(t *testing.T) {
 		setupCtx   func(c *gin.Context)
 		svc        *mockHospitalizationService
 		wantStatus int
+		wantBody   string
 	}{
 		{
 			name:     "updates hospitalization successfully",
@@ -680,23 +714,32 @@ func TestUpdateHospitalization(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:       "returns 400 for invalid status enum",
+			// EMR-499 U1: retired / stay-owned fields are refused with a stable 422 (never silently dropped).
+			name:       "returns 422 stay_lifecycle_write_unavailable for status",
 			paramID:    "1",
-			body:       map[string]any{"status": "unknown"},
+			body:       map[string]any{"status": "admitted"},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockHospitalizationService{},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
+			wantBody:   codeStayLifecycleWriteUnavailable,
 		},
 		{
-			name:    "returns 400 for inverted date range without wrapping AppError",
-			paramID: "1",
-			body: map[string]any{
-				"start_date": "2026-05-30T00:00:00Z",
-				"end_date":   "2026-05-28T00:00:00Z",
-			},
+			name:       "returns 422 for retired start_date",
+			paramID:    "1",
+			body:       map[string]any{"start_date": "2026-05-30T00:00:00Z"},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockHospitalizationService{},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
+			wantBody:   codeStayLifecycleWriteUnavailable,
+		},
+		{
+			name:       "returns 422 for planned_exit_at (planned change is an extension proposal, not an overwrite)",
+			paramID:    "1",
+			body:       map[string]any{"planned_exit_at": "2026-05-28T00:00:00Z"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockHospitalizationService{},
+			wantStatus: http.StatusUnprocessableEntity,
+			wantBody:   codeStayLifecycleWriteUnavailable,
 		},
 		{
 			name:     "returns 404 when hospitalization not found",
@@ -729,17 +772,17 @@ func TestUpdateHospitalization(t *testing.T) {
 			h.UpdateHospitalization(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
 		})
 	}
 }
 
-func TestUpdateHospitalization_InvertedDateRangePassesAppErrorThrough(t *testing.T) {
+func TestUpdateHospitalization_RetiredFieldIsRefusedWithStableCode(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	h := newHandlerWithHospitalizationSvc(&mockHospitalizationService{})
-	bodyBytes, err := json.Marshal(map[string]any{
-		"start_date": "2026-05-30T00:00:00Z",
-		"end_date":   "2026-05-28T00:00:00Z",
-	})
+	bodyBytes, err := json.Marshal(map[string]any{"end_date": "2026-05-28T00:00:00Z"})
 	require.NoError(t, err)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -748,8 +791,8 @@ func TestUpdateHospitalization_InvertedDateRangePassesAppErrorThrough(t *testing
 	c.Params = gin.Params{{Key: "id", Value: "1"}}
 	setClinicID(c)
 	h.UpdateHospitalization(c)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.JSONEq(t, `{"error":"end_date は start_date 以降である必要があります"}`, w.Body.String())
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Contains(t, w.Body.String(), codeStayLifecycleWriteUnavailable)
 }
 
 // ---- DischargeWithBilling ----
@@ -1071,6 +1114,81 @@ func TestSwapCages(t *testing.T) {
 			if tt.wantBody != "" {
 				assert.Contains(t, w.Body.String(), tt.wantBody)
 			}
+		})
+	}
+}
+
+// 書き込み経路（作成・更新・ケージ入れ替え）は service が返した滞在 projection をそのまま描画し、
+// commit 後に StayProjections を呼び直さない。再読込の失敗で commit 済みの書き込みをエラー応答にしないため。
+func TestHospitalizationWriteHandlers_RenderReturnedStayWithoutRereading(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	admitted := HospitalizationStayProjection{Lifecycle: lifecycleAdmitted}
+	newSvc := func(t *testing.T) *mockHospitalizationService {
+		t.Helper()
+		svc := &mockHospitalizationService{
+			stayProjectionsFn: func(context.Context, uint64, []model.Hospitalization) (map[uint64]HospitalizationStayProjection, error) {
+				t.Error("write paths must not re-read the stay projection after the write")
+				return nil, fmt.Errorf("post-commit projection read")
+			},
+			createFn: func(_ context.Context, clinicID uint64, _ *CreateHospitalizationInput) (*model.Hospitalization, error) {
+				return &model.Hospitalization{ID: 10, ClinicID: clinicID}, nil
+			},
+			updateFn: func(_ context.Context, clinicID, id uint64, _ *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+				return &model.Hospitalization{ID: id, ClinicID: clinicID}, nil
+			},
+			swapCagesFn: func(_ context.Context, clinicID, idA, idB uint64, _ [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+				return &model.Hospitalization{ID: idA, ClinicID: clinicID}, &model.Hospitalization{ID: idB, ClinicID: clinicID}, nil
+			},
+		}
+		svc.writeStay = &admitted
+		return svc
+	}
+
+	for _, tc := range []struct {
+		name   string
+		method string
+		body   map[string]any
+		params gin.Params
+		call   func(h *HospitalizationHandler, c *gin.Context)
+		want   int
+	}{
+		{
+			name:   "create",
+			method: http.MethodPost,
+			body:   map[string]any{"owner_id": 1, "pet_id": 2, "stay_kind": "inpatient", "planned_entry_at": "2026-05-28T00:00:00Z", "planned_exit_at": "2026-05-30T00:00:00Z"},
+			call:   (*HospitalizationHandler).CreateHospitalization,
+			want:   http.StatusCreated,
+		},
+		{
+			name:   "update",
+			method: http.MethodPatch,
+			body:   map[string]any{"memo": "x"},
+			params: gin.Params{{Key: "id", Value: "1"}},
+			call:   (*HospitalizationHandler).UpdateHospitalization,
+			want:   http.StatusOK,
+		},
+		{
+			name:   "cage swap",
+			method: http.MethodPost,
+			body:   map[string]any{"hospitalization_ids": []uint64{7, 3}, "expected_cage_ids": []uint64{17, 13}},
+			call:   (*HospitalizationHandler).SwapCages,
+			want:   http.StatusOK,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bodyBytes, err := json.Marshal(tc.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(tc.method, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = tc.params
+			setClinicID(c)
+
+			tc.call(newHandlerWithHospitalizationSvc(newSvc(t)), c)
+
+			assert.Equal(t, tc.want, w.Code)
+			assert.Contains(t, w.Body.String(), `"lifecycle_state":"admitted"`)
 		})
 	}
 }

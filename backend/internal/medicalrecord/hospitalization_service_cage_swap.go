@@ -30,7 +30,8 @@ type petRowLockFinder interface {
 // expectedCageIDs は (idA, idB) と同順の表示時割当で、不一致は409で拒否する。
 // 連結ケージが絡む場合でも通常の割当ガードが各移動に適用され、構成ケージ宛は 422、
 // 当事者以外が占有するケージ/グループ宛は 409 で両方ロールバックする（半スワップ状態を残さない）。
-func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*model.Hospitalization, *model.Hospitalization, error) {
+// 返り値の Stay（滞在 projection）も同じ tx 内で導出する。導出に失敗した場合も両方ロールバックする。
+func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*HospitalizationWriteResult, *HospitalizationWriteResult, error) {
 	if idA == idB {
 		return nil, nil, apperrors.WrapInvalidInput("同一の入院は入れ替えできません")
 	}
@@ -51,6 +52,7 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 		return nil, nil, apperrors.WrapInternalServerError("cage swap requires a pet life state reader")
 	}
 	var outA, outB *model.Hospitalization
+	var stays map[uint64]HospitalizationStayProjection
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// 行ロックは入院 id 昇順で取得 — スワップ同士や Update（同じく行ロック先行）
 		// とのロック順を一致させデッドロックを防ぐ。
@@ -168,7 +170,9 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 		} else {
 			outA, outB = updatedSecond, updatedFirst
 		}
-		return nil
+		// 滞在 projection は 2 件の更新と同じ tx 内で導出する。失敗すれば入れ替えごとロールバックされる。
+		stays, err = s.writtenStayProjectionsInTx(txCtx, clinicID, outA, outB)
+		return err
 	}); err != nil {
 		return nil, nil, err
 	}
@@ -176,5 +180,6 @@ func (s *hospitalizationService) SwapCages(ctx context.Context, clinicID, idA, i
 		slog.Uint64("hospitalization_id_a", idA),
 		slog.Uint64("hospitalization_id_b", idB),
 		slog.Uint64("clinic_id", clinicID))
-	return outA, outB, nil
+	return &HospitalizationWriteResult{Hospitalization: outA, Stay: stays[outA.ID]},
+		&HospitalizationWriteResult{Hospitalization: outB, Stay: stays[outB.ID]}, nil
 }

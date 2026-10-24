@@ -13,13 +13,14 @@ import (
 
 // CreateHospitalizationInput は入院作成の入力DTO
 type CreateHospitalizationInput struct {
-	OwnerID              uint64
-	PetID                uint64
-	HospitalizationType  model.HospitalizationType
-	StartDate            time.Time
-	EndDate              time.Time
+	OwnerID uint64
+	PetID   uint64
+	// StayKind / PlannedEntryAt / PlannedExitAt are stored on stay_cases (EMR-499 U1). They are not
+	// lifecycle facts: Create records no movement event, so the effective state starts as unknown.
+	StayKind             string
+	PlannedEntryAt       *time.Time
+	PlannedExitAt        *time.Time
 	NextVisit            *time.Time
-	Status               model.HospitalizationStatus
 	CageID               *uint64
 	DoctorID             *uint64
 	Memo                 string
@@ -38,12 +39,8 @@ type CreateHospitalizationInput struct {
 type UpdateHospitalizationInput struct {
 	OwnerID              *uint64
 	PetID                *uint64
-	HospitalizationType  *model.HospitalizationType
-	StartDate            *time.Time
-	EndDate              *time.Time
 	NextVisit            *time.Time
 	ClearNextVisit       bool
-	Status               *model.HospitalizationStatus
 	CageID               *uint64
 	ClearCageID          bool
 	ExpectedCageID       *uint64
@@ -85,24 +82,12 @@ func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]an
 	if input.PetID != nil {
 		fields["pet_id"] = *input.PetID
 	}
-	if input.HospitalizationType != nil {
-		fields["hospitalization_type"] = *input.HospitalizationType
-	}
-	if input.StartDate != nil {
-		fields["start_date"] = *input.StartDate
-	}
-	if input.EndDate != nil {
-		fields["end_date"] = *input.EndDate
-	}
 	// EMR-353: clear は NULL 化、非 nil は設定、どちらも無ければ変更なし（PATCH 規約）。
 	// IsInsurance トグルが早期 return するため、その前に置く（フロントは常にトグルを送る）。
 	if input.ClearNextVisit {
 		fields["next_visit"] = nil
 	} else if input.NextVisit != nil {
 		fields["next_visit"] = *input.NextVisit
-	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
 	}
 	// EMR-316: ClearCageID は NULL 化、非 nil は設定、どちらも無ければ変更なし（PATCH 規約）。
 	setNullableUint64Field(fields, colHospitalizationCageID, input.ClearCageID, input.CageID)
@@ -145,14 +130,26 @@ func applyHospitalizationInsuranceToggle(fields map[string]any, input *UpdateHos
 	}
 }
 
+// HospitalizationWriteResult は入院の書き込み（Create / Update / SwapCages）の結果。
+// Stay は書き込みと同一トランザクション内で導出した滞在 projection で、導出に失敗すると書き込みごと
+// ロールバックされる（commit 済みの書き込みをエラー応答として返さない）。
+// *model.Hospitalization を埋め込むため、行のフィールドはそのまま参照できる。
+type HospitalizationWriteResult struct {
+	*model.Hospitalization
+	Stay HospitalizationStayProjection
+}
+
 type HospitalizationService interface {
-	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
+	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, lifecycleState, plannedEntryFrom, plannedEntryTo *string, page, limit int) ([]model.Hospitalization, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
-	Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error)
-	Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error)
+	// StayProjections returns the read-only stay view (type, planned dates, effective lifecycle) per hospitalization ID.
+	StayProjections(ctx context.Context, clinicID uint64, rows []model.Hospitalization) (map[uint64]HospitalizationStayProjection, error)
+	// Create / Update / SwapCages は書き込み結果に同一 tx 内で導出した滞在 projection を添えて返す（commit 後の再読込は不要）。
+	Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*HospitalizationWriteResult, error)
+	Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*HospitalizationWriteResult, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	DischargeWithBilling(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error)
-	SwapCages(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*model.Hospitalization, *model.Hospitalization, error)
+	SwapCages(ctx context.Context, clinicID, idA, idB uint64, expectedCageIDs [2]uint64) (*HospitalizationWriteResult, *HospitalizationWriteResult, error)
 }
 
 type hospitalizationService struct {
@@ -272,12 +269,15 @@ func (s *hospitalizationService) validateDoctor(ctx context.Context, clinicID ui
 	return nil
 }
 
-func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
-	result, total, err := s.hospRepo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
-	if err != nil {
-		return nil, 0, apperrors.Wrap(err, "failed to list hospitalizations")
+func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, lifecycleState, plannedEntryFrom, plannedEntryTo *string, page, limit int) ([]model.Hospitalization, int64, error) {
+	if lifecycleState == nil {
+		result, total, err := s.hospRepo.FindAll(ctx, clinicID, petID, ownerID, plannedEntryFrom, plannedEntryTo, page, limit)
+		if err != nil {
+			return nil, 0, apperrors.Wrap(err, "failed to list hospitalizations")
+		}
+		return result, total, nil
 	}
-	return result, total, nil
+	return s.listByLifecycleState(ctx, clinicID, petID, ownerID, *lifecycleState, plannedEntryFrom, plannedEntryTo, page, limit)
 }
 
 func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
@@ -288,28 +288,9 @@ func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint6
 	return result, nil
 }
 
-// defaultHospitalizationStatus picks Create default when client omits status (BUG-031).
-// Clinic calendar day uses time.Local (compose TZ=Asia/Tokyo). start_date on/before today → admitted;
-// future start_date → reserved. Explicit client status is never overridden.
-func defaultHospitalizationStatus(startDate, now time.Time) model.HospitalizationStatus {
-	loc := time.Local
-	start := startDate.In(loc)
-	startDay := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, loc)
-	n := now.In(loc)
-	today := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, loc)
-	if !startDay.After(today) {
-		return model.HospitalizationStatusAdmitted
-	}
-	return model.HospitalizationStatusReserved
-}
-
-func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*model.Hospitalization, error) {
+func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, input *CreateHospitalizationInput) (*HospitalizationWriteResult, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
-	}
-	status := input.Status
-	if status == "" {
-		status = defaultHospitalizationStatus(input.StartDate, time.Now())
 	}
 	// is_insurance == false の場合は保険情報を NULL にする
 	var insuranceCompanyName *string
@@ -319,8 +300,7 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		insuranceNumber = input.InsuranceNumber
 	}
 
-	// MRB-06: service-layer date order (request binding already checks when both present).
-	if err := validateHospitalizationDateRange(input.StartDate, input.EndDate); err != nil {
+	if err := validatePlannedStayInterval(input.PlannedEntryAt, input.PlannedExitAt); err != nil {
 		return nil, err
 	}
 	// EMR-316: ケージ未割当（cage_id=NULL）での作成を許可する（BUG-037 の必須化を撤回）。
@@ -328,15 +308,14 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 	if input.CageID != nil && *input.CageID == 0 {
 		return nil, apperrors.WrapInvalidInput(errMsgCageIDInvalid)
 	}
+	if !validStayKind(input.StayKind) {
+		return nil, apperrors.WrapInvalidInput("stay_kind must be inpatient or hotel")
+	}
 	hospitalization := &model.Hospitalization{
 		ClinicID:             clinicID,
 		OwnerID:              input.OwnerID,
 		PetID:                input.PetID,
-		HospitalizationType:  input.HospitalizationType,
-		StartDate:            input.StartDate,
-		EndDate:              input.EndDate,
 		NextVisit:            input.NextVisit,
-		Status:               status,
 		CageID:               input.CageID,
 		DoctorID:             input.DoctorID,
 		Memo:                 input.Memo,
@@ -348,8 +327,16 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 	if s.transactor == nil {
 		return nil, apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
 	}
+	// 滞在 projection は作成と同じ tx（txCtx）の中で導出する。失敗すれば作成ごとロールバックされ、
+	// commit 済みの作成をエラーとして返して重複再送を誘発することがない。
+	var stay HospitalizationStayProjection
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		return s.createHospitalizationInTx(txCtx, clinicID, input, hospitalization)
+		if err := s.createHospitalizationInTx(txCtx, clinicID, input, hospitalization); err != nil {
+			return err
+		}
+		var err error
+		stay, err = s.writtenStayProjectionInTx(txCtx, clinicID, hospitalization)
+		return err
 	}); err != nil {
 		return nil, err
 	}
@@ -357,10 +344,10 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		slog.Uint64("hospitalization_id", hospitalization.ID),
 		slog.Uint64("clinic_id", hospitalization.ClinicID),
 		slog.Int("treatment_plan_count", len(input.TreatmentPlans)))
-	return hospitalization, nil
+	return &HospitalizationWriteResult{Hospitalization: hospitalization, Stay: stay}, nil
 }
 
-func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*model.Hospitalization, error) {
+func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64, input *UpdateHospitalizationInput) (*HospitalizationWriteResult, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
@@ -380,6 +367,7 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		return nil, apperrors.WrapInternalServerError("hospitalization write transaction dependency is required")
 	}
 	var hosp *model.Hospitalization
+	var stay HospitalizationStayProjection
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		existing, err := s.hospRepo.LockByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
@@ -387,6 +375,11 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		}
 		if existing == nil {
 			return apperrors.WrapNotFound("hospitalization", strconv.FormatUint(id, 10))
+		}
+		// 滞在に紐づく入院の患者（pet_id）は stay_cases.pet_id と一致していなければならない。入院行だけの
+		// 付け替えは滞在側の予定・実績を別の患者に見せてしまうため、黙って更新せず明示的に拒否する。
+		if input.PetID != nil && *input.PetID != existing.PetID && existing.StayCaseID != nil && *existing.StayCaseID != 0 {
+			return apperrors.WrapConflict("滞在に紐づく入院の患者は、この API では変更できません")
 		}
 		if input.CageID != nil || input.ClearCageID {
 			var cageStale bool
@@ -398,17 +391,6 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 			if cageStale {
 				return hospitalizationCageConflict(codeCageAssignmentChanged, errMsgCageClearStale)
 			}
-		}
-		// MRB-06: merge patch dates with locked row and reject inverted ranges.
-		finalStart, finalEnd := existing.StartDate, existing.EndDate
-		if input.StartDate != nil {
-			finalStart = *input.StartDate
-		}
-		if input.EndDate != nil {
-			finalEnd = *input.EndDate
-		}
-		if err := validateHospitalizationDateRange(finalStart, finalEnd); err != nil {
-			return err
 		}
 		if input.OwnerID != nil || input.PetID != nil {
 			finalOwnerID, finalPetID := resolveFinalHospitalizationOwnerPet(existing, input)
@@ -449,34 +431,16 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		if err != nil {
 			return apperrors.Wrap(err, "failed to update hospitalization")
 		}
-		// MRB-05: PATCH-driven discharge bypasses DischargeWithBilling; audit fail-closed.
-		if input.Status != nil && *input.Status == model.HospitalizationStatusDischarged &&
-			existing.Status != model.HospitalizationStatusDischarged {
-			if s.auditTx == nil {
-				return apperrors.WrapInternalServerError("hospitalization discharge audit dependency is required")
-			}
-			resourceID := id
-			if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
-				ClinicID:   &clinicID,
-				ActorType:  auditActorTypeFor(nil),
-				Action:     hospitalizationAuditActionDischarge,
-				Resource:   model.AuditResourceHospitalization,
-				ResourceID: &resourceID,
-				OldValue:   hospitalizationAuditValue(existing),
-				NewValue:   hospitalizationAuditValue(hosp),
-				Metadata:   map[string]any{"via": "update"},
-			}); err != nil {
-				return apperrors.Wrap(err, "failed to audit hospitalization discharge")
-			}
-		}
-		return nil
+		// 滞在 projection は更新と同じ tx 内で導出する。失敗すれば更新ごとロールバックされる。
+		stay, err = s.writtenStayProjectionInTx(txCtx, clinicID, hosp)
+		return err
 	}); err != nil {
 		return nil, err
 	}
 	slog.InfoContext(ctx, "hospitalization updated",
 		slog.Uint64("hospitalization_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	return hosp, nil
+	return &HospitalizationWriteResult{Hospitalization: hosp, Stay: stay}, nil
 }
 
 // hospitalizationAuditAction* are local action strings so this unit stays within owned paths
@@ -525,12 +489,13 @@ func hospitalizationAuditValue(h *model.Hospitalization) map[string]any {
 		return nil
 	}
 	return map[string]any{
-		"id":         h.ID,
-		"owner_id":   h.OwnerID,
-		"pet_id":     h.PetID,
-		"status":     string(h.Status),
-		"start_date": h.StartDate,
-		"end_date":   h.EndDate,
+		"id":       h.ID,
+		"owner_id": h.OwnerID,
+		"pet_id":   h.PetID,
+		// EMR-499 U1: status/start_date/end_date left the hospitalizations row. The stay case is the
+		// stable reference; lifecycle facts are audited by their own movement events.
+		"stay_case_id": h.StayCaseID,
+		"cage_id":      h.CageID,
 	}
 }
 

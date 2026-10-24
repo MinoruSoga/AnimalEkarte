@@ -12,7 +12,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -124,16 +123,11 @@ func TestCageRepository_CountOccupiedCages_SeesUncommittedWritesThenRollback(t *
 
 	txErr := (testTransactor{db: db}).WithTx(ctx, func(txCtx context.Context) error {
 		// tx 内で入院を直接 INSERT し、reader が未コミット占有を見ることを実証する。
-		now := time.Now().UTC().Truncate(24 * time.Hour)
 		h := &model.Hospitalization{
-			ClinicID:            clinicID,
-			OwnerID:             owner.ID,
-			PetID:               pet.ID,
-			HospitalizationType: model.HospitalizationTypeInpatient,
-			StartDate:           now,
-			EndDate:             now.AddDate(0, 0, 3),
-			Status:              model.HospitalizationStatusAdmitted,
-			CageID:              &cage.ID,
+			ClinicID: clinicID,
+			OwnerID:  owner.ID,
+			PetID:    pet.ID,
+			CageID:   &cage.ID,
 		}
 		require.NoError(t, persistence.DBOrTx(txCtx, db).Create(h).Error)
 
@@ -162,16 +156,11 @@ func TestCageRepository_ListOccupiedCageIDs_SeesUncommittedWritesThenRollback(t 
 
 	txErr := (testTransactor{db: db}).WithTx(ctx, func(txCtx context.Context) error {
 		// tx 内で入院を直接 INSERT し、reader が未コミット占有を見ることを実証する。
-		now := time.Now().UTC().Truncate(24 * time.Hour)
 		h := &model.Hospitalization{
-			ClinicID:            clinicID,
-			OwnerID:             owner.ID,
-			PetID:               pet.ID,
-			HospitalizationType: model.HospitalizationTypeInpatient,
-			StartDate:           now,
-			EndDate:             now.AddDate(0, 0, 3),
-			Status:              model.HospitalizationStatusAdmitted,
-			CageID:              &cage.ID,
+			ClinicID: clinicID,
+			OwnerID:  owner.ID,
+			PetID:    pet.ID,
+			CageID:   &cage.ID,
 		}
 		require.NoError(t, persistence.DBOrTx(txCtx, db).Create(h).Error)
 

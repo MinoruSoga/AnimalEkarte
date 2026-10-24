@@ -63,13 +63,25 @@ func (h *HospitalizationHandler) maybeListHospitalizationSnapshot(c *gin.Context
 		httpapi.RespondError(c, err)
 		return true
 	}
+	projections, err := h.service.StayProjections(c.Request.Context(), clinicID, rows)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return true
+	}
+	// lifecycle_state は移動イベントからの導出値で SQL では絞れない。リスト（タブ）と同じ導出状態の絞り込みを
+	// 候補集合（上限は findSnapshot が強制）へ適用し、total は一致件数にする。全候補と未絞り込みの total を
+	// 返すと、要求した状態以外の行が混ざる（PR #851 review A1）。
+	if filters.LifecycleState != nil {
+		rows = filterByLifecycleState(rows, projections, *filters.LifecycleState)
+		total = int64(len(rows))
+	}
 	c.JSON(http.StatusOK, struct {
 		Data     []HospitalizationResponse `json:"data"`
 		Total    int64                     `json:"total"`
 		Page     int                       `json:"page"`
 		Limit    int                       `json:"limit"`
 		Snapshot bool                      `json:"snapshot"`
-	}{httpapi.MapSlice(rows, toHospitalizationResponse), total, 1, hospitalizationSnapshotMaxRows, true})
+	}{hospitalizationResponses(rows, projections), total, 1, hospitalizationSnapshotMaxRows, true})
 	return true
 }
 
@@ -86,7 +98,7 @@ func (r *hospitalizationRepository) findSnapshot(ctx context.Context, clinicID u
 			return apperrors.WrapInvalidInput("入院が10000件を超えています。条件を絞り込んでください")
 		}
 		if err := hospitalizationListPreloads(hospitalizationListQuery(tx, clinicID, filters), clinicID).
-			Order("start_date DESC, created_at DESC, id DESC").
+			Order(hospitalizationListOrder).
 			Limit(hospitalizationSnapshotMaxRows).
 			Find(&rows).Error; err != nil {
 			return apperrors.FromGORM(err, "hospitalization", "")

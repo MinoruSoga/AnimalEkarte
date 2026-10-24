@@ -49,7 +49,7 @@ func TestHospitalizationRepository_FindByID_Update_DoesNotPreloadForeignOwnerPet
 	})
 
 	t.Run("FindAll excludes hospitalization whose pet belongs to another clinic", func(t *testing.T) {
-		items, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, 1, 50)
+		items, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, 1, 50)
 		require.NoError(t, err)
 		var found *model.Hospitalization
 		for i := range items {

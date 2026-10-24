@@ -71,13 +71,13 @@ func TestListHospitalizationsSnapshotBoundary(t *testing.T) {
 			require.Equal(t, uint64(1), clinicID)
 			require.NotNil(t, f.PetID)
 			require.Equal(t, uint64(2), *f.PetID)
-			require.NotNil(t, f.Status)
-			require.Equal(t, "admitted", *f.Status)
+			require.NotNil(t, f.LifecycleState)
+			require.Equal(t, "admitted", *f.LifecycleState)
 			return nil, 0, nil
 		}}
 		rec := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(rec)
-		c.Request = httptest.NewRequest(http.MethodGet, "/hospitalizations?snapshot=true&page=bad&limit=abc&pet_id=2&status=admitted", nil)
+		c.Request = httptest.NewRequest(http.MethodGet, "/hospitalizations?snapshot=true&page=bad&limit=abc&pet_id=2&lifecycle_state=admitted", nil)
 		setClinicID(c)
 		newHandlerWithHospitalizationSvc(svc).ListHospitalizations(c)
 		require.Equal(t, http.StatusOK, rec.Code)
@@ -149,5 +149,35 @@ func TestListHospitalizationsSnapshotBoundary(t *testing.T) {
 			newHandlerWithHospitalizationSvc(svc).ListHospitalizations(c)
 			require.Equal(t, tc.status, rec.Code)
 		})
+	}
+}
+
+// B-R2-SPEC-01: the retired list names are refused by key presence on the paginated and the snapshot path;
+// an empty or repeated value must not pass as an unfiltered list.
+func TestListHospitalizationsRefusesRetiredQueryKeyRegardlessOfValue(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, prefix := range []string{"page=1&limit=20&", "snapshot=true&"} {
+		for _, key := range []string{"status", "start_date", "end_date"} {
+			for _, raw := range []string{key + "=", key + "=&" + key + "=2026-10-24"} {
+				query := prefix + raw
+				t.Run(query, func(t *testing.T) {
+					listCalled := false
+					svc := &snapshotHospitalizationService{mockHospitalizationService: &mockHospitalizationService{
+						listFn: func(context.Context, uint64, *uint64, *uint64, *string, *string, *string, int, int) ([]model.Hospitalization, int64, error) {
+							listCalled = true
+							return nil, 0, nil
+						},
+					}}
+					rec := httptest.NewRecorder()
+					c, _ := gin.CreateTestContext(rec)
+					c.Request = httptest.NewRequest(http.MethodGet, "/hospitalizations?"+query, nil)
+					setClinicID(c)
+					newHandlerWithHospitalizationSvc(svc).ListHospitalizations(c)
+					require.Equal(t, http.StatusBadRequest, rec.Code)
+					require.False(t, listCalled)
+					require.False(t, svc.called)
+				})
+			}
+		}
 	}
 }

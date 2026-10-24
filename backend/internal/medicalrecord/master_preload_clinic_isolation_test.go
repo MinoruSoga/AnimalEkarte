@@ -75,7 +75,7 @@ func TestHospitalizationRepository_FindAll_CagePreloadClinicIsolation(t *testing
 	cross := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, &cageB.ID)
 	legit := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, &cageA.ID)
 
-	got, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, nil, 1, 100)
+	got, _, err := repo.FindAll(ctx, clinicA, nil, nil, nil, nil, 1, 100)
 	require.NoError(t, err)
 
 	byID := map[uint64]model.Hospitalization{}

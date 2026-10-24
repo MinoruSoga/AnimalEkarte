@@ -48,7 +48,7 @@ func TestHospitalizationRepository_FindAll_PaginationSQLContract(t *testing.T) {
 			t.Cleanup(func() { assert.NoError(t, sqlDB.Close()) })
 			repo := NewHospitalizationRepository(db)
 
-			_, _, err = repo.FindAll(context.Background(), 7, nil, nil, nil, nil, nil, tt.page, 200)
+			_, _, err = repo.FindAll(context.Background(), 7, nil, nil, nil, nil, tt.page, 200)
 
 			require.NoError(t, err)
 			sql := output.String()

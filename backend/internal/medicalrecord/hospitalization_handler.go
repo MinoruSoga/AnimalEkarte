@@ -56,9 +56,9 @@ func (h *HospitalizationHandler) ListHospitalizations(c *gin.Context) {
 		clinicID,
 		filters.PetID,
 		filters.OwnerID,
-		filters.Status,
-		filters.StartDate,
-		filters.EndDate,
+		filters.LifecycleState,
+		filters.PlannedEntryFrom,
+		filters.PlannedEntryTo,
 		page,
 		limit,
 	)
@@ -66,7 +66,22 @@ func (h *HospitalizationHandler) ListHospitalizations(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(httpapi.MapSlice(hospitalizations, toHospitalizationResponse), total, page, limit))
+	projections, err := h.service.StayProjections(c.Request.Context(), clinicID, hospitalizations)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(hospitalizationResponses(hospitalizations, projections), total, page, limit))
+}
+
+// singleHospitalizationResponse renders one row with its stay projection (EMR-499 U1).
+func (h *HospitalizationHandler) singleHospitalizationResponse(c *gin.Context, clinicID uint64, row *model.Hospitalization) (HospitalizationResponse, bool) {
+	projections, err := h.service.StayProjections(c.Request.Context(), clinicID, []model.Hospitalization{*row})
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return HospitalizationResponse{}, false
+	}
+	return hospitalizationResponses([]model.Hospitalization{*row}, projections)[0], true
 }
 
 // GetHospitalization godoc
@@ -87,7 +102,11 @@ func (h *HospitalizationHandler) GetHospitalization(c *gin.Context) {
 		httpapi.RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toHospitalizationResponse(hospitalization))
+	resp, ok := h.singleHospitalizationResponse(c, clinicID, hospitalization)
+	if !ok {
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // CreateHospitalization godoc
@@ -97,8 +116,9 @@ func (h *HospitalizationHandler) CreateHospitalization(c *gin.Context) {
 		return
 	}
 	var input createHospitalizationRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	// 旧ライフサイクル名は null でも拒否するため、バインドの前に JSON キーの存在で検査する。
+	if err := bindJSONGuarded(c, &input, rejectRetiredHospitalizationCreateKeys); err != nil {
+		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}
 
@@ -121,13 +141,14 @@ func (h *HospitalizationHandler) CreateHospitalization(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	hospitalization, err := h.service.Create(ctx, clinicID, svcInput)
+	result, err := h.service.Create(ctx, clinicID, svcInput)
 	if err != nil {
 		respondHospitalizationCageWriteError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d", hospitalization.ID))
-	c.JSON(http.StatusCreated, toHospitalizationResponse(hospitalization))
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d", result.ID))
+	// 滞在 projection は service が作成と同一 tx 内で導出済み。commit 後に読み直さない。
+	c.JSON(http.StatusCreated, toHospitalizationResponse(result.Hospitalization, result.Stay))
 }
 
 // UpdateHospitalization godoc
@@ -141,8 +162,9 @@ func (h *HospitalizationHandler) UpdateHospitalization(c *gin.Context) {
 		return
 	}
 	var input updateHospitalizationRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	// 滞在由来・旧ライフサイクルのキーは null でも拒否するため、バインドの前に JSON キーの存在で検査する。
+	if err := bindJSONGuarded(c, &input, rejectStayOwnedHospitalizationUpdateKeys); err != nil {
+		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}
 
@@ -153,12 +175,13 @@ func (h *HospitalizationHandler) UpdateHospitalization(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	hosp, err := h.service.Update(ctx, clinicID, id, &svcInput)
+	result, err := h.service.Update(ctx, clinicID, id, &svcInput)
 	if err != nil {
 		respondHospitalizationCageWriteError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, toHospitalizationResponse(hosp))
+	// 滞在 projection は service が更新と同一 tx 内で導出済み。commit 後に読み直さない。
+	c.JSON(http.StatusOK, toHospitalizationResponse(result.Hospitalization, result.Stay))
 }
 
 // DischargeWithBilling godoc
@@ -217,12 +240,11 @@ func (h *HospitalizationHandler) SwapCages(c *gin.Context) {
 		respondHospitalizationCageWriteError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, CageSwapResponse{
-		Hospitalizations: []HospitalizationResponse{
-			toHospitalizationResponse(first),
-			toHospitalizationResponse(second),
-		},
-	})
+	// 滞在 projection は service が入れ替えと同一 tx 内で導出済み。commit 後に読み直さない（入力順のまま返す）。
+	c.JSON(http.StatusOK, CageSwapResponse{Hospitalizations: []HospitalizationResponse{
+		toHospitalizationResponse(first.Hospitalization, first.Stay),
+		toHospitalizationResponse(second.Hospitalization, second.Stay),
+	}})
 }
 
 // DeleteHospitalization godoc

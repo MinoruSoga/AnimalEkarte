@@ -7,25 +7,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 type HospitalizationRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
+	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, plannedEntryFrom, plannedEntryTo *string, page, limit int) ([]model.Hospitalization, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	// LockByIDForUpdate は FOR UPDATE で入院行をロック取得する（Discharge Q2-C）。
 	// Repositories.Transaction（repo-swap）内の txRepos 経由でのみ呼ぶこと。
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
 	Update(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error)
-	UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error)
+	// CreateStayCase writes the stay_cases row that a new hospitalization points to (EMR-499 U1).
+	// It writes no movement event: effective state stays unknown until the lifecycle writer exists.
+	CreateStayCase(ctx context.Context, stay *model.StayCase) error
+	// FindStayCasesByIDs returns live (not deleted) stay cases of the clinic, keyed by stay case ID.
+	FindStayCasesByIDs(ctx context.Context, clinicID uint64, ids []uint64) (map[uint64]model.StayCase, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
 	CountDailyRecordsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
@@ -39,6 +45,12 @@ type hospitalizationRepository struct {
 func NewHospitalizationRepository(db *gorm.DB) HospitalizationRepository {
 	return &hospitalizationRepository{db: db}
 }
+
+// hospitalizationListOrder sorts by the planned entry of the stay case (retired start_date), rows without
+// a stay case last. A correlated subquery avoids a join that would make clinic_id/pet_id ambiguous.
+const hospitalizationListOrder = `(SELECT sc.planned_entry_at FROM stay_cases sc WHERE sc.id = hospitalizations.stay_case_id
+	AND sc.clinic_id = hospitalizations.clinic_id AND sc.deleted_at IS NULL) DESC NULLS LAST,
+	hospitalizations.created_at DESC, hospitalizations.id DESC`
 
 func hospitalizationListQuery(db *gorm.DB, clinicID uint64, filters listHospitalizationFilters) *gorm.DB {
 	q := db.
@@ -62,14 +74,26 @@ func hospitalizationListQuery(db *gorm.DB, clinicID uint64, filters listHospital
 			)
 		`, *filters.OwnerID)
 	}
-	if filters.Status != nil {
-		q = q.Where("status = ?", *filters.Status)
+	// Planned-entry range (JST calendar days, the half-open day interval of the spec's actual-day convention,
+	// docs/spec/domains/cash-register/business-rules.md#closing-discharge-actual-jst-day-20261017).
+	// Rows without a live stay case never match. This filters PLANNED entry only: actual admission is derived.
+	if filters.PlannedEntryFrom != nil {
+		from, err := time.ParseInLocation(time.DateOnly, *filters.PlannedEntryFrom, config.JST)
+		if err != nil {
+			_ = q.AddError(apperrors.WrapInvalidInput("planned_entry_from は YYYY-MM-DD 形式で入力してください"))
+			return q
+		}
+		q = q.Where(`EXISTS (SELECT 1 FROM stay_cases sc WHERE sc.id = hospitalizations.stay_case_id
+			AND sc.clinic_id = hospitalizations.clinic_id AND sc.deleted_at IS NULL AND sc.planned_entry_at >= ?)`, from)
 	}
-	if filters.StartDate != nil {
-		q = q.Where("hospitalizations.start_date >= ?", *filters.StartDate)
-	}
-	if filters.EndDate != nil {
-		q = q.Where("hospitalizations.start_date <= ?", *filters.EndDate)
+	if filters.PlannedEntryTo != nil {
+		to, err := time.ParseInLocation(time.DateOnly, *filters.PlannedEntryTo, config.JST)
+		if err != nil {
+			_ = q.AddError(apperrors.WrapInvalidInput("planned_entry_to は YYYY-MM-DD 形式で入力してください"))
+			return q
+		}
+		q = q.Where(`EXISTS (SELECT 1 FROM stay_cases sc WHERE sc.id = hospitalizations.stay_case_id
+			AND sc.clinic_id = hospitalizations.clinic_id AND sc.deleted_at IS NULL AND sc.planned_entry_at < ?)`, to.AddDate(0, 0, 1))
 	}
 	return q
 }
@@ -83,19 +107,19 @@ func hospitalizationListPreloads(q *gorm.DB, clinicID uint64) *gorm.DB {
 		Preload("Doctor", "deleted_at IS NULL")
 }
 
-func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
+func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, plannedEntryFrom, plannedEntryTo *string, page, limit int) ([]model.Hospitalization, int64, error) {
 	hospitalizations := make([]model.Hospitalization, 0)
 	var total int64
 
 	filters := listHospitalizationFilters{
-		PetID: petID, OwnerID: ownerID, Status: status, StartDate: startDate, EndDate: endDate,
+		PetID: petID, OwnerID: ownerID, PlannedEntryFrom: plannedEntryFrom, PlannedEntryTo: plannedEntryTo,
 	}
 	q := hospitalizationListQuery(r.db.WithContext(ctx), clinicID, filters)
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
 	if err := hospitalizationListPreloads(q, clinicID).
-		Scopes(paginate(page, limit)).Order("start_date DESC, created_at DESC, id DESC").
+		Scopes(paginate(page, limit)).Order(hospitalizationListOrder).
 		Find(&hospitalizations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
@@ -149,7 +173,7 @@ func (r *hospitalizationRepository) Create(ctx context.Context, hospitalization 
 	err := persistence.DBOrTx(ctx, r.db).Create(hospitalization).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
-			return apperrors.WrapAlreadyExists("hospitalization", hospitalization.StartDate.String())
+			return apperrors.WrapAlreadyExists("hospitalization", fmt.Sprintf("stay_case=%v", hospitalization.StayCaseID))
 		}
 		return apperrors.FromGORM(err, "hospitalization", "")
 	}
@@ -177,23 +201,31 @@ func (r *hospitalizationRepository) update(ctx context.Context, clinicID, id uin
 	return nil
 }
 
-func (r *hospitalizationRepository) UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, cmd UpdateHospitalizationInput) (*model.Hospitalization, error) {
-	return r.updateIfNotDischarged(ctx, clinicID, id, buildHospitalizationUpdate(&cmd))
+func (r *hospitalizationRepository) CreateStayCase(ctx context.Context, stay *model.StayCase) error {
+	if stay == nil {
+		return apperrors.WrapInvalidInput("stay case must not be nil")
+	}
+	if err := persistence.DBOrTx(ctx, r.db).Create(stay).Error; err != nil {
+		return apperrors.FromGORM(err, "stay_case", "")
+	}
+	return nil
 }
 
-func (r *hospitalizationRepository) updateIfNotDischarged(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
-	result := persistence.DBOrTx(ctx, r.db).
-		Model(&model.Hospitalization{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND status != ?", id, model.HospitalizationStatusDischarged).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "hospitalization", fmt.Sprintf("%d", id))
+func (r *hospitalizationRepository) FindStayCasesByIDs(ctx context.Context, clinicID uint64, ids []uint64) (map[uint64]model.StayCase, error) {
+	result := make(map[uint64]model.StayCase, len(ids))
+	if len(ids) == 0 {
+		return result, nil
 	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", id))
+	var rows []model.StayCase
+	if err := persistence.DBOrTx(ctx, r.db).
+		Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, ids).
+		Find(&rows).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "stay_case", "")
 	}
-	return r.FindByID(ctx, clinicID, id)
+	for _, row := range rows {
+		result[row.ID] = row
+	}
+	return result, nil
 }
 
 func (r *hospitalizationRepository) Delete(ctx context.Context, clinicID, id uint64) error {

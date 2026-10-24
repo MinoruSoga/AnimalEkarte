@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 func TestHospitalizationRepository_LockByIDForUpdate(t *testing.T) {
@@ -36,9 +35,7 @@ func TestHospitalizationRepository_LockByIDForUpdate(t *testing.T) {
 
 	ownerA := makeTestOwner(t, db, clinicA, "Q2-C Lock飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "Q2-C Lockポチ")
-	hosp := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, func(h *model.Hospitalization) {
-		h.Status = model.HospitalizationStatusAdmitted
-	})
+	hosp := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
 	t.Run("ambient tx 不在は fail-closed（MRB-02）", func(t *testing.T) {
 		_, err := repo.LockByIDForUpdate(ctx, clinicA, hosp.ID)
@@ -56,7 +53,6 @@ func TestHospitalizationRepository_LockByIDForUpdate(t *testing.T) {
 			assert.Equal(t, petA.ID, got.PetID)
 			assert.NotZero(t, got.OwnerID, "Q2-A 再検証用 OwnerID が空であってはならない")
 			assert.NotZero(t, got.PetID, "Q2-A 再検証用 PetID が空であってはならない")
-			assert.Equal(t, model.HospitalizationStatusAdmitted, got.Status)
 			return nil
 		}))
 	})
@@ -81,7 +77,9 @@ func TestHospitalizationRepository_LockByIDForUpdate(t *testing.T) {
 }
 
 // TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischargeUpdate は
-// Lock 保持中に並行の UpdateIfNotDischarged がブロックされ、ロック解放後にのみ完了することを検証する。
+// Lock 保持中に並行の Update がブロックされ、ロック解放後にのみ完了することを検証する。
+// （EMR-499 U1: 退院は movement event になり hospitalizations 行を更新しない。行ロックの直列化契約だけを
+// memo 更新で確認する。）
 func TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischargeUpdate(t *testing.T) {
 	db := setupHospitalizationRepoTestDB(t)
 	hospRepo := NewHospitalizationRepository(db)
@@ -90,9 +88,7 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischar
 	const clinicID = uint64(90201)
 	owner := makeTestOwner(t, db, clinicID, "Q2-C 直列化飼主")
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "Q2-C 直列化ポチ")
-	hosp := makeHospitalizationFixture(t, db, clinicID, owner.ID, pet.ID, func(h *model.Hospitalization) {
-		h.Status = model.HospitalizationStatusAdmitted
-	})
+	hosp := makeHospitalizationFixture(t, db, clinicID, owner.ID, pet.ID, nil)
 
 	lockAcquired := make(chan struct{})
 	proceed := make(chan struct{})
@@ -111,12 +107,8 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischar
 			lockedPetID = locked.PetID
 			close(lockAcquired)
 			<-proceed
-			discharged := model.HospitalizationStatusDischarged
-			endDate := time.Now().UTC().Truncate(time.Second)
-			_, err = hospRepo.UpdateIfNotDischarged(txCtx, clinicID, hosp.ID, UpdateHospitalizationInput{
-				Status:  &discharged,
-				EndDate: &endDate,
-			})
+			holderMemo := "holder"
+			_, err = hospRepo.Update(txCtx, clinicID, hosp.ID, UpdateHospitalizationInput{Memo: &holderMemo})
 			return err
 		})
 	}()
@@ -133,18 +125,14 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischar
 	go func() {
 		defer close(updateDone)
 		close(updateStarted)
-		discharged := model.HospitalizationStatusDischarged
-		endDate := time.Now().UTC().Truncate(time.Second)
-		_, updateErr = hospRepo.UpdateIfNotDischarged(context.Background(), clinicID, hosp.ID, UpdateHospitalizationInput{
-			Status:  &discharged,
-			EndDate: &endDate,
-		})
+		laterMemo := "later"
+		_, updateErr = hospRepo.Update(context.Background(), clinicID, hosp.ID, UpdateHospitalizationInput{Memo: &laterMemo})
 	}()
 	<-updateStarted
 
 	select {
 	case <-updateDone:
-		t.Fatal("並行 UpdateIfNotDischarged が Lock 保持中に完了した（Q2-C 直列化が機能していない）")
+		t.Fatal("並行 Update が Lock 保持中に完了した（Q2-C 直列化が機能していない）")
 	case <-time.After(300 * time.Millisecond):
 	}
 
@@ -152,13 +140,12 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischar
 	<-holderDone
 	<-updateDone
 
-	require.NoError(t, holderErr, "ロック保持側の退院は成功するべき")
-	require.Error(t, updateErr, "後続の退院は既に discharged のため失敗するべき")
-	assert.True(t, apperrors.IsNotFound(updateErr), "後続は UpdateIfNotDischarged の NotFound: %v", updateErr)
+	require.NoError(t, holderErr, "ロック保持側の更新は成功するべき")
+	require.NoError(t, updateErr, "後続の更新はロック解放後に成功するべき")
 
 	got, err := hospRepo.FindByID(ctx, clinicID, hosp.ID)
 	require.NoError(t, err)
-	assert.Equal(t, model.HospitalizationStatusDischarged, got.Status)
+	assert.Equal(t, "later", got.Memo, "後続の更新がロック解放後に最後に適用されること")
 	assert.Equal(t, owner.ID, got.OwnerID, "OwnerID が汚染・消失していないこと")
 	assert.Equal(t, pet.ID, got.PetID, "PetID が汚染・消失していないこと")
 }
@@ -174,9 +161,7 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesOwnerPetContamina
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "Q2-C 汚染ポチ")
 	foreignOwner := makeTestOwner(t, db, clinicID, "Q2-C 別飼主")
 	foreignPet := makeSpeciesAndPet(t, db, clinicID, foreignOwner.ID, "Q2-C 別ポチ")
-	hosp := makeHospitalizationFixture(t, db, clinicID, owner.ID, pet.ID, func(h *model.Hospitalization) {
-		h.Status = model.HospitalizationStatusAdmitted
-	})
+	hosp := makeHospitalizationFixture(t, db, clinicID, owner.ID, pet.ID, nil)
 
 	lockAcquired := make(chan struct{})
 	proceed := make(chan struct{})
@@ -195,12 +180,8 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesOwnerPetContamina
 			lockedPetID = locked.PetID
 			close(lockAcquired)
 			<-proceed
-			discharged := model.HospitalizationStatusDischarged
-			endDate := time.Now().UTC().Truncate(time.Second)
-			_, err = hospRepo.UpdateIfNotDischarged(txCtx, clinicID, hosp.ID, UpdateHospitalizationInput{
-				Status:  &discharged,
-				EndDate: &endDate,
-			})
+			holderMemo := "holder"
+			_, err = hospRepo.Update(txCtx, clinicID, hosp.ID, UpdateHospitalizationInput{Memo: &holderMemo})
 			return err
 		})
 	}()
@@ -237,5 +218,5 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesOwnerPetContamina
 
 	got, err := hospRepo.FindByID(context.Background(), clinicID, hosp.ID)
 	require.NoError(t, err)
-	assert.Equal(t, model.HospitalizationStatusDischarged, got.Status)
+	assert.Equal(t, "holder", got.Memo, "ロック保持側の更新が先に確定していること")
 }

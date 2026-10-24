@@ -264,16 +264,21 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// TestHospitalizationRepository_CRUDParticipatesInAmbientTransaction。)
 	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.FindByHospitalizationID": {},
 	// U-X01X03-MR-CARE / MRA-02: Create/Update/Delete/FindByID join ambient tx for write+reload + audited hard-delete.
-	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.FindByID":                  {},
-	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.Create":                    {},
-	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.update":                    {},
-	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.Delete":                    {},
-	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Create":                {},
-	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.FindByID":              {},
-	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.LockByIDForUpdate":     {},
-	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.update":                {},
-	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.updateIfNotDischarged": {},
-	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Delete":                {}, // MRB-05: delete + audit same ambient tx
+	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.FindByID":              {},
+	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.Create":                {},
+	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.update":                {},
+	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.Delete":                {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Create":            {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.FindByID":          {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.LockByIDForUpdate": {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.update":            {},
+	// EMR-499 U1: updateIfNotDischarged is gone (discharge is a stay movement, not a row update).
+	// CreateStayCase / FindStayCasesByIDs join the caller's ambient transaction; the Create path runs them in the
+	// same WithTx as the hospitalization row (hospitalization_create_tx_atomicity_test.go,
+	// hospitalization_repository_test.go TestHospitalizationRepository_StayCases).
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.CreateStayCase":     {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.FindStayCasesByIDs": {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.Delete":             {}, // MRB-05: delete + audit same ambient tx
 	// checkup_field (#211 tx-internal replace)
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},
@@ -666,7 +671,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.CountMergedMembers":                    {},
 	"medicalrecord/cage_repository.go|cageRepositoryImpl.readEffectiveCageOccupancy":            {},
 	"medicalrecord/stay_cage_effective_state_reader.go|stayCageEffectiveStateReader.readLocked": {},
-	"medicalrecord/cage_occupancy_read_snapshot.go|withCageOccupancyReadSnapshot":               {},
+	// withCageOccupancyReadSnapshot (cage_occupancy_read_snapshot.go) is a package-level FUNCTION, not a
+	// repository method, so this method-keyed inventory cannot track it (the allowlist entry went stale).
+	// Its ambient-transaction contract is enforced by cage_occupancy_read_snapshot_test.go: no nested
+	// TX/savepoint under an ambient TX, incompatible ambient isolation refused, repeatable-read read-only
+	// snapshot otherwise. Its method callers (stayCageEffectiveStateReader.readLocked, cageRepositoryImpl
+	// .WithCageOccupancyReadSnapshot) keep their own entries / DBOrTx participation.
 	// refund (R1-1 TOCTOU)
 	"billing/refund_repository.go|refundRepository.Create":                         {}, // BE8-4 batch8: moved from refund_repository.go
 	"billing/refund_repository.go|refundRepository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go

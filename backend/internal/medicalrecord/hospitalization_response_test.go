@@ -13,6 +13,9 @@ import (
 func TestToHospitalizationResponse(t *testing.T) {
 	startDate := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, 5, 30, 0, 0, 0, 0, time.UTC)
+	admittedAt := time.Date(2026, 5, 28, 10, 0, 0, 0, time.UTC)
+	dischargedAt := time.Date(2026, 5, 30, 11, 0, 0, 0, time.UTC)
+	kind := stayKindHotel
 	createdAt := time.Date(2026, 5, 27, 9, 0, 0, 0, time.UTC)
 	updatedAt := time.Date(2026, 5, 29, 9, 0, 0, 0, time.UTC)
 	cageID := uint64(10)
@@ -25,10 +28,6 @@ func TestToHospitalizationResponse(t *testing.T) {
 		ClinicID:             2,
 		OwnerID:              3,
 		PetID:                4,
-		HospitalizationType:  model.HospitalizationTypeHotel,
-		StartDate:            startDate,
-		EndDate:              endDate,
-		Status:               model.HospitalizationStatusAdmitted,
 		CageID:               &cageID,
 		DoctorID:             &doctorID,
 		InsuranceCompanyName: &insuranceCompanyName,
@@ -41,14 +40,27 @@ func TestToHospitalizationResponse(t *testing.T) {
 		Owner:                &model.Owner{ID: 3, Name: "飼主太郎"},
 		Pet:                  &model.Pet{ID: 4, Name: "ポチ"},
 		Doctor:               &model.Staff{ID: 20, Name: "先生"},
+	}, HospitalizationStayProjection{
+		StayKind: &kind, PlannedEntryAt: &startDate, PlannedExitAt: &endDate,
+		Lifecycle: lifecycleDischarged, AdmittedAt: &admittedAt, DischargedAt: &dischargedAt,
 	})
 
 	assert.Equal(t, uint64(1), resp.ID)
 	assert.Equal(t, uint64(2), resp.ClinicID)
 	assert.Equal(t, uint64(3), resp.OwnerID)
 	assert.Equal(t, uint64(4), resp.PetID)
-	assert.Equal(t, string(model.HospitalizationTypeHotel), resp.HospitalizationType)
-	assert.Equal(t, string(model.HospitalizationStatusAdmitted), resp.Status)
+	// EMR-499 U1: planned interval, actual admission/discharge and lifecycle are separate facts.
+	require.NotNil(t, resp.StayKind)
+	assert.Equal(t, stayKindHotel, *resp.StayKind)
+	require.NotNil(t, resp.PlannedEntryAt)
+	assert.True(t, resp.PlannedEntryAt.Equal(startDate))
+	require.NotNil(t, resp.PlannedExitAt)
+	assert.True(t, resp.PlannedExitAt.Equal(endDate))
+	assert.Equal(t, lifecycleDischarged, resp.LifecycleState)
+	require.NotNil(t, resp.AdmittedAt)
+	assert.True(t, resp.AdmittedAt.Equal(admittedAt))
+	require.NotNil(t, resp.DischargedAt)
+	assert.True(t, resp.DischargedAt.Equal(dischargedAt))
 	assert.Equal(t, &cageID, resp.CageID)
 	assert.Equal(t, &doctorID, resp.DoctorID)
 	assert.Equal(t, &insuranceCompanyName, resp.InsuranceCompanyName)
@@ -67,15 +79,20 @@ func TestToHospitalizationResponse(t *testing.T) {
 func TestToHospitalizationResponse_NilRelations(t *testing.T) {
 	resp := toHospitalizationResponse(&model.Hospitalization{
 		ID:                   5,
-		HospitalizationType:  model.HospitalizationTypeInpatient,
-		Status:               model.HospitalizationStatusReserved,
 		CageID:               nil,
 		DoctorID:             nil,
 		InsuranceCompanyName: nil,
 		InsuranceNumber:      nil,
-	})
+	}, unknownHospitalizationStay())
 
 	assert.Equal(t, uint64(5), resp.ID)
+	// A hospitalization with no readable stay: nothing is defaulted, the lifecycle is explicitly unknown.
+	assert.Nil(t, resp.StayKind)
+	assert.Nil(t, resp.PlannedEntryAt)
+	assert.Nil(t, resp.PlannedExitAt)
+	assert.Nil(t, resp.AdmittedAt)
+	assert.Nil(t, resp.DischargedAt)
+	assert.Equal(t, lifecycleUnknown, resp.LifecycleState)
 	assert.Nil(t, resp.CageID)
 	assert.Nil(t, resp.DoctorID)
 	assert.Nil(t, resp.InsuranceCompanyName)
@@ -119,9 +136,7 @@ func TestToHospitalizationResponse_PetSummaryIncludesBirthDateAndDeceasedAt(t *t
 	deceasedAt := time.Date(2026, time.July, 10, 12, 0, 0, 0, time.UTC)
 
 	resp := toHospitalizationResponse(&model.Hospitalization{
-		ID:                  1,
-		HospitalizationType: model.HospitalizationTypeInpatient,
-		Status:              model.HospitalizationStatusAdmitted,
+		ID: 1,
 		Pet: &model.Pet{
 			ID:         4,
 			Name:       "ポチ",
@@ -129,7 +144,7 @@ func TestToHospitalizationResponse_PetSummaryIncludesBirthDateAndDeceasedAt(t *t
 			BirthDate:  &birthDate,
 			DeceasedAt: &deceasedAt,
 		},
-	})
+	}, unknownHospitalizationStay())
 
 	require.NotNil(t, resp.Pet)
 	require.NotNil(t, resp.Pet.BirthDate)

@@ -12,24 +12,29 @@ import (
 // Nested treatment_plans / care_plan_items / daily_records are NOT on this wire — they are
 // loaded via dedicated nested endpoints (e.g. GET /hospitalizations/:id/treatment-plans).
 type HospitalizationResponse struct {
-	ID                   uint64    `json:"id"`
-	ClinicID             uint64    `json:"clinic_id"`
-	OwnerID              uint64    `json:"owner_id"`
-	PetID                uint64    `json:"pet_id"`
-	HospitalizationType  string    `json:"hospitalization_type"`
-	StartDate            time.Time `json:"start_date"`
-	EndDate              time.Time `json:"end_date"`
-	NextVisit            *string   `json:"next_visit,omitempty"`
-	Status               string    `json:"status"`
-	CageID               *uint64   `json:"cage_id,omitempty"`
-	DoctorID             *uint64   `json:"doctor_id,omitempty"`
-	InsuranceCompanyName *string   `json:"insurance_company_name,omitempty"`
-	InsuranceNumber      *string   `json:"insurance_number,omitempty"`
-	Memo                 string    `json:"memo"`
-	OwnerRequest         string    `json:"owner_request"`
-	StaffNotes           string    `json:"staff_notes"`
-	CreatedAt            time.Time `json:"created_at"`
-	UpdatedAt            time.Time `json:"updated_at"`
+	ID       uint64 `json:"id"`
+	ClinicID uint64 `json:"clinic_id"`
+	OwnerID  uint64 `json:"owner_id"`
+	PetID    uint64 `json:"pet_id"`
+	// EMR-499 U1: the next six fields are READ-ONLY, derived from stay_cases (kind, PLANNED interval) and
+	// stay movement events (lifecycle, ACTUAL admission/discharge). null = not known, never a default.
+	// Spec: docs/spec/ontology/hospitalization.md (予定区間と実滞在は別), lifecycle.md FR-hospitalization-entry-and-start.
+	StayKind             *string    `json:"stay_kind"`
+	PlannedEntryAt       *time.Time `json:"planned_entry_at"`
+	PlannedExitAt        *time.Time `json:"planned_exit_at"`
+	LifecycleState       string     `json:"lifecycle_state"`
+	AdmittedAt           *time.Time `json:"admitted_at"`
+	DischargedAt         *time.Time `json:"discharged_at"`
+	NextVisit            *string    `json:"next_visit,omitempty"`
+	CageID               *uint64    `json:"cage_id,omitempty"`
+	DoctorID             *uint64    `json:"doctor_id,omitempty"`
+	InsuranceCompanyName *string    `json:"insurance_company_name,omitempty"`
+	InsuranceNumber      *string    `json:"insurance_number,omitempty"`
+	Memo                 string     `json:"memo"`
+	OwnerRequest         string     `json:"owner_request"`
+	StaffNotes           string     `json:"staff_notes"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
 	// リレーション: 一覧/詳細で飼主名/ペット名/種別/担当医を表示するため。Preload 時のみ埋まる。
 	Owner  *OwnerSummaryResponse `json:"owner,omitempty"`
 	Pet    *PetSummaryResponse   `json:"pet,omitempty"`
@@ -41,7 +46,21 @@ type CageSwapResponse struct {
 	Hospitalizations []HospitalizationResponse `json:"hospitalizations"`
 }
 
-func toHospitalizationResponse(h *model.Hospitalization) HospitalizationResponse {
+// hospitalizationResponses maps rows with their stay projections. A row without a projection is
+// rendered as unknown rather than guessed.
+func hospitalizationResponses(rows []model.Hospitalization, projections map[uint64]HospitalizationStayProjection) []HospitalizationResponse {
+	result := make([]HospitalizationResponse, 0, len(rows))
+	for i := range rows {
+		stay, ok := projections[rows[i].ID]
+		if !ok {
+			stay = unknownHospitalizationStay()
+		}
+		result = append(result, toHospitalizationResponse(&rows[i], stay))
+	}
+	return result
+}
+
+func toHospitalizationResponse(h *model.Hospitalization, stay HospitalizationStayProjection) HospitalizationResponse {
 	// EMR-353: DATE 列のカレンダー日をそのまま date-only で返す（TZ 変換で日がずれないよう
 	// 格納値の年月日を Format する）。
 	var nextVisit *string
@@ -54,11 +73,13 @@ func toHospitalizationResponse(h *model.Hospitalization) HospitalizationResponse
 		ClinicID:             h.ClinicID,
 		OwnerID:              h.OwnerID,
 		PetID:                h.PetID,
-		HospitalizationType:  string(h.HospitalizationType),
-		StartDate:            httpapi.LocalTime(h.StartDate),
-		EndDate:              httpapi.LocalTime(h.EndDate),
+		StayKind:             stay.StayKind,
+		PlannedEntryAt:       httpapi.LocalTimePtr(stay.PlannedEntryAt),
+		PlannedExitAt:        httpapi.LocalTimePtr(stay.PlannedExitAt),
+		LifecycleState:       stay.Lifecycle,
+		AdmittedAt:           httpapi.LocalTimePtr(stay.AdmittedAt),
+		DischargedAt:         httpapi.LocalTimePtr(stay.DischargedAt),
 		NextVisit:            nextVisit,
-		Status:               string(h.Status),
 		CageID:               h.CageID,
 		DoctorID:             h.DoctorID,
 		InsuranceCompanyName: h.InsuranceCompanyName,

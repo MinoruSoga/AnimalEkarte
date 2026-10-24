@@ -104,10 +104,6 @@ func setupDailyRecordStaffRelationDBFixture(t *testing.T) *dailyRecordStaffRelat
 	require.NoError(t, db.Create(pet).Error)
 	hospitalization := &model.Hospitalization{
 		ClinicID: clinicA.ID, OwnerID: owner.ID, PetID: pet.ID,
-		HospitalizationType: model.HospitalizationTypeInpatient,
-		StartDate:           time.Date(2026, 7, 24, 0, 0, 0, 0, time.UTC),
-		EndDate:             time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC),
-		Status:              model.HospitalizationStatusAdmitted,
 	}
 	require.NoError(t, db.Create(hospitalization).Error)
 
