@@ -209,7 +209,7 @@ AC prefixはAC-trimming-。現在はFR8件／AC55件（従来53件＋予約時�
 
 ### 状態・結果とwriter閉包
 
-terminal `aborted` とimmutable outcome `aborted_zero` を分離する。請求なしはstatus=aborted、請求ありはstatus=accounting。後のD10完了でcompletedになっても中止outcomeを保持し施術完了へ読み替えない。支払完了はD10事実でだけ表示。通常completed/no_show/開始前cancel/開始Undo/架空course・optionへ変換しない。通常PATCH/create/LIFF/終了/cancelはabortedを生成できず、汎用restore/再受付/Undoで結果を消さない。既存専用訂正ownerへ渡し新restore業務は作らない。
+terminal `aborted` とimmutable outcome `aborted_zero` を分離する。中止commit時は請求なしがstatus=aborted、請求ありがstatus=accounting。後のD10完了でcompletedになっても中止outcomeを保持し施術完了へ読み替えない。支払完了はD10事実でだけ表示。通常completed/no_show/開始前cancel/開始Undo/架空course・optionへ変換しない。通常PATCH/create/LIFF/終了/cancelはabortedを生成できず、汎用restore/再受付/Undoで結果を消さない。既存専用訂正ownerへ渡し新restore業務は作らない。
 
 | 同一実装PRのowner/consumer | 必要変更subset |
 |:---|:---|
@@ -233,7 +233,7 @@ Content exact `{schema:"trimming-zero-abort.v1",intent,appointment_id,record_ref
 
 新規trimming_abort_resultsはid bigint PK、clinic_id/appointment_id/detail_id/detail_revision_id/detail_revision/start_event_id/operation_id、reason、charge_decision、input_amount nullable、recorded_by/at。clinic付きFK RESTRICT、reason非blank、none⇔amount NULL、charge⇔amount非NULLかつ0以上、immutable/RLS。UNIQUE(clinic,appointment,start_event)とUNIQUE(clinic,operation)。serverが現在有効な開始eventを解決しclient指定不可、別key同cycleでも二重中止を防ぐ。
 
-appointment.trimming_abort_result_id nullable bigint（defaultなし）をcurrent outcome正本とし、同表のUNIQUE(id,clinic,appointment)へ複合FK。status=abortedは参照必須かつnone、chargeありはaccounting。後続D10も参照を保持しreceiptからcurrentを推定しない。結果/状態/event/audit/receiptは同TX、T4本文・実施集合は上書きせず検査したrevisionを固定する。
+appointment.trimming_abort_result_id nullable bigint（defaultなし）をcurrent outcome正本とし、同表のUNIQUE(id,clinic,appointment)へ複合FK。status=abortedは参照必須かつnone、chargeありの中止commit時はaccounting。後続D10がcompletedへ進める際は中止outcome参照を保持して許可し、chargeありを恒久的にaccountingへ拘束するguardは置かない。receiptからcurrentを推定しない。結果/状態/event/audit/receiptは同TX、T4本文・実施集合は上書きせず検査したrevisionを固定する。
 
 料金sourceはabort result id、revision=1。架空trimming_service_linesを作らず、billing_source_bindingsへkind=trimming_abort_chargeとnullable trimming_abort_result_idを追加し当kindだけそのFKを非NULL、他kindはNULL。既存trimming course XOR optionのFKへ押込まない。clinic付きresult FKとsource版1/charge一致guard、active UNIQUE(clinic,result) WHERE claim_released_at IS NULL。既存release/operation/reasonを継承。後の料金訂正はD10原source保持で行い中止再送で確定金額を変更しない。
 
@@ -247,9 +247,9 @@ appointment.trimming_abort_result_id nullable bigint（defaultなし）をcurren
 
 上記本人承認によりスタッフが会計時に税区分・税率を明示確認する。未確認はunknown/unconfirmed、rate/type=null、中止記録を保持するが税額確定/importは停止。固定0/10%・非課税・保険falseを推測せず、482のcourse/master税を捏造しない。405の入院manual-other先例だけで実装済みとしない。中止の新mandatory入力ではなく会計確認である。
 
-候補GET `/v1/billing-items/trimming-abort-charge-candidates?pet_id={id}` はaccounting:view、同院/owner/pet。response `{pet_id,revision,items}`、item `{source,appointment_id,detail_id,input_amount,tax_confirmation_required:true}`、source `{kind:"trimming_abort_charge",id,revision:"1"}`。revisionはsource集合/current適格性/active claimのJCS digestで時刻ではない。理由全文を不要配信しない。noneは0件、charge0は候補あり。
+候補GET `/v1/billing-items/trimming-abort-charge-candidates?pet_id={id}` はaccounting:view、同院/owner/pet。response `{pet_id,revision,items}`、item `{source,appointment_id,detail_id,input_amount,tax_confirmation_required:true}`、source `{kind:"trimming_abort_charge",id,revision:"1"}`。候補一覧revisionとimportのunbilled_revisionはsource集合/current適格性/active claimをJCS UTF-8で直列化したSHA-256のlowercase64hexであり、時刻でもpositive-int64版でもない。理由全文を不要配信しない。noneは0件、charge0は候補あり。
 
-POST `/v1/accountings/{billing_id}/trimming-abort-charge-imports` は現在accounting:create、Idempotency-Key、body `{source,tax_confirmation,preconditions}`。tax_confirmation exact `{type,rate}`、type=included|excluded|exempt、rateは既決D10 canonical非負有限decimal string、exemptは明示0。新上限/固定率なし。preconditionsはbilling_version/appointment_version/unbilled_revision、ID/版はcanonical正int64 string。source revisionはContent、他前提はCAS。原額/元source版・税確認値をContentへ束縛する。
+POST `/v1/accountings/{billing_id}/trimming-abort-charge-imports` は現在accounting:create、Idempotency-Key、body `{source,tax_confirmation,preconditions}`。tax_confirmation exact `{type,rate}`、type=included|excluded|exempt、rateは既決D10 canonical非負有限decimal string、exemptは明示0。新上限/固定率なし。preconditionsはbilling_version/appointment_version/unbilled_revision。IDとbilling/appointment/sourceの数値版はcanonical positive-int64 decimal string、unbilled_revisionは上記lowercase64hexとして明確に分離する。source revisionはContent、他前提はCAS。原額/元source版・税確認値をContentへ束縛する。
 
 serverが認証actor/時刻をTaxInput `{status:known,type,rate,origin:staff_confirmed,master:null,confirmed_by,confirmed_at}` に記録。505 original_projectionは `{kind:"trimming_abort_charge_v1",values:{source,appointment_id,detail_id,input_amount}}`、applied_pricingは `{schema_version:1,input_unit_price:input_amount,quantity:"1",tax:TaxInput}`。quantity=1は単一個別額の計算上の値で実施回数でない。原額と会計適用値を分離し483原入力snapshot/505算定を同TX使用。保険/割引はその会計の保存済み明示入力を保持しsource既定で上書きしない。
 

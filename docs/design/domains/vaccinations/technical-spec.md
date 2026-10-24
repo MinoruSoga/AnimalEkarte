@@ -225,7 +225,20 @@ repository内のGo／TS／TSX／SQL／YAML／YML／JSONを証明書の日本語�
 
 producer案: master GETはlabel_colorを必ずNULL又は4値で返す。POST省略/NULLは未設定、PATCH省略保持/NULL clear/4値set、その他/空文字/未知keyは400。既存vaccine.version必須CAS・同TX更新、競合409/zero-write。既存master-medical:create/edit/viewを維持し、vaccinations:viewへwriteを開放しない。
 
-consumer案: 認可済み接種responseのvaccine要約に同じlabel_colorを追加し、master一覧/他医院設定を開示しない。master relation不明/非可視は正常未設定NULLと区別し元名称/日付を保持する。無効保存tokenは設定不正＋neutral、他色へ救済しない。pure rendererは4tokenだけを受け、既存警告は別要素と文言で維持。**未閉鎖:** relation未知と正常NULLを区別するresponseの具体field/unionは受領稿で未定義。既存wireにあると推定せず、API ownerとの閉鎖事項として残す。
+接種response直下に必須vaccine_labelを追加する。全variantはexact4key `{state,color,source_ref,reason}`。
+
+| state | color | source_ref | reason |
+|:---|:---|:---|:---|
+| configured | blue/purple/green/orange | 完全ref | null |
+| unconfigured | null | 完全ref | null |
+| unknown | null | null | source_unavailable |
+| invalid | null | 完全ref | invalid_stored_token |
+
+unconfiguredは取得済みmasterの保存色NULLを確認した場合だけ。unknownはrelation不存在/未解決/表示不可の違いを漏らさない。invalidでは不正な原tokenを返さない。
+
+VaccineLabelSourceRefはexact4key `{schema:"vaccine-label-source/v1",clinic_id,vaccine_id,vaccine_version}`。IDは既存Go uint64/保存bigint、版は既存positive int64を正確に表す正整数十進string。いずれも1..9223372036854775807、符号/小数/指数/先頭0なし、JS Number化なし。serverが接種clinic/vaccine_idとの一致を保証する。
+
+既存vaccinations:viewで認可された接種に必要な現在色/refだけを返しmaster一覧/他医院設定を開示しない。master-medical:viewを接種閲覧gateに追加せずwrite権限は分離。接種自体の失権は既存401/403/404、DB/通信/必要reader障害は503でunknown/空成功に偽装しない。pure rendererはconfiguredだけ指定token、それ以外neutral。unknownは「表示設定取得不明」、invalidは「表示設定不正」を添え正常未設定と区別する。名称/実施日/保存次予定と既存警告の別要素・文言を維持する。
 
 ### 有限成功単位
 

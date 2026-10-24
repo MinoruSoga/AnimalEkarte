@@ -148,18 +148,24 @@ JST calendar additionを使い、対象月に同じ日がなければunknown/cal
 
 候補GET案 `/v1/masters/checkup-types/{id}/next-date-candidate?performed_date=YYYY-MM-DD`。既存master GETにもrule/versionを返す。read grantは既存ResourceCheckupsのcheckups:viewで、master-medical:viewではない。medical-records:editだけから権限を作らず、取得不可でも手入力を保持する。
 
-response案は `{schema:"checkup-next-date-candidate/v1",clinic_id,checkup_type_id,rule_version,performed_date,state:"candidate"|"none"|"unknown",candidate_date:YYYY-MM-DD|null,reason:null|"legacy_text_only"|"calendar_day_unavailable"|"invalid_rule",rule_ref}`。candidateのみdate非NULL、none/unknownはNULL。503/networkは取得失敗でnoneに変換しない。入力日付不正400、認証/scopeは既存共通エラー。**未閉鎖:** rule_refのexact shapeとidentity/versionのwire型は受領稿で未定義であり、API ownerへ限定閉鎖を渡す。任意JSONで補完しない。
+responseはexact9key `{schema:"checkup-next-date-candidate/v1",clinic_id,checkup_type_id,rule_version,performed_date,state,candidate_date,reason,rule_ref}`。clinic_id/checkup_type_idは既存Go uint64/保存bigint identity、rule_versionは既存checkup_types.versionのpositive int64を表す正整数十進string（1..9223372036854775807、符号/小数/指数/先頭0なし）。JS Number化禁止。
+
+rule_refはexact4key `{schema:"checkup-next-rule-source/v1",clinic_id,checkup_type_id,checkup_type_version}`。ID型は上記、checkup_type_versionはrule_versionと同値string。rule又はNULLとintervalを読んだ同じmaster行/版を固定する。200のcandidate/none/unknown全てで非NULL、top-levelとrefのclinic/type IDは同値。client送信request/refの未知key/重複key/必須省略/不正整数/型不整合は400 invalid_next_date_request。server response不正はFEがfail closedとしHTTP400を捏造しない。
+
+performed_date/candidate_dateは厳密な実在暦日YYYY-MM-DD。candidateはdate非NULL・reason=NULL、noneはdate=NULL・reason=NULL、unknownはdate=NULL・reason=legacy_text_only|calendar_day_unavailable|invalid_rule。noneはkind:none又は既定どおりinterval空＋rule=NULL。認証失効401、ID非依存checkups:view不足403、対象不存在/他院scope404、必要reader/DB/通信障害503で、errorに候補日/refを含めず200 none/unknownへ変換しない。
 
 ### 両入口の状態と保存
 
 独立CheckupFormとカルテ内CheckupsTabは同hook/reducerを使う。next_date_source=pristine|candidate|manual|savedとcandidate_status=loading|candidate|none|unknown|errorは別軸。新規pristineだけ候補を初期反映。手入力/手動clear後はmanual、保存済みはsavedで、package/実施日変更・再取得/現master改定で無言上書きしない。新候補は別表示し明示採用、unknown/失敗時も入力保持、noneのpristineは空欄・任意。
 
-既存checkup create/updateへpresence付きnext_dateを渡す。create省略/NULLは未設定、update省略保持/NULL clear/日付set。next_date_intent=manual|package_candidateを同payloadへ含める。package_candidateはrule_ref・元performed_date・candidate_date必須、manualはrule_ref不要、NULL clearもmanual。next_date省略時はintentも省略、片方だけ400。省略adapterでclearを失わない。
+既存checkup create/updateへpresence付きnext_dateを渡す。create省略/NULLは未設定、update省略保持/NULL clear/日付set。next_date_intent=manual|package_candidateを同payloadへ含める。package_candidateはrule_ref・元performed_date・candidate_date必須、manualは候補証拠rule_ref/candidate_dateを禁止（付与時400）し、通常の実施日performed_date入力/検証は保持する。NULL clearもmanual。next_date省略時はintentも省略、片方だけ400。省略adapterでclearを失わない。
 
-package_candidateだけ同TXで現在master版/ruleと日付を再評価し、不一致409 next_date_candidate_stale、日付を最新値へ自動変更しない。manual/saved保持はrule改定/取得不能を理由に拒否せず、既存validation/scope/親/必須条件を維持。checkup自身は500/C06の期待版・結果照会へ参加しmaster.versionで代用しない。unknownは同key/作成済みID照会、新createで救済しない。GETは保存next_dateを返し現ruleへ依存させず、監査に由来を残す場合もmanualへ架空ruleを付けない。保存後GET失敗は成功保持・readだけretry。
+package_candidate保存は完全rule_ref・performed_date・candidate_dateを送る。serverは認証clinic/保存対象type/送信実施日/next_dateと照合し、同TXのmaster行lock下で現在versionとref版を比較して候補を再評価する。scope不一致404、古い版/再評価不一致409 next_date_candidate_stale、構造不正又は同payloadのnext_dateとcandidate_date不一致400。日付を最新値へ自動変更しない。master writer/importも既存version CASへ参加しruleだけ無版変更しない。refは権限tokenではなくcheckup自身の期待版/C06も別途検査する。
+
+manual日付/NULL clearとsaved保持は候補取得成否・rule改定に依存させず、既存validation/scope/親/必須条件を維持する。master.versionをcheckup版の代用にしない。unknownは同key/作成済みID照会、新createで救済しない。GETは保存next_dateを返し現ruleへ依存させず、監査に由来を残す場合もmanualへ架空ruleを付けない。保存後GET失敗は成功保持・readだけretry。
 
 ### 同PRの供給・完結
 
-447がruleのrequest/response/service/repository、既存master pane、manifest parser、500が既存writer期待版/結果照会、445がclosed DTO/正規生成、446が保存差分、565が両フォームと共通candidate hook/calculatorを同PRで結ぶ。外注PDF/OCR/providerやmaster全機能Doneは不要。現在rule実装なしを単独Ready停止理由にせず、同PR差分/owner/CAS/route契約の受領後に設計Ready判定する。rule_ref等の未閉鎖は先に解消する。実packageへの実数値seed投入は完了条件でなく、合成値は臨床設定ではない。
+447がruleのrequest/response/service/repository、既存master pane、manifest parser、500が既存writer期待版/結果照会、445がclosed DTO/正規生成、446が保存差分、565が両フォームと共通candidate hook/calculatorを同PRで結ぶ。外注PDF/OCR/providerやmaster全機能Doneは不要。上記で契約を閉鎖。同PRの447/500/445/446/565が型と保存CASを実装し、未実装を設計待ちに戻さない。実packageへの実数値seed投入は完了条件でなく、合成値は臨床設定ではない。
 
 5ACへ同rule同日両入口、旧自由文無推測、none/unknown/error、manual/clear、保存済み保持、master競合、月末/閏日、他院/親不一致/失権、応答断同ID照会を対応付ける。供給SHA・両実caller接続・採用SHAは実装後の証拠で、現稿を実機PASSとしない。

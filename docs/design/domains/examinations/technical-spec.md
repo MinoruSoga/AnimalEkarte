@@ -122,7 +122,7 @@ D21の検査履歴sectionはスタッフの閲覧専用であり、同sectionか
 | 選択 | snapshot内のitem ref集合と表示順。未指定の初期選択と明示的な空集合を区別し、重複refは同じ行を二重出力しない。別exam／別版／不明refは拒否。名称・行番号で版をまたいで解決しない |
 | 行の状態 | 実施済み／未実施／実施不明、結果あり／結果待ち／意味不明、取得状態を独立に保持。これらは意味契約で、新しい物理enum／fieldが実装済みという主張ではない。未実施はサーバ側候補・出力双方で除外、実施不明は自動選択せず理由を返す |
 | 出力 | 同じsnapshot ref・選択ref集合・順序・原値／単位／保存範囲・各検査日・版／訂正識別。欠損した旧範囲を現在マスタで補完しない。選択0件と取得失敗を別結果にする |
-| previewから印刷 | 同じ出力集合を固定し、出力直前にも現在のread認可・医院／患者・対象版対応を再検証。新版発生は無言で差替えず更新通知・再プレビューへ。旧版の履歴識別は保持するが、今回の通常selected-print outputは後掲EMR-563のcurrent head照合・再preview条件に従う |
+| previewから印刷 | 同じ出力集合を固定し、出力直前にも現在のread認可・医院／患者・対象版対応を再検証。新版発生は無言で差替えず更新通知・再プレビューへ。旧版の明示再印刷も旧版と分かる同snapshot/selection/orderを使う。requested固定revisionとpreview時に観測したcurrent head/result_state_versionは別軸であり、requested revision==current headを要求しない |
 | 副作用 | 臨床結果／版・確定・患者関連・初期行生成・会計／在庫・外部送信を変更しない。print向けreadをGetOrCreate／board等のwriterへ流さない。既存readのusage receipt要否は別途照合し、印刷選択を公開approvalへ変換しない |
 
 空のinspection_valueやlegacyの「-」だけでは未実施を決められない。過去行で実施を確認できる結果由来／状態が不足する場合は不明を保ち、対象行だけ照合・適法な訂正へ渡す。未実施の除外をD03治療プランの状態や検査全体statusだけから一括算出しない。print-snapshot応答・選択input・実施由来・版内refのadapterと旧値移行は未実装／未検証であり、当時は新URL／列を選定しなかったが、後掲[EMR-563契約](#selected-print-563-20261024)で限定方式を選定する。実DDL/API反映は未供給。
@@ -203,6 +203,8 @@ CL-R14の実機receiptは医院・機種／個体・OS／Chrome版・接続経�
 
 固定ref exact `{clinic_id,examination_id,revision_id,revision_version,revision_item_id,evidence_id,evidence_version,evidence_profile:"exam-item-performance/v1"}`。数値ID/版はpositive decimal string、evidence_idはRFC 4122 UUID。JS Number化なし。
 
+証拠payload=NULLの旧行もclinic/examination/revision/revision_version/revision_item_idは必須。証拠3key evidence_id/evidence_version/evidence_profileは全て明示NULLで省略不可。payload非NULLなら3key全て非NULL（RFC4122 UUID/"1"/"exam-item-performance/v1"）。部分NULLは503 source_integrity_error。明示unknown＋unknownは証拠refを持つが実施証明にはしない。選択可能performed行の完全item refは非NULL証拠を要求する。証拠なし行へ架空UUIDを発行せず名前/位置で補完しない。
+
 既存手入力editorへ任意実施状態/結果待ちfieldを置き指定時だけ既存保存へ渡す。create/editは既存examinations:create/editで新臨床承認/医師資格gateなし。初期unknown、未指定でも通常保存可、値入力だけでperformedへせず親exam.statusを連鎖変更しない。初版はstaff_recorded実接続。機器sourceは明示実施情報＋固定item identityを証明するadapter供給時だけsource_reported、それ以外NULLで機器全種類の解釈を拡張しない。印刷画面で実施を承認する操作ではない。
 
 501 source/item ownerはcreate/update/replace items/working copy/confirm/reconfirm/unconfirm/correction/restoreの全snapshot生成経路でcopyを保証し、名称/位置で別itemへ移植しない。旧行推測backfillなし。既存監査・result_state_version CAS・成功receiptと同TX、501 D4二重writerなし。物理列は今回未供給。
@@ -217,7 +219,7 @@ initialはperformed全行を初期選択しpendingは「実施済み・結果待
 
 responseはschema/scope/snapshot_ref/observed_result_state_version/outcome（preview_ready|output_ready|no_print_items）、items（固定ref・保存表示値・実施/結果状態）、selected_item_refs/excluded_unknown_item_refs/projection_digest/print_boundary/watermark。digestはcanonical schema＋scope＋revision全識別＋親result_state_version＋evidence全ref/payload＋選択setと保存順＋印字内容＋訂正識別＋境界。認可tokenでない。unknown除外noticeも認可snapshot内だけ、取得失敗と正常空を分離。
 
-initial/preview/outputで現在認可・clinic/pet/parent・削除状態・親current head/result_state_versionと固定revisionを同read snapshot検査。context/head/版変更は409 print_context_changed、再取得/再previewし旧選択を新版へ移さない。過去版をcurrentとして自動出力する許可は作らず、履歴refは保存しても通常outputは再previewまで停止。同版再印刷は同set/保存順/digest照合。
+initial/preview/outputで現在認可・clinic/pet/parent・削除状態、requested固定revisionと観測した親current head/result_state_versionを同read snapshotで検査する。この2軸は別で、requested revision==current headは要求しない。出力直前にpreview時の観測head/result_state_version又はscopeが変われば409 print_context_changedとして再previewし、requested revisionや選択を新版へ無言移行しない。旧版の明示再印刷は旧版と分かる同じsnapshot/selection/保存順で許可し、再previewでもそのrequested revisionを保持できる。同版再印刷は同set/保存順/digestを照合する。
 
 ExaminationForm→selector→preview model→ExaminationFormHeader実window.printを置換し、直前output照合await後のoutput_ready固定modelだけを印刷surfaceへ渡す。競合/失敗/空では旧modelを印刷しない。未保存値非反映を表示しdraft保持、取消でsave/confirm/attach/sendなし。dialog開始を物理成功とせずOSまで分散lock保持も保証しない。
 
