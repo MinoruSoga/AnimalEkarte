@@ -91,7 +91,7 @@ type OwnerResponse struct {
 	Email                  string               `json:"email"`
 	Remarks                string               `json:"remarks"`
 	IsDangerous            bool                 `json:"is_dangerous"`
-	DiscountRate           float64              `json:"discount_rate"`
+	DiscountRate           model.ExactNumeric   `json:"discount_rate"`
 	MembershipType         string               `json:"membership_type"`
 	LineIDConfirmedAt      *time.Time           `json:"line_id_confirmed_at,omitempty"`
 	LineIDConfirmedBy      *uint64              `json:"line_id_confirmed_by,omitempty"`

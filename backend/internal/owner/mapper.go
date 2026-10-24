@@ -32,7 +32,7 @@ func buildOwnerModel(clinicID uint64, input *CreateOwnerInput) *model.Owner {
 		Email:          input.Email,
 		Remarks:        input.Remarks,
 		IsDangerous:    input.IsDangerous,
-		DiscountRate:   input.DiscountRate,
+		// DiscountRate は変換エラーを返せないため、呼出し側（CreateWithPets）が exact へ変換して設定する。
 		MembershipType: membershipType,
 		DMPreference:   input.DMPreference,
 	}
