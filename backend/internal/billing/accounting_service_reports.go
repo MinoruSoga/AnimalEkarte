@@ -2,13 +2,11 @@ package billing
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // GetPeriodUnpaidCarryover は指定期間の未納繰越（期間前繰越・期間内未納・期末繰越）を
@@ -51,60 +49,21 @@ func (s *accountingService) GetOwnerUnpaidBalance(ctx context.Context, clinicID,
 	return result, nil
 }
 
-// Cancel は会計を論理削除（status=cancelled）する。
-// BUG-371 / #118: ハード削除の代替。actorID で監査ログを記録する。
-// BE-refactor.md R1-2: 更新+監査を同一 tx で原子化する（fail-closed。#211/refund_service パターン踏襲）。
-// 監査書込が失敗すると tx がロールバックし、status=cancelled への更新も無効になる。
-func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
+// Cancel は会計のキャンセルを受け付けない。held for EMR-505（cancel の slice。inventory §7 の cancel 行）。
+// 旧実装は billings.status を cancelled へ更新し監査ログを書いていたが、status 列は廃止された（001_init.sql:10889）。
+// 後継は claim_state='cancelled'、理由が必須の billing_change_events(intent='cancel')、請求元の claim 解放
+// （billing_source_bindings.claim_released_*）、再請求リンクを同一 TX で書く操作で、cancel の操作 family（EMR-489）も未登録のため、
+// 書き込み前に固定エラー（422）で拒否する。成功を装わない。
+// 読取だけは従来どおり行う: 会計の存在確認（clinic スコープ。なければ 404）と、キャンセル済みの二重キャンセル（409。AC-12）。
+func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, _ *uint64) error {
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find accounting for cancel")
 	}
-	// 既に cancelled 状態なら二重キャンセル防止（AC-12）
-	if existing.Status == model.BillingStatusCancelled {
+	if billingClaimState(existing) == billingClaimStateCancelled {
 		return apperrors.WrapConflict("既にキャンセル済みの会計です")
 	}
-
-	billingID := id
-	aType := sharedkernel.AuditActorTypeFor(actorID)
-
-	if s.transactor == nil {
-		return apperrors.WrapInternalServerError("billing transactor is required for billing cancel")
-	}
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if err := s.lockCloseBoundaries(txCtx, clinicID, existing.ScheduledDate); err != nil {
-			return err
-		}
-		cancelled := model.BillingStatusCancelled
-		if _, err := s.repo.Update(txCtx, clinicID, id, AccountingUpdate{Status: &cancelled}); err != nil {
-			return apperrors.Wrap(err, "failed to cancel accounting")
-		}
-
-		slog.InfoContext(txCtx, "billing cancelled",
-			slog.Uint64("billing_id", id),
-			slog.Uint64("clinic_id", clinicID))
-
-		// #118 / BIL-02: cancel audit is fail-closed (missing dependency rejects the write).
-		if s.auditTx == nil {
-			return apperrors.WrapInternalServerError("billing audit dependency is required for billing cancel")
-		}
-		if err := s.auditTx.LogEntryTx(txCtx, &AuditEntry{
-			ClinicID:   &clinicID,
-			ActorID:    actorID,
-			ActorType:  aType,
-			Action:     model.AuditActionBillingCancel,
-			Resource:   "billing",
-			ResourceID: &billingID,
-			OldValue:   map[string]any{"status": string(existing.Status)},
-			NewValue:   map[string]any{"status": string(model.BillingStatusCancelled)},
-		}); err != nil {
-			return apperrors.Wrap(err, "failed to write billing cancel audit log")
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to cancel accounting in transaction")
-	}
-	return nil
+	return apperrors.WrapFinanceConsumerPending("会計のキャンセルは、理由を記録する変更イベントと請求元の claim 解放が未接続のため利用できません")
 }
 
 // parseDailySummaryDate は dateStr（空なら今日）を JST でパースする共通ヘルパー。

@@ -61,6 +61,7 @@ type completeDigestRoot struct {
 
 // ComputeCompleteAccountingDigest は complete request の正規化 digest（hex）を返す。
 // 同一 payload は常に同一 digest になる決定的方式（JSON marshal of normalized struct）。
+// held for EMR-462: Complete は固定エラーで拒否するため現在は呼ばれない。操作 fingerprint（C06）へ置換されるまで、決定性の契約だけを保つ。
 func ComputeCompleteAccountingDigest(input *CompleteAccountingInput) (string, error) {
 	if input == nil {
 		return "", apperrors.WrapInvalidInput("complete input is required")

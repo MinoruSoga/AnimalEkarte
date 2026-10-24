@@ -33,13 +33,16 @@ type TreatmentRepository interface {
 	// LockByIDForUpdate serializes treatment writes (discount recheck TOCTOU, dose snapshot).
 	// Fail-closed without an ambient transaction — FOR UPDATE is meaningless under autocommit.
 	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
+	// FindUnbilledByPetID は医師確認済み・未会計の診療項目の候補。held for EMR-462/481:
+	// 医師確認 set と請求元の紐付けの reader が未接続のため、固定エラー（422 finance_consumer_pending）を返す。
 	FindUnbilledByPetID(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error)
 	// FindHistoryByPetID は #158/#159 飼主レポート用: ペット単位で treatments を横断取得する。
 	// medical_records JOIN で clinic_id 隔離し、medical_records.date 降順で返す。
 	// filter.AnesthesiaOnly=true / filter.IsSurgery=true 指定時は procedures JOIN で絞り込む。
 	FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error)
 	// CountFinalizedUnconfirmedByPetAndDate は同日同ペットの「未会計対象化」診察カルテ件数を返す(#77)。
-	// finalized だが billing_confirmation 未confirmed かつ未会計のカルテ = 取り残し候補。
+	// held for EMR-462/481: 旧実装が読んでいた billing_confirmations と billings.status は廃止された。
+	// 医師確認 set と請求元の紐付けの reader が未接続のため、固定エラー（422 finance_consumer_pending）を返す。
 	CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
 	Create(ctx context.Context, treatment *model.Treatment) error
 	Update(ctx context.Context, clinicID, id uint64, cmd UpdateTreatmentInput) error
@@ -104,24 +107,13 @@ func (r *treatmentRepository) LockByIDForUpdate(ctx context.Context, clinicID, i
 	return &treatment, nil
 }
 
-func (r *treatmentRepository) FindUnbilledByPetID(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error) {
-	treatments := make([]model.Treatment, 0)
-	err := r.db.WithContext(ctx).
-		Joins("JOIN medical_records mr ON mr.id = treatments.medical_record_id AND mr.deleted_at IS NULL").
-		Joins("JOIN billing_confirmations bc ON bc.medical_record_id = mr.id").
-		Where("mr.pet_id = ? AND mr.clinic_id = ? AND bc.status = 'confirmed' AND treatments.deleted_at IS NULL", petID, clinicID).
-		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = mr.pet_id AND p.clinic_id = mr.clinic_id)").
-		// 除外は明細行単位で判断する。会計単位（billings.medical_record_id）でも除外すると、
-		// 明細を論理削除しても治療が未会計候補へ復帰できない（S11 異常系違反・EMR-75）。
-		Where("NOT EXISTS (SELECT 1 FROM billing_items bi JOIN billings b ON b.id = bi.billing_id AND b.clinic_id = mr.clinic_id AND b.deleted_at IS NULL WHERE bi.treatment_id = treatments.id AND bi.deleted_at IS NULL AND b.status != 'cancelled')").
-		Scopes(treatmentReadPreloads(clinicID)).
-		Order("treatments.sort_order ASC, treatments.id ASC").
-		Find(&treatments).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "treatment", "")
-	}
-	sanitizeTreatmentMasterRelations(treatments, clinicID)
-	return treatments, nil
+// FindUnbilledByPetID は「医師確認済み・未会計」の診療項目を返していた。held for EMR-462/481。
+// 旧実装は billing_confirmations（pending/confirmed/returned）と billing_items.treatment_id・billings.status の
+// NOT EXISTS で候補を絞っていたが、いずれも廃止された（001_init.sql:10889-10891,10921）。後継は医師確認 set
+// （doctor_review_sets / records。462）と請求元の紐付け（billing_source_bindings。481）で、reader が未接続のため、
+// 候補を 0 件で返さず固定エラー（422 finance_consumer_pending）で拒否する。
+func (*treatmentRepository) FindUnbilledByPetID(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
+	return nil, apperrors.WrapFinanceConsumerPending("未会計の診療項目の候補は、医師確認と請求元の紐付けの読取が未接続のため取得できません")
 }
 
 func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error) {
@@ -219,34 +211,12 @@ func sanitizeTreatmentMasterRelation(treatment *model.Treatment, clinicID uint64
 	}
 }
 
-func (r *treatmentRepository) CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).
-		Model(&model.MedicalRecord{}).
-		Joins("LEFT JOIN billing_confirmations bc ON bc.medical_record_id = medical_records.id").
-		Where("medical_records.clinic_id = ? AND medical_records.pet_id = ? AND medical_records.deleted_at IS NULL", clinicID, petID).
-		Where("EXISTS (SELECT 1 FROM pets p WHERE p.id = medical_records.pet_id AND p.clinic_id = medical_records.clinic_id)").
-		// EMR-495 Q5: medical_records.status は廃止。診療終了済み = consultation events の最新 revision が ended。
-		// events は終了ルート（B）が書く。それまでは 0 件を返す（DB は 001 から再構築済みで旧データなし）。
-		Where(`EXISTS (
-			SELECT 1 FROM medical_record_consultation_events mce
-			WHERE mce.clinic_id = medical_records.clinic_id
-			  AND mce.medical_record_id = medical_records.id
-			  AND mce.event_kind = 'ended'
-			  AND mce.revision = (
-				SELECT MAX(mce2.revision) FROM medical_record_consultation_events mce2
-				WHERE mce2.clinic_id = mce.clinic_id
-				  AND mce2.medical_record_id = mce.medical_record_id
-			  )
-		)`).
-		Where("DATE(medical_records.date) = DATE(?)", date).
-		Where("(bc.id IS NULL OR bc.status != 'confirmed')").
-		Where("NOT EXISTS (SELECT 1 FROM billings b WHERE b.medical_record_id = medical_records.id AND b.clinic_id = medical_records.clinic_id AND b.status != 'cancelled' AND b.deleted_at IS NULL)").
-		Count(&count).Error
-	if err != nil {
-		return 0, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d pet=%d", clinicID, petID))
-	}
-	return count, nil
+// CountFinalizedUnconfirmedByPetAndDate は同日同ペットの「未会計対象化」診察カルテ件数を返していた(#77)。held for EMR-462/481。
+// 旧実装が読んでいた billing_confirmations と billings.status は廃止された。後継の reader（医師確認 set・請求元の紐付け）が
+// 未接続のため、0 件を返さず固定エラー（422 finance_consumer_pending）で拒否する。
+// reader の実装時は、診療終了済みの判定に EMR-495 Q5（medical_record_consultation_events の最新 revision が ended）を使うこと。
+func (*treatmentRepository) CountFinalizedUnconfirmedByPetAndDate(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
+	return 0, apperrors.WrapFinanceConsumerPending("同日の未会計対象化の診察件数は、医師確認と請求元の紐付けの読取が未接続のため取得できません")
 }
 
 // Create は persistence.DBOrTx(ctx, r.db) で ambient tx（Transactor.WithTx）に参加する（BE9-2D ④b）。

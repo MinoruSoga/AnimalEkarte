@@ -2,9 +2,6 @@ package billing
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -12,7 +9,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
 // CompleteAccountingItemInput は complete command の明細1行入力。
@@ -42,6 +38,7 @@ type CompleteAccountingItemInput struct {
 
 // CompleteAccountingInput は POST /accountings/complete のサービス入力。
 // clinic_id / actor は handler が認証 context から注入する。client total は受け取らない。
+// held for EMR-462: 旧 command の形のまま退避している（wire は D12 で維持）。Complete が再配線されるまでは、入力の形を検証した後に固定エラーで拒否される。
 type CompleteAccountingInput struct {
 	ClinicID       uint64
 	StaffID        *uint64
@@ -76,9 +73,8 @@ type CompleteAccountingInput struct {
 
 // CompleteAccountingResult は complete の結果。Created=true は 201、false は idempotent replay 200。
 type CompleteAccountingResult struct {
-	Accounting                   *model.Billing
-	Created                      bool
-	completedAppointmentOwnerIDs []uint64
+	Accounting *model.Billing
+	Created    bool
 }
 
 // AccountingCodeAlreadyCompleted は EMR-66 の二重確定 409 で返す安定エラーコード。
@@ -87,6 +83,7 @@ const AccountingCodeAlreadyCompleted = "ACCOUNTING_ALREADY_COMPLETED"
 
 // accountingAlreadyCompletedError は既に会計が存在するスロットへの complete を表す 409。
 // Existing には既存会計を同梱し、handler が response body の accounting として返す。
+// held for EMR-462: Complete が固定エラーで拒否する間は生成元が無い。handler の errors.As 分岐と handler test が参照するため、型と constructor を残す。
 type accountingAlreadyCompletedError struct {
 	appErr   *apperrors.AppError
 	Existing *model.Billing
@@ -106,24 +103,8 @@ func newAccountingAlreadyCompletedError(message string, existing *model.Billing)
 	}
 }
 
-// completeUniqueConflictError は header INSERT の UNIQUE 衝突を tx 外で再解決するための
-// 内部 sentinel。PostgreSQL は UNIQUE 違反後の同一 tx を aborted (25P02) にするため、
-// 衝突した行の再検索は rollback 後の健全な ctx で行う。
-// Unwrap が元の AlreadyExists/unique エラーを指すため、万が一未解決のまま漏れても
-// 409 ALREADY_EXISTS として分類される（500 にはならない）。
-type completeUniqueConflictError struct {
-	medicalRecordID   *uint64
-	hospitalizationID *uint64
-	cause             error
-}
-
-func (e *completeUniqueConflictError) Error() string {
-	return fmt.Sprintf("complete accounting unique conflict: %v", e.cause)
-}
-
-func (e *completeUniqueConflictError) Unwrap() error { return e.cause }
-
-// completeItemWriter は ambient tx 内で明細を作成する collaborator（WithTx を開始しない）。
+// completeItemWriter は complete 用の ambient tx 明細 collaborator（WithTx を開始しない）。
+// held for EMR-462: Complete は固定エラーで拒否するため現在は呼ばれない。composition の配線互換のためだけに残す。
 type completeItemWriter interface {
 	CreateItemForComplete(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error)
 	// DeleteItemsForComplete は EMR-253: takeover 対象 waiting billing の既存明細を一括削除する。
@@ -131,19 +112,20 @@ type completeItemWriter interface {
 	DeleteItemsForComplete(ctx context.Context, clinicID, billingID uint64) error
 }
 
-// completeTotalsWriter は ambient tx 内で totals を再計算して billings に書く collaborator。
+// completeTotalsWriter は complete 用の合計算定 collaborator。billings のヘッダ合計列は廃止済みで、保存はしない。
+// held for EMR-462: 算定結果の保存は snapshot writer が担う。Complete が固定エラーで拒否する間は呼ばれない。
 type completeTotalsWriter interface {
 	RecalculateTotalsForComplete(ctx context.Context, clinicID, billingID uint64) (subtotal, taxTotal, totalAmount int64, err error)
 }
 
-// WithCompleteItemWriter は BUG-018 complete 用の明細 writer を配線する。
+// WithCompleteItemWriter は complete 用の明細 collaborator を配線する。held for EMR-462（Complete 再配線まで未使用）。
 func WithCompleteItemWriter(w completeItemWriter) accountingServiceOption {
 	return func(s *accountingService) {
 		s.itemWriter = w
 	}
 }
 
-// WithCompleteTotalsWriter は BUG-018 complete 用の totals writer を配線する。
+// WithCompleteTotalsWriter は complete 用の合計算定 collaborator を配線する。held for EMR-462（Complete 再配線まで未使用）。
 func WithCompleteTotalsWriter(w completeTotalsWriter) accountingServiceOption {
 	return func(s *accountingService) {
 		s.totalsWriter = w
@@ -162,71 +144,11 @@ func ValidateIdempotencyKeyUUID(key string) error {
 	return nil
 }
 
-// resolveCompleteMedicalRecordID は BUG-011: complete ヘッダの medical_record_id を確定する。
-// - 明示値がある場合は treatment 由来の親カルテと一致することを検証する
-// - 未指定でも treatment 付き明細があれば treatments.medical_record_id から一意に解決する
-// - treatment が複数カルテにまたがる場合は参照組み合わせ不正
-// - treatment が無い場合は tx 不要（明示値をそのまま返す）
-func resolveCompleteMedicalRecordID(
-	ctx context.Context,
-	clinicID uint64,
-	explicit *uint64,
-	items []CompleteAccountingItemInput,
-) (*uint64, error) {
-	hasTreatment := false
-	for i := range items {
-		if items[i].TreatmentID != nil {
-			hasTreatment = true
-			break
-		}
-	}
-	if !hasTreatment {
-		return explicit, nil
-	}
-
-	tx := persistence.TxFromContext(ctx)
-	if tx == nil {
-		return nil, apperrors.WrapInternalServerError("complete medical_record resolution requires an active transaction")
-	}
-	tx = tx.WithContext(ctx)
-
-	var resolvedFromTreatments *uint64
-	for i := range items {
-		if items[i].TreatmentID == nil {
-			continue
-		}
-		var treatmentRef struct {
-			MedicalRecordID uint64
-		}
-		if err := tx.
-			Table("treatments").
-			Select("treatments.medical_record_id").
-			Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
-			Where("treatments.id = ? AND treatments.deleted_at IS NULL", *items[i].TreatmentID).
-			Take(&treatmentRef).Error; err != nil {
-			return nil, apperrors.FromGORM(err, "treatment", fmt.Sprintf("%d", *items[i].TreatmentID))
-		}
-		if resolvedFromTreatments == nil {
-			id := treatmentRef.MedicalRecordID
-			resolvedFromTreatments = &id
-			continue
-		}
-		if *resolvedFromTreatments != treatmentRef.MedicalRecordID {
-			return nil, invalidBillingItemReferenceCombination()
-		}
-	}
-
-	if explicit != nil {
-		if resolvedFromTreatments != nil && *explicit != *resolvedFromTreatments {
-			return nil, invalidBillingItemReferenceCombination()
-		}
-		return explicit, nil
-	}
-	return resolvedFromTreatments, nil
-}
-
-// Complete は header/items/totals/payments/splits/reservation/audit を単一 tx で全 commit または全 rollback する（BUG-018）。
-func (s *accountingService) Complete(ctx context.Context, input *CompleteAccountingInput) (*CompleteAccountingResult, error) {
+// Complete は POST /accountings/complete の確定 command。
+// held for EMR-462: 旧実装は header・明細・合計・支払い・予約完了を単一 tx で書いていたが、置換先の保存
+// （算定固定 snapshot・医師確認 set・受領と配賦・操作 receipt）の writer が未接続のため、書き込み前に固定エラー（422）で拒否する。
+// header・明細・支払いのいずれも書かず、成功を装わない。入力の形（nil・Idempotency-Key・必須項目）の不正だけは従来どおり 400 を返す。
+func (*accountingService) Complete(_ context.Context, input *CompleteAccountingInput) (*CompleteAccountingResult, error) {
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("complete input is required")
 	}
@@ -239,132 +161,5 @@ func (s *accountingService) Complete(ctx context.Context, input *CompleteAccount
 	if len(input.Items) == 0 {
 		return nil, apperrors.WrapInvalidInput("items are required")
 	}
-	if s.itemWriter == nil {
-		return nil, apperrors.WrapInternalServerError("complete item writer is not configured")
-	}
-	if s.totalsWriter == nil {
-		return nil, apperrors.WrapInternalServerError("complete totals writer is not configured")
-	}
-	// EMR-196②: pet 指定の complete は表示した未請求集約の版を必須化する。
-	// 版なし通過を認めると stale 明細での確定を物理ブロックできない（fail-closed）。
-	// handler を迂回する呼び出し元にも不変条件を強制するため binding ではなく service で検証する。
-	// EMR-253: takeover（billing_id 明示）は対象が既存 billing で「表示した未請求集約」が前提に
-	// ならないため revision を必須としない（明示された場合は tx 内で照合する）。
-	if input.PetID != nil && input.ExpectedUnbilledRevision == "" && input.BillingID == nil {
-		return nil, apperrors.WrapInvalidInput("pet_id を指定する場合は expected_unbilled_revision が必要です")
-	}
-	if input.PetID == nil && input.ExpectedUnbilledRevision != "" {
-		return nil, apperrors.WrapInvalidInput("expected_unbilled_revision を指定する場合は pet_id が必要です")
-	}
-
-	digest, err := ComputeCompleteAccountingDigest(input)
-	if err != nil {
-		return nil, err
-	}
-
-	// Pre-tx idempotent lookup（同一 key の replay / 異 digest 409）。
-	// soft-deleted 行も含むため key 再利用不可。
-	if existing, err := s.repo.FindByCompletionRequestID(ctx, input.ClinicID, input.IdempotencyKey); err != nil {
-		return nil, apperrors.Wrap(err, "failed to lookup completion request")
-	} else if existing != nil {
-		return s.resolveIdempotentReplay(ctx, input.ClinicID, existing, digest)
-	}
-
-	// Payment method master 解決は tx 外の低コスト読取。
-	systemKeyToID, err := s.loadPaymentMethodSystemKeyToID(ctx, input.ClinicID)
-	if err != nil {
-		return nil, err
-	}
-
-	var result *CompleteAccountingResult
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		completeResult, err := s.completeInTx(txCtx, input, digest, systemKeyToID)
-		if err != nil {
-			return err
-		}
-		result = completeResult
-		return nil
-	}); err != nil {
-		// EMR-66: header INSERT の UNIQUE 衝突は rollback 後の健全な ctx で再解決する。
-		// aborted tx 上で再検索すると 25P02 → 500 になるため、ここで replay / 409 に分岐する。
-		var slotConflict *completeUniqueConflictError
-		if errors.As(err, &slotConflict) {
-			return s.resolveCompleteUniqueConflict(ctx, input, digest, slotConflict)
-		}
-		return nil, apperrors.Wrap(err, "failed to complete accounting in transaction")
-	}
-
-	if result != nil && result.Created && result.Accounting != nil {
-		s.syncCPMStageTag(ctx, input.ClinicID, result.Accounting)
-		// Codex #23: accounting→completed 遷移した予約が next_visit 対象集合から
-		// 外れるため next_visit_* タグも post-commit で再同期する（best-effort）。
-		s.syncNextVisitTag(ctx, input.ClinicID, result.Accounting, result.completedAppointmentOwnerIDs)
-		slog.InfoContext(ctx, "accounting completed atomically",
-			slog.Uint64("billing_id", result.Accounting.ID),
-			slog.Uint64("clinic_id", input.ClinicID))
-	}
-	return result, nil
-}
-
-func (s *accountingService) resolveIdempotentReplay(ctx context.Context, clinicID uint64, existing *model.Billing, digest string) (*CompleteAccountingResult, error) {
-	if existing.DeletedAt.Valid {
-		return nil, apperrors.WrapConflict("Idempotency-Key was already used by a deleted accounting and cannot be reused")
-	}
-	storedHash := ""
-	if existing.CompletionRequestHash != nil {
-		storedHash = *existing.CompletionRequestHash
-	}
-	if storedHash != digest {
-		return nil, apperrors.WrapConflict("Idempotency-Key was reused with a different request payload")
-	}
-	// Replay: return current accounting without re-writing payment/audit.
-	// Prefer fully preloaded FindByID when not soft-deleted.
-	reloaded, err := s.repo.FindByID(ctx, clinicID, existing.ID)
-	if err != nil {
-		// Fall back to existing snapshot if reload fails for any non-notfound reason after cancel race.
-		return nil, apperrors.Wrap(err, "failed to reload accounting for idempotent replay")
-	}
-	return &CompleteAccountingResult{Accounting: reloaded, Created: false}, nil
-}
-
-// resolveCompleteUniqueConflict は EMR-66: header INSERT の UNIQUE 衝突を rollback 後に再解決する。
-//   - 同一 completion_request_id の行 → 冪等 replay（digest 一致）または異 digest 409
-//   - medical_record_id / hospitalization_id スロット占有 → ACCOUNTING_ALREADY_COMPLETED + 既存会計
-//   - 上記いずれでも特定できない UNIQUE 違反 → 従来どおりの汎用 409
-func (s *accountingService) resolveCompleteUniqueConflict(
-	ctx context.Context,
-	input *CompleteAccountingInput,
-	digest string,
-	conflict *completeUniqueConflictError,
-) (*CompleteAccountingResult, error) {
-	existing, err := s.repo.FindByCompletionRequestID(ctx, input.ClinicID, input.IdempotencyKey)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to resolve completion unique conflict")
-	}
-	if existing != nil {
-		return s.resolveIdempotentReplay(ctx, input.ClinicID, existing, digest)
-	}
-	blocking, err := s.repo.FindCompleteConflict(ctx, input.ClinicID, conflict.medicalRecordID, conflict.hospitalizationID)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to resolve accounting slot conflict")
-	}
-	if blocking != nil {
-		return nil, s.alreadyCompletedConflict(ctx, input.ClinicID, blocking)
-	}
-	return nil, apperrors.WrapConflict("このカルテには既に会計があります")
-}
-
-// alreadyCompletedConflict は衝突した既存 billing を preload 付きで取り直して
-// ACCOUNTING_ALREADY_COMPLETED エラーを組み立てる。soft-deleted などで reload できない
-// 場合は衝突検出時の行をそのまま同梱する。
-func (s *accountingService) alreadyCompletedConflict(ctx context.Context, clinicID uint64, blocking *model.Billing) error {
-	existing := blocking
-	if reloaded, err := s.repo.FindByID(ctx, clinicID, blocking.ID); err == nil && reloaded != nil {
-		existing = reloaded
-	}
-	msg := "このカルテには既に会計があります"
-	if blocking.MedicalRecordID == nil && blocking.HospitalizationID != nil {
-		msg = "この入院には既に会計があります"
-	}
-	return newAccountingAlreadyCompletedError(msg, existing)
+	return nil, apperrors.WrapFinanceConsumerPending("会計の確定は、算定固定・医師確認・受領の保存先が未接続のため利用できません")
 }

@@ -19,11 +19,10 @@ func closeBoundaryLockKey(clinicID uint64, date time.Time) string {
 }
 
 // CashRegisterCloseRepository はレジ締めレコードのデータアクセスインターフェース。
-// W-013: 通常経路は Create / CreateAdjustment のみ（一般 Update は持たない）。
+// W-013: 書込みは Create のみ（一般 Update は持たない）。締め後の訂正の旧台帳 cash_register_close_adjustments は表ごと廃止され
+// （001_init.sql:10922）、後継の遅延イベント・実査訂正の書込みは EMR-509 で接続する（held for EMR-509）。
 type CashRegisterCloseRepository interface {
 	Create(ctx context.Context, c *model.CashRegisterClose) error
-	// CreateAdjustment は締め後訂正台帳へ 1 行追記する。ambient tx があれば参加する（fail-closed）。
-	CreateAdjustment(ctx context.Context, adj *model.CashRegisterCloseAdjustment) error
 	FindAll(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
 	FindByDateAndPeriod(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error)
@@ -73,19 +72,6 @@ func (r *cashRegisterCloseRepository) LockCloseBoundary(ctx context.Context, cli
 		closeBoundaryLockKey(clinicID, date),
 	).Error; err != nil {
 		return apperrors.Wrap(err, "failed to acquire cash register close-boundary lock")
-	}
-	return nil
-}
-
-func (r *cashRegisterCloseRepository) CreateAdjustment(ctx context.Context, adj *model.CashRegisterCloseAdjustment) error {
-	if adj == nil {
-		return apperrors.WrapInvalidInput("cash register close adjustment is required")
-	}
-	if adj.Reason == "" {
-		return apperrors.WrapInvalidInput("cash register close adjustment reason is required")
-	}
-	if err := persistence.DBOrTx(ctx, r.db).Create(adj).Error; err != nil {
-		return apperrors.FromGORM(err, "cash_register_close_adjustment", "")
 	}
 	return nil
 }

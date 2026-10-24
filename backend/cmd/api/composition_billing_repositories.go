@@ -15,7 +15,6 @@ type billingRepositories struct {
 	estimates            billing.EstimateRepository
 	insurance            billing.InsuranceRepository
 	paymentMethods       billing.PaymentMethodMasterRepository
-	refunds              billing.RefundRepository
 }
 
 func newBillingRepositories(db *gorm.DB) billingRepositories {
@@ -28,6 +27,5 @@ func newBillingRepositories(db *gorm.DB) billingRepositories {
 		estimates:            billing.NewEstimateRepository(db),
 		insurance:            billing.NewInsuranceRepository(db),
 		paymentMethods:       billing.NewPaymentMethodMasterRepository(db),
-		refunds:              billing.NewRefundRepository(db),
 	}
 }

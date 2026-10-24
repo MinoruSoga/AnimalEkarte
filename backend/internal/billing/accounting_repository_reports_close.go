@@ -3,8 +3,8 @@ package billing
 import (
 	"context"
 	"fmt"
-	"time"
 
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -54,44 +54,11 @@ func completedBillingsPetClinicCTE(cols string) string {
 	)`
 }
 
-// GetCloseAggregate は指定期間内の会計を集計する。FEAT-368
-// payment_splits を正として集計（SUM(DISTINCT) hack を除去）。
-// カテゴリ別集計: billing_items を CTE で per-billing 合算し、payment_splits と JOIN して按分なしで集計。
-func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetCloseAggregateInput) (*CloseAggregateResult, error) {
-	cArgs := []any{input.ClinicID, model.BillingStatusCompleted, input.PeriodStart.In(time.Local), input.PeriodEnd.In(time.Local)}
-	completedCTE := completedBillingsPetClinicCTE("billings.id, billings.clinic_id")
-
-	paymentRows, err := r.scanClosePaymentRows(ctx, completedCTE, cArgs)
-	if err != nil {
-		return nil, err
-	}
-	categoryRows, err := r.scanCloseCategoryRows(ctx, completedCTE, cArgs)
-	if err != nil {
-		return nil, err
-	}
-	totalRefund, err := r.scanCloseRefundTotal(ctx, completedCTE, cArgs)
-	if err != nil {
-		return nil, err
-	}
-	details, err := r.scanCloseBillingDetails(ctx, input)
-	if err != nil {
-		return nil, err
-	}
-	taxBreakdown, err := r.scanCloseTaxBreakdown(ctx, completedCTE, cArgs)
-	if err != nil {
-		return nil, err
-	}
-	unclassifiedOtherCount, err := r.scanCloseUnclassifiedOtherCount(ctx, completedCTE, cArgs)
-	if err != nil {
-		return nil, err
-	}
-
-	return &CloseAggregateResult{
-		PaymentRows:            paymentRows,
-		CategoryRows:           categoryRows,
-		TotalRefund:            totalRefund,
-		BillingDetails:         details,
-		TaxBreakdown:           taxBreakdown,
-		UnclassifiedOtherCount: unclassifiedOtherCount,
-	}, nil
+// GetCloseAggregate は指定期間内の会計を集計していた。FEAT-368 / held for EMR-509。
+// 旧実装は completed_at 基準の billings と payment_splits・billing_refunds を読んでいたが、いずれも廃止された。
+// 締めの理論現金は、締め境界の版・開始残高・現金の補充回収・受領と返金の記録（finance_source_events）を束ねる
+// 締め文脈（D12）から導く再設計で、その reader が未接続のため、空の集計を返さず固定エラー（422）で拒否する。
+// scanClose* 系の旧 SQL は、この reader の置換時に 509 が削除または再実装する。
+func (*accountingRepository) GetCloseAggregate(_ context.Context, _ GetCloseAggregateInput) (*CloseAggregateResult, error) {
+	return nil, apperrors.WrapFinanceConsumerPending("レジ締めの集計は、受領・返金・確定の記録（finance_source_events）と締め境界の版の読取が未接続のため利用できません")
 }

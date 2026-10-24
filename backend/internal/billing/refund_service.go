@@ -15,71 +15,29 @@ type CreateRefundInput struct {
 	PaymentMethod *model.PaymentMethod // 返金先の支払手段（nullable・ENUM。会計 payment_splits.method と同体系）
 }
 
-// RefundService は返金ビジネスロジックのインターフェース
+// RefundService は返金の入口。
+// held for EMR-506: 旧実装は billing_refunds（請求ごとの返金行。上限は請求合計・支払方法別の受領額）を読み書きしていたが、
+// 置換先は受領ごとの返金イベント（fund_consumption_events の refund）で、上限は請求ではなく受領の残額になる。
+// 旧の上限規則は新仕様へそのまま写さない。reader / writer が未接続のため、2 操作とも保存へ触れる前に固定エラー（422）で拒否する。
 type RefundService interface {
-	Create(ctx context.Context, clinicID, billingID uint64, input CreateRefundInput) (*model.BillingRefund, error)
-	ListByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error)
+	Create(ctx context.Context, clinicID, billingID uint64, input CreateRefundInput) error
+	ListByBillingID(ctx context.Context, clinicID, billingID uint64) error
 }
 
-type refundService struct {
-	repo          RefundRepository
-	accountRepo   accountingBillingView
-	auditTxLogger billingAuditTxLogger // fail-closed: ambient tx に参加して監査を書く（#211）
-	transactor    Transactor
-	closeRepo     CashRegisterCloseRepository
+type refundService struct{}
+
+// NewRefundService は quarantine 中の RefundService を返す。held for EMR-506。
+func NewRefundService() RefundService {
+	return &refundService{}
 }
 
-type refundServiceOption func(*refundService)
-
-// WithRefundCloseRepository serializes refunds with cash-register close on the
-// refund occurrence date and the original billing date.
-func WithRefundCloseRepository(repo CashRegisterCloseRepository) refundServiceOption {
-	return func(s *refundService) {
-		s.closeRepo = repo
+func (*refundService) Create(_ context.Context, _, _ uint64, input CreateRefundInput) error {
+	if input.Amount <= 0 {
+		return apperrors.WrapInvalidInput("amount must be positive")
 	}
+	return apperrors.WrapFinanceConsumerPending("返金の登録は、実返金の記録（受領ごとの返金イベント）の保存先が未接続のため利用できません")
 }
 
-// NewRefundService はRefundServiceを初期化して返す
-func NewRefundService(
-	repo RefundRepository,
-	accountRepo accountingBillingView,
-	auditTxLogger billingAuditTxLogger,
-	transactor Transactor,
-	opts ...refundServiceOption,
-) RefundService {
-	s := &refundService{repo: repo, accountRepo: accountRepo, auditTxLogger: auditTxLogger, transactor: transactor}
-	for _, opt := range opts {
-		opt(s)
-	}
-	return s
-}
-
-func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, input CreateRefundInput) (*model.BillingRefund, error) {
-	amount := input.Amount
-	if amount <= 0 {
-		return nil, apperrors.WrapInvalidInput("amount must be positive")
-	}
-
-	var refund *model.BillingRefund
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		created, err := s.createRefundInTx(txCtx, clinicID, billingID, amount, input)
-		refund = created
-		return err
-	}); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create refund in transaction")
-	}
-
-	return refund, nil
-}
-
-func (s *refundService) ListByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error) {
-	// マルチテナント保護
-	if _, err := s.accountRepo.FindByID(ctx, clinicID, billingID); err != nil {
-		return nil, apperrors.Wrap(err, "failed to get billing")
-	}
-	items, err := s.repo.FindByBillingID(ctx, clinicID, billingID)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to list refunds")
-	}
-	return items, nil
+func (*refundService) ListByBillingID(_ context.Context, _, _ uint64) error {
+	return apperrors.WrapFinanceConsumerPending("返金一覧の参照は、実返金の記録の読取が未接続のため利用できません")
 }

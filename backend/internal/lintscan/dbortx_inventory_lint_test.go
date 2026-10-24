@@ -339,7 +339,6 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	//   Create_* covers createLocked; LockCloseBoundary_* covers the advisory lock.
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.createLocked":        {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.LockCloseBoundary":   {},
-	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.CreateAdjustment":    {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindAll":             {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.FindByID":            {},
 	"billing/cash_register_close_repository.go|cashRegisterCloseRepository.HasCloseOnDate":      {},

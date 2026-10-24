@@ -9,6 +9,8 @@ import (
 )
 
 // CreateAccountingInput は会計作成のサービス入力DTO。
+// 作成は draft のヘッダ（関連 ID・予定日・メモ）だけを受け付ける。Subtotal 以下の金額・状態の項目は、
+// 無視せず拒否するために受け取る（非ゼロ・非空は 400。Q4(c) / held for EMR-506）。
 type CreateAccountingInput struct {
 	ClinicID          uint64
 	MedicalRecordID   *uint64
@@ -26,6 +28,7 @@ type CreateAccountingInput struct {
 }
 
 // PaymentSplitInput は支払い内訳1行の入力DTO（混在会計用）。
+// held for EMR-506: 受領と配賦の writer が接続されるまでは、拒否のために受け取る用途と complete digest だけに使う。
 type PaymentSplitInput struct {
 	Method          model.PaymentMethod
 	PaymentMethodID *uint64
@@ -41,6 +44,7 @@ type PaymentSplitInput struct {
 
 // UpdateAccountingInput は会計更新のサービス入力DTO。
 // nil のフィールドは更新しない（GORM ゼロ値スキップ問題を回避）。
+// 更新できるのは関連 ID・予定日・メモだけ。金額・状態・支払いの項目は拒否するために受け取る（Update が 400 / 422 を返す。held for EMR-506）。
 type UpdateAccountingInput struct {
 	ID                uint64
 	ClinicID          uint64
@@ -74,24 +78,14 @@ type UpdateAccountingInput struct {
 }
 
 // AccountingUpdate is the persistence command for billing header writes.
-// Status and CompletedAt are for Complete/Cancel only; generic PATCH omits them.
+// 書くのは残存するヘッダ列（関連 ID・予定日・メモ）だけ。金額・状態は算定固定と claim の変更イベントが持つ（held for EMR-506）。
 type AccountingUpdate struct {
 	MedicalRecordID   *uint64
 	HospitalizationID *uint64
 	OwnerID           *uint64
 	PetID             *uint64
-	Subtotal          *int64
-	TaxTotal          *int64
-	TotalAmount       *int64
-	HasInsurance      *bool
 	ScheduledDate     *time.Time
 	Memo              *string
-	Status            *model.BillingStatus
-	CompletedAt       *time.Time
-	// CompletionRequestID / CompletionRequestHash は EMR-253 takeover で既存 waiting 行へ
-	// complete の冪等キーを記録するための専用フィールド（汎用 PATCH からは設定しない）。
-	CompletionRequestID   *string
-	CompletionRequestHash *string
 }
 
 // CorrectCreditPaymentInput は確定済み会計のクレジット（カード）金額を確定後に訂正する入力DTO（#189）。
@@ -131,8 +125,6 @@ type AccountingRepository interface {
 	LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error
 	Update(ctx context.Context, clinicID, billingID uint64, cmd AccountingUpdate) (*model.Billing, error)
-	SavePayment(ctx context.Context, payment *model.Payment) error
-	SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error
 	FindUnpaidByBilling(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]model.Billing, int64, error)
 	FindUnpaidByOwner(ctx context.Context, clinicID uint64, startDate, endDate string, page, limit int) ([]UnpaidOwnerAggregate, int64, UnpaidSummary, error)
 	SumUnpaidByOwner(ctx context.Context, clinicID, ownerID uint64) (OwnerUnpaidBalance, error)
@@ -145,10 +137,6 @@ type AccountingRepository interface {
 	SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	MaxSingleVisitAmountByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	FindOwnersByAnnualRevenue(ctx context.Context, clinicID uint64) ([]OwnerAnnualRevenue, error)
-	FindByCompletionRequestID(ctx context.Context, clinicID uint64, requestID string) (*model.Billing, error)
-	// FindCompleteConflict は EMR-66: complete 確定スロットの UNIQUE インデックスと同じ意味論で
-	// 衝突する既存 billing を返す。見つからなければ (nil, nil)。
-	FindCompleteConflict(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64) (*model.Billing, error)
 	// FindByHospitalizationID は EMR-253: 入院スロット（deleted_at IS NULL）の占有 billing を返す。
 	// status 非依存・見つからなければ (nil, nil)（complete takeover 解決と退院 no-duplicate ガードが共有）。
 	FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (*model.Billing, error)
@@ -166,11 +154,11 @@ type AccountingService interface {
 	// GetByIDForClinics は複数医院スコープで会計を1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error)
 	Create(ctx context.Context, input *CreateAccountingInput) (*model.Billing, error)
-	// Complete は BUG-018: header/items/totals/payments/splits/reservation/audit を単一 tx で確定する。
+	// Complete は POST /accountings/complete。held for EMR-462: 置換先（算定固定・医師確認・受領）の writer が未接続のため、書き込み前に固定エラー（422）で拒否する。
 	Complete(ctx context.Context, input *CompleteAccountingInput) (*CompleteAccountingResult, error)
 	Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error)
 	// CorrectCreditPayment は確定済み会計のクレジット（カード）金額を確定後に訂正する（#189）。
-	// 確定済み（status=completed）かつ対象カード内訳が存在する場合のみ許可し、理由・監査を必須とする。
+	// held for EMR-506: 置換先（受領の記録訂正）の writer が未接続のため、入力検証の後に固定エラー（422）で拒否する。
 	CorrectCreditPayment(ctx context.Context, input *CorrectCreditPaymentInput) (*model.Billing, error)
 	// BUG-371 / #118: 論理削除（status=cancelled）。actorID で監査ログを記録する。
 	Cancel(ctx context.Context, clinicID, id uint64, actorID *uint64) error
@@ -194,6 +182,8 @@ type unbilledWriteGuard interface {
 	AssertUnbilledForComplete(ctx context.Context, clinicID, petID uint64, expectedRevision string) error
 }
 
+// held for EMR-462/506: tagSyncSvc・payMethodRepo は Complete 後の同期と受領の支払方法解決に使っていたが、
+// 両 writer が未接続の間は読まれない。NewAccountingService の呼出し形（cmd/api の配線）を保つため残す。
 type accountingService struct {
 	repo              AccountingRepository
 	medicalRecordRepo billingMedicalRecordLocker
@@ -203,43 +193,34 @@ type accountingService struct {
 	transactor        Transactor
 	auditTx           billingAuditTxLogger
 	payMethodRepo     PaymentMethodMasterRepository
-	// closeRepo は W-013 締め後訂正台帳（cash_register_close_adjustments）書込用。
-	// WithCashRegisterCloseRepository で注入。IsPostClose 経路では必須（欠落は fail-closed）。
+	// closeRepo はレジ締め境界の直列化（LockCloseBoundary）と締め済み判定（HasCloseOnDate）用。
+	// 締め後の台帳追記（cash_register_close_adjustments）は退役した。held for EMR-509。
 	closeRepo CashRegisterCloseRepository
 	// unbilledGuard は BUG-013: pet に blocking unbilled warning がある会計作成を拒否する。
 	unbilledGuard unbilledWriteGuard
 	// itemWriter / totalsWriter は BUG-018 Complete の ambient-tx 明細・合計 collaborator。
+	// held for EMR-462: Complete は固定エラーで拒否するため現在は読まれない（配線互換のため残す）。
 	itemWriter   completeItemWriter
 	totalsWriter completeTotalsWriter
+	// petLife は EMR-491 D6 の死亡 write ガード用 reader（pet.LifeStateReader を cmd/api で注入。nil は fail-closed）。
+	petLife sharedkernel.PetLifeStateReader
 }
 
 type accountingReservationRepository interface {
 	sharedkernel.OwnerPetLinkVerifier
-	// FindPetByIDInClinic は BUG-001 死亡ペット write ガード用（DeceasedAt 判定）。
-	FindPetByIDInClinic(ctx context.Context, clinicID, petID uint64) (*model.Pet, error)
-	CompleteForAccountingWithOwners(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, []uint64, error)
 }
 
 // accountingDeceasedPetMessage は会計 Create/Complete が死亡ペットを拒否するときの安定メッセージ（BUG-001）。
 const accountingDeceasedPetMessage = "死亡したペットは会計を作成できません"
 
-// accountingPetByIDAdapter は FindPetByIDInClinic を sharedkernel.PetByIDFinder へ適合する。
-type accountingPetByIDAdapter struct {
-	repo accountingReservationRepository
-}
-
-func (a accountingPetByIDAdapter) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
-	return a.repo.FindPetByIDInClinic(ctx, clinicID, id)
-}
-
-// assertAccountingPetNotDeceased は petID 非 nil のとき死亡ペットへの会計 Create/Complete を fail-closed で拒否する（BUG-001）。
-// 入院登録と同様、FE 選択 UI だけでは API 直叩きを防げないため BE でも検証する。
-// reservationRepo 未配線時は判定不能のためスキップ（本番配線では常に注入。unbilledGuard と同様）。
+// assertAccountingPetNotDeceased は petID 非 nil のとき死亡ペットへの会計 Create を fail-closed で拒否する（BUG-001 / EMR-491 D6）。
+// 生死は petLife（pet.LifeStateReader）が共通 subject の現行 revision から読む。reader は ambient tx を要求し subject 行を FOR SHARE ロックするため、
+// 呼び出し側は書込と同じ WithTx 内で呼ぶこと。reader 未配線（nil）・tx 外・未解決・読取失敗はすべて拒否し、生存扱いのフォールバックは置かない。
 func (s *accountingService) assertAccountingPetNotDeceased(ctx context.Context, clinicID uint64, petID *uint64) error {
-	if petID == nil || s.reservationRepo == nil {
+	if petID == nil {
 		return nil
 	}
-	return sharedkernel.ValidatePetNotDeceased(ctx, accountingPetByIDAdapter{repo: s.reservationRepo}, clinicID, *petID, accountingDeceasedPetMessage)
+	return sharedkernel.ValidatePetNotDeceased(ctx, s.petLife, clinicID, *petID, accountingDeceasedPetMessage)
 }
 
 type accountingServiceOption func(*accountingService)
@@ -255,6 +236,13 @@ func WithCashRegisterCloseRepository(repo CashRegisterCloseRepository) accountin
 func WithUnbilledWriteGuard(guard unbilledWriteGuard) accountingServiceOption {
 	return func(s *accountingService) {
 		s.unbilledGuard = guard
+	}
+}
+
+// WithPetLifeStateReader は EMR-491 D6 の死亡 write ガードが使う reader を配線する（未配線のまま pet 付き Create を呼ぶと fail-closed で拒否される）。
+func WithPetLifeStateReader(reader sharedkernel.PetLifeStateReader) accountingServiceOption {
+	return func(s *accountingService) {
+		s.petLife = reader
 	}
 }
 

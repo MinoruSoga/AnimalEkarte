@@ -102,6 +102,7 @@ func TestNewBillingCompositionBuildsDomainGraph(t *testing.T) {
 		repositories,
 		billingCompositionDependencies{
 			Transactor: persistence.NewTransactor(db),
+			PetLife:    pet.NewLifeStateReader(),
 		},
 	)
 
@@ -112,6 +113,8 @@ func TestNewBillingCompositionBuildsDomainGraph(t *testing.T) {
 	assert.NotNil(t, composition.BillingItems)
 	assert.NotNil(t, composition.Insurance)
 	assert.NotNil(t, composition.CashRegister)
+	// EMR-491 D6: 会計の死亡 write ガードは reader 必須（nil は実行時 fail-closed）。
+	requireServiceDependency(t, composition.services.core.accounting, "petLife")
 	assert.NotNil(t, composition.newHandler(nil, nil))
 }
 

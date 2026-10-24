@@ -83,6 +83,25 @@ func (r *paymentMethodMasterRepository) update(ctx context.Context, clinicID, id
 	return updateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.PaymentMethodMaster{}, "payment_method", clinicID, id, fields)
 }
 
+// paymentMethodInUseSQL は支払方法マスタ（payment_methods）を参照する保存先の存在判定（4 FK 参照元）。
+// 受領 (payment_funds)、実返金 (fund_consumption_events)、受領記録の訂正 (fund_record_corrections)、
+// 財務 source event (finance_source_events) のいずれかが参照していれば使用中。
+// 預り金 (owner_deposit_entries) の payment_method_id 列は廃止された（001_init.sql:10898。受領・返金の方法は
+// payment_funds / fund_consumption_events が一度だけ持つ）ため参照元に含めない。含めると存在しない列を読み、削除が常に失敗する。
+// いずれも payment_methods への RESTRICT 参照だが、マスタの削除は論理削除で RESTRICT を迂回するため、
+// 1 つでも参照があれば削除を拒否する。参照元の clinic_id を親行に相関させる。held for EMR-506。
+const paymentMethodInUseSQL = `EXISTS (SELECT 1 FROM payment_funds r WHERE r.clinic_id = payment_methods.clinic_id AND r.payment_method_id = payment_methods.id)
+	OR EXISTS (SELECT 1 FROM fund_consumption_events r WHERE r.clinic_id = payment_methods.clinic_id AND r.actual_refund_method_id = payment_methods.id)
+	OR EXISTS (SELECT 1 FROM fund_record_corrections r WHERE r.clinic_id = payment_methods.clinic_id AND r.corrected_method_id = payment_methods.id)
+	OR EXISTS (SELECT 1 FROM finance_source_events r WHERE r.clinic_id = payment_methods.clinic_id AND r.actual_method_id = payment_methods.id)`
+
+// countPaymentMethodUsageSQL は paymentMethodInUseSQL と同じ 4 参照元の件数合計（引数は clinic_id, 支払方法 id の組 × 4）。
+const countPaymentMethodUsageSQL = `SELECT
+	(SELECT count(*) FROM payment_funds WHERE clinic_id = ? AND payment_method_id = ?)
+	+ (SELECT count(*) FROM fund_consumption_events WHERE clinic_id = ? AND actual_refund_method_id = ?)
+	+ (SELECT count(*) FROM fund_record_corrections WHERE clinic_id = ? AND corrected_method_id = ?)
+	+ (SELECT count(*) FROM finance_source_events WHERE clinic_id = ? AND actual_method_id = ?)`
+
 func (r *paymentMethodMasterRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	// clinic_id + id + 非システム + usage 不在を同一 DELETE で要求し、
 	// CountUsage→Delete 間の参照追加 TOCTOU を原子的に塞ぐ。
@@ -90,14 +109,7 @@ func (r *paymentMethodMasterRepository) Delete(ctx context.Context, clinicID, id
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
 		Where("system_key IS NULL OR system_key = ''").
-		Where(`NOT EXISTS (
-			SELECT 1 FROM payments
-			JOIN billings ON billings.id = payments.billing_id
-			  AND billings.clinic_id = ?
-			  AND billings.deleted_at IS NULL
-			WHERE payments.payment_method_id = payment_methods.id
-			  AND payments.deleted_at IS NULL
-		)`, clinicID).
+		Where("NOT (" + paymentMethodInUseSQL + ")").
 		Delete(&model.PaymentMethodMaster{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "payment_method", fmt.Sprintf("%d", id))
@@ -127,15 +139,13 @@ func (r *paymentMethodMasterRepository) normalizeDeleteIfUnusedMiss(ctx context.
 	return apperrors.WrapConflict("この支払方法は使用中のため削除できません")
 }
 
-// CountUsageByPaymentMethodID は指定した支払方法を参照している payments の件数を返す。
-// payments テーブルに直接 clinic_id がないため billings を JOIN してテナント分離する。
+// CountUsageByPaymentMethodID は指定した支払方法を参照している保存先（4 FK 参照元）の件数合計を返す。
+// いずれの参照元にも clinic_id があるため、テナント分離は clinic_id の一致で行う。
 func (r *paymentMethodMasterRepository) CountUsageByPaymentMethodID(ctx context.Context, clinicID, id uint64) (int64, error) {
 	var count int64
 	err := persistence.DBOrTx(ctx, r.db).
-		Model(&model.Payment{}).
-		Joins("JOIN billings ON billings.id = payments.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
-		Where("payments.payment_method_id = ? AND payments.deleted_at IS NULL", id).
-		Count(&count).Error
+		Raw(countPaymentMethodUsageSQL, clinicID, id, clinicID, id, clinicID, id, clinicID, id).
+		Scan(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "payment_method", fmt.Sprintf("%d", id))
 	}

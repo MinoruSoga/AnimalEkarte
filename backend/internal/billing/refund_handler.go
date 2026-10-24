@@ -1,9 +1,6 @@
 package billing
 
 import (
-	"fmt"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
@@ -40,12 +37,8 @@ func (h *RefundHandler) ListRefunds(c *gin.Context) {
 		return
 	}
 
-	refunds, err := h.svc.ListByBillingID(c.Request.Context(), clinicID, billingID)
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, httpapi.MapSlice(refunds, ToRefundResponse))
+	// held for EMR-506: service は常に固定エラー（422）で拒否する。
+	respondRefundPending(c, h.svc.ListByBillingID(c.Request.Context(), clinicID, billingID))
 }
 
 // CreateRefund godoc
@@ -79,16 +72,20 @@ func (h *RefundHandler) CreateRefund(c *gin.Context) {
 		pm := model.PaymentMethod(*req.PaymentMethod)
 		paymentMethod = &pm
 	}
-	refund, err := h.svc.Create(ctx, clinicID, billingID, CreateRefundInput{
+	// held for EMR-506: body の形式検証の後、service が固定エラー（422）で拒否する。
+	respondRefundPending(c, h.svc.Create(ctx, clinicID, billingID, CreateRefundInput{
 		StaffID:       &staffID,
 		Amount:        req.Amount,
 		Reason:        req.Reason,
 		PaymentMethod: paymentMethod,
-	})
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return
+	}))
+}
+
+// respondRefundPending は quarantine 中の service の結果を応答する。
+// held for EMR-506: service は常に固定エラー（422）を返す。nil が返っても成功応答は組み立てず 500 で止める（fail-closed）。
+func respondRefundPending(c *gin.Context, err error) {
+	if err == nil {
+		err = apperrors.WrapInternalServerError("refund quarantine returned without refusal")
 	}
-	c.Header("Location", fmt.Sprintf("/api/v1/billing/%d/refunds/%d", billingID, refund.ID))
-	c.JSON(http.StatusCreated, ToRefundResponse(refund))
+	httpapi.RespondError(c, err)
 }
