@@ -262,6 +262,58 @@ describe("useApplyClinicalPlan", () => {
     });
   });
 
+  it("同一 version・同一代表行でも診断行集合が変わった hydrate は baseline の診断行を更新する", async () => {
+    const v1 = clinicalPlan();
+    const refreshedRows = [
+      diagnosisRow(1, "3", "7"),
+      diagnosisRow(1, "3", "8", { sort_order: 1 }),
+      diagnosisRow(2, "4", "9", { diagnosis_name_snapshot: "更新後の名称" }),
+    ];
+    const refreshed = clinicalPlan({ diagnoses: refreshedRows });
+    const { result, rerender } = renderHook(({ plan }) => useClinicalPlanHarness("10", plan), {
+      initialProps: { plan: v1 },
+    });
+
+    await waitFor(() => {
+      expect(result.current.clinicalPlanDiagnoses).toEqual(v1.diagnoses);
+    });
+    rerender({ plan: refreshed });
+
+    await waitFor(() => {
+      expect(result.current.clinicalPlanDiagnoses).toEqual(refreshedRows);
+      expect(result.current.diagnosis1NameId).toBe(7);
+      expect(result.current.diagnosis2NameId).toBe(9);
+      expect(result.current.clinicalPlanVersion).toBe(1);
+    });
+  });
+
+  it("同一 version の診断行集合の変更でも、編集中の入力は上書きしない", async () => {
+    const v1 = clinicalPlan();
+    const refreshed = clinicalPlan({
+      diagnoses: [
+        diagnosisRow(1, "3", "7"),
+        diagnosisRow(1, "3", "8", { sort_order: 1 }),
+        diagnosisRow(2, "4", "9"),
+      ],
+    });
+    const { result, rerender } = renderHook(({ plan }) => useClinicalPlanHarness("10", plan), {
+      initialProps: { plan: v1 },
+    });
+
+    await waitFor(() => {
+      expect(result.current.clinicalPlanVersion).toBe(1);
+    });
+    act(() => {
+      result.current.setPlan("A の編集値");
+    });
+    rerender({ plan: refreshed });
+
+    await waitFor(() => {
+      expect(result.current.plan).toBe("A の編集値");
+      expect(result.current.clinicalPlanVersion).toBe(1);
+    });
+  });
+
   it("record switch は旧 snapshot を破棄し、次 record の値と version を採用する", async () => {
     const record10 = clinicalPlan();
     const record11 = clinicalPlan({

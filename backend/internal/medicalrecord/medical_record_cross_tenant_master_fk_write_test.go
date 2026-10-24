@@ -66,7 +66,8 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisFK(t *
 			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
 			},
-			// EMR-495 A: 診断だけの入力は plan 列 Update を呼ばず、診断行の置換で書き込む。
+			// EMR-495 F-01: 診断だけの入力でも plan の version を Update で進めてから、診断行を置換して書き込む。
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error { return nil },
 			replaceDiagnosesFn: func(_ context.Context, _, _ uint64, _ []ClinicalPlanDiagnosisInput) error {
 				*updated = true
 				return nil
@@ -108,7 +109,8 @@ func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisNameFK
 			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
 				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
 			},
-			// EMR-495 A: 診断だけの入力は plan 列 Update を呼ばず、診断行の置換で書き込む。
+			// EMR-495 F-01: 診断だけの入力でも plan の version を Update で進めてから、診断行を置換して書き込む。
+			updateFn: func(_ context.Context, _, _ uint64, _ UpdateClinicalPlanInput) error { return nil },
 			replaceDiagnosesFn: func(_ context.Context, _, _ uint64, _ []ClinicalPlanDiagnosisInput) error {
 				*updated = true
 				return nil
