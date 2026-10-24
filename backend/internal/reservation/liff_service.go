@@ -69,10 +69,9 @@ type liffService struct {
 	notifier            ReservationNotifier
 	unavailableTimeRepo reservationTypeUnavailableTimeReader // BE-117 / BE-RC-009
 	availableSlotRepo   reservationTypeAvailableSlotReader
-	occupationRepo      ReservationTypeOccupationRepository // BE-117
-	trimmingCourseRepo  trimmingCourseFinder                // BE-120
-	trimmingOptionRepo  trimmingOptionFinder                // BE-120
-	trimmingDetailRepo  liffTrimmingDetailRepo              // BE-120
+	trimmingCourseRepo  trimmingCourseFinder   // BE-120
+	trimmingOptionRepo  trimmingOptionFinder   // BE-120
+	trimmingDetailRepo  liffTrimmingDetailRepo // BE-120
 	vaccinationRepo     liffVaccinationRepo
 	medicalRecord       medicalRecordAutoCreator
 	// EMR-308: LIFF 予約作成/キャンセル後の next_visit タグ再同期 hook（nil 許容・best-effort）。
@@ -93,7 +92,6 @@ func NewLiffServiceWithType(
 	notifier ReservationNotifier,
 	unavailableTimeRepo reservationTypeUnavailableTimeReader,
 	availableSlotRepo reservationTypeAvailableSlotReader,
-	occupationRepo ReservationTypeOccupationRepository,
 	trimmingCourseRepo trimmingCourseFinder,
 	trimmingOptionRepo trimmingOptionFinder,
 	trimmingDetailRepo liffTrimmingDetailRepo,
@@ -121,7 +119,6 @@ func NewLiffServiceWithType(
 		notifier:            notifier,
 		unavailableTimeRepo: unavailableTimeRepo,
 		availableSlotRepo:   availableSlotRepo,
-		occupationRepo:      occupationRepo,
 		trimmingCourseRepo:  trimmingCourseRepo,
 		trimmingOptionRepo:  trimmingOptionRepo,
 		trimmingDetailRepo:  trimmingDetailRepo,

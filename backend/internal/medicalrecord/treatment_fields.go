@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -157,7 +157,12 @@ func applyTreatmentDiscountRateGuard(locked *model.Treatment, input *UpdateTreat
 	if input.DiscountRate == nil {
 		return nil
 	}
-	if !httpapi.FloatEquals(*input.DiscountRate, locked.DiscountRate) {
+	// 割引率の同値判定は exact 値の厳密比較（epsilon なし）。保存値が NULL・非有限なら変更として扱う（fail-closed）。
+	same, err := exactNumericEqualsFloat(locked.DiscountRate, *input.DiscountRate, "discount_rate")
+	if err != nil {
+		return err
+	}
+	if !same {
 		if input.DiscountEditAllowed {
 			return nil
 		}
@@ -173,7 +178,8 @@ func applyTreatmentDiscountAmountGuard(locked *model.Treatment, input *UpdateTre
 	if input.DiscountAmount == nil {
 		return nil
 	}
-	if *input.DiscountAmount != locked.DiscountAmount {
+	// 保存値が NULL（未記録）の割引額は入力と一致すると確認できないため、変更として扱い権限を要求する（fail-closed）。
+	if !sharedkernel.PtrEquals(locked.DiscountAmount, *input.DiscountAmount) {
 		if input.DiscountEditAllowed {
 			return nil
 		}
@@ -261,7 +267,9 @@ func buildTreatmentUpdate(input *UpdateTreatmentInput) map[string]any {
 
 // effectiveDoseInputs は existing と input から dose 再評価に使う実効値（item_type/medicine_id/
 // quantity）を算出する純関数（BE-refactor.md E-3）。
-func effectiveDoseInputs(existing *model.Treatment, input *UpdateTreatmentInput) (effItemType model.TreatmentItemType, effMedicineID *uint64, effQty float64) {
+// quantity は exact 列の保存値を float64 の用量計算へ渡す境界で変換する。保存値の NULL・非有限は 0 へ補完せず error。
+// dose 再評価は medicine 明細のみが対象のため、それ以外の item_type では保存値を変換しない（数量は使われない）。
+func effectiveDoseInputs(existing *model.Treatment, input *UpdateTreatmentInput) (effItemType model.TreatmentItemType, effMedicineID *uint64, effQty float64, err error) {
 	effItemType = existing.ItemType
 	if input.ItemType != nil {
 		effItemType = *input.ItemType
@@ -270,11 +278,16 @@ func effectiveDoseInputs(existing *model.Treatment, input *UpdateTreatmentInput)
 	if input.MedicineID != nil {
 		effMedicineID = input.MedicineID
 	}
-	effQty = existing.Quantity
-	if input.Quantity != nil {
+	switch {
+	case input.Quantity != nil:
 		effQty = *input.Quantity
+	case effItemType == model.TreatmentItemTypeMedicine:
+		effQty, err = exactNumericRequiredFloat64(existing.Quantity, "quantity")
+		if err != nil {
+			return effItemType, effMedicineID, 0, err
+		}
 	}
-	return effItemType, effMedicineID, effQty
+	return effItemType, effMedicineID, effQty, nil
 }
 
 func validateTreatmentItemType(t model.TreatmentItemType) error {

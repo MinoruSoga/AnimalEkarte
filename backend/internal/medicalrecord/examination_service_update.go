@@ -18,10 +18,18 @@ func (s *examinationService) updateExaminationInTx(
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to lock examination")
 	}
-	if examinationFullyLocked(locked) {
+	fullyLocked, err := examinationFullyLocked(locked)
+	if err != nil {
+		return nil, err
+	}
+	if fullyLocked {
 		return nil, errExaminationFullyLocked()
 	}
-	if examinationResultsLocked(locked) && input.Items != nil {
+	resultsLocked, err := examinationResultsLocked(locked)
+	if err != nil {
+		return nil, err
+	}
+	if resultsLocked && input.Items != nil {
 		return nil, errExaminationResultsLocked(locked)
 	}
 	before := *locked

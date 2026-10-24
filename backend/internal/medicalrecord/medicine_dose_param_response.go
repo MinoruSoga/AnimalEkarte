@@ -9,18 +9,18 @@ import (
 )
 
 type medicineDoseParamResponse struct {
-	ID              uint64   `json:"id"`
-	ClinicID        uint64   `json:"clinic_id"`
-	MedicineID      uint64   `json:"medicine_id"`
-	Species         string   `json:"species"`
-	DoseBasis       string   `json:"dose_basis"`
-	DosePerKg       float64  `json:"dose_per_kg"`
-	MinMgPerKg      *float64 `json:"min_mg_per_kg,omitempty"`
-	MaxMgPerKg      *float64 `json:"max_mg_per_kg,omitempty"`
-	AbsoluteMaxDose *float64 `json:"absolute_max_dose,omitempty"`
-	RoundingStep    *float64 `json:"rounding_step,omitempty"`
-	RoundingMode    *string  `json:"rounding_mode,omitempty"`
-	Notes           string   `json:"notes"`
+	ID              uint64              `json:"id"`
+	ClinicID        uint64              `json:"clinic_id"`
+	MedicineID      uint64              `json:"medicine_id"`
+	Species         string              `json:"species"`
+	DoseBasis       string              `json:"dose_basis"`
+	DosePerKg       model.ExactNumeric  `json:"dose_per_kg"`
+	MinMgPerKg      *model.ExactNumeric `json:"min_mg_per_kg,omitempty"`
+	MaxMgPerKg      *model.ExactNumeric `json:"max_mg_per_kg,omitempty"`
+	AbsoluteMaxDose *model.ExactNumeric `json:"absolute_max_dose,omitempty"`
+	RoundingStep    *model.ExactNumeric `json:"rounding_step,omitempty"`
+	RoundingMode    *string             `json:"rounding_mode,omitempty"`
+	Notes           string              `json:"notes"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

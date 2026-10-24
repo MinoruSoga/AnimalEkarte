@@ -3,9 +3,11 @@ package medicalrecord
 import (
 	"context"
 	"log/slog"
+	"math/big"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ListItems は検査項目一覧を返す。clinic_id 隔離は repository の JOIN 条件で保証する。
@@ -51,7 +53,11 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock examination")
 		}
-		if examinationResultsLocked(locked) {
+		resultsLocked, err := examinationResultsLocked(locked)
+		if err != nil {
+			return err
+		}
+		if resultsLocked {
 			return errExaminationResultsLocked(locked)
 		}
 		before := *locked
@@ -234,12 +240,12 @@ func buildExamResultsFromInputs(
 ) []model.ExamResult {
 	items := make([]model.ExamResult, 0, len(inputs))
 	for _, in := range inputs {
-		var refMin, refMax *float64
+		var refMin, refMax *model.ExactNumeric
 		var qualitativeMin, qualitativeMax *string
 		if in.ExamTypeFieldID != nil {
 			if referenceRange, ok := resolvedRanges[*in.ExamTypeFieldID]; ok {
-				refMin = cloneOptionalFloat64(referenceRange.RefMin)
-				refMax = cloneOptionalFloat64(referenceRange.RefMax)
+				refMin = cloneOptionalExactNumeric(referenceRange.RefMin)
+				refMax = cloneOptionalExactNumeric(referenceRange.RefMax)
 				qualitativeMin = cloneOptionalString(referenceRange.QualitativeMin)
 				qualitativeMax = cloneOptionalString(referenceRange.QualitativeMax)
 			}
@@ -264,19 +270,23 @@ func buildExamResultsFromInputs(
 			RefMax:          refMax,
 			QualitativeMin:  qualitativeMin,
 			QualitativeMax:  qualitativeMax,
-			IsAbnormal:      assessment.isAbnormal,
-			Status:          assessment.status,
-			SortOrder:       in.SortOrder,
+			IsAbnormal:      sharedkernel.Ptr(assessment.isAbnormal),
+			Status:          sharedkernel.Ptr(assessment.status),
+			SortOrder:       sharedkernel.Ptr(in.SortOrder),
 		})
 	}
 	return items
 }
 
-func cloneOptionalFloat64(value *float64) *float64 {
+// cloneOptionalExactNumeric は big.Int まで deep copy する（複製が元の値と内部状態を共有しない）。
+func cloneOptionalExactNumeric(value *model.ExactNumeric) *model.ExactNumeric {
 	if value == nil {
 		return nil
 	}
 	cloned := *value
+	if value.Int != nil {
+		cloned.Int = new(big.Int).Set(value.Int)
+	}
 	return &cloned
 }
 
@@ -318,7 +328,7 @@ func extractExamResultsAudit(results []model.ExamResult) []map[string]any {
 			"qualitative_max":    r.QualitativeMax,
 			"is_assessed":        assessment.isAssessed,
 			"is_abnormal":        r.IsAbnormal,
-			"status":             string(r.Status),
+			"status":             nullableTextFromStored(r.Status),
 		})
 	}
 	return out

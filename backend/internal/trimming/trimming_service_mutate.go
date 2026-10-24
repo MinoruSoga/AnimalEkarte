@@ -21,7 +21,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get existing trimming appointment")
 	}
-	if appt.ReservationType == nil || appt.ReservationType.Category != model.ReservationTypeCategoryTrimming {
+	if !appt.ReservationType.HasBusinessKind(model.ReservationBusinessKindTrimming) {
 		return nil, apperrors.WrapInvalidInput("appointment is not a trimming reservation")
 	}
 	var result *model.Reservation
@@ -60,18 +60,14 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	if err := s.requireAuditTx(); err != nil {
 		return nil, nil, err
 	}
+	// EMR-480 / EMR-549 C1: コース・オプションの保存先（trimming_booking_revisions 系）の writer が未接続のため、
+	// course_id / option_ids を含む更新は予約も詳細も書く前に 422 trimming_booking_pending で拒否する（部分保存しない）。
+	// 空配列の option_ids も「全置換」の書込で、保存先がないため受理できない。
+	if input.CourseID != nil || input.OptionIDs != nil {
+		return nil, nil, apperrors.WrapTrimmingBookingPending()
+	}
 	if err := normalizeUpdateTrimmingImages(clinicID, input); err != nil {
 		return nil, nil, err
-	}
-	var optionIDs []uint64
-	if input.OptionIDs != nil {
-		optionIDs = *input.OptionIDs
-	}
-	if input.CourseID != nil && s.trimmingCourseRepo == nil {
-		return nil, nil, apperrors.WrapInternalServerError("trimming course repository is required")
-	}
-	if len(optionIDs) > 0 && s.trimmingOptionRepo == nil {
-		return nil, nil, apperrors.WrapInternalServerError("trimming option repository is required")
 	}
 	if _, err := s.reservation.FindTrimmingByID(ctx, clinicID, id); err != nil {
 		return nil, nil, apperrors.Wrap(err, "failed to get trimming appointment")
@@ -85,16 +81,14 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		Status:    input.Status,
 	}
 
-	// appointment → trimming_detail → options の更新を単一トランザクションで実行する。
+	// appointment → trimming_detail の更新を単一トランザクションで実行する。
 	// appointments が更新済みで trimming_detail が失敗すると不整合が生じるため、
 	// Create と対称なアトミック性を保証する。
-	// #228: course_id/option_ids の is_active 検証は、既存紐付け ID（is_active チェック免除対象）
-	// を判定するため、tx 内で trimming_detail を取得した直後・フィールド上書き前に行う。
 	var result *model.Reservation
 	var replaced *TrimmingReplacedImages
 	var tagChange *trimmingNextVisitTagChange
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		updated, rep, change, err := s.updateTrimmingInTx(txCtx, clinicID, id, input, optionIDs, appointmentUpdate)
+		updated, rep, change, err := s.updateTrimmingInTx(txCtx, clinicID, id, input, appointmentUpdate)
 		if err != nil {
 			return err
 		}

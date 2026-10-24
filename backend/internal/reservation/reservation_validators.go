@@ -12,6 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const errMsgInvalidDateTime = "日時の形式が正しくありません"
@@ -153,6 +154,13 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		}
 	}
 
+	// EMR-480 / EMR-549 C1: 予約へのコース・オプション保存（trimming_booking_revisions 系）の writer が未接続のため、
+	// course / option を含む LINE 予約は、予約行を含め何も書かずに 422 trimming_booking_pending で拒否する
+	// （旧 course_id 列・appointment_trimming_options は DROP 済み。コース・オプションだけ欠けた予約は作らない）。
+	if input.TrimmingCourseID != nil || len(input.TrimmingOptionIDs) > 0 {
+		return nil, nil, apperrors.WrapTrimmingBookingPending()
+	}
+
 	// BUG-LINE-008: 業務時間・予約窓・休業日のサーバーサイド検証。
 	// GET /available-times は正しく除外しているが、POST /reservations は素通りしていた。
 	// 直接 API を叩かれても無効な予約を受け付けないようにする。
@@ -176,10 +184,10 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 	return result, previousOwnerID, nil
 }
 
-// validateReservationMasterOwnership は master-FK（ReservationTypeID/TrimmingCourseID/
-// TrimmingOptionIDs）が caller の clinic に属することを検証する（BE-refactor.md E-8:
-// ValidateAndCreate の4責務分割・純粋抽出）。所有権失敗は best-effort に落とさず hard fail
-// とし、orphan appointment を作らない。
+// validateReservationMasterOwnership は master-FK（ReservationTypeID）が caller の clinic に属することを
+// 検証する（BE-refactor.md E-8: ValidateAndCreate の4責務分割・純粋抽出）。TrimmingCourseID /
+// TrimmingOptionIDs を含む予約は ValidateAndCreate が先に拒否するため、ここでは検証しない。
+// 所有権失敗は best-effort に落とさず hard fail とし、orphan appointment を作らない。
 func (v *reservationValidators) validateReservationMasterOwnership(ctx context.Context, input *CreateReservationInput) (*model.ReservationType, error) {
 	if v.typeRepo == nil {
 		return nil, apperrors.WrapInternalServerError("reservation type repository is required")
@@ -191,34 +199,8 @@ func (v *reservationValidators) validateReservationMasterOwnership(ctx context.C
 	if !reservationType.IsActive || !reservationType.ReservationVisible || reservationType.IsInternal {
 		return nil, apperrors.WrapInvalidInput("reservation type is not available for LINE reservation")
 	}
-	if reservationType.Category != model.ReservationTypeCategoryTrimming && hasLineTrimmingDetailInput(input) {
+	if !reservationType.HasBusinessKind(model.ReservationBusinessKindTrimming) && hasLineTrimmingDetailInput(input) {
 		return nil, apperrors.WrapInvalidInput("trimming fields require a trimming reservation type")
-	}
-	if v.trimmingCourseRepo != nil && input.TrimmingCourseID != nil {
-		course, err := v.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID)
-		if err != nil {
-			return nil, apperrors.Wrap(err, "failed to verify trimming course ownership")
-		}
-		if !course.IsActive {
-			return nil, apperrors.WrapInvalidInput("trimming course is inactive")
-		}
-	}
-	if input.TrimmingCourseID != nil && v.trimmingCourseRepo == nil {
-		return nil, apperrors.WrapInternalServerError("trimming course repository is required")
-	}
-	if v.trimmingOptionRepo != nil {
-		for _, optionID := range input.TrimmingOptionIDs {
-			option, err := v.trimmingOptionRepo.FindByID(ctx, input.ClinicID, optionID)
-			if err != nil {
-				return nil, apperrors.Wrap(err, "failed to verify trimming option ownership")
-			}
-			if !option.IsActive {
-				return nil, apperrors.WrapInvalidInput("trimming option is inactive")
-			}
-		}
-	}
-	if len(input.TrimmingOptionIDs) > 0 && v.trimmingOptionRepo == nil {
-		return nil, apperrors.WrapInternalServerError("trimming option repository is required")
 	}
 	return reservationType, nil
 }
@@ -274,7 +256,7 @@ func buildLineReservation(input *CreateReservationInput, startDT, endDT time.Tim
 		EndTime:           endDT,
 		ReservationTypeID: input.ReservationTypeID,
 		DoctorID:          doctorID,
-		Status:            model.ReservationStatusConfirmed,
+		Status:            sharedkernel.Ptr(model.ReservationStatusConfirmed),
 		Source:            model.ReservationSourceLine,
 		LineCustomerID:    &input.CustomerID,
 		OwnerID:           input.OwnerID,

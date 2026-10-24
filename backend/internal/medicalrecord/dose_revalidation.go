@@ -96,19 +96,61 @@ type DoseSnapshot struct {
 	FormulaVersion      string `json:"formula_version"`
 }
 
+// doseParamFloats は dose param（exact 列）を既存の float64 用量計算式へ渡す境界の変換結果。
+type doseParamFloats struct {
+	DosePerKg       float64
+	MinMgPerKg      *float64
+	MaxMgPerKg      *float64
+	AbsoluteMaxDose *float64
+	RoundingStep    *float64
+}
+
+// doseParamToFloats は dose param の exact 値を float64 計算の入力へ変換する（計算式は float64 のまま維持）。
+// NULL の任意項目は nil（上限・丸めなし）のまま渡す。値があるのに非有限・float64 範囲外の場合は error とし、
+// 上限や安全域の黙った欠落（NaN との比較が常に偽になることによる cap 無効化）を防ぐ。
+func doseParamToFloats(p *model.MedicineDoseParam) (doseParamFloats, error) {
+	dosePerKg, err := exactNumericToFloat64(p.DosePerKg, "dose_per_kg")
+	if err != nil {
+		return doseParamFloats{}, err
+	}
+	minMg, err := exactNumericPtrToFloat64Ptr(p.MinMgPerKg, "min_mg_per_kg")
+	if err != nil {
+		return doseParamFloats{}, err
+	}
+	maxMg, err := exactNumericPtrToFloat64Ptr(p.MaxMgPerKg, "max_mg_per_kg")
+	if err != nil {
+		return doseParamFloats{}, err
+	}
+	absoluteMax, err := exactNumericPtrToFloat64Ptr(p.AbsoluteMaxDose, "absolute_max_dose")
+	if err != nil {
+		return doseParamFloats{}, err
+	}
+	step, err := exactNumericPtrToFloat64Ptr(p.RoundingStep, "rounding_step")
+	if err != nil {
+		return doseParamFloats{}, err
+	}
+	return doseParamFloats{
+		DosePerKg:       dosePerKg,
+		MinMgPerKg:      minMg,
+		MaxMgPerKg:      maxMg,
+		AbsoluteMaxDose: absoluteMax,
+		RoundingStep:    step,
+	}, nil
+}
+
 // doseCalcInputFrom は medicine + param + weight + species から B-1 計算入力を構築する。
-func doseCalcInputFrom(in SavedDoseInput) DoseCalcInput {
+func doseCalcInputFrom(in SavedDoseInput, p doseParamFloats) DoseCalcInput {
 	return DoseCalcInput{
 		CalculationType: in.Medicine.CalculationType,
 		MedicineUnit:    in.Medicine.MedicineUnit,
 		Strength:        medicineStrengthFloat(in.Medicine.Strength), // EMR-447: 計算器入口で明示変換する
 		DoseBasis:       in.Param.DoseBasis,
 		FrequencyPerDay: in.Medicine.FrequencyPerDay,
-		DosePerKg:       in.Param.DosePerKg,
-		MinMgPerKg:      in.Param.MinMgPerKg,
-		MaxMgPerKg:      in.Param.MaxMgPerKg,
-		AbsoluteMaxDose: in.Param.AbsoluteMaxDose,
-		RoundingStep:    in.Param.RoundingStep,
+		DosePerKg:       p.DosePerKg,
+		MinMgPerKg:      p.MinMgPerKg,
+		MaxMgPerKg:      p.MaxMgPerKg,
+		AbsoluteMaxDose: p.AbsoluteMaxDose,
+		RoundingStep:    p.RoundingStep,
 		RoundingMode:    in.Param.RoundingMode,
 		WeightKg:        in.WeightKg,
 	}
@@ -116,8 +158,13 @@ func doseCalcInputFrom(in SavedDoseInput) DoseCalcInput {
 
 // EvaluateSavedDose は保存される quantity の安全性を BE 側で再判定する（純粋関数・B-1 CalculateDose 再利用）。
 // 呼び出し側で medicine.CalculationType=per_weight・species 解決済み・weight>0 を保証していること。
-func EvaluateSavedDose(in SavedDoseInput) SavedDoseEvaluation {
-	calcIn := doseCalcInputFrom(in)
+// dose param の値が非有限・float64 範囲外の場合は error を返す（上限の黙った欠落を避け、保存を中止する）。
+func EvaluateSavedDose(in SavedDoseInput) (SavedDoseEvaluation, error) {
+	params, err := doseParamToFloats(in.Param)
+	if err != nil {
+		return SavedDoseEvaluation{}, err
+	}
+	calcIn := doseCalcInputFrom(in, params)
 	computed := CalculateDose(calcIn)
 
 	strength := 0.0
@@ -139,8 +186,8 @@ func EvaluateSavedDose(in SavedDoseInput) SavedDoseEvaluation {
 	if hasCap && savedMg > upperCap+safetyEpsilon {
 		eval.ExceedsCapSaved = true
 	}
-	if in.Param.MinMgPerKg != nil {
-		lowerMg := *in.Param.MinMgPerKg * in.WeightKg * basisFactor
+	if params.MinMgPerKg != nil {
+		lowerMg := *params.MinMgPerKg * in.WeightKg * basisFactor
 		if savedMg < lowerMg-safetyEpsilon {
 			eval.BelowMinSaved = true
 		}
@@ -161,11 +208,11 @@ func EvaluateSavedDose(in SavedDoseInput) SavedDoseEvaluation {
 		Species:              in.Species,
 		WeightKg:             in.WeightKg,
 		DoseBasis:            in.Param.DoseBasis,
-		DosePerKg:            in.Param.DosePerKg,
+		DosePerKg:            params.DosePerKg,
 		Strength:             strength,
-		MinMgPerKg:           in.Param.MinMgPerKg,
-		MaxMgPerKg:           in.Param.MaxMgPerKg,
-		AbsoluteMaxDose:      in.Param.AbsoluteMaxDose,
+		MinMgPerKg:           params.MinMgPerKg,
+		MaxMgPerKg:           params.MaxMgPerKg,
+		AbsoluteMaxDose:      params.AbsoluteMaxDose,
 		ComputedQty:          computed.Quantity,
 		SubmittedQty:         in.SubmittedQty,
 		EffectiveMg:          savedMg,
@@ -174,7 +221,7 @@ func EvaluateSavedDose(in SavedDoseInput) SavedDoseEvaluation {
 		DeviatesFromComputed: eval.DeviatesFromComputed,
 		FormulaVersion:       doseFormulaVersion,
 	}
-	return eval
+	return eval, nil
 }
 
 // normalizeDoseDeviationReason は transport 上限で free-text 理由を正規化する。
@@ -268,14 +315,21 @@ func clearedDoseColumns() map[string]any {
 
 // treatmentHasDoseSnapshot は treatment 行に dose スナップショットが付いているかを返す。
 func treatmentHasDoseSnapshot(t *model.Treatment) bool {
-	return t != nil && (t.DoseAmountMg != nil || t.DoseWeightKg != nil || len(t.DoseParamSnapshot) > 0)
+	return t != nil && (t.DoseAmountMg != nil || t.DoseWeightKg != nil || (t.DoseParamSnapshot != nil && len(*t.DoseParamSnapshot) > 0))
 }
 
 // applyDoseSnapshotToTreatment は計算根拠スナップショットを treatment struct に値で固定する（Create 経路）。
 // reason-required では strict marshal 失敗を error で返す。
 func applyDoseSnapshotToTreatment(ctx context.Context, t *model.Treatment, eval *SavedDoseEvaluation) error {
-	weight := eval.Snapshot.WeightKg
-	mg := eval.SavedEffectiveMg
+	// 計算根拠の kg / mg は float64 の計算結果。exact 列へは最短10進表現で橋渡しする（NaN・±Inf は error）。
+	weight, err := exactNumericFromFloat(eval.Snapshot.WeightKg, "dose_weight_kg")
+	if err != nil {
+		return err
+	}
+	mg, err := exactNumericFromFloat(eval.SavedEffectiveMg, "dose_amount_mg")
+	if err != nil {
+		return err
+	}
 	unit := doseAmountUnitMg
 	t.DoseWeightKg = &weight
 	t.DoseAmountMg = &mg
@@ -289,11 +343,13 @@ func applyDoseSnapshotToTreatment(ctx context.Context, t *model.Treatment, eval 
 		if err != nil {
 			return err
 		}
-		t.DoseParamSnapshot = snapJSON
+		snapshot := json.RawMessage(snapJSON)
+		t.DoseParamSnapshot = &snapshot
 		return nil
 	}
 	if snapJSON := marshalDoseSnapshot(ctx, eval); snapJSON != nil {
-		t.DoseParamSnapshot = snapJSON
+		snapshot := json.RawMessage(snapJSON)
+		t.DoseParamSnapshot = &snapshot
 	}
 	return nil
 }

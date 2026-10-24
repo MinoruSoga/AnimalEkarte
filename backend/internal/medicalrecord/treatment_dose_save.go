@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ─── #201 B-2: 保存時 dose 再検証 ──────────────────────────────────────────────
@@ -75,13 +76,16 @@ func (s *treatmentService) evaluateDoseForSave(
 		return nil, apperrors.WrapConflict("投与量パラメータの種別が患者種と一致しません（安全のため保存を中止しました）")
 	}
 
-	eval := EvaluateSavedDose(SavedDoseInput{
+	eval, err := EvaluateSavedDose(SavedDoseInput{
 		Medicine:     medicine,
 		Param:        param,
 		Species:      species,
 		WeightKg:     weightKg,
 		SubmittedQty: submittedQty,
 	})
+	if err != nil {
+		return nil, err
+	}
 	eval.WeightSource = weightSource
 	return &eval, nil
 }
@@ -99,7 +103,7 @@ func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medi
 	var chosen *model.VitalRecord
 	for i := range vitals {
 		v := &vitals[i]
-		if v.Weight == nil || *v.Weight <= 0 {
+		if v.Weight == nil || !exactNumericIsPositive(*v.Weight) {
 			continue
 		}
 		if chosen == nil || v.RecordedAt.After(chosen.RecordedAt) {
@@ -109,7 +113,17 @@ func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medi
 	if chosen == nil {
 		return 0, "", false, nil
 	}
-	kg, ok := NormalizeWeightToKg(*chosen.Weight, chosen.WeightUnit)
+	// 既存の kg 正規化式は float64。境界で変換し、float64 に収まらない値は未記録扱いにせず error とする。
+	weight, convErr := exactNumericToFloat64(*chosen.Weight, "weight")
+	if convErr != nil {
+		return 0, "", false, convErr
+	}
+	// 体重の単位が NULL（未記録）のレコードは kg / g を推測せず、投与量の自動検証を中止して error にする（fail-closed）。
+	unit, unitErr := sharedkernel.RequireStored(chosen.WeightUnit, "vital_records.weight_unit")
+	if unitErr != nil {
+		return 0, "", false, unitErr
+	}
+	kg, ok := NormalizeWeightToKg(weight, unit)
 	if !ok {
 		return 0, "", false, nil
 	}

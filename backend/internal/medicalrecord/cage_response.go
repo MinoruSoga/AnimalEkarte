@@ -6,6 +6,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/httpapi"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // cageOccupancyResponse は GET /masters/cages/occupancy の応答。
@@ -41,7 +42,7 @@ func toCageResponse(c *model.Cage) cageResponse {
 		Price:            c.Price,
 		IsActive:         c.IsActive,
 		Description:      c.Description,
-		SortOrder:        c.SortOrder,
+		SortOrder:        sharedkernel.SortOrderValue(c.SortOrder),
 		MergedIntoCageID: c.MergedIntoCageID,
 		CreatedAt:        httpapi.LocalTime(c.CreatedAt),
 		UpdatedAt:        httpapi.LocalTime(c.UpdatedAt),

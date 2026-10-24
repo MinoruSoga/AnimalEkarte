@@ -104,10 +104,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	masters.POST("/reservation-types/:id/available-slots", perm(model.ResourceMasterReservationType, "edit"), h.reservationType.CreateAvailableSlot)
 	masters.DELETE("/reservation-types/:id/available-slots/:available_slot_id", perm(model.ResourceMasterReservationType, "delete"), h.reservationType.DeleteAvailableSlot)
 
-	masters.GET("/reservation-types/:id/occupations", perm(model.ResourceMasterReservationType, "view"), h.reservationType.ListReservationTypeOccupations)
-	masters.POST("/reservation-types/:id/occupations", perm(model.ResourceMasterReservationType, "edit"), h.reservationType.LinkReservationTypeOccupation)
-	masters.DELETE("/reservation-types/:id/occupations/:occupation_id", perm(model.ResourceMasterReservationType, "delete"), h.reservationType.UnlinkReservationTypeOccupation)
-
 	// 予約区分（LINE管理用・旧 reservation_line_routes.go 逐語。clinic_id の実判定は JWT 側）
 	clinics := rg.Group("/clinics/:clinic_id")
 	types := clinics.Group("/reservation-types")

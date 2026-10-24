@@ -115,24 +115,18 @@ func (v *reservationValidators) createLineReservationInTx(
 		return nil, nil, apperrors.Wrap(err, "failed to create reservation")
 	}
 	appt = promoted
-	if reservationType.Category == model.ReservationTypeCategoryTrimming && hasLineTrimmingDetailInput(input) {
+	// course / option は ValidateAndCreate が先に拒否済み（EMR-480 の writer が未接続）。ここで保存できるのは style_request だけ。
+	if reservationType.HasBusinessKind(model.ReservationBusinessKindTrimming) && hasLineTrimmingDetailInput(input) {
 		if v.trimmingDetailRepo == nil {
 			return nil, nil, apperrors.WrapInternalServerError("trimming detail repository is required for a LINE trimming reservation")
 		}
 		detail := &model.AppointmentTrimmingDetail{
 			ClinicID:      input.ClinicID,
 			AppointmentID: appt.ID,
-			CourseID:      input.TrimmingCourseID,
 			StyleRequest:  input.TrimmingStyleRequest,
 		}
 		if err := v.trimmingDetailRepo.Create(ctx, detail); err != nil {
 			return nil, nil, apperrors.Wrap(err, "failed to create LINE trimming detail")
-		}
-		if len(input.TrimmingOptionIDs) == 0 {
-			return appt, previousOwnerID, nil
-		}
-		if err := v.trimmingDetailRepo.SetOptions(ctx, input.ClinicID, appt.ID, input.TrimmingOptionIDs); err != nil {
-			return nil, nil, apperrors.Wrap(err, "failed to set LINE trimming options")
 		}
 	}
 	return appt, previousOwnerID, nil

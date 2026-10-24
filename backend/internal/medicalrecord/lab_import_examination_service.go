@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // LabExamPersistInput は lab import バッチ 1 行分の変換済み入力。
@@ -35,8 +36,8 @@ type LabExamItemInput struct {
 	InspectionValue string
 	Unit            string
 	ReferenceValue  string
-	RefMin          *float64
-	RefMax          *float64
+	RefMin          *model.ExactNumeric
+	RefMax          *model.ExactNumeric
 	ExamTypeFieldID *uint64
 	SortOrder       int
 }
@@ -89,9 +90,9 @@ func buildExamResults(examID uint64, items []LabExamItemInput) []model.ExamResul
 			ReferenceValue:  item.ReferenceValue,
 			RefMin:          item.RefMin,
 			RefMax:          item.RefMax,
-			IsAbnormal:      isAbnormal,
-			Status:          status,
-			SortOrder:       item.SortOrder,
+			IsAbnormal:      sharedkernel.Ptr(isAbnormal),
+			Status:          sharedkernel.Ptr(status),
+			SortOrder:       sharedkernel.Ptr(item.SortOrder),
 		})
 	}
 	return out
@@ -187,10 +188,10 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 		MedicalRecordID: input.MedicalRecordID,
 		ExamTypeID:      input.ExamTypeID,
 		JobID:           &jobID,
-		Date:            input.Date,
+		Date:            sharedkernel.Ptr(input.Date),
 		Machine:         input.Machine,
 		// result_entered: lab 結果は到着時点で値が確定しているため pending/in_progress をスキップ
-		Status: model.ExaminationStatusResultEntered,
+		Status: sharedkernel.Ptr(model.ExaminationStatusResultEntered),
 	}
 
 	// exam 本体と exam_results は 1 つの検査結果 business graph なので同一 transaction で原子的に書く

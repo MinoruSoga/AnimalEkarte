@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const (
@@ -161,7 +162,7 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 		IsActive:       input.IsActive,
 		Description:    input.Description,
 		ParentID:       input.ParentID,
-		SortOrder:      input.SortOrder,
+		SortOrder:      sharedkernel.Ptr(input.SortOrder),
 		IsNonInsurance: input.IsNonInsurance,
 		// EMR-447 A.2: 省略は false を明示保存し、DB default / Go ゼロ値に任せない。
 		IsBillDiscountExcluded: createBillDiscountExcluded(input.IsBillDiscountExcluded),

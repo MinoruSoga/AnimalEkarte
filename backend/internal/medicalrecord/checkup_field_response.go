@@ -9,16 +9,16 @@ import (
 
 // checkupTypeFieldResponse は健診パッケージのフィールド定義レスポンス（FE 動的フォーム用）。
 type checkupTypeFieldResponse struct {
-	ID            uint64          `json:"id"`
-	CheckupTypeID uint64          `json:"checkup_type_id"`
-	Name          string          `json:"name"`
-	FieldType     string          `json:"field_type"`
-	Unit          string          `json:"unit"`
-	MinValue      *float64        `json:"min_value,omitempty"`
-	MaxValue      *float64        `json:"max_value,omitempty"`
-	Options       json.RawMessage `json:"options"`
-	IsProvisional bool            `json:"is_provisional"`
-	SortOrder     int             `json:"sort_order"`
+	ID            uint64              `json:"id"`
+	CheckupTypeID uint64              `json:"checkup_type_id"`
+	Name          string              `json:"name"`
+	FieldType     string              `json:"field_type"`
+	Unit          string              `json:"unit"`
+	MinValue      *model.ExactNumeric `json:"min_value,omitempty"`
+	MaxValue      *model.ExactNumeric `json:"max_value,omitempty"`
+	Options       json.RawMessage     `json:"options"`
+	IsProvisional bool                `json:"is_provisional"`
+	SortOrder     int                 `json:"sort_order"`
 }
 
 func toCheckupTypeFieldResponse(f *model.CheckupTypeField) checkupTypeFieldResponse {
@@ -42,19 +42,19 @@ func toCheckupTypeFieldResponse(f *model.CheckupTypeField) checkupTypeFieldRespo
 
 // checkupFieldResultResponse は健診結果値レスポンス。
 type checkupFieldResultResponse struct {
-	ID                 uint64   `json:"id"`
-	CheckupID          uint64   `json:"checkup_id"`
-	CheckupTypeFieldID *uint64  `json:"checkup_type_field_id,omitempty"`
-	FieldName          string   `json:"field_name"`
-	FieldType          string   `json:"field_type"`
-	Unit               string   `json:"unit"`
-	ValueNumber        *float64 `json:"value_number,omitempty"`
-	ValueText          string   `json:"value_text"`
-	ValueBool          *bool    `json:"value_bool,omitempty"`
-	ValueList          []string `json:"value_list"`
-	IsAbnormal         bool     `json:"is_abnormal"`
-	Status             string   `json:"status"`
-	SortOrder          int      `json:"sort_order"`
+	ID                 uint64              `json:"id"`
+	CheckupID          uint64              `json:"checkup_id"`
+	CheckupTypeFieldID *uint64             `json:"checkup_type_field_id,omitempty"`
+	FieldName          string              `json:"field_name"`
+	FieldType          string              `json:"field_type"`
+	Unit               string              `json:"unit"`
+	ValueNumber        *model.ExactNumeric `json:"value_number,omitempty"`
+	ValueText          string              `json:"value_text"`
+	ValueBool          *bool               `json:"value_bool,omitempty"`
+	ValueList          []string            `json:"value_list"`
+	IsAbnormal         bool                `json:"is_abnormal"`
+	Status             string              `json:"status"`
+	SortOrder          int                 `json:"sort_order"`
 }
 
 func toCheckupFieldResultResponse(r *model.CheckupFieldResult) checkupFieldResultResponse {

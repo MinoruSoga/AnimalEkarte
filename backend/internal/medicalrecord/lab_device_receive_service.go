@@ -2,6 +2,7 @@ package medicalrecord
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -496,12 +497,12 @@ func (s *labDeviceReceiveService) PutStation(
 	row := &model.LabDeviceStationSettings{
 		ClinicID:       clinicID,
 		WaitTTLSeconds: current.WaitTTLSeconds,
-		SlotsJSON:      slotsJSON,
+		SlotsJSON:      json.RawMessage(slotsJSON),
 	}
 	if err := s.repo.UpsertStation(ctx, row); err != nil {
 		return nil, err
 	}
-	return &LabDeviceStationView{WaitTTLSeconds: row.WaitTTLSeconds, SlotsJSON: row.SlotsJSON}, nil
+	return &LabDeviceStationView{WaitTTLSeconds: row.WaitTTLSeconds, SlotsJSON: string(row.SlotsJSON)}, nil
 }
 
 func (s *labDeviceReceiveService) ensureStation(ctx context.Context, clinicID uint64) (*LabDeviceStationView, error) {
@@ -513,7 +514,7 @@ func (s *labDeviceReceiveService) ensureStation(ctx context.Context, clinicID ui
 		row = &model.LabDeviceStationSettings{
 			ClinicID:       clinicID,
 			WaitTTLSeconds: labDeviceDefaultWaitTTLSeconds,
-			SlotsJSON:      labDeviceDefaultSlotsJSON,
+			SlotsJSON:      json.RawMessage(labDeviceDefaultSlotsJSON),
 		}
 		if err := s.repo.UpsertStation(ctx, row); err != nil {
 			return nil, err
@@ -523,7 +524,7 @@ func (s *labDeviceReceiveService) ensureStation(ctx context.Context, clinicID ui
 	if ttl < labDeviceMinWaitTTLSeconds || ttl > labDeviceMaxWaitTTLSeconds {
 		ttl = labDeviceDefaultWaitTTLSeconds
 	}
-	slots := row.SlotsJSON
+	slots := string(row.SlotsJSON)
 	if slots == "" {
 		slots = labDeviceDefaultSlotsJSON
 	}

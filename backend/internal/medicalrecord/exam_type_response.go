@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type examTypeItemResponse struct {
@@ -21,13 +22,13 @@ type examTypeItemResponse struct {
 }
 
 type examReferenceRangeResponse struct {
-	ID              uint64   `json:"id"`
-	ExamTypeFieldID uint64   `json:"exam_type_field_id"`
-	AnimalSpeciesID uint64   `json:"animal_species_id"`
-	RefMin          *float64 `json:"ref_min,omitempty"`
-	RefMax          *float64 `json:"ref_max,omitempty"`
-	QualitativeMin  *string  `json:"qualitative_min,omitempty"`
-	QualitativeMax  *string  `json:"qualitative_max,omitempty"`
+	ID              uint64              `json:"id"`
+	ExamTypeFieldID uint64              `json:"exam_type_field_id"`
+	AnimalSpeciesID uint64              `json:"animal_species_id"`
+	RefMin          *model.ExactNumeric `json:"ref_min,omitempty"`
+	RefMax          *model.ExactNumeric `json:"ref_max,omitempty"`
+	QualitativeMin  *string             `json:"qualitative_min,omitempty"`
+	QualitativeMax  *string             `json:"qualitative_max,omitempty"`
 }
 
 type examTypeResponse struct {
@@ -76,7 +77,7 @@ func toExamTypeItemResponseWithRanges(
 		InspectionValue: item.InspectionValue,
 		NormalValue:     item.NormalValue,
 		Unit:            item.Unit,
-		SortOrder:       item.SortOrder,
+		SortOrder:       sharedkernel.SortOrderValue(item.SortOrder),
 		CreatedAt:       httpapi.LocalTime(item.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(item.UpdatedAt),
 		ReferenceRanges: rangeResponses,
@@ -103,7 +104,7 @@ func toExaminationTypeResponseWithRanges(
 		IsActive:               et.IsActive,
 		Description:            et.Description,
 		ParentID:               et.ParentID,
-		SortOrder:              et.SortOrder,
+		SortOrder:              sharedkernel.SortOrderValue(et.SortOrder),
 		IsNonInsurance:         et.IsNonInsurance,
 		IsBillDiscountExcluded: et.IsBillDiscountExcluded,
 		Version:                et.Version,

@@ -20,7 +20,6 @@ type createReservationTypeLiffRequest struct {
 func (r *createReservationTypeLiffRequest) toServiceInput() *CreateReservationTypeLiffInput {
 	return &CreateReservationTypeLiffInput{
 		Name:                 r.Name,
-		Color:                r.Color,
 		Description:          r.Description,
 		SortOrder:            r.SortOrder,
 		DurationMinutes:      r.DurationMinutes,
@@ -53,7 +52,6 @@ type updateReservationTypeLiffRequest struct {
 func (r *updateReservationTypeLiffRequest) toServiceInput() *UpdateReservationTypeLiffInput {
 	return &UpdateReservationTypeLiffInput{
 		Name:                 r.Name,
-		Color:                r.Color,
 		Description:          r.Description,
 		SortOrder:            r.SortOrder,
 		DurationMinutes:      r.DurationMinutes,
@@ -74,4 +72,12 @@ type patchReservationTypeLiffStatusRequest struct {
 
 type patchReservationTypeLiffSortOrderRequest struct {
 	Direction string `json:"direction" binding:"required,oneof=up down"`
+}
+
+func (r *createReservationTypeLiffRequest) retiredFieldError() error {
+	return retiredReservationTypeFieldError(r.Color != "", false)
+}
+
+func (r *updateReservationTypeLiffRequest) retiredFieldError() error {
+	return retiredReservationTypeFieldError(r.Color != nil, false)
 }

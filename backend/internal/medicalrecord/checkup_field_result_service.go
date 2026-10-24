@@ -22,18 +22,39 @@ type UpsertCheckupFieldResultInput struct {
 }
 
 // computeCheckupNumberStatus は number 型の値と基準値から status / is_abnormal を導出する
-// （EXAM-001 の computeExamResultStatus と同方針。値は *float64）。
-func computeCheckupNumberStatus(value, refMin, refMax *float64) (model.ExaminationResultStatus, bool) {
+// （EXAM-001 の computeExamResultStatus と同方針。値は exact の厳密比較で、比較できない値は error）。
+func computeCheckupNumberStatus(value, refMin, refMax *model.ExactNumeric) (model.ExaminationResultStatus, bool, error) {
 	if value == nil {
-		return model.ExaminationResultStatusNormal, false
+		return model.ExaminationResultStatusNormal, false, nil
 	}
-	if refMin != nil && *value < *refMin {
-		return model.ExaminationResultStatusLow, true
+	if refMin != nil {
+		cmp, err := compareCheckupNumber(value, refMin)
+		if err != nil {
+			return model.ExaminationResultStatusNormal, false, err
+		}
+		if cmp < 0 {
+			return model.ExaminationResultStatusLow, true, nil
+		}
 	}
-	if refMax != nil && *value > *refMax {
-		return model.ExaminationResultStatusHigh, true
+	if refMax != nil {
+		cmp, err := compareCheckupNumber(value, refMax)
+		if err != nil {
+			return model.ExaminationResultStatusNormal, false, err
+		}
+		if cmp > 0 {
+			return model.ExaminationResultStatusHigh, true, nil
+		}
 	}
-	return model.ExaminationResultStatusNormal, false
+	return model.ExaminationResultStatusNormal, false, nil
+}
+
+// compareCheckupNumber は value と基準値を exact で比較する。比較できない値（非有限）は error（fail-closed）。
+func compareCheckupNumber(value, bound *model.ExactNumeric) (int, error) {
+	cmp, ok := value.Cmp(*bound)
+	if !ok {
+		return 0, apperrors.WrapInternalServerError("健診結果の数値を基準値と比較できません")
+	}
+	return cmp, nil
 }
 
 // CheckupFieldResultService は健診パッケージのフィールド定義取得・結果値の取得/置換を提供する。
@@ -141,10 +162,18 @@ func buildCheckupFieldResults(clinicID, checkupID uint64, fields []model.Checkup
 		}
 		switch field.FieldType {
 		case model.CheckupFieldTypeNumber:
-			result.ValueNumber = in.ValueNumber
+			// float64 の request 値を exact 列へ橋渡しする（NaN・±Inf は 400）。nil（未入力）は nil のまま。
+			valueNumber, err := exactNumericPtrFromFloatPtr(in.ValueNumber, "value_number")
+			if err != nil {
+				return nil, err
+			}
+			result.ValueNumber = valueNumber
 			result.RefMin = field.MinValue
 			result.RefMax = field.MaxValue
-			result.Status, result.IsAbnormal = computeCheckupNumberStatus(in.ValueNumber, field.MinValue, field.MaxValue)
+			result.Status, result.IsAbnormal, err = computeCheckupNumberStatus(valueNumber, field.MinValue, field.MaxValue)
+			if err != nil {
+				return nil, err
+			}
 		case model.CheckupFieldTypeBoolean:
 			result.ValueBool = in.ValueBool
 		case model.CheckupFieldTypeMultiSelect, model.CheckupFieldTypeChecklist:

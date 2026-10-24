@@ -5,6 +5,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // DiagnosisTypeResponse and DiagnosisNameResponse are exported because clinical-plan
@@ -28,7 +29,7 @@ func ToDiagnosisTypeResponse(c *model.DiagnosisType) DiagnosisTypeResponse {
 		Name:        c.Name,
 		IsActive:    c.IsActive,
 		Description: c.Description,
-		SortOrder:   c.SortOrder,
+		SortOrder:   sharedkernel.SortOrderValue(c.SortOrder),
 		CreatedAt:   httpapi.LocalTime(c.CreatedAt),
 		UpdatedAt:   httpapi.LocalTime(c.UpdatedAt),
 	}
@@ -56,7 +57,7 @@ func ToDiagnosisNameResponse(n *model.DiagnosisName) DiagnosisNameResponse {
 		IsActive:        n.IsActive,
 		Description:     n.Description,
 		DiagnosisTypeID: n.DiagnosisTypeID,
-		SortOrder:       n.SortOrder,
+		SortOrder:       sharedkernel.SortOrderValue(n.SortOrder),
 		CreatedAt:       httpapi.LocalTime(n.CreatedAt),
 		UpdatedAt:       httpapi.LocalTime(n.UpdatedAt),
 	}

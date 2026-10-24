@@ -33,8 +33,8 @@ type ExaminationPrintItem struct {
 	Result          string
 	Unit            string
 	ReferenceValue  string
-	RefMin          *float64
-	RefMax          *float64
+	RefMin          *model.ExactNumeric
+	RefMax          *model.ExactNumeric
 	QualitativeMin  *string
 	QualitativeMax  *string
 	IsAssessed      bool
@@ -53,7 +53,7 @@ type ExaminationPrintSnapshot struct {
 	Status          model.ExaminationStatus
 	PrintBoundary   ExaminationPrintBoundary
 	Watermark       string
-	Date            time.Time
+	Date            *time.Time
 	ResultSummary   string
 	Machine         string
 	ExamTypeID      uint64
@@ -126,8 +126,8 @@ func (r *examinationRepository) FindPrintSnapshot(
 			Result:          item.Result,
 			Unit:            item.Unit,
 			ReferenceValue:  item.ReferenceValue,
-			RefMin:          cloneOptionalFloat64(item.RefMin),
-			RefMax:          cloneOptionalFloat64(item.RefMax),
+			RefMin:          cloneOptionalExactNumeric(item.RefMin),
+			RefMax:          cloneOptionalExactNumeric(item.RefMax),
 			QualitativeMin:  cloneOptionalString(item.QualitativeMin),
 			QualitativeMax:  cloneOptionalString(item.QualitativeMax),
 			IsAssessed:      item.IsAssessed,
@@ -189,22 +189,22 @@ func (s *examinationService) GetPrintSnapshot(
 }
 
 type examinationPrintItemResponse struct {
-	ID              uint64   `json:"id"`
-	ExamTypeFieldID *uint64  `json:"exam_type_field_id,omitempty"`
-	Name            string   `json:"name"`
-	InspectionValue string   `json:"inspection_value"`
-	NormalValue     string   `json:"normal_value"`
-	Result          string   `json:"result"`
-	Unit            string   `json:"unit"`
-	ReferenceValue  string   `json:"reference_value"`
-	RefMin          *float64 `json:"ref_min,omitempty"`
-	RefMax          *float64 `json:"ref_max,omitempty"`
-	QualitativeMin  *string  `json:"qualitative_min,omitempty"`
-	QualitativeMax  *string  `json:"qualitative_max,omitempty"`
-	IsAssessed      bool     `json:"is_assessed"`
-	IsAbnormal      bool     `json:"is_abnormal"`
-	Status          string   `json:"status"`
-	SortOrder       int      `json:"sort_order"`
+	ID              uint64              `json:"id"`
+	ExamTypeFieldID *uint64             `json:"exam_type_field_id,omitempty"`
+	Name            string              `json:"name"`
+	InspectionValue string              `json:"inspection_value"`
+	NormalValue     string              `json:"normal_value"`
+	Result          string              `json:"result"`
+	Unit            string              `json:"unit"`
+	ReferenceValue  string              `json:"reference_value"`
+	RefMin          *model.ExactNumeric `json:"ref_min,omitempty"`
+	RefMax          *model.ExactNumeric `json:"ref_max,omitempty"`
+	QualitativeMin  *string             `json:"qualitative_min,omitempty"`
+	QualitativeMax  *string             `json:"qualitative_max,omitempty"`
+	IsAssessed      bool                `json:"is_assessed"`
+	IsAbnormal      bool                `json:"is_abnormal"`
+	Status          string              `json:"status"`
+	SortOrder       int                 `json:"sort_order"`
 }
 
 type examinationPrintDisplayResponse struct {
@@ -225,7 +225,7 @@ type examinationPrintSnapshotResponse struct {
 	Status          string                          `json:"status"`
 	PrintBoundary   string                          `json:"print_boundary"`
 	Watermark       string                          `json:"watermark,omitempty"`
-	Date            time.Time                       `json:"date"`
+	Date            *time.Time                      `json:"date"`
 	ResultSummary   string                          `json:"result_summary"`
 	Machine         string                          `json:"machine"`
 	ExamTypeID      uint64                          `json:"exam_type_id"`
@@ -268,7 +268,7 @@ func toExaminationPrintSnapshotResponse(snapshot *ExaminationPrintSnapshot) exam
 		Status:          string(snapshot.Status),
 		PrintBoundary:   string(snapshot.PrintBoundary),
 		Watermark:       snapshot.Watermark,
-		Date:            httpapi.LocalTime(snapshot.Date),
+		Date:            httpapi.LocalTimePtr(snapshot.Date),
 		ResultSummary:   snapshot.ResultSummary,
 		Machine:         snapshot.Machine,
 		ExamTypeID:      snapshot.ExamTypeID,

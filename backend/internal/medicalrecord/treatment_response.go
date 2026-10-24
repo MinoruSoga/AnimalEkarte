@@ -7,27 +7,28 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type treatmentResponse struct {
-	ID              string  `json:"id"`
-	MedicalRecordID string  `json:"medical_record_id"`
-	ItemType        string  `json:"item_type"`
-	ConsultationID  *string `json:"consultation_id,omitempty"`
-	ProcedureID     *string `json:"procedure_id,omitempty"`
-	MedicineID      *string `json:"medicine_id,omitempty"`
-	InventoryID     *string `json:"inventory_id,omitempty"`
-	UnitPrice       int64   `json:"unit_price"`
-	Quantity        float64 `json:"quantity"`
-	Selected        bool    `json:"is_selected"`
-	Status          string  `json:"status"`
-	Content         string  `json:"content"`
-	Memo            string  `json:"memo"`
-	AdminRoute      string  `json:"admin_route"`
-	Insurance       *bool   `json:"is_insurance"`
-	DiscountRate    float64 `json:"discount_rate"`
-	DiscountAmount  int64   `json:"discount_amount"`
-	SortOrder       int     `json:"sort_order"`
+	ID              string              `json:"id"`
+	MedicalRecordID string              `json:"medical_record_id"`
+	ItemType        string              `json:"item_type"`
+	ConsultationID  *string             `json:"consultation_id,omitempty"`
+	ProcedureID     *string             `json:"procedure_id,omitempty"`
+	MedicineID      *string             `json:"medicine_id,omitempty"`
+	InventoryID     *string             `json:"inventory_id,omitempty"`
+	UnitPrice       *int64              `json:"unit_price"`
+	Quantity        *model.ExactNumeric `json:"quantity"`
+	Selected        *bool               `json:"is_selected"`
+	Status          *string             `json:"status"`
+	Content         string              `json:"content"`
+	Memo            string              `json:"memo"`
+	AdminRoute      string              `json:"admin_route"`
+	Insurance       *bool               `json:"is_insurance"`
+	DiscountRate    *model.ExactNumeric `json:"discount_rate"`
+	DiscountAmount  *int64              `json:"discount_amount"`
+	SortOrder       int                 `json:"sort_order"`
 	// EMR-488: 薬剤3値（1回製剤量+単位・用法・処方総量+単位）。
 	// NULL は null、0 は 0 として出力する（omitempty を付けず未保存と 0 を区別する）。
 	AdministrationDoseAmount   *model.ExactNumeric `json:"administration_dose_amount"`
@@ -36,14 +37,14 @@ type treatmentResponse struct {
 	PrescriptionTotalAmount    *model.ExactNumeric `json:"prescription_total_amount"`
 	PrescriptionTotalUnit      *string             `json:"prescription_total_unit"`
 	// #201 投与量自動計算の保存時スナップショット（medicine 明細・per_weight 計算時のみ値あり）
-	DoseWeightKg      *float64        `json:"dose_weight_kg,omitempty"`
-	DoseWeightSource  *string         `json:"dose_weight_source,omitempty"`
-	DoseAmountMg      *float64        `json:"dose_amount_mg,omitempty"`
-	DoseAmountUnit    *string         `json:"dose_amount_unit,omitempty"`
-	DoseParamSnapshot json.RawMessage `json:"dose_param_snapshot,omitempty"`
-	Version           int             `json:"version"`
-	CreatedAt         time.Time       `json:"created_at"`
-	UpdatedAt         time.Time       `json:"updated_at"`
+	DoseWeightKg      *model.ExactNumeric `json:"dose_weight_kg,omitempty"`
+	DoseWeightSource  *string             `json:"dose_weight_source,omitempty"`
+	DoseAmountMg      *model.ExactNumeric `json:"dose_amount_mg,omitempty"`
+	DoseAmountUnit    *string             `json:"dose_amount_unit,omitempty"`
+	DoseParamSnapshot json.RawMessage     `json:"dose_param_snapshot,omitempty"`
+	Version           int                 `json:"version"`
+	CreatedAt         time.Time           `json:"created_at"`
+	UpdatedAt         time.Time           `json:"updated_at"`
 }
 
 func toTreatmentResponse(t *model.Treatment) treatmentResponse {
@@ -59,14 +60,14 @@ func toTreatmentResponse(t *model.Treatment) treatmentResponse {
 		UnitPrice:                  t.UnitPrice,
 		Quantity:                   t.Quantity,
 		Selected:                   t.IsSelected,
-		Status:                     string(t.Status),
+		Status:                     nullableTextFromStored(t.Status),
 		Content:                    t.Content,
 		Memo:                       t.Memo,
 		AdminRoute:                 t.AdminRoute,
 		Insurance:                  t.IsInsurance,
 		DiscountRate:               t.DiscountRate,
 		DiscountAmount:             t.DiscountAmount,
-		SortOrder:                  t.SortOrder,
+		SortOrder:                  sharedkernel.SortOrderValue(t.SortOrder),
 		AdministrationDoseAmount:   t.AdministrationDoseAmount,
 		AdministrationDoseUnit:     t.AdministrationDoseUnit,
 		AdministrationInstructions: t.AdministrationInstructions,
@@ -76,32 +77,41 @@ func toTreatmentResponse(t *model.Treatment) treatmentResponse {
 		DoseWeightSource:           t.DoseWeightSource,
 		DoseAmountMg:               t.DoseAmountMg,
 		DoseAmountUnit:             t.DoseAmountUnit,
-		DoseParamSnapshot:          t.DoseParamSnapshot,
+		DoseParamSnapshot:          rawMessageFromStored(t.DoseParamSnapshot),
 		Version:                    t.Version,
 		CreatedAt:                  httpapi.LocalTime(t.CreatedAt),
 		UpdatedAt:                  httpapi.LocalTime(t.UpdatedAt),
 	}
 }
 
+// rawMessageFromStored は NULL 許容の jsonb 保存値を応答用の RawMessage へ写す。
+// nil（未記録）は nil（omitempty で欠落）のまま返し、空 JSON で補完しない。バイト列は変更しない。
+func rawMessageFromStored(p *json.RawMessage) json.RawMessage {
+	if p == nil {
+		return nil
+	}
+	return *p
+}
+
 // petTreatmentHistoryResponse は #158 飼主レポート用のペット横断治療履歴 1 行。
 // 診療日 (medical_records.date) と薬剤/処置の名称・麻酔種別を含めて表示用に整形する。
 type petTreatmentHistoryResponse struct {
-	ID              string     `json:"id"`
-	MedicalRecordID string     `json:"medical_record_id"`
-	Date            *time.Time `json:"date"`
-	ItemType        string     `json:"item_type"`
-	Content         string     `json:"content"`
-	Memo            string     `json:"memo"`
-	AdminRoute      string     `json:"admin_route"`
-	Quantity        float64    `json:"quantity"`
-	UnitPrice       int64      `json:"unit_price"`
-	Status          string     `json:"status"`
-	MedicineID      *string    `json:"medicine_id,omitempty"`
-	MedicineName    *string    `json:"medicine_name,omitempty"`
-	ProcedureID     *string    `json:"procedure_id,omitempty"`
-	ProcedureName   *string    `json:"procedure_name,omitempty"`
-	Anesthesia      *string    `json:"anesthesia,omitempty"`
-	IsSurgery       *bool      `json:"is_surgery,omitempty"`
+	ID              string              `json:"id"`
+	MedicalRecordID string              `json:"medical_record_id"`
+	Date            *time.Time          `json:"date"`
+	ItemType        string              `json:"item_type"`
+	Content         string              `json:"content"`
+	Memo            string              `json:"memo"`
+	AdminRoute      string              `json:"admin_route"`
+	Quantity        *model.ExactNumeric `json:"quantity"`
+	UnitPrice       *int64              `json:"unit_price"`
+	Status          *string             `json:"status"`
+	MedicineID      *string             `json:"medicine_id,omitempty"`
+	MedicineName    *string             `json:"medicine_name,omitempty"`
+	ProcedureID     *string             `json:"procedure_id,omitempty"`
+	ProcedureName   *string             `json:"procedure_name,omitempty"`
+	Anesthesia      *string             `json:"anesthesia,omitempty"`
+	IsSurgery       *bool               `json:"is_surgery,omitempty"`
 }
 
 func toPetTreatmentHistoryResponse(t *model.Treatment) petTreatmentHistoryResponse {
@@ -115,7 +125,7 @@ func toPetTreatmentHistoryResponse(t *model.Treatment) petTreatmentHistoryRespon
 		AdminRoute:      t.AdminRoute,
 		Quantity:        t.Quantity,
 		UnitPrice:       t.UnitPrice,
-		Status:          string(t.Status),
+		Status:          nullableTextFromStored(t.Status),
 		MedicineID:      masterIDs.medicine,
 		ProcedureID:     masterIDs.procedure,
 	}
@@ -130,8 +140,11 @@ func toPetTreatmentHistoryResponse(t *model.Treatment) petTreatmentHistoryRespon
 	if masterIDs.procedure != nil && t.Procedure != nil {
 		name := t.Procedure.Name
 		resp.ProcedureName = &name
-		anesthesia := string(t.Procedure.Anesthesia)
-		resp.Anesthesia = &anesthesia
+		// 麻酔種別が未記録（NULL）なら "none" で補完せず null のまま返す。
+		if t.Procedure.Anesthesia != nil {
+			anesthesia := string(*t.Procedure.Anesthesia)
+			resp.Anesthesia = &anesthesia
+		}
 		isSurgery := t.Procedure.IsSurgery
 		resp.IsSurgery = &isSurgery
 	}

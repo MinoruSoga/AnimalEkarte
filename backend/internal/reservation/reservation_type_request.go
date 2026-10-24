@@ -1,6 +1,7 @@
 package reservation
 
 import (
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
@@ -32,13 +33,11 @@ type createReservationTypeRequest struct {
 func (r *createReservationTypeRequest) toServiceInput() *CreateReservationTypeInput {
 	return &CreateReservationTypeInput{
 		Name:                   r.Name,
-		Color:                  r.Color,
 		IsActive:               resolveBoolDefaultTrue(r.IsActive),
 		Description:            r.Description,
 		SortOrder:              r.SortOrder,
 		GroupID:                r.GroupID,
 		ParentID:               r.ParentID,
-		Category:               r.Category,
 		ReservationDisplayName: r.ReservationDisplayName,
 		DurationMinutes:        r.DurationMinutes,
 		MaxConcurrent:          r.MaxConcurrent,
@@ -81,7 +80,6 @@ type updateReservationTypeRequest struct {
 func (r *updateReservationTypeRequest) toServiceInput() *UpdateReservationTypeInput {
 	return &UpdateReservationTypeInput{
 		Name:                   r.Name,
-		Color:                  r.Color,
 		IsActive:               r.IsActive,
 		Description:            r.Description,
 		SortOrder:              r.SortOrder,
@@ -89,7 +87,6 @@ func (r *updateReservationTypeRequest) toServiceInput() *UpdateReservationTypeIn
 		ClearGroupID:           r.ClearGroupID,
 		ParentID:               r.ParentID,
 		ClearParentID:          r.ClearParentID,
-		Category:               r.Category,
 		ReservationDisplayName: r.ReservationDisplayName,
 		DurationMinutes:        r.DurationMinutes,
 		MaxConcurrent:          r.MaxConcurrent,
@@ -107,7 +104,7 @@ func (r *updateReservationTypeRequest) toServiceInput() *UpdateReservationTypeIn
 // CreateUnavailableTimeRequest は予約不可時間の作成リクエスト
 type createUnavailableTimeRequest struct {
 	UnavailableType string  `json:"unavailable_type" binding:"required,oneof=weekly specific"`
-	DayOfWeek       *int8   `json:"day_of_week"`
+	DayOfWeek       *int16  `json:"day_of_week"`
 	SpecificDate    *string `json:"specific_date"` // "YYYY-MM-DD"
 	StartTime       string  `json:"start_time"     binding:"required"`
 	EndTime         string  `json:"end_time"       binding:"required"`
@@ -133,7 +130,7 @@ func (r createUnavailableTimeRequest) toServiceInput() (CreateUnavailableTimeInp
 // CreateAvailableSlotRequest は予約可能開始時刻の作成リクエスト
 type createAvailableSlotRequest struct {
 	AvailableType string  `json:"available_type" binding:"required,oneof=weekly specific"`
-	DayOfWeek     *int8   `json:"day_of_week"`
+	DayOfWeek     *int16  `json:"day_of_week"`
 	SpecificDate  *string `json:"specific_date"` // "YYYY-MM-DD"
 	StartTime     string  `json:"start_time"     binding:"required"`
 	IsActive      *bool   `json:"is_active"`
@@ -156,7 +153,23 @@ func (r createAvailableSlotRequest) toServiceInput() (CreateAvailableSlotInput, 
 	return input, nil
 }
 
-// LinkOccupationRequest は職種紐付けリクエスト
-type linkOccupationRequest struct {
-	OccupationID uint64 `json:"occupation_id" binding:"required"`
+// retiredReservationTypeFieldError は廃止された color / category の書込を拒否する（400）。
+// color は予約区分グループの色、category は business_kind に置き換わり（001_init.sql L10878 で列を DROP 済み）、
+// 黙って捨てると利用者が保存済みと思い込む値を失う。null / 空は未送信と同じ扱いにする。
+func retiredReservationTypeFieldError(colorSent, categorySent bool) error {
+	switch {
+	case colorSent:
+		return apperrors.WrapInvalidInput("color は廃止されました。予約区分の色は予約区分グループの色を使用します")
+	case categorySent:
+		return apperrors.WrapInvalidInput("category は廃止されました。業務区分は business_kind で管理します")
+	}
+	return nil
+}
+
+func (r *createReservationTypeRequest) retiredFieldError() error {
+	return retiredReservationTypeFieldError(r.Color != "", r.Category != "")
+}
+
+func (r *updateReservationTypeRequest) retiredFieldError() error {
+	return retiredReservationTypeFieldError(r.Color != nil, r.Category != nil)
 }

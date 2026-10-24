@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func (s *treatmentService) createTreatmentInTx(
@@ -22,6 +23,16 @@ func (s *treatmentService) createTreatmentInTx(
 		return nil, err
 	}
 
+	// quantity / discount_rate は exact 列。検証済みの float64 service 入力を最短10進表現で橋渡しする。
+	quantity, err := exactNumericFromFloat(input.Quantity, "quantity")
+	if err != nil {
+		return nil, err
+	}
+	discountRate, err := exactNumericFromFloat(input.DiscountRate, "discount_rate")
+	if err != nil {
+		return nil, err
+	}
+
 	treatment := &model.Treatment{
 		MedicalRecordID: medicalRecordID,
 		ItemType:        input.ItemType,
@@ -29,17 +40,17 @@ func (s *treatmentService) createTreatmentInTx(
 		ProcedureID:     input.ProcedureID,
 		MedicineID:      input.MedicineID,
 		InventoryID:     input.InventoryID,
-		UnitPrice:       input.UnitPrice,
-		Quantity:        input.Quantity,
-		IsSelected:      input.IsSelected,
-		Status:          status,
+		UnitPrice:       sharedkernel.Ptr(input.UnitPrice),
+		Quantity:        &quantity,
+		IsSelected:      sharedkernel.Ptr(input.IsSelected),
+		Status:          sharedkernel.Ptr(status),
 		Content:         input.Content,
 		Memo:            input.Memo,
 		AdminRoute:      input.AdminRoute,
-		IsInsurance:     input.IsInsurance,
-		DiscountRate:    input.DiscountRate,
-		DiscountAmount:  input.DiscountAmount,
-		SortOrder:       input.SortOrder,
+		IsInsurance:     sharedkernel.Ptr(input.IsInsurance),
+		DiscountRate:    &discountRate,
+		DiscountAmount:  sharedkernel.Ptr(input.DiscountAmount),
+		SortOrder:       sharedkernel.Ptr(input.SortOrder),
 
 		// EMR-488: 薬剤3値。nil は未入力で NULL 保存（推測補完なし・0 は明示 0）。
 		AdministrationDoseAmount:   input.AdministrationDoseAmount,
@@ -147,7 +158,10 @@ func (s *treatmentService) updateTreatmentInTx(
 	var doseMedicineID uint64
 	if doseRelevant {
 		// 親行 + treatment 行ロック取得後の locked snapshot で dose を評価する。
-		effItemType, effMedicineID, effQty := effectiveDoseInputs(current, &effective)
+		effItemType, effMedicineID, effQty, qtyErr := effectiveDoseInputs(current, &effective)
+		if qtyErr != nil {
+			return qtyErr
+		}
 		eval, derr := s.evaluateDoseForSave(txCtx, clinicID, medicalRecordID, effItemType, effMedicineID, effQty)
 		if derr != nil {
 			return derr // species 不一致など fail-closed

@@ -1,17 +1,14 @@
 package reservation
 
 import (
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const (
 	colReservationTypeName                = "name"
-	colReservationTypeColor               = "color"
 	colReservationTypeIsActive            = "is_active"
 	colReservationTypeDescription         = "description"
 	colReservationTypeSortOrder           = "sort_order"
-	colReservationTypeCategory            = "category"
 	colReservationTypeReservationDispName = "reservation_display_name"
 	colReservationTypeDurationMinutes     = "duration_minutes"
 	colReservationTypeMaxConcurrent       = "max_concurrent"
@@ -32,9 +29,6 @@ func buildReservationTypeUpdate(input *UpdateReservationTypeInput) map[string]an
 	if input.Name != nil {
 		fields[colReservationTypeName] = *input.Name
 	}
-	if input.Color != nil {
-		fields[colReservationTypeColor] = *input.Color
-	}
 	if input.IsActive != nil {
 		fields[colReservationTypeIsActive] = *input.IsActive
 	}
@@ -43,9 +37,6 @@ func buildReservationTypeUpdate(input *UpdateReservationTypeInput) map[string]an
 	}
 	if input.SortOrder != nil {
 		fields[colReservationTypeSortOrder] = *input.SortOrder
-	}
-	if input.Category != nil {
-		fields[colReservationTypeCategory] = model.ReservationTypeCategory(*input.Category)
 	}
 	if input.ReservationDisplayName != nil {
 		fields[colReservationTypeReservationDispName] = *input.ReservationDisplayName

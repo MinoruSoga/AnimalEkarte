@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // FE7-1: tygo codegen 対象にするため export（BackendTrimming の生成契約ゲート化・FE-refactor.md
@@ -31,19 +32,19 @@ type TrimmingResponse struct {
 	Status            string    `json:"status"`
 	Source            string    `json:"source"`
 	// トリミング詳細（appointment_trimming_details から flat 化）
-	HasDetail      bool      `json:"has_detail"`
-	CourseID       *uint64   `json:"course_id,omitempty"`
-	StyleRequest   string    `json:"style_request"`
-	BW             *float64  `json:"bw,omitempty"`
-	BWUnit         string    `json:"bw_unit"`
-	BT             *float64  `json:"bt,omitempty"`
-	UsedShampoo    string    `json:"used_shampoo"`
-	UsedRibbon     string    `json:"used_ribbon"`
-	Remarks        string    `json:"remarks"`
-	StyleImage     string    `json:"style_image"`
-	CompletedImage string    `json:"completed_image"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	HasDetail      bool                `json:"has_detail"`
+	CourseID       *uint64             `json:"course_id,omitempty"`
+	StyleRequest   string              `json:"style_request"`
+	BW             *model.ExactNumeric `json:"bw,omitempty"`
+	BWUnit         string              `json:"bw_unit"`
+	BT             *model.ExactNumeric `json:"bt,omitempty"`
+	UsedShampoo    string              `json:"used_shampoo"`
+	UsedRibbon     string              `json:"used_ribbon"`
+	Remarks        string              `json:"remarks"`
+	StyleImage     string              `json:"style_image"`
+	CompletedImage string              `json:"completed_image"`
+	CreatedAt      time.Time           `json:"created_at"`
+	UpdatedAt      time.Time           `json:"updated_at"`
 	// リレーション
 	// FE7-2: Pet/Staff は petSummaryResponse/staffSummaryResponse（11+18箇所で共有される
 	// 非公開型）を参照しており tygo が解決できないため tstype:"-" で生成対象から除外する
@@ -55,6 +56,9 @@ type TrimmingResponse struct {
 	Options []TrimmingOptionSummaryResponse `json:"options"`
 }
 
+// toTrimmingResponse は予約のトリミング詳細を平らな DTO にする。コースとオプションは booking snapshot
+// （trimming_booking_revisions 系）にあり reader が未接続（EMR-480）のため常に unknown とする:
+// course_id / course は省略し、options は null。bw_unit が NULL（未記録）なら空文字で、"Kg" で補完しない。
 func toTrimmingResponse(appt *model.Reservation) TrimmingResponse {
 	resp := TrimmingResponse{
 		ID:                appt.ID,
@@ -64,52 +68,27 @@ func toTrimmingResponse(appt *model.Reservation) TrimmingResponse {
 		EndTime:           localTime(appt.EndTime),
 		PetID:             appt.PetID,
 		StaffID:           appt.DoctorID,
-		Status:            string(appt.Status),
+		Status:            sharedkernel.TextOrEmpty(appt.Status),
 		Source:            string(appt.Source),
 		CreatedAt:         localTime(appt.CreatedAt),
 		UpdatedAt:         localTime(appt.UpdatedAt),
 		Pet:               toPetSummary(appt.Pet),
 		Staff:             toStaffSummary(appt.Doctor),
-		Options:           make([]TrimmingOptionSummaryResponse, 0),
-		// TrimmingDetail が nil の異常データ向けデフォルト（モデルデフォルトと一致）
-		BWUnit: "Kg",
 	}
 
 	if appt.TrimmingDetail != nil {
 		d := appt.TrimmingDetail
 		resp.HasDetail = true
-		resp.CourseID = d.CourseID
 		resp.StyleRequest = d.StyleRequest
 		resp.BW = d.BodyWeight
-		resp.BWUnit = string(d.BWUnit)
+		resp.BWUnit = sharedkernel.TextOrEmpty(d.BWUnit)
 		resp.BT = d.BodyTemperature
 		resp.UsedShampoo = d.UsedShampoo
 		resp.UsedRibbon = d.UsedRibbon
 		resp.Remarks = d.Remarks
 		resp.StyleImage = d.StyleImage
 		resp.CompletedImage = d.CompletedImage
-
-		if d.Course != nil {
-			resp.Course = &TrimmingCourseSummaryResponse{
-				ID:    d.Course.ID,
-				Name:  d.Course.Name,
-				Price: coursePriceOrZero(d.Course.Price),
-			}
-		}
-		for i := range d.Options {
-			resp.Options = append(resp.Options, TrimmingOptionSummaryResponse{
-				ID:   d.Options[i].ID,
-				Name: d.Options[i].Name,
-			})
-		}
 	}
 
 	return resp
-}
-
-func coursePriceOrZero(price *int64) int64 {
-	if price == nil {
-		return 0
-	}
-	return *price
 }

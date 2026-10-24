@@ -43,19 +43,19 @@ type labExamReportDetailResponse struct {
 // labExamResultItemResponse は labExamReportDetailResponse.Items の wire 形状。
 // json タグは model.LabExamResultItem から移設したもの（P7）。
 type labExamResultItemResponse struct {
-	Name            string   `json:"name"`
-	InspectionValue string   `json:"inspection_value"`
-	NormalValue     string   `json:"normal_value"`
-	Unit            string   `json:"unit"`
-	ReferenceValue  string   `json:"reference_value"`
-	RefMin          *float64 `json:"ref_min,omitempty"`
-	RefMax          *float64 `json:"ref_max,omitempty"`
-	QualitativeMin  *string  `json:"qualitative_min,omitempty"`
-	QualitativeMax  *string  `json:"qualitative_max,omitempty"`
-	IsAssessed      bool     `json:"is_assessed"`
-	IsAbnormal      bool     `json:"is_abnormal"`
-	Status          string   `json:"status"`
-	SortOrder       int      `json:"sort_order"`
+	Name            string              `json:"name"`
+	InspectionValue string              `json:"inspection_value"`
+	NormalValue     string              `json:"normal_value"`
+	Unit            string              `json:"unit"`
+	ReferenceValue  string              `json:"reference_value"`
+	RefMin          *model.ExactNumeric `json:"ref_min,omitempty"`
+	RefMax          *model.ExactNumeric `json:"ref_max,omitempty"`
+	QualitativeMin  *string             `json:"qualitative_min,omitempty"`
+	QualitativeMax  *string             `json:"qualitative_max,omitempty"`
+	IsAssessed      bool                `json:"is_assessed"`
+	IsAbnormal      bool                `json:"is_abnormal"`
+	Status          string              `json:"status"`
+	SortOrder       int                 `json:"sort_order"`
 }
 
 // toLabExamReportSummaryResponse は model.LabExamReportSummary を 1:1 でコピーする（変換ロジックなし）。

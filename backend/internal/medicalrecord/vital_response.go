@@ -9,18 +9,18 @@ import (
 )
 
 type vitalResponse struct {
-	ID              string               `json:"id"`
-	MedicalRecordID *string              `json:"medical_record_id,omitempty"`
-	RecordedAt      time.Time            `json:"recorded_at"`
-	StaffID         *string              `json:"staff_id,omitempty"`
-	Temperature     *float64             `json:"temperature,omitempty"`
-	HeartRate       *int                 `json:"heart_rate,omitempty"`
-	RespirationRate *int                 `json:"respiration_rate,omitempty"`
-	Weight          *float64             `json:"weight,omitempty"`
-	WeightUnit      model.BodyWeightUnit `json:"weight_unit"`
-	Notes           string               `json:"notes"`
-	Version         int                  `json:"version"`
-	CreatedAt       time.Time            `json:"created_at"`
+	ID              string                `json:"id"`
+	MedicalRecordID *string               `json:"medical_record_id,omitempty"`
+	RecordedAt      time.Time             `json:"recorded_at"`
+	StaffID         *string               `json:"staff_id,omitempty"`
+	Temperature     *model.ExactNumeric   `json:"temperature,omitempty"`
+	HeartRate       *int                  `json:"heart_rate,omitempty"`
+	RespirationRate *int                  `json:"respiration_rate,omitempty"`
+	Weight          *model.ExactNumeric   `json:"weight,omitempty"`
+	WeightUnit      *model.BodyWeightUnit `json:"weight_unit"`
+	Notes           string                `json:"notes"`
+	Version         int                   `json:"version"`
+	CreatedAt       time.Time             `json:"created_at"`
 }
 
 func toVitalResponse(v *model.VitalRecord) vitalResponse {

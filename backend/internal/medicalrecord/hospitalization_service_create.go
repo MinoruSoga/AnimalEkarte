@@ -81,19 +81,26 @@ func (s *hospitalizationService) createNestedTreatmentPlansInTx(
 		if planInput.TreatmentContent == "" {
 			return apperrors.WrapInvalidInput("treatment_content is required")
 		}
-		subtotal := computeTreatmentPlanSubtotal(planInput.UnitPrice, planInput.Quantity, planInput.DiscountRate, planInput.DiscountAmount)
+		// quantity / discount_rate は exact 列。検証済みの float64 request 値を最短10進表現で橋渡しする。
+		quantity, err := exactNumericFromFloat(planInput.Quantity, "quantity")
+		if err != nil {
+			return err
+		}
+		discountRate, err := exactNumericFromFloat(planInput.DiscountRate, "discount_rate")
+		if err != nil {
+			return err
+		}
 		plan := &model.TreatmentPlan{
 			ClinicID:          clinicID,
 			HospitalizationID: &hospID,
 			TreatmentContent:  planInput.TreatmentContent,
 			Memo:              planInput.Memo,
-			IsInsurance:       planInput.IsInsurance,
-			UnitPrice:         planInput.UnitPrice,
-			Quantity:          planInput.Quantity,
-			DiscountRate:      planInput.DiscountRate,
-			DiscountAmount:    planInput.DiscountAmount,
-			Subtotal:          subtotal,
-			SortOrder:         planInput.SortOrder,
+			IsInsurance:       sharedkernel.Ptr(planInput.IsInsurance),
+			UnitPrice:         sharedkernel.Ptr(planInput.UnitPrice),
+			Quantity:          &quantity,
+			DiscountRate:      &discountRate,
+			DiscountAmount:    sharedkernel.Ptr(planInput.DiscountAmount),
+			SortOrder:         sharedkernel.Ptr(planInput.SortOrder),
 		}
 		if err := s.treatmentPlanRepo.Create(txCtx, plan); err != nil {
 			return apperrors.Wrap(err, "failed to create nested treatment plan")
@@ -103,8 +110,8 @@ func (s *hospitalizationService) createNestedTreatmentPlansInTx(
 			Type:              model.CarePlanTypeInstruction,
 			Name:              planInput.TreatmentContent,
 			Notes:             planInput.Memo,
-			Status:            model.CarePlanStatusActive,
-			SortOrder:         planInput.SortOrder,
+			Status:            sharedkernel.Ptr(model.CarePlanStatusActive),
+			SortOrder:         sharedkernel.Ptr(planInput.SortOrder),
 		}
 		if err := s.carePlanItemRepo.Create(txCtx, careItem); err != nil {
 			return apperrors.Wrap(err, "failed to create nested care plan item")

@@ -11,6 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateCarePlanItemInput はケアプランアイテム作成のサービス入力DTO
@@ -278,14 +279,19 @@ func carePlanItemAuditValue(item *model.CarePlanItem) map[string]any {
 	if item == nil {
 		return nil
 	}
+	// timing 列は NULL 許容。NULL は nil スライス（JSON null）のまま監査へ残し、空配列へ補完しない。
+	var timing []string
+	if item.Timing != nil {
+		timing = []string(*item.Timing)
+	}
 	return map[string]any{
 		"id":                      item.ID,
 		"hospitalization_id":      item.HospitalizationID,
 		"type":                    string(item.Type),
 		"name":                    item.Name,
 		"description":             item.Description,
-		"timing":                  []string(item.Timing),
-		"status":                  string(item.Status),
+		"timing":                  timing,
+		"status":                  sharedkernel.TextOrEmpty(item.Status),
 		"notes":                   item.Notes,
 		"medicine_id":             item.MedicineID,
 		"procedure_id":            item.ProcedureID,
@@ -380,20 +386,26 @@ func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizat
 		return nil, apperrors.WrapInvalidInput(errMsgPriceZeroOrMore)
 	}
 
+	// timing 未指定（nil）は列を NULL にせず DB default（'{}'）へ任せる。
+	var timing *pq.StringArray
+	if input.Timing != nil {
+		timing = sharedkernel.Ptr(pq.StringArray(input.Timing))
+	}
+
 	item := &model.CarePlanItem{
 		HospitalizationID:     hospitalizationID,
 		Type:                  planType,
 		Name:                  input.Name,
 		Description:           input.Description,
-		Timing:                pq.StringArray(input.Timing),
-		Status:                status,
+		Timing:                timing,
+		Status:                sharedkernel.Ptr(status),
 		Notes:                 input.Notes,
 		MedicineID:            input.MedicineID,
 		ProcedureID:           input.ProcedureID,
 		HospitalizationPlanID: input.HospitalizationPlanID,
-		UnitPrice:             input.UnitPrice,
+		UnitPrice:             sharedkernel.Ptr(input.UnitPrice),
 		Category:              input.Category,
-		SortOrder:             input.SortOrder,
+		SortOrder:             sharedkernel.Ptr(input.SortOrder),
 	}
 	// 手入力「その他」契約: manual=true は type=item のみ・参照なし・理由必須。
 	if err := applyCreateManualContract(input, item); err != nil {

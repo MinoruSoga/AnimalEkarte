@@ -241,15 +241,24 @@ func (s *dailyRecordService) AddVitalRecord(ctx context.Context, clinicID, hospi
 			return err
 		}
 		dailyID = daily.ID
+		// float64 の request 値を exact 列へ橋渡しする（NaN・±Inf は 400）。nil（未測定）は nil のまま。
+		temperature, err := exactNumericPtrFromFloatPtr(input.Temperature, "temperature")
+		if err != nil {
+			return err
+		}
+		weight, err := exactNumericPtrFromFloatPtr(input.Weight, "weight")
+		if err != nil {
+			return err
+		}
 		vr := &model.VitalRecord{
 			ClinicID:        clinicID,
 			PetID:           hosp.PetID, // AUD-006: 親入院から必須 PetID を解決
 			DailyRecordID:   &dailyID,
 			RecordedAt:      input.Time,
-			Temperature:     input.Temperature,
+			Temperature:     temperature,
 			HeartRate:       input.HeartRate,
 			RespirationRate: input.RespirationRate,
-			Weight:          input.Weight,
+			Weight:          weight,
 			Notes:           input.Notes,
 			StaffID:         input.StaffID,
 		}

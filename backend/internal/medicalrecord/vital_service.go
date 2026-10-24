@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateVitalInput はバイタル作成の入力DTO（HTTP非依存）
@@ -121,17 +122,27 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		return nil, apperrors.WrapInternalServerError("vital audit dependency is required")
 	}
 
+	// float64 の request 値を exact 列へ橋渡しする（NaN・±Inf は 400）。nil（未測定）は nil のまま。
+	temperature, err := exactNumericPtrFromFloatPtr(input.Temperature, "temperature")
+	if err != nil {
+		return nil, err
+	}
+	weight, err := exactNumericPtrFromFloatPtr(input.Weight, "weight")
+	if err != nil {
+		return nil, err
+	}
+
 	vital := &model.VitalRecord{
 		ClinicID:        input.ClinicID,
 		PetID:           input.PetID,
 		MedicalRecordID: &medicalRecordID,
 		RecordedAt:      input.RecordedAt,
 		StaffID:         input.StaffID,
-		Temperature:     input.Temperature,
+		Temperature:     temperature,
 		HeartRate:       input.HeartRate,
 		RespirationRate: input.RespirationRate,
-		Weight:          input.Weight,
-		WeightUnit:      weightUnitOrDefault(input.WeightUnit),
+		Weight:          weight,
+		WeightUnit:      sharedkernel.Ptr(weightUnitOrDefault(input.WeightUnit)),
 		Notes:           input.Notes,
 	}
 

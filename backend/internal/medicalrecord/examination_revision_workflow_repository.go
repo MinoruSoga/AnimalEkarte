@@ -11,6 +11,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func (r *examinationRepository) AppendWorkingRevisionFromOfficial(
@@ -26,7 +27,8 @@ func (r *examinationRepository) AppendWorkingRevisionFromOfficial(
 	if err != nil {
 		return 0, err
 	}
-	if exam.Status != model.ExaminationStatusConfirmed {
+	// status が NULL（未記録）の検査は確定済みと確認できないため、確定解除の対象にしない（fail-closed）。
+	if !sharedkernel.PtrEquals(exam.Status, model.ExaminationStatusConfirmed) {
 		return 0, apperrors.WrapConflict("only a confirmed examination can be unconfirmed")
 	}
 	if err := validateRevisionWorkflowActorAndReason(ctx, tx, clinicID, actorID, changeReason); err != nil {
@@ -69,7 +71,7 @@ func (r *examinationRepository) AppendWorkingRevisionFromOfficial(
 		clinicID,
 		examinationID,
 		officialVersion,
-		exam.Status,
+		model.ExaminationStatusConfirmed,
 		source,
 		items,
 	); err != nil {
@@ -91,7 +93,12 @@ func (r *examinationRepository) AppendWorkingRevisionFromCurrent(
 	if err != nil {
 		return 0, err
 	}
-	if exam.Status == model.ExaminationStatusConfirmed {
+	// status が NULL（未記録）の検査は未確定と確認できないため working revision を作らない（fail-closed）。
+	status, err := sharedkernel.RequireStored(exam.Status, "exams.status")
+	if err != nil {
+		return 0, err
+	}
+	if status == model.ExaminationStatusConfirmed {
 		return 0, apperrors.WrapConflict("confirmed examination cannot append a working revision")
 	}
 	if err := validateRevisionWorkflowActorAndReason(ctx, tx, clinicID, actorID, changeReason); err != nil {
@@ -123,7 +130,7 @@ func (r *examinationRepository) AppendWorkingRevisionFromCurrent(
 		ExaminationID:        examinationID,
 		Version:              nextVersion,
 		Kind:                 model.ExaminationRevisionKindWorking,
-		Status:               exam.Status,
+		Status:               status,
 		MedicalRecordID:      cloneOptionalUint64(exam.MedicalRecordID),
 		PetID:                cloneOptionalUint64(exam.PetID),
 		MedicalRecordOwnerID: cloneOptionalUint64(snapshot.medicalRecordOwnerID),
@@ -165,7 +172,12 @@ func (r *examinationRepository) AppendOfficialRevisionFromWorking(
 	if err != nil {
 		return 0, err
 	}
-	if exam.Status == model.ExaminationStatusConfirmed {
+	// status が NULL（未記録）の検査は未確定と確認できないため再確定しない（fail-closed）。
+	status, err := sharedkernel.RequireStored(exam.Status, "exams.status")
+	if err != nil {
+		return 0, err
+	}
+	if status == model.ExaminationStatusConfirmed {
 		return 0, apperrors.WrapConflict("confirmed examination cannot be reconfirmed")
 	}
 	if err := validateRevisionWorkflowActorAndReason(ctx, tx, clinicID, actorID, changeReason); err != nil {
@@ -182,7 +194,7 @@ func (r *examinationRepository) AppendOfficialRevisionFromWorking(
 	if err != nil {
 		return 0, err
 	}
-	if source.Status != exam.Status {
+	if source.Status != status {
 		return 0, apperrors.WrapConflict("selected working examination revision is stale")
 	}
 	if err := validateRevisionRestoreRelations(ctx, tx, clinicID, source, items); err != nil {
@@ -208,7 +220,7 @@ func (r *examinationRepository) AppendOfficialRevisionFromWorking(
 		clinicID,
 		examinationID,
 		workingVersion,
-		exam.Status,
+		status,
 		source,
 		items,
 	); err != nil {
@@ -505,13 +517,13 @@ func restoreMutableExaminationFromRevision(
 			Result:          item.Result,
 			Unit:            item.Unit,
 			ReferenceValue:  item.ReferenceValue,
-			RefMin:          cloneOptionalFloat64(item.RefMin),
-			RefMax:          cloneOptionalFloat64(item.RefMax),
+			RefMin:          cloneOptionalExactNumeric(item.RefMin),
+			RefMax:          cloneOptionalExactNumeric(item.RefMax),
 			QualitativeMin:  cloneOptionalString(item.QualitativeMin),
 			QualitativeMax:  cloneOptionalString(item.QualitativeMax),
-			IsAbnormal:      item.IsAbnormal,
-			Status:          item.Status,
-			SortOrder:       item.SortOrder,
+			IsAbnormal:      sharedkernel.Ptr(item.IsAbnormal),
+			Status:          sharedkernel.Ptr(item.Status),
+			SortOrder:       sharedkernel.Ptr(item.SortOrder),
 		})
 	}
 	if len(mutableItems) > 0 {
@@ -547,14 +559,14 @@ func buildExaminationRevisionItems(
 			Result:          item.Result,
 			Unit:            item.Unit,
 			ReferenceValue:  item.ReferenceValue,
-			RefMin:          cloneOptionalFloat64(item.RefMin),
-			RefMax:          cloneOptionalFloat64(item.RefMax),
+			RefMin:          cloneOptionalExactNumeric(item.RefMin),
+			RefMax:          cloneOptionalExactNumeric(item.RefMax),
 			QualitativeMin:  cloneOptionalString(item.QualitativeMin),
 			QualitativeMax:  cloneOptionalString(item.QualitativeMax),
 			IsAssessed:      assessment.isAssessed,
 			IsAbnormal:      assessment.isAbnormal,
 			Status:          assessment.status,
-			SortOrder:       item.SortOrder,
+			SortOrder:       sharedkernel.SortOrderValue(item.SortOrder),
 		})
 	}
 	return revisionItems

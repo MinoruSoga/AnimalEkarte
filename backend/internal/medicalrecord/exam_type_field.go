@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type CreateExamTypeFieldInput struct {
@@ -118,7 +119,7 @@ func (s *examTypeService) CreateField(
 			InspectionValue: command.Field.InspectionValue,
 			NormalValue:     command.Field.NormalValue,
 			Unit:            command.Field.Unit,
-			SortOrder:       command.Field.SortOrder,
+			SortOrder:       sharedkernel.Ptr(command.Field.SortOrder),
 		}
 		if err := s.repo.CreateField(txCtx, created); err != nil {
 			return err
@@ -234,12 +235,21 @@ func (s *examTypeService) ReplaceReferenceRanges(
 	}
 	ranges := make([]model.ExamReferenceRange, 0, len(command.Ranges))
 	for _, input := range command.Ranges {
+		// float64 の request 値を exact 列へ橋渡しする（有限性は上で検証済み）。nil（下限・上限なし）は nil のまま。
+		refMin, err := exactNumericPtrFromFloatPtr(input.RefMin, "ref_min")
+		if err != nil {
+			return nil, err
+		}
+		refMax, err := exactNumericPtrFromFloatPtr(input.RefMax, "ref_max")
+		if err != nil {
+			return nil, err
+		}
 		ranges = append(ranges, model.ExamReferenceRange{
 			ClinicID:        clinicID,
 			ExamTypeFieldID: command.ExamTypeFieldID,
 			AnimalSpeciesID: input.AnimalSpeciesID,
-			RefMin:          input.RefMin,
-			RefMax:          input.RefMax,
+			RefMin:          refMin,
+			RefMax:          refMax,
 			QualitativeMin:  input.QualitativeMin,
 			QualitativeMax:  input.QualitativeMax,
 		})

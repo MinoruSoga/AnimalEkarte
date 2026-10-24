@@ -85,57 +85,20 @@ func (r *trimmingOptionRepository) update(ctx context.Context, clinicID, id uint
 	return persistence.UpdateScopedByID(ctx, persistence.DBOrTx(ctx, r.db), &model.TrimmingOption{}, "trimming_option", clinicID, id, fields)
 }
 
-func (r *trimmingOptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return persistence.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		if err := tx.
-			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Scopes(persistence.ClinicScope(clinicID)).
-			Where("id = ?", id).
-			First(&model.TrimmingOption{}).Error; err != nil {
-			return apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", id))
-		}
-		result := tx.
-			Scopes(persistence.ClinicScope(clinicID)).
-			Where("id = ?", id).
-			Where(`NOT EXISTS (
-				SELECT 1 FROM appointment_trimming_options
-				JOIN appointments ON appointments.id = appointment_trimming_options.appointment_id
-				  AND appointments.clinic_id = ?
-				  AND appointments.deleted_at IS NULL
-				WHERE appointment_trimming_options.option_id = trimming_options.id
-			)`, clinicID).
-			Delete(&model.TrimmingOption{})
-		if result.Error != nil {
-			return apperrors.FromGORM(result.Error, "trimming_option", fmt.Sprintf("%d", id))
-		}
-		if result.RowsAffected == 0 {
-			return r.normalizeTrimmingOptionDeleteMiss(persistence.WithTxValue(ctx, tx), clinicID, id)
-		}
-		return nil
-	})
-}
-
-func (r *trimmingOptionRepository) normalizeTrimmingOptionDeleteMiss(ctx context.Context, clinicID, id uint64) error {
-	if _, err := r.FindByID(ctx, clinicID, id); err != nil {
-		return err
-	}
-	return apperrors.WrapConflict("このトリミングオプションはトリミング記録で使用中のため削除できません")
+// Delete はオプションの使用中判定ができないため、常に拒否する（EMR-549 C1 F3）。
+// 旧判定の appointment_trimming_options は 001_init.sql L10923 で DROP 済みで、置換先
+// （trimming_booking_revision_options）の使用数 reader は EMR-480 / EMR-458 の担当で未接続。論理削除は
+// FK RESTRICT に守られないため、使用中のオプションも消えてしまう。使用数を確認できない削除は行わない。
+func (r *trimmingOptionRepository) Delete(_ context.Context, _, _ uint64) error {
+	return apperrors.WrapTrimmingMasterUsageUnverified()
 }
 
 func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
 	return persistence.ReorderByClinicID(ctx, r.db, &model.TrimmingOption{}, "trimming_option", clinicID, ids, "sort_order")
 }
 
-// CountUsageByTrimmingOptionID は指定オプションを使用しているトリミングオプション数を返す（BUG-201）
-// appointment_trimming_options は直接 clinic_id を持たないため appointments を JOIN してテナント分離する
-func (r *trimmingOptionRepository) CountUsageByTrimmingOptionID(ctx context.Context, clinicID, optionID uint64) (int64, error) {
-	var count int64
-	if err := persistence.DBOrTx(ctx, r.db).
-		Model(&model.AppointmentTrimmingOption{}).
-		Joins("JOIN appointments ON appointments.id = appointment_trimming_options.appointment_id AND appointments.clinic_id = ? AND appointments.deleted_at IS NULL", clinicID).
-		Where("appointment_trimming_options.option_id = ?", optionID).
-		Count(&count).Error; err != nil {
-		return 0, apperrors.FromGORM(err, "appointment_trimming_option", "")
-	}
-	return count, nil
+// CountUsageByTrimmingOptionID は使用数を確認できないため、常に拒否エラーを返す（EMR-549 C1 F3）。
+// 旧集計の appointment_trimming_options は DROP 済みで、置換先の reader が未接続。
+func (r *trimmingOptionRepository) CountUsageByTrimmingOptionID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, apperrors.WrapTrimmingMasterUsageUnverified()
 }

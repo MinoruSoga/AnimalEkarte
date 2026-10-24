@@ -155,7 +155,7 @@ func (h *Handler) DeleteTrimmingCourse(c *gin.Context) {
 		return
 	}
 	if err := h.svc.TrimmingCourse.Delete(c.Request.Context(), clinicID, id); err != nil {
-		httpapi.RespondError(c, err)
+		respondTrimmingError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)

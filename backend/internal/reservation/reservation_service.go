@@ -261,7 +261,7 @@ func ValidateReservationPetNotDeceased(ctx context.Context, reader sharedkernel.
 // AbsorbTentativeOnBooking 経路でパス固有の pending/confirmed 等へ昇格する。
 // repo op が ambient tx を必須とするため、呼び出し側は WithTx 内で呼ぶこと。
 func createOrPromoteTentative(ctx context.Context, repo ReservationRepository, booking *model.Reservation) (*model.Reservation, *uint64, error) {
-	if booking.Status == model.ReservationStatusCheckedIn {
+	if sharedkernel.PtrEquals(booking.Status, model.ReservationStatusCheckedIn) {
 		return repo.PromoteTentativeOnCheckin(ctx, booking)
 	}
 	return repo.AbsorbTentativeOnBooking(ctx, booking)
@@ -323,6 +323,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 		}
 	}
 	doctorID := normalizeCreateDoctorID(input.DoctorID)
+	// Status が空（未指定）の場合は nil にして DB default（pending）を適用する（旧 non-pointer 列のゼロ値省略と同じ）。
 	reservation := &model.Reservation{
 		ClinicID:          input.ClinicID,
 		StartTime:         input.StartTime,
@@ -332,8 +333,8 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 		VisitType:         input.VisitType,
 		ReservationTypeID: input.ReservationTypeID,
 		DoctorID:          doctorID,
-		IsDesignated:      input.IsDesignated,
-		Status:            input.Status,
+		IsDesignated:      sharedkernel.Ptr(input.IsDesignated),
+		Status:            sharedkernel.PtrUnlessZero(input.Status),
 		Notes:             input.Notes,
 		Source:            input.Source,
 		CreatedBy:         input.CreatedBy,
@@ -471,7 +472,7 @@ func (s *reservationService) CreateBatch(ctx context.Context, input *CreateManua
 			if err := ValidateReservationPetNotDeceased(ctx, s.repo, input.ClinicID, &petID); err != nil {
 				return err
 			}
-			reservation := model.Reservation{ClinicID: input.ClinicID, StartTime: input.StartTime, EndTime: input.EndTime, OwnerID: &ownerID, PetID: &petID, VisitType: input.VisitType, ReservationTypeID: input.ReservationTypeID, DoctorID: doctorID, IsDesignated: input.IsDesignated, Status: input.Status, Notes: input.Notes, Source: input.Source, CreatedBy: input.CreatedBy, ReservationRoute: input.ReservationRoute}
+			reservation := model.Reservation{ClinicID: input.ClinicID, StartTime: input.StartTime, EndTime: input.EndTime, OwnerID: &ownerID, PetID: &petID, VisitType: input.VisitType, ReservationTypeID: input.ReservationTypeID, DoctorID: doctorID, IsDesignated: sharedkernel.Ptr(input.IsDesignated), Status: sharedkernel.PtrUnlessZero(input.Status), Notes: input.Notes, Source: input.Source, CreatedBy: input.CreatedBy, ReservationRoute: input.ReservationRoute}
 			// EMR-308: ペットごとに active tentative を同一行昇格（なければ通常 INSERT）。
 			promoted, previousOwnerID, err := createOrPromoteTentativeWithGuard(ctx, s.repo, &reservation, input.PreventDuplicateReception)
 			if err != nil {

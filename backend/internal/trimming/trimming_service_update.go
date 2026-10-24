@@ -6,23 +6,29 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
-func applyTrimmingDetailFields(detail *model.AppointmentTrimmingDetail, input *UpdateTrimmingInput) {
-	if input.CourseID != nil {
-		detail.CourseID = input.CourseID
-	}
+func applyTrimmingDetailFields(detail *model.AppointmentTrimmingDetail, input *UpdateTrimmingInput) error {
 	if input.StyleRequest != nil {
 		detail.StyleRequest = *input.StyleRequest
 	}
 	if input.BodyWeight != nil {
-		detail.BodyWeight = input.BodyWeight
+		bodyWeight, err := trimmingExactNumeric(input.BodyWeight, "bw")
+		if err != nil {
+			return err
+		}
+		detail.BodyWeight = bodyWeight
 	}
 	if input.BWUnit != nil {
-		detail.BWUnit = *input.BWUnit
+		detail.BWUnit = sharedkernel.Ptr(*input.BWUnit)
 	}
 	if input.BodyTemperature != nil {
-		detail.BodyTemperature = input.BodyTemperature
+		bodyTemperature, err := trimmingExactNumeric(input.BodyTemperature, "bt")
+		if err != nil {
+			return err
+		}
+		detail.BodyTemperature = bodyTemperature
 	}
 	if input.UsedShampoo != nil {
 		detail.UsedShampoo = *input.UsedShampoo
@@ -39,13 +45,13 @@ func applyTrimmingDetailFields(detail *model.AppointmentTrimmingDetail, input *U
 	if input.CompletedImage != nil {
 		detail.CompletedImage = *input.CompletedImage
 	}
+	return nil
 }
 
 func (s *trimmingService) updateTrimmingInTx(
 	txCtx context.Context,
 	clinicID, id uint64,
 	input *UpdateTrimmingInput,
-	optionIDs []uint64,
 	appointmentUpdate reservation.UpdateTrimmingReservationInput,
 ) (*model.Reservation, *TrimmingReplacedImages, *trimmingNextVisitTagChange, error) {
 	if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
@@ -56,7 +62,11 @@ func (s *trimmingService) updateTrimmingInTx(
 		return nil, nil, nil, apperrors.Wrap(err, "failed to lock trimming appointment")
 	}
 	before := trimmingNextVisitFactsFor(locked)
-	if err := reservation.ValidateTrimmingAppointmentMutable(locked.Status); err != nil {
+	lockedStatus, err := sharedkernel.RequireStored(locked.Status, "appointments.status")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if err := reservation.ValidateTrimmingAppointmentMutable(lockedStatus); err != nil {
 		return nil, nil, nil, err
 	}
 	finalPetID := locked.PetID
@@ -119,24 +129,14 @@ func (s *trimmingService) updateTrimmingInTx(
 	// 新値を掃除候補から漏らす）。
 	replaced := &TrimmingReplacedImages{Style: detail.StyleImage, Completed: detail.CompletedImage}
 	oldValue := trimmingAuditValue(locked, detail)
-	existingOptionIDs := make([]uint64, len(detail.Options))
-	for i := range detail.Options {
-		existingOptionIDs[i] = detail.Options[i].ID
-	}
-	if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, optionIDs, detail.CourseID, existingOptionIDs); err != nil {
+	if err := applyTrimmingDetailFields(detail, input); err != nil {
 		return nil, nil, nil, err
 	}
-	applyTrimmingDetailFields(detail, input)
 	if err := s.lockImageReferencesInTx(txCtx, clinicID, detail.StyleImage, detail.CompletedImage); err != nil {
 		return nil, nil, nil, err
 	}
 	if err := s.trimmingDetail.Update(txCtx, detail); err != nil {
 		return nil, nil, nil, apperrors.Wrap(err, "failed to update trimming detail")
-	}
-	if input.OptionIDs != nil {
-		if err := s.trimmingDetail.SetOptions(txCtx, clinicID, id, *input.OptionIDs); err != nil {
-			return nil, nil, nil, apperrors.Wrap(err, "failed to set trimming options")
-		}
 	}
 	result, err := s.GetByID(txCtx, clinicID, id)
 	if err != nil {

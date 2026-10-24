@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const (
@@ -117,7 +118,7 @@ func (s *trimmingOptionService) Create(ctx context.Context, clinicID uint64, inp
 		Description:  input.Description,
 		Duration:     input.Duration,
 		IsCombinable: input.IsCombinable,
-		SortOrder:    input.SortOrder,
+		SortOrder:    sharedkernel.Ptr(input.SortOrder),
 	}
 	if err := s.repo.Create(ctx, option); err != nil {
 		return nil, apperrors.Wrap(err, "failed to create trimming option")

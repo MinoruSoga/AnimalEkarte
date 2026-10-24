@@ -168,10 +168,10 @@ func (h *TreatmentPlanHandler) checkTreatmentPlanDiscountPermission(c *gin.Conte
 	if err != nil {
 		return err
 	}
-	if err := requireDiscountEditFloat(c, h.hasPermission, req.DiscountRate, existing.DiscountRate); err != nil {
+	if err := requireDiscountEditRate(c, h.hasPermission, req.DiscountRate, existing.DiscountRate); err != nil {
 		return err
 	}
-	return requireDiscountEditInt(c, h.hasPermission, req.DiscountAmount, existing.DiscountAmount)
+	return requireDiscountEditStoredInt(c, h.hasPermission, req.DiscountAmount, existing.DiscountAmount)
 }
 
 // UpdateTreatmentPlanInMedicalRecord は MedicalRecord コンテキストでのプラン更新
