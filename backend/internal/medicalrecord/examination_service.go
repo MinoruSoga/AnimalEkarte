@@ -239,10 +239,10 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 		PetID:           input.PetID,
 		ExamTypeID:      input.ExamTypeID,
 		DoctorID:        input.DoctorID,
-		Date:            input.Date,
+		Date:            sharedkernel.Ptr(input.Date),
 		ResultSummary:   input.ResultSummary,
 		Machine:         input.Machine,
-		Status:          initialStatus,
+		Status:          sharedkernel.Ptr(initialStatus),
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
@@ -336,7 +336,15 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64, ac
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock examination")
 		}
-		if examinationFullyLocked(locked) || examinationResultsLocked(locked) {
+		fullyLocked, err := examinationFullyLocked(locked)
+		if err != nil {
+			return err
+		}
+		resultsLocked, err := examinationResultsLocked(locked)
+		if err != nil {
+			return err
+		}
+		if fullyLocked || resultsLocked {
 			return errExaminationDeleteLocked(locked)
 		}
 		if locked.CurrentRevisionVersion != nil {

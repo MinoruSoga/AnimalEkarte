@@ -31,7 +31,7 @@ func extractVitalImportantFields(v *model.VitalRecord) map[string]any {
 		"heart_rate":       v.HeartRate,
 		"respiration_rate": v.RespirationRate,
 		"weight":           v.Weight,
-		"weight_unit":      string(v.WeightUnit),
+		"weight_unit":      weightUnitAuditValue(v.WeightUnit),
 		"recorded_at":      v.RecordedAt,
 		"staff_id":         v.StaffID,
 		"notes":            v.Notes,
@@ -97,7 +97,7 @@ func diffVitalImportantFields(oldRec, newRec *model.VitalRecord) (oldDiff, newDi
 		{key: "heart_rate", oldVal: oldRec.HeartRate, newVal: newRec.HeartRate, equal: ptrIntEqual(oldRec.HeartRate, newRec.HeartRate)},
 		{key: "respiration_rate", oldVal: oldRec.RespirationRate, newVal: newRec.RespirationRate, equal: ptrIntEqual(oldRec.RespirationRate, newRec.RespirationRate)},
 		{key: "weight", oldVal: oldRec.Weight, newVal: newRec.Weight, equal: ptrFloat64Equal(oldRec.Weight, newRec.Weight)},
-		{key: "weight_unit", oldVal: string(oldRec.WeightUnit), newVal: string(newRec.WeightUnit), equal: oldRec.WeightUnit == newRec.WeightUnit},
+		{key: "weight_unit", oldVal: weightUnitAuditValue(oldRec.WeightUnit), newVal: weightUnitAuditValue(newRec.WeightUnit), equal: ptrWeightUnitEqual(oldRec.WeightUnit, newRec.WeightUnit)},
 		{key: "recorded_at", oldVal: oldRec.RecordedAt, newVal: newRec.RecordedAt, equal: oldRec.RecordedAt.Equal(newRec.RecordedAt)},
 		{key: "staff_id", oldVal: oldRec.StaffID, newVal: newRec.StaffID, equal: ptrUint64Equal(oldRec.StaffID, newRec.StaffID)},
 		{key: "notes", oldVal: oldRec.Notes, newVal: newRec.Notes, equal: oldRec.Notes == newRec.Notes},
@@ -163,6 +163,23 @@ func ptrStringEqual(a, b *string) bool {
 	}
 	if a == nil || b == nil {
 		return false
+	}
+	return *a == *b
+}
+
+// weightUnitAuditValue は体重単位を監査 diff 用の値へ写す。nil（未記録）は他のポインタ項目と同じく nil（不在）で記録し、
+// 既定単位（Kg）や "<nil>" のような文字列で補完しない。
+func weightUnitAuditValue(u *model.BodyWeightUnit) any {
+	if u == nil {
+		return nil
+	}
+	return string(*u)
+}
+
+// ptrWeightUnitEqual は監査 diff の変更検出用。nil 同士のみ等価で、nil と値は不一致（変更あり）とする。
+func ptrWeightUnitEqual(a, b *model.BodyWeightUnit) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
 	}
 	return *a == *b
 }

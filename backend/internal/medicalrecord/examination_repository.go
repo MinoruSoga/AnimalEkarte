@@ -14,6 +14,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 type ExaminationRepository interface {
@@ -319,7 +320,12 @@ func (r *examinationRepository) ReplaceItemsByExamID(ctx context.Context, clinic
 			First(&exam).Error; err != nil {
 			return apperrors.FromGORM(err, "exam", fmt.Sprintf("%d", examID))
 		}
-		if exam.Status == model.ExaminationStatusConfirmed {
+		// status 未記録（nil）は確定済みか判定できないため、置換を許可せずエラーにする（EMR-549 C3・臨床安全）。
+		status, err := sharedkernel.RequireStored(exam.Status, "exams.status")
+		if err != nil {
+			return err
+		}
+		if status == model.ExaminationStatusConfirmed {
 			return apperrors.WrapConflict("確定済みの検査は編集できません")
 		}
 
