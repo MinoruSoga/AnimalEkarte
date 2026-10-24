@@ -94,7 +94,13 @@ func (h *Handler) CreateOwner(c *gin.Context) {
 	}
 
 	// BUG-372: discount_rate にゼロ以外を指定する場合は権限要
-	if err := httpapi.RequireDiscountCreateFloat(c, httpapi.PermissionChecker(h.hasPermission), req.DiscountRate); err != nil {
+	// 判定は float の epsilon ではなく exact 比較で行う（epsilon 未満の非ゼロ値が権限なしで保存されるのを防ぐ）。
+	createRate, err := model.ExactNumericFromFloat64(req.DiscountRate)
+	if err != nil {
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("discount_rate が不正です"))
+		return
+	}
+	if err := httpapi.RequireDiscountCreateExact(c, httpapi.PermissionChecker(h.hasPermission), createRate); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
@@ -132,7 +138,12 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 			httpapi.RespondError(c, err)
 			return
 		}
-		if err := httpapi.RequireDiscountEditFloat(c, httpapi.PermissionChecker(h.hasPermission), req.DiscountRate, existing.DiscountRate); err != nil {
+		newRate, err := model.ExactNumericFromFloat64(*req.DiscountRate)
+		if err != nil {
+			httpapi.RespondError(c, apperrors.WrapInvalidInput("discount_rate が不正です"))
+			return
+		}
+		if err := httpapi.RequireDiscountEditExact(c, httpapi.PermissionChecker(h.hasPermission), &newRate, existing.DiscountRate); err != nil {
 			httpapi.RespondError(c, err)
 			return
 		}

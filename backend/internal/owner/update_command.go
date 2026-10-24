@@ -26,7 +26,7 @@ type UpdateCommand struct {
 	Email          *string
 	Remarks        *string
 	IsDangerous    *bool
-	DiscountRate   *float64
+	DiscountRate   *model.ExactNumeric
 	MembershipType *model.MembershipType
 	DMPreference   **bool
 
@@ -68,7 +68,7 @@ func updateCommandFromOwnerInput(input *UpdateOwnerInput) UpdateCommand {
 		Email:          input.Email,
 		Remarks:        input.Remarks,
 		IsDangerous:    input.IsDangerous,
-		DiscountRate:   input.DiscountRate,
+		// DiscountRate は applyOwnerDiscountField が exact へ変換し、権限・同値判定の後に設定する。
 		MembershipType: input.MembershipType,
 		BirthDate:      input.BirthDate,
 		DMPreference:   input.DMPreference,

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
@@ -67,6 +66,12 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 		return nil, err
 	}
 
+	// float64 の request DTO はここで exact へ変換する。変換できない値を 0 に丸めず 400 にする。
+	discountRate, err := model.ExactNumericFromFloat64(input.DiscountRate)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput("discount_rate が不正です")
+	}
+
 	if err := s.ensureOwnerEmailUnique(ctx, clinicID, 0, input.Email); err != nil {
 		return nil, err
 	}
@@ -79,6 +84,8 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 	}
 
 	owner := buildOwnerModel(clinicID, input)
+	// buildOwnerModel は変換エラーを返せないため、検証済みの exact 値をここで設定する。
+	owner.DiscountRate = discountRate
 	pets := buildOwnerPetModels(input.Pets)
 
 	if err := s.repo.CreateWithPets(ctx, owner, pets); err != nil {
@@ -145,15 +152,23 @@ func applyOwnerDiscountField(cmd *UpdateCommand, locked *model.Owner, input *Upd
 	if input.DiscountRate == nil {
 		return nil
 	}
-	if httpapi.FloatEquals(*input.DiscountRate, locked.DiscountRate) {
-		if !input.DiscountEditAllowed {
-			cmd.DiscountRate = nil
+	// float64 の request DTO はここで exact へ変換する。変換できない値を 0 に丸めず 400 にする。
+	newRate, err := model.ExactNumericFromFloat64(*input.DiscountRate)
+	if err != nil {
+		return apperrors.WrapInvalidInput("discount_rate が不正です")
+	}
+	// 比較は exact（epsilon なし）。比較できない値は不一致となり、編集権限を要求する側（fail-closed）に倒れる。
+	if newRate.Equal(locked.DiscountRate) {
+		// 変更なし: 編集権限が無ければ書き込まず、あれば従来どおり同値を書く。
+		if input.DiscountEditAllowed {
+			cmd.DiscountRate = &newRate
 		}
 		return nil
 	}
 	if !input.DiscountEditAllowed {
 		return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
 	}
+	cmd.DiscountRate = &newRate
 	return nil
 }
 
