@@ -157,11 +157,13 @@ func (s *medicalRecordService) fillOwnerPetFromLineCustomer(
 	reservation *model.Reservation,
 ) {
 	customer, err := s.lineCustomerRepo.FindByID(ctx, clinicID, *reservation.LineCustomerID)
-	if err != nil || customer == nil || customer.OwnerID == nil {
+	// EMR-504: 顧客の飼主は binding（state='linked'）から LineCustomerRepository が customer.Owner に解決する。
+	if err != nil || customer == nil || customer.Owner == nil {
 		return
 	}
-	reservation.OwnerID = customer.OwnerID
-	if reservation.PetID == nil && customer.Owner != nil && len(customer.Owner.Pets) == 1 {
+	ownerID := customer.Owner.ID
+	reservation.OwnerID = &ownerID
+	if reservation.PetID == nil && len(customer.Owner.Pets) == 1 {
 		reservation.PetID = &customer.Owner.Pets[0].ID
 	}
 }

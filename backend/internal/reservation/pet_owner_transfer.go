@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
@@ -145,22 +144,22 @@ func (t *PetOwnerTransfer) resolveNewOwnerLineCustomer(
 	clinicID uint64,
 	newOwner *model.Owner,
 ) (*uint64, error) {
-	if newOwner.LineUserID == nil || strings.TrimSpace(*newOwner.LineUserID) == "" || newOwner.LineIDConfirmedAt == nil {
-		return nil, nil
-	}
-	var customers []model.LineCustomer
+	// EMR-504: 新飼主の LINE 顧客は binding から解決する。旧仕様どおり「確認済み」（verified_at 非 NULL）の
+	// state='linked' だけが再紐付けの対象で、未確認・unlink_pending・legacy_unknown は付け替えない。
+	// binding 行（PK clinic_id+owner_id）を SHARE NOWAIT でロックし、移管中の付け替えを防ぐ。
+	var bindings []model.OwnerLineBindingState
 	if err := db.
 		Clauses(clause.Locking{Strength: "SHARE", Options: "NOWAIT"}).
-		Select("id").
-		Where("clinic_id = ? AND owner_id = ? AND line_user_id = ?", clinicID, newOwner.ID, *newOwner.LineUserID).
+		Where("clinic_id = ? AND owner_id = ? AND state = ? AND verified_at IS NOT NULL AND line_customer_id IS NOT NULL",
+			clinicID, newOwner.ID, persistence.LineBindingStateLinked).
 		Limit(2).
-		Find(&customers).Error; err != nil {
+		Find(&bindings).Error; err != nil {
 		return nil, mapPetOwnerTransferError(err)
 	}
-	if len(customers) != 1 {
+	if len(bindings) != 1 {
 		return nil, nil
 	}
-	return &customers[0].ID, nil
+	return bindings[0].LineCustomerID, nil
 }
 
 func mapPetOwnerTransferError(err error) error {

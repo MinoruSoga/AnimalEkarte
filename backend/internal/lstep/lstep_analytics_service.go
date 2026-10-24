@@ -50,6 +50,8 @@ type lstepAnalyticsService struct {
 	ownerRepo      analyticsOwnerRepository
 	triggerLogRepo analyticsTriggerLogRepository
 	snapshotRepo   analyticsSnapshotRepository
+	// EMR-504: 紐付け済み LINE 配信先（owner_line_binding_states）の reader。
+	recipients lineRecipientReader
 }
 
 type analyticsOwnerRepository interface {
@@ -70,11 +72,13 @@ func NewLstepAnalyticsService(
 	ownerRepo analyticsOwnerRepository,
 	triggerLogRepo analyticsTriggerLogRepository,
 	snapshotRepo analyticsSnapshotRepository,
+	recipients lineRecipientReader,
 ) LstepAnalyticsService {
 	return &lstepAnalyticsService{
 		ownerRepo:      ownerRepo,
 		triggerLogRepo: triggerLogRepo,
 		snapshotRepo:   snapshotRepo,
+		recipients:     recipients,
 	}
 }
 
@@ -129,14 +133,17 @@ func (s *lstepAnalyticsService) GetVisitConversionSummary(ctx context.Context, c
 }
 
 func (s *lstepAnalyticsService) GetLatestFriendAttributes(ctx context.Context, clinicID, ownerID uint64) (*model.LstepFriendAttributeSnapshot, error) {
-	owner, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
-	if err != nil {
+	if _, err := s.ownerRepo.FindByID(ctx, clinicID, ownerID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to find owner")
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	lineUserID, err := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	if lineUserID == "" {
 		return nil, apperrors.WrapNotFound("owner_line_user_id", fmt.Sprintf("%d", ownerID))
 	}
-	snapshot, err := s.snapshotRepo.FindLatestByOwner(ctx, clinicID, *owner.LineUserID)
+	snapshot, err := s.snapshotRepo.FindLatestByOwner(ctx, clinicID, lineUserID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find latest friend attributes")
 	}

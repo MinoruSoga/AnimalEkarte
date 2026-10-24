@@ -262,6 +262,10 @@ func (s *lineLinkService) resolveLineLoginChannelID(ctx context.Context, clinicI
 }
 
 // LinkAccount は LINE ID Token を検証してトークン対応の飼い主に LINE User ID を紐付ける。
+//
+// EMR-504 / EMR-549 C1: owners.line_user_id は DROP 済みで、置換先 owner_line_binding_states の writer
+// （EMR-469 の link intent）は未接続。入力検証の後に固定 422 で拒否し、LINE ID Token の外部検証・
+// link token の消費・旧列への書込みは行わない（成功を装わない）。
 func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, input LinkAccountInput) (*model.Owner, error) {
 	if input.LinkToken == "" || len(input.LinkToken) > maxLineLinkTokenChars {
 		return nil, apperrors.WrapInvalidInput("invalid link token")
@@ -269,73 +273,10 @@ func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, inpu
 	if input.LineIDToken == "" || len(input.LineIDToken) > maxLineIDTokenChars {
 		return nil, apperrors.WrapInvalidInput("invalid LINE ID token")
 	}
-	if s.transactor == nil || s.auditTx == nil {
-		return nil, apperrors.WrapInternalServerError("LINE link transaction dependencies are not configured")
-	}
-
-	channelID, err := s.resolveLineLoginChannelID(ctx, clinicID)
-	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, err
-		}
-		return nil, apperrors.WrapInternalServerError("LINE ID token verification unavailable")
-	}
-	lineUserID, err := verifyLineIDToken(ctx, input.LineIDToken, channelID, s.httpClient)
-	if err != nil {
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			return nil, err
-		}
-		if errors.Is(err, apperrors.ErrUnauthorized) || errors.Is(err, apperrors.ErrBadGateway) {
-			return nil, err
-		}
-		return nil, apperrors.WrapInternalServerError("LINE ID token verification unavailable")
-	}
-
-	lookupAt := time.Now()
-	var linkedOwner *model.Owner
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		linkToken, err := s.lineLinkTokenRepo.LockUsableByRawToken(txCtx, input.LinkToken, lookupAt)
-		if err != nil {
-			if apperrors.IsNotFound(err) {
-				return apperrors.WrapInvalidInput("invalid or expired link token")
-			}
-			return apperrors.Wrap(err, "failed to lock link token")
-		}
-		if linkToken.ClinicID != clinicID {
-			return apperrors.WrapInvalidInput("link token clinic mismatch")
-		}
-
-		owner, err := s.ownerRepo.LockLineLinkOwner(txCtx, clinicID, linkToken.OwnerID)
-		if err != nil {
-			if apperrors.IsNotFound(err) {
-				return apperrors.WrapInvalidInput("invalid or expired link token")
-			}
-			return apperrors.Wrap(err, "failed to lock owner")
-		}
-		if owner.LineUserID != nil && *owner.LineUserID != "" {
-			return apperrors.WrapConflict("line user id already set")
-		}
-		if err := s.ownerRepo.UpdateLineUserID(txCtx, clinicID, linkToken.OwnerID, &lineUserID); err != nil {
-			return apperrors.Wrap(err, "failed to update line user id")
-		}
-		if err := s.lineLinkTokenRepo.Consume(txCtx, linkToken.ID, time.Now()); err != nil {
-			return apperrors.Wrap(err, "failed to consume link token")
-		}
-		if err := s.auditTx.LogOwnerLineLinkTx(txCtx, clinicID, linkToken.OwnerID); err != nil {
-			return apperrors.Wrap(err, "failed to write LINE link audit")
-		}
-
-		reloaded, err := s.ownerRepo.FindByID(txCtx, clinicID, linkToken.OwnerID)
-		if err != nil {
-			return apperrors.Wrap(err, "failed to reload linked owner")
-		}
-		reloaded.LineUserID = &lineUserID
-		linkedOwner = reloaded
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return linkedOwner, nil
+	return nil, apperrors.WrapUnprocessableWithCode(
+		apperrors.CodeLineBindingPending,
+		"LINE アカウントの連携は現在受け付けできません（紐付け機能の準備中です）",
+	)
 }
 
 // HandleWebhook は LINE Webhook を処理する。

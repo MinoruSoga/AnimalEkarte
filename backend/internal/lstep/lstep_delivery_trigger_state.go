@@ -30,7 +30,11 @@ func (s *lstepDeliveryTriggerService) checkExclusionWithTags(ctx context.Context
 	if owner.DeliveryExcluded {
 		return true, "delivery_excluded_flag", nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	lineUserID, recipientErr := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
+	if recipientErr != nil {
+		return false, "", recipientErr
+	}
+	if lineUserID == "" {
 		return true, "no_line_user_id", nil
 	}
 	tags, err := tagRepo.FindByOwner(ctx, clinicID, ownerID)

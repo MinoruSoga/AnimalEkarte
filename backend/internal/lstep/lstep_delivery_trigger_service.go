@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 const (
@@ -64,6 +65,10 @@ type lstepDeliveryTriggerService struct {
 	prioritySvc     LstepTriggerPriorityService                                      // nil → suppression skip (Q23)
 	appointmentRepo deliveryAppointmentRepository                                    // EMR-308: tentative reminder の source of truth。nil → tentative stages no-op
 	clientBuilderFn func(ctx context.Context, clinicID uint64) (lstep.Client, error) // overridden in tests
+	// EMR-504: 紐付け済み LINE 配信先（owner_line_binding_states）の reader。
+	recipients lineRecipientReader
+	// EMR-491 D6: ウェルカム配信のイベントペットの生死 reader（delivery owner lock 内の tx で読む）。
+	petLife sharedkernel.PetLifeStateReader
 }
 
 // NewLstepDeliveryTriggerService は LstepDeliveryTriggerService を初期化して返す。
@@ -79,6 +84,8 @@ func NewLstepDeliveryTriggerService(
 	settingsSvc LstepSettingsService,
 	prioritySvc LstepTriggerPriorityService,
 	appointmentRepo deliveryAppointmentRepository,
+	recipients lineRecipientReader,
+	petLife sharedkernel.PetLifeStateReader,
 ) LstepDeliveryTriggerService {
 	return &lstepDeliveryTriggerService{
 		ownerRepo:       ownerRepo,
@@ -90,5 +97,8 @@ func NewLstepDeliveryTriggerService(
 		settingsSvc:     settingsSvc,
 		prioritySvc:     prioritySvc,
 		appointmentRepo: appointmentRepo,
+		// EMR-504 / EMR-491 D6: 配信先 reader と死亡 reader は constructor 注入する。
+		recipients: recipients,
+		petLife:    petLife,
 	}
 }

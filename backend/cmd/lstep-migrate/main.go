@@ -18,6 +18,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/lstep"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/owner"
+	"github.com/animal-ekarte/backend/internal/persistence"
 	"github.com/animal-ekarte/backend/internal/pet"
 	"github.com/animal-ekarte/backend/internal/reservation"
 )
@@ -86,6 +87,8 @@ func run() int {
 		lstep.NewLstepTagCodeMappingRepository(db),
 		billing.NewBillingItemRepository(db),
 		lstep.NewLstepTagConfigRepository(db),
+		// EMR-504: 紐付け済み LINE 配信先は owner_line_binding_states から読む。
+		persistence.NewLineBindingReader(db),
 		// EMR-308/Codex: next_visit_* タグ同期の source of truth は appointment。
 		// 未注入だと SyncNextVisitTag が fail-closed でエラーになるため配線する。
 		reservation.NewReservationRepository(db),

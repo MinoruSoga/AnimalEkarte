@@ -50,7 +50,7 @@ func (s *lstepTagSyncService) removeStaleTagsByPrefixes(ctx context.Context, cli
 // 同期先の lineUserID を解決する（ISSUE dup-lstep-tag-apply Phase 1）。
 // ok=false の場合は呼び出し元でスキップする（optOut またはLINE未連携）。
 func (s *lstepTagSyncService) resolveSyncTargetOwner(ctx context.Context, clinicID, ownerID uint64, tagLabel string) (lineUserID string, ok bool, err error) {
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	optOut, _, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out", "error", err, "tag", tagLabel)
 		return "", false, apperrors.Wrap(err, "failed to check opt-out")
@@ -58,10 +58,16 @@ func (s *lstepTagSyncService) resolveSyncTargetOwner(ctx context.Context, clinic
 	if optOut {
 		return "", false, nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	// EMR-504: 配信先は binding（state='linked'）から読む。解決失敗は未連携にせずエラーで返す。
+	recipient, recipientErr := linkedLineUserID(ctx, s.recipients, clinicID, ownerID)
+	if recipientErr != nil {
+		slog.ErrorContext(ctx, "failed to resolve LINE recipient", "error", recipientErr, "tag", tagLabel)
+		return "", false, recipientErr
+	}
+	if recipient == "" {
 		return "", false, nil
 	}
-	return *owner.LineUserID, true, nil
+	return recipient, true, nil
 }
 
 // resolveSyncTarget は shouldSkipSync（クリニック単位の同期無効判定）を含めた

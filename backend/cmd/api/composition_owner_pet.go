@@ -36,6 +36,7 @@ type ownerPetRepositories struct {
 	AnimalSpecies     pet.AnimalSpeciesRepository
 	ChronicConditions pet.ChronicConditionRepository
 	PetTransfer       pet.UpcomingReservationOwnerTransfer
+	LineRecipients    owner.LineRecipientReader
 }
 
 type ownerPetComposition struct {
@@ -67,6 +68,7 @@ func newOwnerPetRepositories(db *gorm.DB) ownerPetRepositories {
 		AnimalSpecies:     pet.NewAnimalSpeciesRepository(db),
 		ChronicConditions: pet.NewChronicConditionRepository(db),
 		PetTransfer:       reservation.NewPetOwnerTransfer(db),
+		LineRecipients:    persistence.NewLineBindingReader(db),
 	}
 }
 
@@ -82,6 +84,7 @@ func newOwnerPetComposition(
 		repositories.Owner,
 		repositories.PetOwners,
 		repositories.Transactor,
+		repositories.LineRecipients,
 	)
 	petService := pet.NewServiceWithPetOwnerReader(
 		repositories.Pet,

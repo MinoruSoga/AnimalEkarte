@@ -297,15 +297,13 @@ func (r *lstepTagCacheRepository) WithNextVisitOwnerLock(ctx context.Context, cl
 		if err := tx.
 			Unscoped().
 			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Select("id", "line_user_id").
+			Select("id").
 			Where("clinic_id = ? AND id = ?", clinicID, ownerID).
 			First(&lockedOwner).Error; err != nil {
 			return apperrors.FromGORM(err, "owner", fmt.Sprint(ownerID))
 		}
-		if lockedOwner.LineUserID != nil && *lockedOwner.LineUserID != "" {
-			if err := persistence.AcquireLineRecipientLock(persistence.WithTxValue(ctx, tx), clinicID, *lockedOwner.LineUserID); err != nil {
-				return err
-			}
+		if err := lockOwnerLinkedRecipient(ctx, tx, clinicID, ownerID); err != nil {
+			return err
 		}
 		return fn(persistence.WithTxValue(ctx, tx))
 	})
@@ -335,15 +333,13 @@ func (r *lstepTagCacheRepository) WithDeliveryOwnerLock(ctx context.Context, cli
 		if err := tx.
 			Unscoped().
 			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Select("id", "line_user_id").
+			Select("id").
 			Where("clinic_id = ? AND id = ?", clinicID, ownerID).
 			First(&lockedOwner).Error; err != nil {
 			return apperrors.FromGORM(err, "owner", fmt.Sprint(ownerID))
 		}
-		if lockedOwner.LineUserID != nil && *lockedOwner.LineUserID != "" {
-			if err := persistence.AcquireLineRecipientLock(persistence.WithTxValue(ctx, tx), clinicID, *lockedOwner.LineUserID); err != nil {
-				return err
-			}
+		if err := lockOwnerLinkedRecipient(ctx, tx, clinicID, ownerID); err != nil {
+			return err
 		}
 		var lockedSettingsID uint64
 		if err := tx.Raw("SELECT id FROM lstep_settings WHERE clinic_id = ? FOR SHARE", clinicID).

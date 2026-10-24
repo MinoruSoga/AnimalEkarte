@@ -161,7 +161,7 @@ func (s *liffService) resolveReservationOwnerPet(
 	input *CreateReservationInput,
 ) {
 	customer, err := s.findCustomerWithOwnerSync(ctx, clinicID, customerID)
-	if err != nil || customer == nil || customer.OwnerID == nil || customer.Owner == nil {
+	if err != nil || customer == nil || customer.Owner == nil {
 		return
 	}
 	ownerID := customer.Owner.ID
@@ -267,7 +267,7 @@ func (s *liffService) tryAttachReservationOwnerPet(
 	}
 
 	customer, err := s.findCustomerWithOwnerSync(ctx, clinicID, customerID)
-	if err != nil || customer == nil || customer.OwnerID == nil || customer.Owner == nil {
+	if err != nil || customer == nil || customer.Owner == nil {
 		return
 	}
 

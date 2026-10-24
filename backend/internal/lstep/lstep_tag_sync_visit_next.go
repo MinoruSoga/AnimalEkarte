@@ -354,7 +354,11 @@ func (s *lstepTagSyncService) syncNextVisitCleanup(ctx context.Context, clinicID
 		if !owner.DeletedAt.Valid {
 			return apperrors.WrapConflict("next visit cleanup intent requires a deleted owner")
 		}
-		if owner.LineUserID == nil || *owner.LineUserID != intent.LineUserID {
+		currentRecipient, recipientErr := linkedLineUserID(syncCtx, s.recipients, clinicID, ownerID)
+		if recipientErr != nil {
+			return recipientErr
+		}
+		if currentRecipient == "" || currentRecipient != intent.LineUserID {
 			return apperrors.WrapConflict("next visit cleanup target does not match the owner recipient")
 		}
 		if owner.LstepOptOut {
