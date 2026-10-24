@@ -48,9 +48,6 @@ func buildMedicalRecordUpdate(input UpdateMedicalRecordInput) map[string]any {
 	if input.DoctorID != nil {
 		fields["doctor_id"] = *input.DoctorID
 	}
-	if input.Status != nil {
-		fields["status"] = *input.Status
-	}
 	if input.VisitType != nil {
 		fields["visit_type"] = *input.VisitType
 	}
@@ -76,9 +73,6 @@ func buildMedicalRecordForCreate(clinicID uint64, input *CreateMedicalRecordInpu
 		VisitType:            &visitType,
 		RecommendationReason: input.RecommendationReason,
 		EnteredBy:            input.EnteredBy,
-	}
-	if input.Status != nil {
-		record.Status = *input.Status
 	}
 	return record
 }

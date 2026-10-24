@@ -95,9 +95,9 @@ func TestStaffRepository_CountBlockingReferencesByStaffID_Addenda_CorrelatesMedi
 	staff := makeDoctor(t, db, clinicA, "追記著者スタッフ")
 	date := time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC)
 
-	mrA := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "MR-ADD-A", Date: date, Status: model.MedicalRecordStatusDraft}
+	mrA := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "MR-ADD-A", Date: date}
 	require.NoError(t, db.WithContext(ctx).Create(mrA).Error)
-	mrB := &model.MedicalRecord{ClinicID: clinicB, RecordNo: "MR-ADD-B", Date: date, Status: model.MedicalRecordStatusDraft}
+	mrB := &model.MedicalRecord{ClinicID: clinicB, RecordNo: "MR-ADD-B", Date: date}
 	require.NoError(t, db.WithContext(ctx).Create(mrB).Error)
 
 	// 正常: 子・親とも clinicA
@@ -148,9 +148,9 @@ func TestStaffRepository_CountBlockingReferencesByStaffID_Vitals_CorrelatesMedic
 	pet := makeCorrelationPet(t, db, clinicA, owner.ID, species.ID, "ペットA")
 	date := time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC)
 
-	mrA := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "MR-VIT-A", Date: date, Status: model.MedicalRecordStatusDraft}
+	mrA := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "MR-VIT-A", Date: date}
 	require.NoError(t, db.WithContext(ctx).Create(mrA).Error)
-	mrB := &model.MedicalRecord{ClinicID: clinicB, RecordNo: "MR-VIT-B", Date: date, Status: model.MedicalRecordStatusDraft}
+	mrB := &model.MedicalRecord{ClinicID: clinicB, RecordNo: "MR-VIT-B", Date: date}
 	require.NoError(t, db.WithContext(ctx).Create(mrB).Error)
 
 	legit := &model.VitalRecord{

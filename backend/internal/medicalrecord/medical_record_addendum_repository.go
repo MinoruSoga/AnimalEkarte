@@ -5,6 +5,7 @@ package medicalrecord
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -18,6 +19,10 @@ type MedicalRecordAddendumRepository interface {
 	Create(ctx context.Context, addendum *model.MedicalRecordAddendum) error
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordAddendum, error)
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]*model.MedicalRecordAddendum, error)
+	// LatestConsultationEventKind は同 clinic・同カルテの最大 revision の診療終了イベント種別を返す
+	// （EMR-495 Q2: 訂正追記は最新イベントが ended のときだけ許可する）。履歴なしは found=false
+	// （過去未終了と断定せず、ended とも扱わない）。ambient tx に参加する。
+	LatestConsultationEventKind(ctx context.Context, clinicID, medicalRecordID uint64) (kind string, found bool, err error)
 }
 
 type medicalRecordAddendumRepository struct {
@@ -45,6 +50,22 @@ func (r *medicalRecordAddendumRepository) FindByID(ctx context.Context, clinicID
 		return nil, apperrors.FromGORM(err, "medical_record_addendum", fmt.Sprintf("%d", id))
 	}
 	return &addendum, nil
+}
+
+func (r *medicalRecordAddendumRepository) LatestConsultationEventKind(ctx context.Context, clinicID, medicalRecordID uint64) (string, bool, error) {
+	var event model.MedicalRecordConsultationEvent
+	err := persistence.DBOrTx(ctx, r.db).
+		Select("event_kind").
+		Where("clinic_id = ? AND medical_record_id = ?", clinicID, medicalRecordID).
+		Order("revision DESC").
+		Take(&event).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", false, nil
+		}
+		return "", false, apperrors.FromGORM(err, "medical_record_consultation_event", fmt.Sprintf("medical_record_id=%d", medicalRecordID))
+	}
+	return event.EventKind, true, nil
 }
 
 func (r *medicalRecordAddendumRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]*model.MedicalRecordAddendum, error) {

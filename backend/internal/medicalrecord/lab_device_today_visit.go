@@ -11,7 +11,7 @@ type labDeviceTodayVisitFinder struct {
 	records MedicalRecordRepository
 }
 
-// NewLabDeviceTodayVisitFinder lists today's draft charts for the lab-device wait board.
+// NewLabDeviceTodayVisitFinder lists today's charts for the lab-device wait board (EMR-495: no status filter).
 func NewLabDeviceTodayVisitFinder(records MedicalRecordRepository) LabDeviceTodayVisitFinder {
 	return labDeviceTodayVisitFinder{records: records}
 }
@@ -21,11 +21,10 @@ func (f labDeviceTodayVisitFinder) ListTodayDraft(
 	clinicID uint64,
 	date string,
 ) ([]LabDeviceTodayVisit, error) {
-	status := model.MedicalRecordStatusDraft
+	// EMR-495: status 列の廃止に伴い draft 絞り込みは行わない（当日の全カルテを一覧する）。
 	records, _, err := f.records.FindAll(ctx, []uint64{clinicID}, MedicalRecordListFilters{
 		StartDate: &date,
 		EndDate:   &date,
-		Status:    &status,
 		Sort:      "pet_name",
 		Order:     "asc",
 	}, 1, labDeviceTodayVisitLimit)

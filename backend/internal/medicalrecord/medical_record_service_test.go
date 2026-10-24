@@ -217,11 +217,6 @@ func TestMedicalRecordService_GetByID_NotFound(t *testing.T) {
 }
 
 func createMedicalRecordForTest(ctx context.Context, svc MedicalRecordService, record *model.MedicalRecord) (*model.MedicalRecord, error) {
-	var status *model.MedicalRecordStatus
-	if record.Status != "" {
-		v := record.Status
-		status = &v
-	}
 	visitType := model.VisitTypeRevisit
 	if record.VisitType != nil {
 		visitType = *record.VisitType
@@ -233,7 +228,6 @@ func createMedicalRecordForTest(ctx context.Context, svc MedicalRecordService, r
 		PetID:                record.PetID,
 		DoctorID:             record.DoctorID,
 		AppointmentID:        record.AppointmentID,
-		Status:               status,
 		VisitType:            visitType,
 		RecommendationReason: record.RecommendationReason,
 		EnteredBy:            record.EnteredBy,
@@ -242,7 +236,6 @@ func createMedicalRecordForTest(ctx context.Context, svc MedicalRecordService, r
 
 func TestMedicalRecordService_Create(t *testing.T) {
 	now := time.Now()
-	statusDraft := model.MedicalRecordStatusDraft
 	tests := []struct {
 		name    string
 		input   CreateMedicalRecordInput
@@ -254,7 +247,6 @@ func TestMedicalRecordService_Create(t *testing.T) {
 			input: CreateMedicalRecordInput{
 				RecordNo: "R100",
 				Date:     now,
-				Status:   &statusDraft,
 			},
 			repoErr: nil,
 			wantErr: false,
@@ -611,64 +603,10 @@ func TestMedicalRecordService_Create_AppointmentLifecycleGuard(t *testing.T) {
 		assert.NotNil(t, record)
 		assert.True(t, backfillCalled)
 	})
-
-	t.Run("finalized create joins the no-show lifecycle lock before the appointment lock", func(t *testing.T) {
-		finalized := model.MedicalRecordStatusFinalized
-		prepareCalled := false
-		backfillCalled := false
-		recordRepo := &mockMedicalRecordRepository{
-			createFn: func(ctx context.Context, record *model.MedicalRecord) error {
-				assertMedicalRecordTxContext(ctx, t)
-				assert.True(t, prepareCalled)
-				assert.True(t, backfillCalled)
-				record.ID = 2
-				return nil
-			},
-		}
-		reservationRepo := &mockReservationRepoForMedicalRecord{
-			prepareFinalizationFn: func(ctx context.Context, clinicID, id uint64) error {
-				assertMedicalRecordTxContext(ctx, t)
-				prepareCalled = true
-				assert.False(t, backfillCalled, "lifecycle lock must precede the appointment row lock")
-				assert.Equal(t, uint64(1), clinicID)
-				assert.Equal(t, appointmentID, id)
-				return nil
-			},
-			backfillFn: func(ctx context.Context, _, _ uint64, _, _, _ *uint64) error {
-				assertMedicalRecordTxContext(ctx, t)
-				assert.True(t, prepareCalled)
-				backfillCalled = true
-				return nil
-			},
-			findByIDFn: func(ctx context.Context, _, _ uint64) (*model.Reservation, error) {
-				assertMedicalRecordTxContext(ctx, t)
-				assert.True(t, backfillCalled)
-				return appointment, nil
-			},
-			findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
-				return ownerID, nil
-			},
-		}
-		svc := NewMedicalRecordServiceWithTxAudit(recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, medicalRecordTxMarker{})
-
-		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
-			OwnerID:       &ownerID,
-			PetID:         &petID,
-			DoctorID:      &doctorID,
-			AppointmentID: &appointmentID,
-			Status:        &finalized,
-		})
-
-		assert.NoError(t, err)
-		assert.NotNil(t, record)
-		assert.True(t, prepareCalled)
-		assert.True(t, backfillCalled)
-	})
 }
 
 func TestMedicalRecordService_Update(t *testing.T) {
 	now := time.Now()
-	statusFinalized := model.MedicalRecordStatusFinalized
 	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0}
 	tests := []struct {
 		name         string
@@ -682,8 +620,7 @@ func TestMedicalRecordService_Update(t *testing.T) {
 		{
 			name: "updates record successfully",
 			input: UpdateMedicalRecordInput{
-				Date:   &now,
-				Status: &statusFinalized,
+				Date: &now,
 			},
 			findByIDErr: nil,
 			updateErr:   nil,
@@ -701,7 +638,7 @@ func TestMedicalRecordService_Update(t *testing.T) {
 		{
 			name: "returns not found error when record does not exist",
 			input: UpdateMedicalRecordInput{
-				Status: &statusFinalized,
+				Date: &now,
 			},
 			findByIDErr: apperrors.WrapNotFound("medical_record", "999"),
 			updateErr:   nil,
@@ -718,26 +655,11 @@ func TestMedicalRecordService_Update(t *testing.T) {
 			wantErr:     true,
 			wantNF:      false,
 		},
-		{
-			name: "returns conflict when record is already finalized",
-			input: UpdateMedicalRecordInput{
-				Date: &now,
-			},
-			findByIDErr:  nil,
-			updateErr:    nil,
-			wantErr:      true,
-			wantNF:       false,
-			wantConflict: true,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isFinalized := tt.name == "returns conflict when record is already finalized"
 			existingRecord := validRecord
-			if isFinalized {
-				existingRecord = &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0, Status: model.MedicalRecordStatusFinalized}
-			}
 			repo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 					if tt.findByIDErr != nil {
@@ -782,7 +704,6 @@ func TestMedicalRecordService_Update_RejectsAppointmentRelink(t *testing.T) {
 				ID:            1,
 				ClinicID:      1,
 				AppointmentID: &appointmentID,
-				Status:        model.MedicalRecordStatusDraft,
 			}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
@@ -814,7 +735,6 @@ func TestMedicalRecordService_Update_RejectsDateChangeForAppointmentLinkedRecord
 				ID:            1,
 				ClinicID:      1,
 				AppointmentID: &appointmentID,
-				Status:        model.MedicalRecordStatusDraft,
 			}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
@@ -879,7 +799,6 @@ func TestMedicalRecordService_Update_LinkedContextUsesReservationGuard(t *testin
 				PetID:         &petID,
 				DoctorID:      &doctorID,
 				AppointmentID: &appointmentID,
-				Status:        model.MedicalRecordStatusDraft,
 			}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
@@ -910,121 +829,9 @@ func TestMedicalRecordService_Update_LinkedContextUsesReservationGuard(t *testin
 	assert.True(t, guardCalled)
 }
 
-func TestMedicalRecordService_Update_FinalizationUsesAppointmentLifecycleGuard(t *testing.T) {
-	appointmentID := uint64(77)
-	finalized := model.MedicalRecordStatusFinalized
-
-	t.Run("guard and update share the transaction context", func(t *testing.T) {
-		guardCalled := false
-		backfillCalled := false
-		repo := &mockMedicalRecordRepository{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return &model.MedicalRecord{
-					ID:            1,
-					ClinicID:      1,
-					AppointmentID: &appointmentID,
-					Status:        model.MedicalRecordStatusDraft,
-				}, nil
-			},
-			updateFieldsFn: func(ctx context.Context, _, id uint64, _ map[string]any) (*model.MedicalRecord, error) {
-				assertMedicalRecordTxContext(ctx, t)
-				assert.True(t, guardCalled)
-				assert.True(t, backfillCalled)
-				return &model.MedicalRecord{ID: id, ClinicID: 1, AppointmentID: &appointmentID, Status: finalized}, nil
-			},
-		}
-		reservationRepo := &mockReservationRepoForMedicalRecord{
-			prepareFinalizationFn: func(ctx context.Context, clinicID, id uint64) error {
-				guardCalled = true
-				assertMedicalRecordTxContext(ctx, t)
-				assert.Equal(t, uint64(1), clinicID)
-				assert.Equal(t, appointmentID, id)
-				return nil
-			},
-			backfillFn: func(ctx context.Context, clinicID, id uint64, _, _, _ *uint64) error {
-				assertMedicalRecordTxContext(ctx, t)
-				assert.True(t, guardCalled, "lifecycle lock must precede the appointment context row lock")
-				assert.Equal(t, uint64(1), clinicID)
-				assert.Equal(t, appointmentID, id)
-				backfillCalled = true
-				return nil
-			},
-		}
-		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTreatmentAuditTxLogger{}, medicalRecordTxMarker{})
-
-		record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{Status: &finalized})
-
-		assert.NoError(t, err)
-		assert.NotNil(t, record)
-		assert.True(t, guardCalled)
-		assert.True(t, backfillCalled)
-	})
-
-	t.Run("guard conflict prevents finalization", func(t *testing.T) {
-		repo := &mockMedicalRecordRepository{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return &model.MedicalRecord{
-					ID:            1,
-					ClinicID:      1,
-					AppointmentID: &appointmentID,
-					Status:        model.MedicalRecordStatusDraft,
-				}, nil
-			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
-				t.Fatal("medical record must not be finalized when the appointment lifecycle guard rejects it")
-				return nil, nil
-			},
-		}
-		reservationRepo := &mockReservationRepoForMedicalRecord{
-			prepareFinalizationFn: func(_ context.Context, _, _ uint64) error {
-				return apperrors.WrapConflict("appointment is no-show")
-			},
-			backfillFn: func(_ context.Context, _, _ uint64, _, _, _ *uint64) error {
-				t.Fatal("appointment context lock must not run when lifecycle guard rejects finalization")
-				return nil
-			},
-		}
-		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, medicalRecordTxMarker{})
-
-		record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{Status: &finalized})
-
-		assert.Error(t, err)
-		assert.True(t, apperrors.IsConflict(err))
-		assert.Nil(t, record)
-	})
-}
-
-func TestMedicalRecordService_Update_SyncsVisitCompletionTags(t *testing.T) {
-	ownerID := uint64(10)
-	statusFinalized := model.MedicalRecordStatusFinalized
-	var visitCompletionOwnerID uint64
-
-	repo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{ID: 30, ClinicID: 1, Version: 0, Status: model.MedicalRecordStatusDraft}, nil
-		},
-		updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{ID: id, ClinicID: 1, OwnerID: &ownerID, Status: statusFinalized}, nil
-		},
-	}
-	tagSync := &mockLstepTagSyncService{
-		syncVisitCompletionTagsFn: func(_ context.Context, _, ownerID uint64) error {
-			visitCompletionOwnerID = ownerID
-			return errors.New("sync failed")
-		},
-	}
-	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTreatmentAuditTxLogger{}, &mockTransactor{}, tagSync)
-
-	record, err := svc.Update(context.Background(), 1, 30, UpdateMedicalRecordInput{Status: &statusFinalized})
-
-	assert.NoError(t, err)
-	assert.NotNil(t, record)
-	assert.Equal(t, ownerID, visitCompletionOwnerID)
-}
-
 func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 	ownerID := uint64(100)
-	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0, Status: model.MedicalRecordStatusDraft}
+	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0}
 
 	t.Run("rejects owner_id not in clinic", func(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
@@ -1080,7 +887,7 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 	petID := uint64(200)
 
-	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0, Status: model.MedicalRecordStatusDraft}
+	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0}
 
 	t.Run("rejects pet_id not in clinic", func(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
@@ -1132,136 +939,31 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 	})
 }
 
-func TestMedicalRecordService_Delete(t *testing.T) {
-	tests := []struct {
-		name          string
-		clinicID      uint64
-		id            uint64
-		estimateCount int64
-		estimateErr   error
-		repoErr       error
-		wantErr       bool
-		wantNF        bool
-		wantConflict  bool
-	}{
-		{
-			name:          "deletes record successfully",
-			clinicID:      1,
-			id:            10,
-			estimateCount: 0,
-			repoErr:       nil,
-			wantErr:       false,
-			wantNF:        false,
-		},
-		{
-			name:          "returns conflict error when estimates reference the record",
-			clinicID:      1,
-			id:            10,
-			estimateCount: 2,
-			wantErr:       true,
-			wantConflict:  true,
-		},
-		{
-			name:        "returns error when estimate count check fails",
-			clinicID:    1,
-			id:          10,
-			estimateErr: errors.New("db error"),
-			wantErr:     true,
-		},
-		{
-			name:          "returns not found error when record does not exist",
-			clinicID:      1,
-			id:            999,
-			estimateCount: 0,
-			repoErr:       apperrors.WrapNotFound("medical_record", "999"),
-			wantErr:       true,
-			wantNF:        true,
-		},
-		{
-			name:          "returns error on repository failure",
-			clinicID:      1,
-			id:            10,
-			estimateCount: 0,
-			repoErr:       errors.New("db error"),
-			wantErr:       true,
-			wantNF:        false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockMedicalRecordRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					if tt.repoErr != nil {
-						return nil, tt.repoErr
-					}
-					return &model.MedicalRecord{
-						ID:       1,
-						ClinicID: 1,
-						Status:   model.MedicalRecordStatusDraft,
-					}, nil
-				},
-				countEstimatesByMedicalRecordIDFn: func(_ context.Context, _ uint64) (int64, error) {
-					return tt.estimateCount, tt.estimateErr
-				},
-				deleteFn: func(_ context.Context, _, _ uint64) error {
-					return tt.repoErr
-				},
-			}
-			svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
-
-			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.wantNF {
-					assert.True(t, apperrors.IsNotFound(err))
-				}
-				if tt.wantConflict {
-					assert.True(t, apperrors.IsConflict(err))
-				}
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestMedicalRecordService_Delete_SyncsVisitCompletionTagsAfterDelete(t *testing.T) {
-	ownerID := uint64(10)
-	deleted := false
-	visitCompletionAfterDelete := false
-
+// EMR-495 P1 (Lead Q1): record Delete は固定エラー（422 クラス・コード medical_record_status_retired）。
+// リポジトリにも監査にも触れない。メッセージは「削除は未提供」で、draft を削除可否の根拠にしない。
+func TestMedicalRecordService_Delete_ReturnsFixedRetiredError(t *testing.T) {
 	repo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{
-				ID:       id,
-				ClinicID: 1,
-				OwnerID:  &ownerID,
-				Status:   model.MedicalRecordStatusDraft,
-			}, nil
-		},
-		countEstimatesByMedicalRecordIDFn: func(_ context.Context, _ uint64) (int64, error) {
-			return 0, nil
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			t.Fatal("Delete must not read the record")
+			return nil, nil
 		},
 		deleteFn: func(_ context.Context, _, _ uint64) error {
-			deleted = true
+			t.Fatal("Delete must not delete the record")
 			return nil
 		},
 	}
-	tagSync := &mockLstepTagSyncService{
-		syncVisitCompletionTagsFn: func(_ context.Context, _, syncedOwnerID uint64) error {
-			visitCompletionAfterDelete = deleted
-			assert.Equal(t, ownerID, syncedOwnerID)
-			return nil
-		},
-	}
-	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{}, tagSync)
+	auditSvc := &mockAuditService{}
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil, &mockTransactor{})
 
-	err := svc.Delete(context.Background(), 1, 30)
+	err := svc.Delete(context.Background(), 1, 10)
 
-	assert.NoError(t, err)
-	assert.True(t, visitCompletionAfterDelete)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, apperrors.ErrUnprocessable))
+	var appErr *apperrors.AppError
+	require.True(t, errors.As(err, &appErr))
+	assert.Equal(t, apperrors.CodeMedicalRecordStatusRetired, appErr.Code)
+	assert.Contains(t, err.Error(), "削除は未提供")
+	assert.Empty(t, auditSvc.calls)
 }
 
 func TestMedicalRecordService_CreateSubRecords_SkipsEmptyInquiryInput(t *testing.T) {
@@ -1323,6 +1025,13 @@ func (n *noopClinicalPlanRepo) Update(_ context.Context, _, _ uint64, _ UpdateCl
 	return nil
 }
 func (n *noopClinicalPlanRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (n *noopClinicalPlanRepo) ListDiagnoses(_ context.Context, _, _ uint64) ([]model.ClinicalPlanDiagnosis, error) {
+	return nil, nil
+}
+func (n *noopClinicalPlanRepo) ReplaceDiagnoses(_ context.Context, _, _ uint64, _ []ClinicalPlanDiagnosisInput) error {
+	return nil
+}
+func (n *noopClinicalPlanRepo) DeleteDiagnoses(_ context.Context, _, _ uint64) error { return nil }
 
 // mockLineCustomerRepository は AutoCreateFromReservation テスト用 LineCustomerRepository モック
 type mockLineCustomerRepository struct {
@@ -1897,24 +1606,6 @@ func TestMedicalRecordService_UpdateRecommendationReason(t *testing.T) {
 		assert.Equal(t, "exam", *rec.RecommendationReason)
 	})
 
-	t.Run("rejects_finalized_parent", func(t *testing.T) {
-		updateCalled := false
-		repo := &mockMedicalRecordRepository{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return &model.MedicalRecord{ID: recordID, Status: model.MedicalRecordStatusFinalized}, nil
-			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
-				updateCalled = true
-				return nil, errors.New("must not be called")
-			},
-		}
-		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "revisit"})
-		assert.Error(t, err)
-		assert.Nil(t, rec)
-		assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの推奨理由更新は Conflict(409) であるべき: %v", err)
-		assert.False(t, updateCalled, "確定済みカルテの推奨理由は更新されてはならない")
-	})
-
 	t.Run("empty_reason_clears_to_nil", func(t *testing.T) {
 		var capturedFields map[string]any
 		repo := &mockMedicalRecordRepository{
@@ -1985,7 +1676,6 @@ func TestMedicalRecordService_Create_AuditLog(t *testing.T) {
 	record := &model.MedicalRecord{
 		ClinicID:  1,
 		Date:      time.Now(),
-		Status:    model.MedicalRecordStatusDraft,
 		EnteredBy: &enteredBy,
 	}
 	created, err := createMedicalRecordForTest(context.Background(), svc, record)
@@ -1994,16 +1684,14 @@ func TestMedicalRecordService_Create_AuditLog(t *testing.T) {
 	assert.Contains(t, auditSvc.calls, "create", "create 操作が audit に記録されること")
 }
 
-// TestMedicalRecordService_Update_AuditLog はカルテ更新時に audit "update" が記録されることを確認する。
+// TestMedicalRecordService_Update_AuditLog はカルテ更新時に audit "update" が更新と同じ tx（LogEntryTx）で記録されることを確認する。
 func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
-	auditSvc := &mockAuditService{}
-	draftStatus := model.MedicalRecordStatusDraft
+	auditTx := &mockTreatmentAuditTxLogger{}
 	repo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
 				ID:       10,
 				ClinicID: 1,
-				Status:   model.MedicalRecordStatusDraft,
 				DoctorID: ptrUint64(5),
 			}, nil
 		},
@@ -2011,88 +1699,27 @@ func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
 			return &model.MedicalRecord{
 				ID:       10,
 				ClinicID: 1,
-				Status:   model.MedicalRecordStatusDraft,
 				DoctorID: ptrUint64(99),
 			}, nil
 		},
 	}
 	reservationRepo := &mockReservationRepoForMedicalRecord{}
-	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, auditSvc, nil, &mockTransactor{})
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, auditTx, &mockTransactor{})
 
 	staffID := uint64(7)
 	_, err := svc.Update(context.Background(), 1, 10, UpdateMedicalRecordInput{
-		Status:   &draftStatus,
 		DoctorID: ptrUint64(99),
 		ActorID:  &staffID,
 	})
 	assert.NoError(t, err)
-	assert.Contains(t, auditSvc.calls, "update", "update 操作が audit に記録されること")
-}
-
-// TestMedicalRecordService_Update_FinalizeAuditLog はカルテ確定時に "finalize" 監査ログが追加記録されることを確認する。
-func TestMedicalRecordService_Update_FinalizeAuditLog(t *testing.T) {
-	auditSvc := &mockAuditService{}
-	auditTx := &mockTreatmentAuditTxLogger{}
-	finalizedStatus := model.MedicalRecordStatusFinalized
-	repo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{
-				ID:       10,
-				ClinicID: 1,
-				Status:   model.MedicalRecordStatusDraft,
-			}, nil
-		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{
-				ID:       10,
-				ClinicID: 1,
-				Status:   model.MedicalRecordStatusFinalized,
-			}, nil
-		},
-	}
-	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, auditTx, &mockTransactor{})
-
-	staffID := uint64(7)
-	_, err := svc.Update(context.Background(), 1, 10, UpdateMedicalRecordInput{
-		Status:  &finalizedStatus,
-		ActorID: &staffID,
-	})
-	assert.NoError(t, err)
-	require.Len(t, auditTx.entries, 1)
+	require.Len(t, auditTx.entries, 1, "update 操作が更新と同じ tx の監査（LogEntryTx）に 1 件記録されること")
 	entry := auditTx.entries[0]
-	require.NotNil(t, entry.ClinicID)
-	require.NotNil(t, entry.ActorID)
-	require.NotNil(t, entry.ResourceID)
-	assert.Equal(t, uint64(1), *entry.ClinicID)
-	assert.Equal(t, staffID, *entry.ActorID)
-	assert.Equal(t, model.AuditActorTypeStaff, entry.ActorType)
-	assert.Equal(t, "finalize", entry.Action)
+	assert.Equal(t, "update", entry.Action)
 	assert.Equal(t, "medical_record", entry.Resource)
+	require.NotNil(t, entry.ActorID)
+	assert.Equal(t, staffID, *entry.ActorID)
+	require.NotNil(t, entry.ResourceID)
 	assert.Equal(t, uint64(10), *entry.ResourceID)
-	assert.Nil(t, entry.OldValue)
-	assert.Equal(t, "finalized", entry.NewValue.(map[string]any)["status"])
-	assert.Nil(t, entry.Metadata)
-}
-
-// TestMedicalRecordService_Delete_AuditLog はカルテ削除時に audit "delete" が記録されることを確認する。
-func TestMedicalRecordService_Delete_AuditLog(t *testing.T) {
-	auditSvc := &mockAuditService{}
-	repo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{ID: 10, ClinicID: 1, Status: model.MedicalRecordStatusDraft}, nil
-		},
-		countEstimatesByMedicalRecordIDFn: func(_ context.Context, _ uint64) (int64, error) {
-			return 0, nil
-		},
-		deleteFn: func(_ context.Context, _, _ uint64) error {
-			return nil
-		},
-	}
-	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil, &mockTransactor{})
-
-	err := svc.Delete(context.Background(), 1, 10)
-	assert.NoError(t, err)
-	assert.Contains(t, auditSvc.calls, "delete", "delete 操作が audit に記録されること")
 }
 
 // TestMedicalRecordService_AuditFailure_NonFatal は監査ログ書き込み失敗がメイン処理を止めないことを確認する。
@@ -2110,154 +1737,8 @@ func TestMedicalRecordService_AuditFailure_NonFatal(t *testing.T) {
 	}
 	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil, &mockTransactor{})
 
-	record := &model.MedicalRecord{ClinicID: 1, Date: time.Now(), Status: model.MedicalRecordStatusDraft}
+	record := &model.MedicalRecord{ClinicID: 1, Date: time.Now()}
 	created, err := createMedicalRecordForTest(context.Background(), svc, record)
 	assert.NoError(t, err, "監査ログ失敗はメイン処理のエラーを返さない（best-effort）")
 	assert.NotNil(t, created)
-}
-
-// SEC-DUR-01-MR-T1: 譲渡後のカルテ確定は snapshot owner と current pet owner の差を許容し clinic 外は拒否する。
-func TestMedicalRecordService_Update_Finalize_AllowsHistoricalOwnerAfterPetTransfer(t *testing.T) {
-	const (
-		clinicID        = uint64(1)
-		recordID        = uint64(10)
-		previousOwnerID = uint64(20)
-		currentOwnerID  = uint64(21)
-		petID           = uint64(30)
-	)
-	finalizedStatus := model.MedicalRecordStatusFinalized
-	staffID := uint64(7)
-
-	t.Run("same_clinic_transfer_succeeds", func(t *testing.T) {
-		updateCalls := 0
-		auditTx := &mockTreatmentAuditTxLogger{}
-		repo := &mockMedicalRecordRepository{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return &model.MedicalRecord{
-					ID: recordID, ClinicID: clinicID,
-					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(petID),
-					Status: model.MedicalRecordStatusDraft, Version: 1,
-				}, nil
-			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.MedicalRecord, error) {
-				updateCalls++
-				assert.Equal(t, model.MedicalRecordStatusFinalized, fields["status"])
-				return &model.MedicalRecord{
-					ID: recordID, ClinicID: clinicID,
-					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(petID),
-					Status: model.MedicalRecordStatusFinalized, Version: 2,
-				}, nil
-			},
-		}
-		reservationRepo := &mockReservationRepoForMedicalRecord{
-			assertOwnerFn: func(_ context.Context, _, ownerID uint64) error {
-				if ownerID == previousOwnerID {
-					return nil
-				}
-				return apperrors.WrapNotFound("owner", "scoped")
-			},
-			findPetOwnerFn: func(_ context.Context, _, gotPetID uint64) (uint64, error) {
-				if gotPetID == petID {
-					return currentOwnerID, nil
-				}
-				return 0, apperrors.WrapNotFound("pet", "scoped")
-			},
-		}
-		svc := NewMedicalRecordServiceWithTxAudit(
-			repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, auditTx, &mockTransactor{},
-		)
-
-		got, err := svc.Update(context.Background(), clinicID, recordID, UpdateMedicalRecordInput{
-			Status:  &finalizedStatus,
-			ActorID: &staffID,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, got)
-		assert.Equal(t, 1, updateCalls)
-		require.Len(t, auditTx.entries, 1)
-		assert.Equal(t, "finalize", auditTx.entries[0].Action)
-	})
-
-	t.Run("rejects_foreign_snapshot_owner", func(t *testing.T) {
-		updateCalls := 0
-		auditTx := &mockTreatmentAuditTxLogger{}
-		repo := &mockMedicalRecordRepository{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return &model.MedicalRecord{
-					ID: recordID, ClinicID: clinicID,
-					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(petID),
-					Status: model.MedicalRecordStatusDraft, Version: 1,
-				}, nil
-			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
-				updateCalls++
-				return &model.MedicalRecord{ID: recordID, Status: model.MedicalRecordStatusFinalized}, nil
-			},
-		}
-		reservationRepo := &mockReservationRepoForMedicalRecord{
-			assertOwnerFn: func(_ context.Context, _, ownerID uint64) error {
-				assert.Equal(t, previousOwnerID, ownerID)
-				return apperrors.WrapNotFound("owner", "scoped")
-			},
-			findPetOwnerFn: func(_ context.Context, _, gotPetID uint64) (uint64, error) {
-				if gotPetID == petID {
-					return currentOwnerID, nil
-				}
-				return 0, apperrors.WrapNotFound("pet", "scoped")
-			},
-		}
-		svc := NewMedicalRecordServiceWithTxAudit(
-			repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, auditTx, &mockTransactor{},
-		)
-
-		got, err := svc.Update(context.Background(), clinicID, recordID, UpdateMedicalRecordInput{
-			Status:  &finalizedStatus,
-			ActorID: &staffID,
-		})
-		require.Error(t, err)
-		assert.Nil(t, got)
-		assert.Zero(t, updateCalls)
-		assert.Empty(t, auditTx.entries)
-	})
-
-	t.Run("rejects_foreign_pet", func(t *testing.T) {
-		updateCalls := 0
-		auditTx := &mockTreatmentAuditTxLogger{}
-		repo := &mockMedicalRecordRepository{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return &model.MedicalRecord{
-					ID: recordID, ClinicID: clinicID,
-					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(petID),
-					Status: model.MedicalRecordStatusDraft, Version: 1,
-				}, nil
-			},
-			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
-				updateCalls++
-				return &model.MedicalRecord{ID: recordID, Status: model.MedicalRecordStatusFinalized}, nil
-			},
-		}
-		reservationRepo := &mockReservationRepoForMedicalRecord{
-			assertOwnerFn: func(_ context.Context, _, ownerID uint64) error {
-				if ownerID == previousOwnerID {
-					return nil
-				}
-				return apperrors.WrapNotFound("owner", "scoped")
-			},
-			findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
-				return 0, apperrors.WrapNotFound("pet", "scoped")
-			},
-		}
-		svc := NewMedicalRecordServiceWithTxAudit(
-			repo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, auditTx, &mockTransactor{},
-		)
-
-		got, err := svc.Update(context.Background(), clinicID, recordID, UpdateMedicalRecordInput{
-			Status:  &finalizedStatus,
-			ActorID: &staffID,
-		})
-		require.Error(t, err)
-		assert.Nil(t, got)
-		assert.Zero(t, updateCalls)
-		assert.Empty(t, auditTx.entries)
-	})
 }

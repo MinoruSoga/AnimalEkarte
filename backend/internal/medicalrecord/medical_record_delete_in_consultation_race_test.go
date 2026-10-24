@@ -3,8 +3,9 @@ package medicalrecord
 // medical_record_delete_in_consultation_race_test.go — F-1
 //
 // Reservation in_consultation は appointments を FOR UPDATE してから medical_records を
-// COUNT する。Delete も appointments 行ロックを先に取り、同じロック順序で相互排除する。
-// 予約側が先に commit して in_consultation になった場合、Delete は Conflict し live karte を残す。
+// COUNT する。EMR-495 P1: medicalRecordService.Delete は固定エラーを返す（削除経路なし）ため、
+// Delete 経由の競合テスト（旧 DeleteWaitsOnAppointmentRowLockBeforeInConsultationCommit）は廃止した。
+// リポジトリの LockLinkedAppointmentForUpdate の契約テストのみ残す。
 
 import (
 	"context"
@@ -59,7 +60,6 @@ func seedDraftRecordLinkedToConfirmedAppointment(
 		ClinicID:      clinicID,
 		RecordNo:      recordNo,
 		Date:          start,
-		Status:        model.MedicalRecordStatusDraft,
 		AppointmentID: &appointment.ID,
 	})
 	return appointment, record
@@ -72,62 +72,6 @@ func lockAppointmentForUpdate(t *testing.T, tx *gorm.DB, clinicID, appointmentID
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ? AND clinic_id = ?", appointmentID, clinicID).
 		First(&locked).Error)
-}
-
-func countLiveRecordsForAppointment(t *testing.T, db *gorm.DB, appointmentID uint64) int64 {
-	t.Helper()
-	var count int64
-	require.NoError(t, db.Model(&model.MedicalRecord{}).
-		Where("appointment_id = ? AND deleted_at IS NULL", appointmentID).
-		Count(&count).Error)
-	return count
-}
-
-func TestMedicalRecordService_DeleteWaitsOnAppointmentRowLockBeforeInConsultationCommit(t *testing.T) {
-	const clinicID = uint64(1)
-	db := setupMedicalRecordDeleteAppointmentRaceDB(t)
-	appointment, record := seedDraftRecordLinkedToConfirmedAppointment(t, db, clinicID, "DEL-INCONSULT-RACE")
-	repo := NewMedicalRecordRepository(db)
-	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, testTransactor{db: db})
-
-	holdingTx := db.Begin()
-	require.NoError(t, holdingTx.Error)
-	committed := false
-	defer func() {
-		if !committed {
-			holdingTx.Rollback()
-		}
-	}()
-	lockAppointmentForUpdate(t, holdingTx, clinicID, appointment.ID)
-
-	deleteDone := make(chan error, 1)
-	go func() { deleteDone <- svc.Delete(context.Background(), clinicID, record.ID) }()
-	select {
-	case err := <-deleteDone:
-		require.Failf(t, "delete did not wait for appointment row lock", "err=%v", err)
-	case <-time.After(100 * time.Millisecond):
-	}
-
-	require.NoError(t, holdingTx.Model(&model.Reservation{}).
-		Where("id = ? AND clinic_id = ?", appointment.ID, clinicID).
-		Update("status", model.ReservationStatusInConsultation).Error)
-	require.NoError(t, holdingTx.Commit().Error)
-	committed = true
-
-	var deleteErr error
-	select {
-	case deleteErr = <-deleteDone:
-	case <-time.After(30 * time.Second):
-		t.Fatal("delete did not finish after appointment lock was released")
-	}
-	require.Error(t, deleteErr)
-	assert.True(t, apperrors.IsConflict(deleteErr), "deleteErr=%v", deleteErr)
-
-	var persisted model.Reservation
-	require.NoError(t, db.First(&persisted, appointment.ID).Error)
-	liveCount := countLiveRecordsForAppointment(t, db, appointment.ID)
-	assert.Equal(t, model.ReservationStatusInConsultation, persisted.Status)
-	assert.EqualValues(t, 1, liveCount, "in_consultation appointment must keep its live karte")
 }
 
 func TestMedicalRecordRepository_LockLinkedAppointmentForUpdate_RequiresAmbientTransaction(t *testing.T) {

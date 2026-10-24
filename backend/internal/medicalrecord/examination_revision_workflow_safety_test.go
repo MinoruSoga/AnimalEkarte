@@ -290,11 +290,11 @@ func TestExaminationRevision_PetIdentityCannotChangeThroughMedicalRecordAfterHis
 	owner := testdb.MakeTestOwner(t, db, clinicID, "patient identity owner")
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "patient identity pet")
 	initialRecord := &model.MedicalRecord{
-		ClinicID: clinicID, RecordNo: "MR-IDENTITY-EMPTY", Date: time.Now(), Status: model.MedicalRecordStatusDraft,
+		ClinicID: clinicID, RecordNo: "MR-IDENTITY-EMPTY", Date: time.Now(),
 	}
 	replacementRecord := &model.MedicalRecord{
 		ClinicID: clinicID, RecordNo: "MR-IDENTITY-PET", Date: time.Now(),
-		OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &owner.ID, PetID: &pet.ID,
 	}
 	require.NoError(t, db.Create(initialRecord).Error)
 	require.NoError(t, db.Create(replacementRecord).Error)
@@ -333,67 +333,6 @@ func TestExaminationRevision_PetIdentityCannotChangeThroughMedicalRecordAfterHis
 	require.NotNil(t, persisted.MedicalRecordID)
 	assert.Equal(t, initialRecord.ID, *persisted.MedicalRecordID)
 	assert.Equal(t, uint64(2), *persisted.CurrentRevisionVersion)
-}
-
-func TestExaminationRevision_UnconfirmAndReconfirmRejectFinalizedMedicalRecord(t *testing.T) {
-	for _, operation := range []string{"unconfirm", "reconfirm"} {
-		t.Run(operation, func(t *testing.T) {
-			db := setupExaminationTestDB(t)
-			ctx := context.Background()
-			const clinicID = uint64(1)
-			actorID := makeExaminationActor(t, db, clinicID, "finalized record actor")
-			examType := makeExamTypeMaster(t, db, clinicID, "finalized record exam type")
-			record := &model.MedicalRecord{
-				ClinicID: clinicID, RecordNo: "MR-FINALIZED-REVISION", Date: time.Now(), Status: model.MedicalRecordStatusDraft,
-			}
-			require.NoError(t, db.Create(record).Error)
-			repo := NewExaminationRepository(db)
-			service := NewExaminationService(
-				repo,
-				NewMedicalRecordRepository(db),
-				NewExamTypeRepository(db),
-				&mockAuditTxLogger{},
-				persistence.NewTransactor(db),
-				reservation.NewReservationRepository(db),
-			)
-			confirmed, err := service.Create(ctx, clinicID, &CreateExaminationInput{
-				MedicalRecordID: &record.ID, ExamTypeID: examType.ID, Date: time.Now(),
-				Status: model.ExaminationStatusConfirmed, ActorID: &actorID,
-			})
-			require.NoError(t, err)
-			if operation == "reconfirm" {
-				_, err = service.Unconfirm(ctx, clinicID, confirmed.ID, UnconfirmExaminationInput{
-					Reason: "prepare reconfirm", ActorID: &actorID,
-				})
-				require.NoError(t, err)
-			}
-			require.NoError(t, db.Model(&model.MedicalRecord{}).
-				Where("clinic_id = ? AND id = ?", clinicID, record.ID).
-				Update("status", model.MedicalRecordStatusFinalized).Error)
-
-			if operation == "unconfirm" {
-				_, err = service.Unconfirm(ctx, clinicID, confirmed.ID, UnconfirmExaminationInput{
-					Reason: "must reject finalized record", ActorID: &actorID,
-				})
-			} else {
-				status := model.ExaminationStatusConfirmed
-				_, err = service.Update(ctx, clinicID, confirmed.ID, UpdateExaminationInput{
-					Status: &status, ActorID: &actorID,
-				})
-			}
-
-			assert.True(t, apperrors.IsConflict(err))
-			persisted, findErr := repo.FindByID(ctx, clinicID, confirmed.ID)
-			require.NoError(t, findErr)
-			if operation == "unconfirm" {
-				assert.Equal(t, model.ExaminationStatusConfirmed, persisted.Status)
-				assert.Equal(t, uint64(1), *persisted.CurrentRevisionVersion)
-			} else {
-				assert.Equal(t, model.ExaminationStatusCompleted, persisted.Status)
-				assert.Equal(t, uint64(2), *persisted.CurrentRevisionVersion)
-			}
-		})
-	}
 }
 
 func TestExaminationRevision_UnconfirmThenDeletePreservesConfirmedHistory(t *testing.T) {

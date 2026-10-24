@@ -218,7 +218,7 @@ func newImageDeleteHarness(images ...model.MedicalRecordImage) *imageDeleteHarne
 	}
 	medRec := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 		},
 	}
 	audit := &scriptImageAudit{}
@@ -263,8 +263,8 @@ func TestMedicalRecordImageDelete_StorageFailureDoesNotResumeSigning(t *testing.
 	assert.True(t, blocked)
 }
 
-// TestMedicalRecordImageDelete_StorageRetryAllowedAfterFinalization は確定済みカルテでも
-// 認可済み台帳行の物理削除リトライが拒否されないことを検証する。
+// TestMedicalRecordImageDelete_StorageRetryAllowedAfterFinalization は、親カルテが後から変わっても
+// （EMR-495: 旧 finalized 判定は廃止）認可済み台帳行の物理削除リトライが拒否されないことを検証する。
 func TestMedicalRecordImageDelete_StorageRetryAllowedAfterFinalization(t *testing.T) {
 	const key = "medical-records/5/original.png"
 	h := newImageDeleteHarness(model.MedicalRecordImage{ID: 4, MedicalRecordID: 5, ImageURL: key})
@@ -274,9 +274,9 @@ func TestMedicalRecordImageDelete_StorageRetryAllowedAfterFinalization(t *testin
 	require.Error(t, h.delete(4))
 	require.Equal(t, medicalRecordImageDeletionPending, h.store.committed[4].StorageStatus)
 
-	// カルテを確定させてから再 DELETE（= 台帳経由の物理削除リトライ）
+	// 親カルテを再取得させてから再 DELETE（= 台帳経由の物理削除リトライ）
 	h.medRec.findByIDFn = func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-		return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusFinalized}, nil
+		return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 	}
 	h.objects.err = nil
 	require.NoError(t, h.delete(4))
@@ -390,22 +390,6 @@ func TestMedicalRecordImageDelete_AuditFailureRollsBack(t *testing.T) {
 	assert.False(t, blocked)
 }
 
-func TestMedicalRecordImageDelete_FinalizedRecordDoesNotDelete(t *testing.T) {
-	h := newImageDeleteHarness(model.MedicalRecordImage{ID: 4, MedicalRecordID: 5, ImageURL: "medical-records/5/live.png"})
-	h.medRec.findByIDFn = func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-		return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusFinalized}, nil
-	}
-
-	err := h.delete(4)
-
-	require.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err))
-	_, findErr := h.repo.FindByID(context.Background(), 1, 4)
-	require.NoError(t, findErr)
-	assert.Empty(t, h.store.committed)
-	assert.Empty(t, h.objects.deleted)
-}
-
 func TestMedicalRecordImageDelete_NilAuditFailsClosed(t *testing.T) {
 	h := newImageDeleteHarness(model.MedicalRecordImage{ID: 4, MedicalRecordID: 5, ImageURL: "medical-records/5/live.png"})
 	h.svc.auditTx = nil
@@ -436,11 +420,14 @@ func TestMedicalRecordImageDelete_ExternalURLHasNoObjectDeleteAndStopsSigning(t 
 	assert.True(t, blocked)
 }
 
-func TestMedicalRecordImageCreate_RechecksDraftAndClinic(t *testing.T) {
+// EMR-495 P1: 旧 RechecksDraftAndClinic（確定済みなら Conflict で画像を作らない）は廃止した。
+// 親行ロックが clinic スコープで取得され、画像が作成されることだけを検証する。
+func TestMedicalRecordImageCreate_RechecksClinicParentLock(t *testing.T) {
 	var gotClinic, gotRecord uint64
+	created := false
 	repo := &mockMedicalRecordImageRepository{
 		createFn: func(context.Context, *model.MedicalRecordImage) error {
-			t.Fatal("finalized record must not persist an image")
+			created = true
 			return nil
 		},
 	}
@@ -448,7 +435,7 @@ func TestMedicalRecordImageCreate_RechecksDraftAndClinic(t *testing.T) {
 		lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 			gotClinic = clinicID
 			gotRecord = id
-			return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusFinalized}, nil
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 		},
 	}
 	svc := NewMedicalRecordImageService(repo, medRec, &mockCheckupTransactor{})
@@ -458,8 +445,8 @@ func TestMedicalRecordImageCreate_RechecksDraftAndClinic(t *testing.T) {
 		ImageType: model.MedicalImageTypeOther,
 	})
 
-	require.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err))
+	require.NoError(t, err)
+	assert.True(t, created)
 	assert.Equal(t, uint64(9), gotClinic)
 	assert.Equal(t, uint64(8), gotRecord)
 }
@@ -544,7 +531,7 @@ func TestUploadMedicalRecordImage_SignFailureLeavesNeitherRowNorObject(t *testin
 	petID := uint64(3)
 	h.medRec.findByIDFn = func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 		return &model.MedicalRecord{
-			ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft, PetID: &petID,
+			ID: id, ClinicID: clinicID, PetID: &petID,
 		}, nil
 	}
 	svc := NewMedicalRecordImageServiceWithRelationValidation(

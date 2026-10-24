@@ -311,7 +311,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.FindByMedicalRecordID": {},
 	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.update":                {},
 	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.existsInClinic":        {},
-	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.parentStillDraft":      {},
+	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.ListDiagnoses":         {},
+	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.ReplaceDiagnoses":      {},
+	"medicalrecord/clinical_plan_repository.go|clinicalPlanRepository.DeleteDiagnoses":       {},
 	// estimate (SD-2 系ガード監査: 見積書 Create/Update/Delete が確定済みカルテ書込ガード対象と判明。
 	// estimateService の LockByIDForUpdate ambient tx に参加させる。FindByID は
 	// UpdateIfNotLocked/normalizeDeleteIfNotLockedMiss の tx 内再取得のため併せて追加)
@@ -416,9 +418,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/exam_type_repository.go|examTypeRepository.ReplaceReferenceRanges":        {},
 	"medicalrecord/exam_type_repository.go|examTypeRepository.UpdateField":                   {},
 	// medical_record_addendum
-	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.Create":                {},
-	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByID":              {},
-	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByMedicalRecordID": {},
+	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.Create":                      {},
+	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByID":                    {},
+	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByMedicalRecordID":       {},
+	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.LatestConsultationEventKind": {}, // EMR-495 Q2: read inside the addendum write tx under the parent row lock (TestMedicalRecordAddendumService_Create: end history read precedes insert)
 	// medical_record (X-11 Appendix-A finalize-child-write-race fix)
 	// SD-2: 確定済みカルテ画像ガード — Create/Delete/FindByID が LockByIDForUpdate の
 	// ambient tx に参加する（medical_record_image_service.go の WithTx 内から呼ばれる）。

@@ -1,21 +1,5 @@
 package medicalrecord
 
-import (
-	"context"
-	"log/slog"
-
-	"github.com/animal-ekarte/backend/internal/model"
-)
-
-func (s *medicalRecordService) syncVisitCompletionTags(ctx context.Context, clinicID uint64, record *model.MedicalRecord) {
-	if s.tagSyncSvc == nil || record == nil || record.OwnerID == nil {
-		return
-	}
-	ownerID := *record.OwnerID
-	if err := s.tagSyncSvc.SyncVisitCompletionTags(ctx, clinicID, ownerID); err != nil {
-		slog.ErrorContext(ctx, "failed to sync visit completion tags", "error", err, "clinic_id", clinicID, "owner_id", ownerID, "record_id", record.ID)
-	}
-}
-
-// CreateSubRecords はカルテ作成と同時に inquiry / clinical_plan を best-effort で作成する。
-// 失敗しても呼び出し元のカルテ作成は完了済みのためエラーは握りつぶし slog.Warn のみ出力する。
+// EMR-495 P1: 旧 finalize / Delete に紐づいていた来院完了タグ同期（SyncVisitCompletionTags）の呼び出しは、
+// finalize の廃止（B の終了 route 未実装）に伴い発火点を失った。medicalRecordService.tagSyncSvc は
+// B の終了 route が接続するまで読まれない（residual: owner B / LSTEP）。

@@ -96,7 +96,7 @@ func makeClinicalRelationRecord(
 	t.Helper()
 	record := &model.MedicalRecord{
 		ClinicID: clinicID, RecordNo: recordNo, Date: time.Now(),
-		OwnerID: &ownerID, PetID: &petID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &ownerID, PetID: &petID,
 	}
 	require.NoError(t, db.Create(record).Error)
 	return record

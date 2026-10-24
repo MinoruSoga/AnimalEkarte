@@ -69,7 +69,6 @@ func seedConfirmedAppointmentWithLiveKarte(
 		ClinicID:      clinicID,
 		RecordNo:      recordNo,
 		Date:          start,
-		Status:        model.MedicalRecordStatusDraft,
 		AppointmentID: &appointment.ID,
 	}
 	require.NoError(t, db.Create(record).Error)

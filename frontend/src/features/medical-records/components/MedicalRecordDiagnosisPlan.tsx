@@ -22,7 +22,7 @@ import { ClinicalPlanSection } from "./ClinicalPlanSection/ClinicalPlanSection";
 import { TreatmentPackagePicker } from "./TreatmentPackagePicker";
 import { TREATMENT_PACKAGE_RUNTIME_AVAILABLE } from "../lib/treatment-package-operation-state";
 import { TreatmentDetailedSummary } from "./TreatmentDetailedSummary";
-import { useGetClinicalPlan } from "../api/clinical-plan";
+import { useGetClinicalPlan, type ClinicalPlanDiagnosisRow } from "../api/clinical-plan";
 import { MEDICAL_RECORD_FIXED_ACTION_LAYOUT } from "@/constants/medical-record-fixed-action-layout";
 import {
   useGetTreatments,
@@ -42,6 +42,31 @@ import { calculateBillingTotals } from "@/lib/calculations";
 const DECEASED_TREATMENTS_MESSAGE = "死亡したペットの治療明細は変更できません";
 // EMR-438: 確定済み等で書き込みがブロックされたカルテの明細操作へのフィードバック。
 const LOCKED_TREATMENTS_MESSAGE = "確定済みのカルテは治療明細を変更できません";
+
+/** 保存時のラベル（スナップショット）から作る、マスタ一覧に無い選択値の表示用選択肢。 */
+type SelectedDiagnosisOption = { id: string; name: string } | null;
+
+function toSelectedOption(
+  id: string | null | undefined,
+  label: string | null | undefined,
+): SelectedDiagnosisOption {
+  return id && label ? { id, name: label } : null;
+}
+
+/**
+ * 診断行から診断1/2 の区分・名称の選択肢を作る。slot の代表行は返却順の先頭
+ * （BE は slot, sort_order, id 昇順で返す）。スナップショットが無い行は選択肢を作らない。
+ */
+function toSelectedDiagnosisOptions(rows: ClinicalPlanDiagnosisRow[] | undefined) {
+  const slot1Row = rows?.find((row) => row.diagnosis_slot === 1);
+  const slot2Row = rows?.find((row) => row.diagnosis_slot === 2);
+  return {
+    type1: toSelectedOption(slot1Row?.diagnosis_type_id, slot1Row?.category_name_snapshot),
+    name1: toSelectedOption(slot1Row?.diagnosis_name_id, slot1Row?.diagnosis_name_snapshot),
+    type2: toSelectedOption(slot2Row?.diagnosis_type_id, slot2Row?.category_name_snapshot),
+    name2: toSelectedOption(slot2Row?.diagnosis_name_id, slot2Row?.diagnosis_name_snapshot),
+  };
+}
 
 export interface DiagnosisPlanProps {
   isNewRecord?: boolean;
@@ -108,6 +133,11 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   // ── API ──
   const { data: treatments = [] } = useGetTreatments(medicalRecordId ?? "", recordClinicId);
   const { data: clinicalPlan } = useGetClinicalPlan(medicalRecordId ?? "", recordClinicId);
+  // 診断1/2 の選択肢は診断行（clinical-plan の diagnoses）から作る。参照安定のため memo 化。
+  const selectedDiagnosisOptions = useMemo(
+    () => toSelectedDiagnosisOptions(clinicalPlan?.diagnoses),
+    [clinicalPlan?.diagnoses],
+  );
   const createMutation = useCreateTreatment(medicalRecordId ?? "", recordClinicId);
   const { mutate: createTreatmentFn } = createMutation;
   const { mutate: updateTreatmentFn } = useUpdateTreatment(medicalRecordId ?? "", recordClinicId);
@@ -329,10 +359,10 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
         diagnosis2NameId={diagnosis2NameId}
         setDiagnosis2NameId={setDiagnosis2NameId}
         diagnosis1NameIdError={diagnosis1NameIdError}
-        selectedDiagnosisType={clinicalPlan?.diagnosis_type}
-        selectedDiagnosisName={clinicalPlan?.diagnosis_name}
-        selectedDiagnosis2Type={clinicalPlan?.diagnosis_2_type}
-        selectedDiagnosis2Name={clinicalPlan?.diagnosis_2_name}
+        selectedDiagnosisType={selectedDiagnosisOptions.type1}
+        selectedDiagnosisName={selectedDiagnosisOptions.name1}
+        selectedDiagnosis2Type={selectedDiagnosisOptions.type2}
+        selectedDiagnosis2Name={selectedDiagnosisOptions.name2}
       />
 
       {!isNewRecord && medicalRecordId ? (

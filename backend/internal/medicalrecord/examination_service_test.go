@@ -375,14 +375,13 @@ func TestExaminationService_GetByID(t *testing.T) {
 func TestExaminationService_Create(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
-		name         string
-		clinicID     uint64
-		input        *CreateExaminationInput
-		repoErr      error
-		medRecErr    error
-		medRecStatus model.MedicalRecordStatus
-		examTypeErr  error
-		wantErr      bool
+		name        string
+		clinicID    uint64
+		input       *CreateExaminationInput
+		repoErr     error
+		medRecErr   error
+		examTypeErr error
+		wantErr     bool
 	}{
 		{
 			name:     "creates exam successfully",
@@ -429,17 +428,6 @@ func TestExaminationService_Create(t *testing.T) {
 			wantErr:   true,
 		},
 		{
-			name:     "returns conflict when parent medical record is finalized",
-			clinicID: 1,
-			input: &CreateExaminationInput{
-				MedicalRecordID: ptrUint64(5),
-				ExamTypeID:      1,
-				Date:            now,
-			},
-			medRecStatus: model.MedicalRecordStatusFinalized,
-			wantErr:      true,
-		},
-		{
 			name:     "returns error when exam type ownership verification fails",
 			clinicID: 1,
 			input: &CreateExaminationInput{
@@ -463,11 +451,7 @@ func TestExaminationService_Create(t *testing.T) {
 					if tt.medRecErr != nil {
 						return nil, tt.medRecErr
 					}
-					status := tt.medRecStatus
-					if status == "" {
-						status = model.MedicalRecordStatusDraft
-					}
-					return &model.MedicalRecord{Status: status}, nil
+					return &model.MedicalRecord{}, nil
 				},
 			}
 			examTypeRepo := okExamTypeRepo()
@@ -514,7 +498,6 @@ func TestExaminationService_Update(t *testing.T) {
 		existingStatus   model.ExaminationStatus
 		existingMedRecID *uint64
 		medRecErr        error
-		medRecStatus     model.MedicalRecordStatus
 		examTypeErr      error
 		wantConflict     bool
 	}{
@@ -559,16 +542,6 @@ func TestExaminationService_Update(t *testing.T) {
 			existingStatus: model.ExaminationStatusConfirmed,
 			wantErr:        true,
 			wantConflict:   true,
-		},
-		{
-			name: "returns conflict when parent medical record is finalized",
-			input: UpdateExaminationInput{
-				ResultSummary: &resultSummary,
-			},
-			existingMedRecID: ptrUint64(5),
-			medRecStatus:     model.MedicalRecordStatusFinalized,
-			wantErr:          true,
-			wantConflict:     true,
 		},
 		{
 			name: "returns error when parent medical record lookup fails",
@@ -621,11 +594,7 @@ func TestExaminationService_Update(t *testing.T) {
 					if tt.medRecErr != nil {
 						return nil, tt.medRecErr
 					}
-					status := tt.medRecStatus
-					if status == "" {
-						status = model.MedicalRecordStatusDraft
-					}
-					return &model.MedicalRecord{Status: status}, nil
+					return &model.MedicalRecord{}, nil
 				},
 			}
 			examTypeRepo := okExamTypeRepo()
@@ -707,7 +676,7 @@ func TestExaminationService_UpdateLocksExamThenMedicalRecordsInStableOrder(t *te
 				order = append(order, "medical_record_30")
 			}
 			return &model.MedicalRecord{
-				ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft,
+				ID: id, ClinicID: clinicID,
 			}, nil
 		},
 	}
@@ -740,7 +709,6 @@ func TestExaminationService_Delete(t *testing.T) {
 		wantNF       bool
 		wantConflict bool
 		medRecErr    error
-		medRecStatus model.MedicalRecordStatus
 	}{
 		{
 			name:         "deletes exam successfully when no items exist",
@@ -790,14 +758,6 @@ func TestExaminationService_Delete(t *testing.T) {
 			wantErr:      true,
 		},
 		{
-			name:         "returns conflict when parent medical record is finalized",
-			clinicID:     1,
-			id:           10,
-			medRecStatus: model.MedicalRecordStatusFinalized,
-			wantErr:      true,
-			wantConflict: true,
-		},
-		{
 			name:      "returns error when parent medical record lookup fails",
 			clinicID:  1,
 			id:        10,
@@ -821,11 +781,7 @@ func TestExaminationService_Delete(t *testing.T) {
 					if tt.medRecErr != nil {
 						return nil, tt.medRecErr
 					}
-					status := tt.medRecStatus
-					if status == "" {
-						status = model.MedicalRecordStatusDraft
-					}
-					return &model.MedicalRecord{Status: status}, nil
+					return &model.MedicalRecord{}, nil
 				},
 			}
 			svc := NewExaminationService(repo, medRec, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
@@ -864,7 +820,7 @@ func TestExaminationService_DeleteUsesLockedExamRelations(t *testing.T) {
 	records := &mockMedicalRecordRepository{
 		lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 			lockedParentID = id
-			return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 		},
 	}
 	svc := NewExaminationService(repo, records, okExamTypeRepo(), &mockAuditTxLogger{}, &mockCheckupTransactor{})
@@ -1349,7 +1305,7 @@ func TestExaminationService_ReplaceItemsLocksParentFromLockedExam(t *testing.T) 
 		lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 			lockedParentID = id
 			return &model.MedicalRecord{
-				ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft,
+				ID: id, ClinicID: clinicID,
 			}, nil
 		},
 	}
@@ -1480,7 +1436,7 @@ func TestExaminationService_Create_RejectsInvalidClinicalRelations(t *testing.T)
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{
 						ID: id, ClinicID: clinicID, OwnerID: ptrUint64(recordOwnerID),
-						PetID: ptrUint64(recordPetID), Status: model.MedicalRecordStatusDraft,
+						PetID: ptrUint64(recordPetID),
 					}, nil
 				},
 				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
@@ -1672,7 +1628,6 @@ func testExaminationCreateFromRecordRejectsDeceasedPetBeforeWrites(t *testing.T)
 				assert.Equal(t, medicalRecordID, gotRecordID)
 				return &model.MedicalRecord{
 					ID: medicalRecordID, ClinicID: clinicID, PetID: ptrUint64(petID),
-					Status: model.MedicalRecordStatusDraft,
 				}, nil
 			},
 		},
@@ -1735,7 +1690,7 @@ func TestExaminationService_Update_RevalidatesEffectivePatient(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
 				ID: medicalRecord, ClinicID: clinicID, OwnerID: ptrUint64(recordOwnerID),
-				PetID: ptrUint64(recordPetID), Status: model.MedicalRecordStatusDraft,
+				PetID: ptrUint64(recordPetID),
 			}, nil
 		},
 		findPetOwnerInClinicFn: func(_ context.Context, _, petID uint64) (uint64, error) {
@@ -1858,7 +1813,6 @@ func testExaminationUpdateRecordRejectsDeceasedPetBeforeWrites(t *testing.T) {
 				assert.Equal(t, medicalRecordID, gotRecordID)
 				return &model.MedicalRecord{
 					ID: medicalRecordID, ClinicID: clinicID, PetID: ptrUint64(petID),
-					Status: model.MedicalRecordStatusDraft,
 				}, nil
 			},
 		},
@@ -2031,7 +1985,6 @@ func TestExaminationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 				return &model.MedicalRecord{
 					ID: medicalRecordID, ClinicID: clinicID,
 					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(petID),
-					Status: model.MedicalRecordStatusDraft,
 				}, nil
 			},
 			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
@@ -2062,7 +2015,6 @@ func TestExaminationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 				return &model.MedicalRecord{
 					ID: medicalRecordID, ClinicID: clinicID,
 					OwnerID: ptrUint64(foreignOwnerID), PetID: ptrUint64(petID),
-					Status: model.MedicalRecordStatusDraft,
 				}, nil
 			},
 			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
@@ -2091,7 +2043,6 @@ func TestExaminationService_Update_AllowsHistoricalOwnerAfterPetTransfer(t *test
 				return &model.MedicalRecord{
 					ID: medicalRecordID, ClinicID: clinicID,
 					OwnerID: ptrUint64(previousOwnerID), PetID: ptrUint64(foreignPetID),
-					Status: model.MedicalRecordStatusDraft,
 				}, nil
 			},
 			assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {

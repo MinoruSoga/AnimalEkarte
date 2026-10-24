@@ -37,24 +37,18 @@ func lockClinicalMedicalRecord(
 	return record, nil
 }
 
-func lockOptionalDraftMedicalRecord(
+// lockOptionalMedicalRecord は medicalRecordID が指定されたときだけ親カルテを行ロックし、同一性を検証する。
+// EMR-495: 旧 finalized 拒否は廃止した（D4: 検査の確定/履歴 seal は検査 owner 側が判定する）。
+func lockOptionalMedicalRecord(
 	ctx context.Context,
 	records medicalRecordLocker,
 	clinicID uint64,
 	medicalRecordID *uint64,
-	finalizedConflictMsg string,
 ) (*model.MedicalRecord, error) {
 	if medicalRecordID == nil {
 		return nil, nil
 	}
-	record, err := lockClinicalMedicalRecord(ctx, records, clinicID, *medicalRecordID)
-	if err != nil {
-		return nil, err
-	}
-	if record.Status == model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapConflict(finalizedConflictMsg)
-	}
-	return record, nil
+	return lockClinicalMedicalRecord(ctx, records, clinicID, *medicalRecordID)
 }
 
 func validateClinicalRelations(

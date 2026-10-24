@@ -417,7 +417,6 @@ func TestVitalServiceUpdateRefetchFailureIsInsideTransaction(t *testing.T) {
 			return &model.MedicalRecord{
 				ID: medicalRecordID, ClinicID: clinicID,
 				OwnerID: ptrUint64(ownerID), PetID: ptrUint64(petID),
-				Status: model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}

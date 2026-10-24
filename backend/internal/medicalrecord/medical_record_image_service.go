@@ -138,19 +138,15 @@ func (s *medicalRecordImageService) Create(ctx context.Context, clinicID, medica
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は画像追加を拒否。LockByIDForUpdate の
-		// 行ロックで finalize（medical_record_repository.Update の draft-only WHERE）と直列化し、
-		// 確定と同時の画像追加が確定済みカルテに混入する競合を防ぐ（examination_service.go Create 同型）。
-		// 死亡ペット検証のため親行を保持する（lockDraftMedicalRecord は親を破棄するため直接 lock）。
+		// BE-refactor.md X-11: 親カルテを行ロックして画像追加を直列化する（examination_service.go Create 同型）。
+		// EMR-495: 旧 finalized 拒否は廃止した。死亡ペット検証のため親行を保持する
+		// （lockDraftMedicalRecord は親を破棄するため直接 lock）。
 		parent, err := s.medRec.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to find medical record")
 		}
 		if parent == nil {
 			return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", medicalRecordID))
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテに画像を追加できません")
 		}
 		// SEC-CS-F14: 死亡ペットのカルテへの画像作成を fail-closed で拒否（storage 作成前の service 境界）。
 		if err := s.validateLinkedPetNotDeceased(txCtx, clinicID, parent.PetID); err != nil {

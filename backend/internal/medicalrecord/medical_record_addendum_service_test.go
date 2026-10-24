@@ -17,7 +17,19 @@ type mockMedicalRecordAddendumRepository struct {
 	createFn                func(ctx context.Context, addendum *model.MedicalRecordAddendum) error
 	findByIDFn              func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordAddendum, error)
 	findByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]*model.MedicalRecordAddendum, error)
+	// latestEventFn 未設定のときは「診療終了イベントなし」(found=false) を返す。
+	latestEventFn func(ctx context.Context, clinicID, medicalRecordID uint64) (string, bool, error)
 }
+
+func (m *mockMedicalRecordAddendumRepository) LatestConsultationEventKind(ctx context.Context, clinicID, medicalRecordID uint64) (string, bool, error) {
+	if m.latestEventFn != nil {
+		return m.latestEventFn(ctx, clinicID, medicalRecordID)
+	}
+	return "", false, nil
+}
+
+// endedEvent は最新の診療終了イベントが ended のリポジトリ振る舞い。
+func endedEvent(_ context.Context, _, _ uint64) (string, bool, error) { return "ended", true, nil }
 
 func (m *mockMedicalRecordAddendumRepository) Create(ctx context.Context, addendum *model.MedicalRecordAddendum) error {
 	if m.createFn != nil {
@@ -41,17 +53,18 @@ func (m *mockMedicalRecordAddendumRepository) FindByMedicalRecordID(ctx context.
 }
 
 func TestMedicalRecordAddendumService_Create(t *testing.T) {
-	finalizedRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Status: model.MedicalRecordStatusFinalized}
-	draftRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Status: model.MedicalRecordStatusDraft}
+	record := &model.MedicalRecord{ID: 1, ClinicID: 1}
 
 	tests := []struct {
 		name             string
 		input            CreateMedicalRecordAddendumInput
 		medicalRecord    *model.MedicalRecord
 		medicalRecordErr error
+		latestEvent      func(ctx context.Context, clinicID, medicalRecordID uint64) (string, bool, error)
 		repoErr          error
 		wantErr          bool
 		wantInvalid      bool
+		wantRetired      bool
 	}{
 		{
 			name: "creates addendum successfully",
@@ -61,7 +74,8 @@ func TestMedicalRecordAddendumService_Create(t *testing.T) {
 				AfterText:       "updated soap note text",
 				Reason:          "correction of typo",
 			},
-			medicalRecord: finalizedRecord,
+			medicalRecord: record,
+			latestEvent:   endedEvent,
 			wantErr:       false,
 		},
 		{
@@ -72,7 +86,8 @@ func TestMedicalRecordAddendumService_Create(t *testing.T) {
 				AfterText:       "",
 				Reason:          "some reason",
 			},
-			medicalRecord: finalizedRecord,
+			medicalRecord: record,
+			latestEvent:   endedEvent,
 			wantErr:       true,
 			wantInvalid:   true,
 		},
@@ -84,21 +99,51 @@ func TestMedicalRecordAddendumService_Create(t *testing.T) {
 				AfterText:       "some text",
 				Reason:          "",
 			},
-			medicalRecord: finalizedRecord,
+			medicalRecord: record,
+			latestEvent:   endedEvent,
 			wantErr:       true,
 			wantInvalid:   true,
 		},
 		{
-			name: "rejects addendum on draft medical record",
+			name: "rejects addendum when no consultation end is recorded (EMR-495 Q2)",
 			input: CreateMedicalRecordAddendumInput{
 				MedicalRecordID: 1,
 				AuthorUserID:    10,
 				AfterText:       "updated text",
 				Reason:          "some reason",
 			},
-			medicalRecord: draftRecord,
+			medicalRecord: record,
 			wantErr:       true,
-			wantInvalid:   true,
+			wantRetired:   true,
+		},
+		{
+			name: "rejects addendum when the latest consultation event is end_undone (EMR-495 Q2)",
+			input: CreateMedicalRecordAddendumInput{
+				MedicalRecordID: 1,
+				AuthorUserID:    10,
+				AfterText:       "updated text",
+				Reason:          "some reason",
+			},
+			medicalRecord: record,
+			latestEvent: func(_ context.Context, _, _ uint64) (string, bool, error) {
+				return "end_undone", true, nil
+			},
+			wantErr:     true,
+			wantRetired: true,
+		},
+		{
+			name: "returns error when consultation end history cannot be read",
+			input: CreateMedicalRecordAddendumInput{
+				MedicalRecordID: 1,
+				AuthorUserID:    10,
+				AfterText:       "updated text",
+				Reason:          "some reason",
+			},
+			medicalRecord: record,
+			latestEvent: func(_ context.Context, _, _ uint64) (string, bool, error) {
+				return "", false, errors.New("events db error")
+			},
+			wantErr: true,
 		},
 		{
 			name: "returns error when medical record not found",
@@ -119,7 +164,8 @@ func TestMedicalRecordAddendumService_Create(t *testing.T) {
 				AfterText:       "updated text",
 				Reason:          "some reason",
 			},
-			medicalRecord: finalizedRecord,
+			medicalRecord: record,
+			latestEvent:   endedEvent,
 			repoErr:       errors.New("db error"),
 			wantErr:       true,
 		},
@@ -135,10 +181,13 @@ func TestMedicalRecordAddendumService_Create(t *testing.T) {
 					return tt.medicalRecord, nil
 				},
 			}
+			createCalled := false
 			addendumRepo := &mockMedicalRecordAddendumRepository{
 				createFn: func(_ context.Context, _ *model.MedicalRecordAddendum) error {
+					createCalled = true
 					return tt.repoErr
 				},
+				latestEventFn: tt.latestEvent,
 			}
 			svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, &mockTreatmentAuditTxLogger{}, &mockTransactor{})
 
@@ -149,6 +198,16 @@ func TestMedicalRecordAddendumService_Create(t *testing.T) {
 				assert.Nil(t, addendum)
 				if tt.wantInvalid {
 					assert.True(t, apperrors.IsInvalidInput(err))
+				}
+				if tt.wantRetired {
+					assert.True(t, errors.Is(err, apperrors.ErrUnprocessable), "must be the fixed 422 class: %v", err)
+					assert.Contains(t, err.Error(), addendumRequiresEndedConsultationMessage)
+					var appErr *apperrors.AppError
+					require.True(t, errors.As(err, &appErr), "must carry an AppError code: %v", err)
+					assert.Equal(t, apperrors.CodeMedicalRecordAddendumRequiresConsultationEnd, appErr.Code)
+					assert.NotEqual(t, apperrors.CodeMedicalRecordStatusRetired, appErr.Code, "must not reuse the retired-status code")
+					assert.NotContains(t, err.Error(), "end-consultation", "must not point at the unshipped end route")
+					assert.False(t, createCalled, "no addendum may be written without a recorded consultation end")
 				}
 			} else {
 				assert.NoError(t, err)
@@ -163,7 +222,7 @@ func TestMedicalRecordAddendumService_Create(t *testing.T) {
 }
 
 func TestMedicalRecordAddendumService_FindByMedicalRecordID(t *testing.T) {
-	finalizedRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Status: model.MedicalRecordStatusFinalized}
+	addendumParent := &model.MedicalRecord{ID: 1, ClinicID: 1}
 
 	t.Run("returns addenda successfully", func(t *testing.T) {
 		expected := []*model.MedicalRecordAddendum{
@@ -172,7 +231,7 @@ func TestMedicalRecordAddendumService_FindByMedicalRecordID(t *testing.T) {
 		}
 		mrRepo := &mockMedicalRecordRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return finalizedRecord, nil
+				return addendumParent, nil
 			},
 		}
 		addendumRepo := &mockMedicalRecordAddendumRepository{
@@ -205,7 +264,7 @@ func TestMedicalRecordAddendumService_FindByMedicalRecordID(t *testing.T) {
 	t.Run("returns wrapped error when addendum repository lookup fails", func(t *testing.T) {
 		mrRepo := &mockMedicalRecordRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return finalizedRecord, nil
+				return addendumParent, nil
 			},
 		}
 		addendumRepo := &mockMedicalRecordAddendumRepository{
@@ -225,14 +284,13 @@ func TestMedicalRecordAddendumService_FindByMedicalRecordID(t *testing.T) {
 // TestMedicalRecordAddendumService_Create_AuditLog は Create 成功時に
 // LogAddendumCreate が呼ばれることを確認する（AUDIT-H1）。
 func TestMedicalRecordAddendumService_Create_AuditLog(t *testing.T) {
-	finalizedRecord := &model.MedicalRecord{
+	addendumParent := &model.MedicalRecord{
 		ID:       10,
 		ClinicID: 1,
-		Status:   model.MedicalRecordStatusFinalized,
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return finalizedRecord, nil
+			return addendumParent, nil
 		},
 	}
 	addendumRepo := &mockMedicalRecordAddendumRepository{
@@ -240,6 +298,7 @@ func TestMedicalRecordAddendumService_Create_AuditLog(t *testing.T) {
 			addendum.ID = 55
 			return nil
 		},
+		latestEventFn: endedEvent,
 	}
 	auditTx := &mockTreatmentAuditTxLogger{}
 	svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, auditTx, &mockTransactor{})

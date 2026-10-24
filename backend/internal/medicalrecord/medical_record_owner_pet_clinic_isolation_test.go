@@ -32,7 +32,7 @@ func newMedicalRecordClinicIsolationService(
 	reservationRepo *mockReservationRepoForMedicalRecord,
 ) MedicalRecordService {
 	return NewMedicalRecordServiceWithTxAudit(
-		recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil, medicalRecordTxMarker{})
+		recordRepo, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, &mockTreatmentAuditTxLogger{}, medicalRecordTxMarker{})
 }
 
 func TestMedicalRecordService_Create_RejectsCrossClinicOwnerPetWithoutAppointment(t *testing.T) {
@@ -186,7 +186,6 @@ func TestMedicalRecordService_Update_RejectsCrossClinicOwnerPetAndMismatch(t *te
 	existing := &model.MedicalRecord{
 		ID: 1, ClinicID: 1, Version: 0,
 		OwnerID: &existingOwner, PetID: &existingPet,
-		Status: model.MedicalRecordStatusDraft,
 	}
 
 	tests := []struct {
@@ -272,7 +271,6 @@ func TestMedicalRecordService_Update_AcceptsSameClinicFinalOwnerPet(t *testing.T
 	existing := &model.MedicalRecord{
 		ID: 1, ClinicID: 1, Version: 0,
 		OwnerID: &existingOwner, PetID: &existingPet,
-		Status: model.MedicalRecordStatusDraft,
 	}
 
 	updated := false

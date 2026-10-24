@@ -39,7 +39,6 @@ func makeInquiryMedicalRecord(t *testing.T, db *gorm.DB, clinicID uint64, record
 		ClinicID: clinicID,
 		RecordNo: recordNo,
 		Date:     time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
-		Status:   model.MedicalRecordStatusDraft,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
 	return mr
@@ -88,22 +87,23 @@ func TestInquiryRepository_SaveByMedicalRecordID(t *testing.T) {
 		assert.Equal(t, int64(1), count, "重複作成されない")
 	})
 
-	t.Run("medical_record が確定済みの場合 Conflict（MRC-12: 空 inquiry 行を残さない）", func(t *testing.T) {
-		mrFinalized := &model.MedicalRecord{
+	// EMR-495 P1: 旧「確定済みなら Conflict」ケースは廃止した（medical_records.status 列は 001 で廃止）。
+	// 親カルテが自医院のものでない場合は NotFound で、空 inquiry 行が残らないことを検証する。
+	t.Run("他院のカルテへの問診保存は NotFound（MRC-12: 空 inquiry 行を残さない）", func(t *testing.T) {
+		mrOther := &model.MedicalRecord{
 			ClinicID: clinicA,
-			RecordNo: "MR-A-FINALIZED",
+			RecordNo: "MR-A-OTHER-CLINIC-CALLER",
 			Date:     time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
-			Status:   model.MedicalRecordStatusFinalized,
 		}
-		require.NoError(t, db.WithContext(ctx).Create(mrFinalized).Error)
+		require.NoError(t, db.WithContext(ctx).Create(mrOther).Error)
 
-		_, err := repo.SaveByMedicalRecordID(ctx, clinicA, InquiryUpsertFields{MedicalRecordID: mrFinalized.ID, ChiefComplaint: strPtr("嘔吐")})
+		_, err := repo.SaveByMedicalRecordID(ctx, uint64(2), InquiryUpsertFields{MedicalRecordID: mrOther.ID, ChiefComplaint: strPtr("嘔吐")})
 		require.Error(t, err)
-		assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの問診保存は Conflict(409) であるべき: %v", err)
+		assert.True(t, apperrors.IsNotFound(err), "他院カルテへの問診保存は NotFound であるべき: %v", err)
 
 		var count int64
-		require.NoError(t, db.WithContext(ctx).Model(&model.Inquiry{}).Where("medical_record_id = ?", mrFinalized.ID).Count(&count).Error)
-		assert.Zero(t, count, "確定済みカルテには問診データが残ってはならない")
+		require.NoError(t, db.WithContext(ctx).Model(&model.Inquiry{}).Where("medical_record_id = ?", mrOther.ID).Count(&count).Error)
+		assert.Zero(t, count, "他院のカルテには問診データが残ってはならない")
 	})
 }
 

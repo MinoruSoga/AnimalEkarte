@@ -13,14 +13,13 @@ func (s *vitalService) createVitalInTx(
 	input *CreateVitalInput,
 	vital *model.VitalRecord,
 ) error {
-	// HC-006 + BE-refactor.md X-11: 親カルテが確定済みの場合は作成拒否。LockByIDForUpdate の
-	// 行ロックで finalize と直列化し、確定と同時のバイタル追加が確定済みカルテに混入する競合を防ぐ。
+	// HC-006 + BE-refactor.md X-11: 親カルテを行ロックし、同一性（clinic/ID）を検証する。
+	// EMR-495: 旧 finalized 拒否は廃止した。
 	parent, err := s.lockDraftParent(
 		txCtx,
 		input.ClinicID,
 		medicalRecordID,
 		"failed to find medical record",
-		"確定済みカルテにバイタルを追加できません",
 	)
 	if err != nil {
 		return err

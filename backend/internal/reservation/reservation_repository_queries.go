@@ -150,8 +150,29 @@ func (r *reservationRepository) CountByDateAndSource(ctx context.Context, clinic
 	return count, nil
 }
 
-// FindNoShowCandidates は終了から4時間以上経過した confirmed/pending 予約のうち、
-// 確定済みカルテが存在しないものを返す（BE-014）。
+// knownNotEndedMedicalRecordPredicate は SQL 別名 mr のカルテが「診療終了していないと確定している」条件（EMR-495 Q4/Q5）。
+// medical_records.status 列は 001 で廃止された。終了状態は medical_record_consultation_events の最新 revision で
+// 判定し、最新が end_undone のときだけ成立する。最新が ended のときは成立しない。
+// イベントが 1 件もない履歴なし（終了ルート未接続・legacy 証拠欠落を含む）は、契約 §0.1 のとおり未終了と断定できない
+// （unknown）ので成立しない。
+const knownNotEndedMedicalRecordPredicate = `EXISTS (
+				SELECT 1 FROM medical_record_consultation_events mce
+				WHERE mce.clinic_id = mr.clinic_id
+				  AND mce.medical_record_id = mr.id
+				  AND mce.event_kind = 'end_undone'
+				  AND mce.revision = (
+					SELECT MAX(mce2.revision) FROM medical_record_consultation_events mce2
+					WHERE mce2.clinic_id = mce.clinic_id
+					  AND mce2.medical_record_id = mce.medical_record_id
+				  )
+			  )`
+
+// noShowBlockingMedicalRecordPredicate は SQL 別名 mr のカルテが no-show 自動確定を妨げる条件。
+// 「未終了と確定している」以外（終了済み・履歴なし・判定不能）はすべて妨げる。
+const noShowBlockingMedicalRecordPredicate = `NOT ` + knownNotEndedMedicalRecordPredicate
+
+// FindNoShowCandidates は終了から4時間以上経過した confirmed/pending 予約のうち、紐づくカルテが
+// 診療終了済み・履歴なし・判定不能のいずれでもないものを返す（BE-014 / EMR-495 契約 §0.1）。
 func (r *reservationRepository) FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error) {
 	return r.FindNoShowCandidatesAt(ctx, clinicID, time.Now().UTC())
 }
@@ -173,9 +194,9 @@ func (r *reservationRepository) FindNoShowCandidatesAt(
 			SELECT 1 FROM medical_records mr
 			WHERE mr.clinic_id = appointments.clinic_id
 			  AND mr.appointment_id = appointments.id
-			  AND mr.status = ?
 			  AND mr.deleted_at IS NULL
-		)`, model.MedicalRecordStatusFinalized).
+			  AND ` + noShowBlockingMedicalRecordPredicate + `
+		)`).
 		Order("id ASC").
 		Limit(noShowCandidateMax).
 		Find(&reservations).Error

@@ -97,33 +97,15 @@ func TestListMedicalRecordQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 	}
 }
 
-func TestListMedicalRecordQuery_ToServiceFilters_InvalidStatusDoesNotLeakEnumError(t *testing.T) {
-	tests := []struct {
-		name   string
-		status string
-	}{
-		{name: "unknown status", status: "archived"},
-		{name: "mixed case", status: "Draft"},
-		{name: "empty string is skipped", status: ""},
+// EMR-495: list の status フィルタ（旧 InvalidStatusDoesNotLeakEnumError）は status 列の廃止とともに廃止した。
+// 未知の query は無視されるため、status を渡してもフィルタは空のままであることだけを確認する。
+func TestListMedicalRecordQuery_ToServiceFilters_HasNoStatusFilter(t *testing.T) {
+	filters, err := (&listMedicalRecordQuery{PetID: "10"}).toServiceFilters()
+	if err != nil {
+		t.Fatalf("toServiceFilters returned error: %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			filters, err := (&listMedicalRecordQuery{Status: tt.status}).toServiceFilters()
-			if tt.status == "" {
-				if err != nil {
-					t.Fatalf("empty status: toServiceFilters returned error: %v", err)
-				}
-				if filters.Status != nil {
-					t.Fatalf("empty status: Status = %v, want nil", filters.Status)
-				}
-				return
-			}
-			if filters != (listMedicalRecordFilters{}) {
-				t.Fatalf("filters = %#v, want zero value", filters)
-			}
-			assertFixedInvalidInputMessage(t, err, "ステータスの値が不正です", "invalid value")
-		})
+	if filters.PetID == nil || *filters.PetID != 10 {
+		t.Fatalf("PetID = %v, want 10", filters.PetID)
 	}
 }
 
@@ -142,7 +124,6 @@ func TestCreateMedicalRecordRequest_ToServiceInput(t *testing.T) {
 		PetID:                &petID,
 		DoctorID:             &doctorID,
 		AppointmentID:        &appointmentID,
-		Status:               string(model.MedicalRecordStatusFinalized),
 		RecommendationReason: &reason,
 	}
 
@@ -167,9 +148,6 @@ func TestCreateMedicalRecordRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.VisitType != model.VisitTypeFirst {
 		t.Fatalf("VisitType = %v, want %q", input.VisitType, model.VisitTypeFirst)
-	}
-	if input.Status == nil || *input.Status != model.MedicalRecordStatusFinalized {
-		t.Fatalf("Status = %v, want %q", input.Status, model.MedicalRecordStatusFinalized)
 	}
 	if input.RecommendationReason == nil || *input.RecommendationReason != reason {
 		t.Fatalf("RecommendationReason = %v, want %q", input.RecommendationReason, reason)
@@ -199,54 +177,24 @@ func TestCreateMedicalRecordRequest_ToServiceInput_InvalidOwnerID(t *testing.T) 
 	}
 }
 
-func TestCreateMedicalRecordRequest_ToServiceInput_InvalidStatusDoesNotLeakEnumError(t *testing.T) {
-	ownerID := "10"
-	petID := "20"
-	tests := []struct {
-		name   string
-		status string
-	}{
-		{name: "unknown status", status: "archived"},
-		{name: "mixed case", status: "Finalized"},
-		{name: "empty status is omitted", status: ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := createMedicalRecordRequest{
-				OwnerID: &ownerID,
-				PetID:   &petID,
-				Status:  tt.status,
-			}
-			input, err := req.toServiceInput(9)
-			if tt.status == "" {
-				if err != nil {
-					t.Fatalf("empty status: toServiceInput returned error: %v", err)
-				}
-				if input.Status != nil {
-					t.Fatalf("empty status: Status = %v, want nil", input.Status)
-				}
-				return
-			}
-			if input.EnteredBy != nil {
-				t.Fatalf("input = %#v, want zero value", input)
-			}
-			assertFixedInvalidInputMessage(t, err, "ステータスの値が不正です", "invalid value")
-		})
-	}
-}
-
 func TestCreateMedicalRecordRequest_ToSubRecordsInput(t *testing.T) {
 	complaint := "cough"
 	plan := "observe"
-	diagnosis1CategoryID := uint64(11)
+	slot := int16(2)
+	typeID := uint64(11)
+	snapshot := "snapshot"
 	req := createMedicalRecordRequest{
-		ChiefComplaint:       &complaint,
-		Plan:                 &plan,
-		Diagnosis1CategoryID: &diagnosis1CategoryID,
+		ChiefComplaint: &complaint,
+		Plan:           &plan,
+		Diagnoses: []clinicalPlanDiagnosisRequest{
+			{DiagnosisSlot: &slot, DiagnosisTypeID: &typeID, DiagnosisNameSnapshot: &snapshot},
+		},
 	}
 
-	input := req.toSubRecordsInput()
+	input, err := req.toSubRecordsInput()
+	if err != nil {
+		t.Fatalf("toSubRecordsInput returned error: %v", err)
+	}
 
 	if input.ChiefComplaint == nil || *input.ChiefComplaint != complaint {
 		t.Fatalf("ChiefComplaint = %v, want %q", input.ChiefComplaint, complaint)
@@ -254,18 +202,27 @@ func TestCreateMedicalRecordRequest_ToSubRecordsInput(t *testing.T) {
 	if input.Plan == nil || *input.Plan != plan {
 		t.Fatalf("Plan = %v, want %q", input.Plan, plan)
 	}
-	if input.Diagnosis1CategoryID == nil || *input.Diagnosis1CategoryID != diagnosis1CategoryID {
-		t.Fatalf("Diagnosis1CategoryID = %v, want %d", input.Diagnosis1CategoryID, diagnosis1CategoryID)
+	if len(input.Diagnoses) != 1 || input.Diagnoses[0].Slot != 2 ||
+		input.Diagnoses[0].DiagnosisTypeID == nil || *input.Diagnoses[0].DiagnosisTypeID != typeID ||
+		input.Diagnoses[0].DiagnosisNameSnapshot == nil || *input.Diagnoses[0].DiagnosisNameSnapshot != snapshot {
+		t.Fatalf("Diagnoses = %#v, want the single slot-2 row as sent", input.Diagnoses)
+	}
+}
+
+func TestCreateMedicalRecordRequest_ToSubRecordsInput_RowWithoutSlotIsInvalid(t *testing.T) {
+	snapshot := "snapshot"
+	req := createMedicalRecordRequest{Diagnoses: []clinicalPlanDiagnosisRequest{{DiagnosisNameSnapshot: &snapshot}}}
+
+	if _, err := req.toSubRecordsInput(); err == nil || !apperrors.IsInvalidInput(err) {
+		t.Fatalf("error = %v, want invalid input", err)
 	}
 }
 
 func TestUpdateMedicalRecordRequest_ToServiceInput(t *testing.T) {
 	date := time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC)
-	status := string(model.MedicalRecordStatusFinalized)
 	version := 3
 	req := updateMedicalRecordRequest{
 		Date:    &date,
-		Status:  &status,
 		Version: &version,
 	}
 
@@ -277,9 +234,6 @@ func TestUpdateMedicalRecordRequest_ToServiceInput(t *testing.T) {
 	if input.Date == nil || !input.Date.Equal(date) {
 		t.Fatalf("Date = %v, want %v", input.Date, date)
 	}
-	if input.Status == nil || *input.Status != model.MedicalRecordStatusFinalized {
-		t.Fatalf("Status = %v, want %q", input.Status, model.MedicalRecordStatusFinalized)
-	}
 	if input.Version == nil || *input.Version != version {
 		t.Fatalf("Version = %v, want %d", input.Version, version)
 	}
@@ -288,10 +242,25 @@ func TestUpdateMedicalRecordRequest_ToServiceInput(t *testing.T) {
 	}
 }
 
+// SPEC-02: 更新では status キーが存在した時点で（draft / finalized / 空 / その他）固定エラー。未指定のみ受理。
+func TestUpdateMedicalRecordRequest_ToServiceInput_StatusIsAlwaysRetired(t *testing.T) {
+	for _, status := range []string{"finalized", "draft", "", "archived"} {
+		s := status
+		_, err := (updateMedicalRecordRequest{Status: &s}).toServiceInput(9)
+		if !errors.Is(err, apperrors.ErrUnprocessable) {
+			t.Fatalf("status %q: error = %v, want 422 class", status, err)
+		}
+		var appErr *apperrors.AppError
+		if !errors.As(err, &appErr) || appErr.Code != apperrors.CodeMedicalRecordStatusRetired {
+			t.Fatalf("status %q: error = %v, want code %q", status, err, apperrors.CodeMedicalRecordStatusRetired)
+		}
+	}
+	if _, err := (updateMedicalRecordRequest{}).toServiceInput(9); err != nil {
+		t.Fatalf("absent status must be accepted, got %v", err)
+	}
+}
+
 func TestUpdateMedicalRecordRequest_ToServiceInput_InvalidEnumDoesNotLeakEnumError(t *testing.T) {
-	invalidStatus := "archived"
-	mixedStatus := "draft "
-	emptyStatus := ""
 	invalidVisitType := "walkin"
 	emptyVisitType := ""
 	mixedVisitType := "First"
@@ -301,21 +270,6 @@ func TestUpdateMedicalRecordRequest_ToServiceInput_InvalidEnumDoesNotLeakEnumErr
 		req     updateMedicalRecordRequest
 		wantMsg string
 	}{
-		{
-			name:    "unknown status",
-			req:     updateMedicalRecordRequest{Status: &invalidStatus},
-			wantMsg: "ステータスの値が不正です",
-		},
-		{
-			name:    "empty status",
-			req:     updateMedicalRecordRequest{Status: &emptyStatus},
-			wantMsg: "ステータスの値が不正です",
-		},
-		{
-			name:    "status with trailing space",
-			req:     updateMedicalRecordRequest{Status: &mixedStatus},
-			wantMsg: "ステータスの値が不正です",
-		},
 		{
 			name:    "unknown visit_type",
 			req:     updateMedicalRecordRequest{VisitType: &invalidVisitType},
@@ -357,7 +311,7 @@ func TestResolveMedicalRecordSort(t *testing.T) {
 		{name: "allowed key date + asc", sort: "date", order: "asc", wantSort: "date", wantOrder: "asc"},
 		{name: "allowed key owner_name + desc", sort: "owner_name", order: "desc", wantSort: "owner_name", wantOrder: "desc"},
 		{name: "allowed key pet_name, no order defaults to desc", sort: "pet_name", order: "", wantSort: "pet_name", wantOrder: "desc"},
-		{name: "allowed key status, invalid order defaults to desc", sort: "status", order: "invalid", wantSort: "status", wantOrder: "desc"},
+		{name: "retired key status falls back to empty (EMR-495: status column removed)", sort: "status", order: "invalid", wantSort: "", wantOrder: ""},
 		{name: "unknown sort key falls back to empty (default order)", sort: "unknown_column", order: "asc", wantSort: "", wantOrder: ""},
 		{name: "empty sort falls back to empty (default order)", sort: "", order: "asc", wantSort: "", wantOrder: ""},
 		{name: "SQL-injection-shaped sort key is rejected", sort: "date; DROP TABLE medical_records;--", order: "asc", wantSort: "", wantOrder: ""},

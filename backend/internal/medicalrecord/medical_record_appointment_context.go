@@ -22,11 +22,6 @@ func (s *medicalRecordService) applyAppointmentContextForCreate(
 	if s.reservationRepo == nil {
 		return apperrors.WrapInternalServerError("reservation lifecycle dependency is required to create an appointment-linked medical record")
 	}
-	if input.Status != nil && *input.Status == model.MedicalRecordStatusFinalized {
-		if err := s.reservationRepo.PrepareForMedicalRecordFinalization(ctx, clinicID, *input.AppointmentID); err != nil {
-			return apperrors.Wrap(err, "failed to prepare appointment for medical record finalization")
-		}
-	}
 	// Always take the reservation-owned appointment row lock, even when no context field is
 	// missing. The lock is held by the medical-record transaction through duplicate detection and
 	// INSERT, serializing create with trimming update/delete.
@@ -121,30 +116,6 @@ func (s *medicalRecordService) assertMedicalRecordPetNotDeceased(ctx context.Con
 		*petID,
 		medicalRecordDeceasedPetMessage,
 	)
-}
-
-func (s *medicalRecordService) validateMedicalRecordSnapshotOwnerPetClinicRelations(
-	ctx context.Context,
-	clinicID uint64,
-	ownerID, petID *uint64,
-) error {
-	if ownerID == nil && petID == nil {
-		return nil
-	}
-	if s.reservationRepo == nil {
-		return apperrors.WrapInternalServerError("reservation ownership verifier is required")
-	}
-	if ownerID != nil {
-		if err := s.reservationRepo.AssertOwnerInClinic(ctx, clinicID, *ownerID); err != nil {
-			return apperrors.Wrap(err, "failed to verify medical record owner ownership")
-		}
-	}
-	if petID != nil {
-		if _, err := s.reservationRepo.FindPetOwnerInClinic(ctx, clinicID, *petID); err != nil {
-			return apperrors.Wrap(err, "failed to verify medical record pet ownership")
-		}
-	}
-	return nil
 }
 
 func (s *medicalRecordService) validateMedicalRecordDoctor(

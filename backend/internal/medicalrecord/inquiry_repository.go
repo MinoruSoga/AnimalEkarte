@@ -69,9 +69,7 @@ func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID 
 			First(&mr).Error; err != nil {
 			return apperrors.FromGORM(err, "inquiry", fmt.Sprintf("medical_record_id=%d", fields.MedicalRecordID))
 		}
-		if mr.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテの問診は編集できません")
-		}
+		// EMR-495: 旧 finalized による問診編集の拒否は廃止した。親行ロックと clinic スコープは維持する。
 
 		// Step 1: medical_record_id で既存レコードを取得または新規作成
 		var existing model.Inquiry
@@ -83,7 +81,7 @@ func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID 
 
 		// Step 2: 送信されたフィールドのみ map[string]any で明示的に Updates（GORM ゼロ値問題を回避）。
 		// 未送信フィールドはキー自体を載せないため既存値を保持する（EMR-87）。
-		// medical_records の status='draft' 条件は defense-in-depth。
+		// medical_records の clinic / 論理削除条件は defense-in-depth（EMR-495: 旧 status='draft' 条件は廃止）。
 		updates := map[string]any{}
 		if fields.ChiefComplaint != nil {
 			updates["chief_complaint"] = *fields.ChiefComplaint
@@ -97,14 +95,14 @@ func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID 
 		if len(updates) > 0 {
 			result := tx.
 				Model(&existing).
-				Where("medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND status = ? AND deleted_at IS NULL)",
-					clinicID, model.MedicalRecordStatusDraft).
+				Where("medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)",
+					clinicID).
 				Updates(updates)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, "inquiry", "")
 			}
 			if result.RowsAffected == 0 {
-				return apperrors.WrapConflict("確定済みカルテの問診は編集できません")
+				return apperrors.WrapConflict("問診を更新できませんでした。カルテが削除されている可能性があります。再読み込みしてください")
 			}
 		}
 

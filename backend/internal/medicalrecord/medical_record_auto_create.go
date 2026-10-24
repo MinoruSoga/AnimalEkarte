@@ -12,18 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/persistence"
 )
 
-const (
-	reservationDraftCleanupFailedAction = "reservation.draft_cleanup_failed"
-	reservationDraftCleanupTimeout      = 5 * time.Second
-)
-
-type reservationDraftCleanupFailureCategory string
-
-const (
-	reservationDraftCleanupDependencyConflict reservationDraftCleanupFailureCategory = "dependency_conflict"
-	reservationDraftCleanupStateConflict      reservationDraftCleanupFailureCategory = "state_conflict"
-	reservationDraftCleanupInternalError      reservationDraftCleanupFailureCategory = "internal_error"
-)
+const reservationDraftCleanupTimeout = 5 * time.Second
 
 func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation) {
 	if reservation == nil {
@@ -130,13 +119,11 @@ func (s *medicalRecordService) autoCreateFromReservationInTx(
 		return medicalRecordCreateTxResult{}, nil
 	}
 
-	statusDraft := model.MedicalRecordStatusDraft
 	input := CreateMedicalRecordInput{
 		Date:          reservation.StartTime,
 		OwnerID:       reservation.OwnerID,
 		PetID:         reservation.PetID,
 		AppointmentID: &reservation.ID,
-		Status:        &statusDraft,
 		VisitType:     model.VisitTypeRevisit,
 	}
 	if reservation.DoctorID != nil {
@@ -217,85 +204,14 @@ func (s *medicalRecordService) auditSubRecordsFailure(ctx context.Context, clini
 	}
 }
 
-// DeleteDraftFromReservation は予約キャンセル時に、その予約に紐づく draft カルテを論理削除する (#83 Q10、best-effort)。
-// 診察開始済み(draft 以外)のカルテは削除しない。失敗してもキャンセル処理は止めない。
+// DeleteDraftFromReservation は予約キャンセル時の呼び出し口で、EMR-495 P1 からカルテを削除しない
+// （ログのみの no-op）。旧実装は status=draft のカルテを論理削除していたが、spec（medical-records/lifecycle §3）は
+// 「通常予約取消からの自動削除は禁止」「draftという状態だけでは削除可と判定しない」とするため、
+// status 列が無い現在は記入済みカルテを巻き込まないよう何も消さない。呼び出し元の予約取消は影響を受けない。
 func (s *medicalRecordService) DeleteDraftFromReservation(ctx context.Context, clinicID, reservationID uint64) {
-	// 予約キャンセルは既に確定済みのため、request cancellation や呼出元の ambient tx に
-	// cleanup/audit を巻き込まない。一方で同期 best-effort 処理の上限は明示的に制限する。
-	cleanupCtx, cancel := context.WithTimeout(persistence.DetachTx(ctx), reservationDraftCleanupTimeout)
-	defer cancel()
-
-	record, err := s.repo.FindByAppointmentID(cleanupCtx, clinicID, reservationID)
-	if err != nil {
-		slog.ErrorContext(cleanupCtx, "reservation cancel draft cleanup lookup failed (best-effort)",
-			slog.Uint64("reservation_id", reservationID),
-			slog.String("error", err.Error()))
-		s.auditReservationDraftCleanupFailure(
-			cleanupCtx, clinicID, reservationID, nil, reservationDraftCleanupInternalError,
-		)
-		return
-	}
-	if record == nil || record.Status != model.MedicalRecordStatusDraft {
-		return
-	}
-	// 通常の削除経路へ委譲し、row lock・draft再確認・見積参照確認・監査を迂回しない。
-	// Find後に状態が変わってもDelete側がtransaction内で再検証する。
-	if err := s.Delete(cleanupCtx, clinicID, record.ID); err != nil {
-		category := reservationDraftCleanupInternalError
-		message := "reservation cancel draft cleanup failed (best-effort)"
-		conflictKind, hasConflictKind := medicalRecordDeleteConflictKindFromError(err)
-		switch {
-		case hasConflictKind && conflictKind == medicalRecordDeleteDependencyConflict:
-			category = reservationDraftCleanupDependencyConflict
-			message = "reservation cancel draft cleanup blocked by dependency (best-effort)"
-		case apperrors.IsConflict(err):
-			category = reservationDraftCleanupStateConflict
-			message = "reservation cancel draft cleanup blocked by record state change (best-effort)"
-		}
-		slog.ErrorContext(cleanupCtx, message,
-			slog.Uint64("reservation_id", reservationID),
-			slog.String("error", err.Error()))
-		s.auditReservationDraftCleanupFailure(cleanupCtx, clinicID, reservationID, &record.ID, category)
-	}
-}
-
-func (s *medicalRecordService) auditReservationDraftCleanupFailure(
-	ctx context.Context,
-	clinicID, reservationID uint64,
-	medicalRecordID *uint64,
-	category reservationDraftCleanupFailureCategory,
-) {
-	// cleanup lookup/Delete が timeout を使い切っても、失敗監査には独立した実行予算を与える。
-	auditCtx, cancel := context.WithTimeout(persistence.DetachTx(ctx), reservationDraftCleanupTimeout)
-	defer cancel()
-
-	audit, ok := s.auditService.(AuditLogger)
-	if !ok {
-		slog.ErrorContext(auditCtx, "reservation cancel draft cleanup failure audit dependency unavailable",
-			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("reservation_id", reservationID))
-		return
-	}
-
-	metadata := map[string]any{
-		"failure_category": string(category),
-	}
-	if medicalRecordID != nil {
-		metadata["medical_record_id"] = *medicalRecordID
-	}
-	if err := audit.LogEntry(auditCtx, &AuditEntry{
-		ClinicID:   &clinicID,
-		ActorType:  model.AuditActorTypeSystem,
-		Action:     reservationDraftCleanupFailedAction,
-		Resource:   model.AuditResourceReservation,
-		ResourceID: &reservationID,
-		Metadata:   metadata,
-	}); err != nil {
-		slog.ErrorContext(auditCtx, "reservation cancel draft cleanup failure audit write failed",
-			slog.Uint64("clinic_id", clinicID),
-			slog.Uint64("reservation_id", reservationID),
-			slog.String("error", err.Error()))
-	}
+	slog.InfoContext(ctx, "reservation cancel: medical record auto-delete is not provided; record kept",
+		slog.Uint64("clinic_id", clinicID),
+		slog.Uint64("reservation_id", reservationID))
 }
 
 // resolveVisitTypeFromAppointment は AppointmentID 経由で Reservation.VisitType を取得する。
@@ -329,6 +245,3 @@ func (s *medicalRecordService) fallbackFirstVisitCheck(ctx context.Context, clin
 	}
 	return count == 0
 }
-
-// UpdateRecommendationReason は受診推奨理由を更新する（FEAT-381-2 Commit 2）。
-// "" は NULL 保存。4値以外は InvalidInput。

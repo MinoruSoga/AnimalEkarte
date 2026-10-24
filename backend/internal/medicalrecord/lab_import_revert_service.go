@@ -237,16 +237,15 @@ func (s *labImportRevertService) assertRevertSafe(
 		if exam.Status == model.ExaminationStatusConfirmed {
 			return apperrors.WrapConflict("confirmed examination cannot be reverted via lab import compensation")
 		}
-		// Finalized medical record (FOR SHARE under ambient tx to close finalize TOCTOU).
+		// Parent record presence (FOR SHARE under ambient tx). EMR-495: the old finalized refusal was
+		// retired (no status column); confirmed exams, usage receipts, image references and relation
+		// checks below remain the revert guards (D4).
 		if exam.MedicalRecordID != nil {
 			var mr model.MedicalRecord
 			err := persistence.DBOrTx(ctx, s.db).
 				Clauses(clause.Locking{Strength: "SHARE"}).
 				Where("clinic_id = ? AND id = ?", clinicID, *exam.MedicalRecordID).
 				First(&mr).Error
-			if err == nil && mr.Status == model.MedicalRecordStatusFinalized {
-				return apperrors.WrapConflict("finalized medical record blocks lab import revert")
-			}
 			if err != nil && !apperrors.IsNotFound(err) && !errors.Is(err, gorm.ErrRecordNotFound) {
 				return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", *exam.MedicalRecordID))
 			}

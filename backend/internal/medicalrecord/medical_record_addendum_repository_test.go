@@ -263,3 +263,53 @@ func TestMedicalRecordAddendumRepository_FindByMedicalRecordID_AuthorStaffResolu
 		assert.Equal(t, "退職医師", got.Name)
 	})
 }
+
+// EMR-495 Q2: 最新の診療終了イベントの種別を、同一医院・同一カルテの最大 revision で返す。
+// AutoMigrate の test double には 001 の trigger / operation receipt 制約がないため、行を直接挿入する。
+func TestMedicalRecordAddendumRepository_LatestConsultationEventKind(t *testing.T) {
+	db := setupMedicalRecordAddendumTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.MedicalRecordConsultationEvent{}))
+	db.Exec("TRUNCATE TABLE medical_record_consultation_events CASCADE")
+	repo := NewMedicalRecordAddendumRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	owner := makeTestOwner(t, db, clinicA, "終了履歴飼主")
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "終了履歴犬")
+	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "ADD-EVT-1", time.Now())
+	insertEvent := func(revision int64, kind string) {
+		require.NoError(t, db.Create(&model.MedicalRecordConsultationEvent{
+			ClinicID: clinicA, MedicalRecordID: mr.ID, Revision: revision, EventKind: kind,
+			SourceKind: "consultation", OccurredAt: time.Now(), OperationID: 1, RecordedBy: 1,
+		}).Error)
+	}
+
+	t.Run("no event: found=false", func(t *testing.T) {
+		kind, found, err := repo.LatestConsultationEventKind(ctx, clinicA, mr.ID)
+		require.NoError(t, err)
+		assert.False(t, found)
+		assert.Empty(t, kind)
+	})
+
+	insertEvent(1, "ended")
+	t.Run("ended", func(t *testing.T) {
+		kind, found, err := repo.LatestConsultationEventKind(ctx, clinicA, mr.ID)
+		require.NoError(t, err)
+		assert.True(t, found)
+		assert.Equal(t, "ended", kind)
+	})
+
+	t.Run("other clinic sees no event", func(t *testing.T) {
+		_, found, err := repo.LatestConsultationEventKind(ctx, clinicB, mr.ID)
+		require.NoError(t, err)
+		assert.False(t, found)
+	})
+
+	insertEvent(2, "end_undone")
+	t.Run("latest revision wins (end_undone)", func(t *testing.T) {
+		kind, found, err := repo.LatestConsultationEventKind(ctx, clinicA, mr.ID)
+		require.NoError(t, err)
+		assert.True(t, found)
+		assert.Equal(t, "end_undone", kind)
+	})
+}

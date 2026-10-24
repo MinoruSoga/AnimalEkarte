@@ -9,89 +9,64 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// EMR-495 A: 診療計画レスポンスは diagnoses[]（契約 §0.3 の closed shape + id / version）を返す。
+// 旧 diagnosis_type_id / diagnosis_name_id / diagnosis_2_* と埋め込みマスタは廃止した。
 func TestToClinicalPlanResponse(t *testing.T) {
-	diagnosisTypeID := uint64(11)
-	diagnosisNameID := uint64(12)
+	typeID := uint64(11)
+	nameID := uint64(12)
+	snapName := "猫風邪(保存時)"
+	snapCategory := "感染症(保存時)"
 
 	tests := []struct {
 		name  string
-		input *model.ClinicalPlan
+		input *ClinicalPlanView
 		check func(t *testing.T, resp clinicalPlanResponse)
 	}{
 		{
-			name: "zero-value plan without diagnosis references",
-			input: &model.ClinicalPlan{
-				ID:              1,
-				MedicalRecordID: 5,
-			},
+			name:  "plan without diagnosis rows returns an empty array, not null",
+			input: &ClinicalPlanView{Plan: &model.ClinicalPlan{ID: 1, MedicalRecordID: 5}},
 			check: func(t *testing.T, resp clinicalPlanResponse) {
 				assert.Equal(t, "1", resp.ID)
 				assert.Equal(t, "5", resp.MedicalRecordID)
-				assert.Nil(t, resp.DiagnosisTypeID)
-				assert.Nil(t, resp.DiagnosisNameID)
-				assert.Nil(t, resp.DiagnosisType)
-				assert.Nil(t, resp.DiagnosisName)
+				require.NotNil(t, resp.Diagnoses)
+				assert.Empty(t, resp.Diagnoses)
 			},
 		},
 		{
-			name: "plan with diagnosis IDs but no preloaded relations",
-			input: &model.ClinicalPlan{
-				ID:               2,
-				MedicalRecordID:  6,
-				PhysicalExam:     "元気消失",
-				DiagnosisTypeID:  &diagnosisTypeID,
-				DiagnosisNameID:  &diagnosisNameID,
-				DiagnosisDetails: "詳細",
-				TreatmentPolicy:  "経過観察",
+			name: "rows carry stored snapshots and nullable master references as stored",
+			input: &ClinicalPlanView{
+				Plan: &model.ClinicalPlan{
+					ID: 2, MedicalRecordID: 6, PhysicalExam: "元気消失", DiagnosisDetails: "詳細", TreatmentPolicy: "経過観察", Version: 3,
+				},
+				Diagnoses: []model.ClinicalPlanDiagnosis{
+					{ID: 21, Version: 2, DiagnosisSlot: 1, DiagnosisTypeID: &typeID, DiagnosisNameID: &nameID,
+						DiagnosisNameSnapshot: &snapName, CategoryNameSnapshot: &snapCategory, SortOrder: 0},
+					{ID: 22, Version: 1, DiagnosisSlot: 2, SortOrder: 1},
+				},
 			},
 			check: func(t *testing.T, resp clinicalPlanResponse) {
-				require.NotNil(t, resp.DiagnosisTypeID)
-				assert.Equal(t, "11", *resp.DiagnosisTypeID)
-				require.NotNil(t, resp.DiagnosisNameID)
-				assert.Equal(t, "12", *resp.DiagnosisNameID)
-				assert.Nil(t, resp.DiagnosisType, "DiagnosisType relation not preloaded should stay nil")
-				assert.Nil(t, resp.DiagnosisName, "DiagnosisName relation not preloaded should stay nil")
 				assert.Equal(t, "元気消失", resp.PhysicalExam)
 				assert.Equal(t, "詳細", resp.DiagnosisDetails)
 				assert.Equal(t, "経過観察", resp.TreatmentPolicy)
-			},
-		},
-		{
-			name: "plan with preloaded DiagnosisType and DiagnosisName relations",
-			input: &model.ClinicalPlan{
-				ID:              3,
-				MedicalRecordID: 7,
-				DiagnosisTypeID: &diagnosisTypeID,
-				DiagnosisNameID: &diagnosisNameID,
-				DiagnosisType:   &model.DiagnosisType{ID: diagnosisTypeID, Name: "感染症"},
-				DiagnosisName:   &model.DiagnosisName{ID: diagnosisNameID, Name: "猫風邪", DiagnosisTypeID: diagnosisTypeID},
-			},
-			check: func(t *testing.T, resp clinicalPlanResponse) {
-				require.NotNil(t, resp.DiagnosisType)
-				assert.Equal(t, "感染症", resp.DiagnosisType.Name)
-				require.NotNil(t, resp.DiagnosisName)
-				assert.Equal(t, "猫風邪", resp.DiagnosisName.Name)
-			},
-		},
-		{
-			name: "plan with diagnosis_2 IDs and preloaded relations",
-			input: &model.ClinicalPlan{
-				ID:               4,
-				MedicalRecordID:  8,
-				Diagnosis2TypeID: &diagnosisTypeID,
-				Diagnosis2NameID: &diagnosisNameID,
-				Diagnosis2Type:   &model.DiagnosisType{ID: diagnosisTypeID, Name: "外科"},
-				Diagnosis2Name:   &model.DiagnosisName{ID: diagnosisNameID, Name: "骨折", DiagnosisTypeID: diagnosisTypeID},
-			},
-			check: func(t *testing.T, resp clinicalPlanResponse) {
-				require.NotNil(t, resp.Diagnosis2TypeID)
-				assert.Equal(t, "11", *resp.Diagnosis2TypeID)
-				require.NotNil(t, resp.Diagnosis2NameID)
-				assert.Equal(t, "12", *resp.Diagnosis2NameID)
-				require.NotNil(t, resp.Diagnosis2Type)
-				assert.Equal(t, "外科", resp.Diagnosis2Type.Name)
-				require.NotNil(t, resp.Diagnosis2Name)
-				assert.Equal(t, "骨折", resp.Diagnosis2Name.Name)
+				assert.Equal(t, 3, resp.Version)
+				require.Len(t, resp.Diagnoses, 2)
+				first := resp.Diagnoses[0]
+				assert.Equal(t, "21", first.ID)
+				assert.Equal(t, int64(2), first.Version)
+				assert.Equal(t, int16(1), first.DiagnosisSlot)
+				require.NotNil(t, first.DiagnosisTypeID)
+				assert.Equal(t, "11", *first.DiagnosisTypeID)
+				require.NotNil(t, first.DiagnosisNameID)
+				assert.Equal(t, "12", *first.DiagnosisNameID)
+				require.NotNil(t, first.DiagnosisNameSnapshot)
+				assert.Equal(t, snapName, *first.DiagnosisNameSnapshot)
+				require.NotNil(t, first.CategoryNameSnapshot)
+				assert.Equal(t, snapCategory, *first.CategoryNameSnapshot)
+				second := resp.Diagnoses[1]
+				assert.Nil(t, second.DiagnosisTypeID)
+				assert.Nil(t, second.DiagnosisNameID)
+				assert.Nil(t, second.DiagnosisNameSnapshot, "no snapshot is derived from the current master")
+				assert.Equal(t, 1, second.SortOrder)
 			},
 		},
 	}

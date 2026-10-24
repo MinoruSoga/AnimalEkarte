@@ -19,7 +19,6 @@ type listMedicalRecordQuery struct {
 	OwnerName       string
 	PetName         string
 	ChiefComplaint  string
-	Status          string
 	DoctorID        string
 	AnimalSpeciesID string
 	MedicineID      string
@@ -40,7 +39,6 @@ func newListMedicalRecordQuery(values url.Values) listMedicalRecordQuery {
 		OwnerName:       values.Get("owner_name"),
 		PetName:         values.Get("pet_name"),
 		ChiefComplaint:  values.Get("chief_complaint"),
-		Status:          values.Get("status"),
 		DoctorID:        values.Get("doctor_id"),
 		AnimalSpeciesID: values.Get("animal_species_id"),
 		MedicineID:      values.Get("medicine_id"),
@@ -58,7 +56,6 @@ var allowedMedicalRecordSortKeys = map[string]struct{}{
 	"date":       {},
 	"owner_name": {},
 	"pet_name":   {},
-	"status":     {},
 }
 
 // resolveMedicalRecordSort は FE の sort/order query を検証済みの (sort, order) に正規化する。
@@ -130,24 +127,12 @@ func (q *listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, e
 	if err != nil {
 		return listMedicalRecordFilters{}, err
 	}
-	var status *model.MedicalRecordStatus
-	if q.Status != "" {
-		parsed, err := httpapi.ValidateEnum(q.Status,
-			model.MedicalRecordStatusDraft,
-			model.MedicalRecordStatusFinalized,
-		)
-		if err != nil {
-			return listMedicalRecordFilters{}, apperrors.WrapInvalidInput("ステータスの値が不正です")
-		}
-		status = &parsed
-	}
 	sortKey, sortOrder := resolveMedicalRecordSort(q.Sort, q.Order)
 	return listMedicalRecordFilters{
 		PetID:           petID,
 		OwnerID:         ownerID,
 		StartDate:       startDate,
 		EndDate:         endDate,
-		Status:          status,
 		DoctorID:        doctorID,
 		AnimalSpeciesID: animalSpeciesID,
 		MedicineID:      medicineID,
@@ -163,6 +148,9 @@ func (q *listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, e
 	}, nil
 }
 
+// medicalRecordStatusFieldRetiredMessage は作成・更新 request に status キーが含まれていた場合の固定文言（SPEC-02 / EMR-549 B1）。
+const medicalRecordStatusFieldRetiredMessage = "カルテの status は廃止されました。リクエストに status を含めないでください。"
+
 // createMedicalRecordRequest はカルテ作成のバインド struct
 // FE互換: FEから送信されるフィールドと BE期待値を統一
 type createMedicalRecordRequest struct {
@@ -175,7 +163,6 @@ type createMedicalRecordRequest struct {
 	PetID         *string    `json:"pet_id" binding:"required"`   // FE送信（string）→ uint64に変換
 	DoctorID      *string    `json:"doctor_id"`                   // FE送信（string）→ uint64に変換
 	AppointmentID *string    `json:"appointment_id"`              // FE送信（string）→ uint64に変換
-	Status        string     `json:"status"                       binding:"omitempty,oneof=draft finalized"`
 
 	// ClinicalPlan関連フィールド（原子的作成用）
 	ChiefComplaint       *string `json:"chief_complaint"`
@@ -183,10 +170,8 @@ type createMedicalRecordRequest struct {
 	Plan                 *string `json:"plan"`       // ClinicalPlan.TreatmentPolicyへ
 	Assessment           *string `json:"assessment"` // ClinicalPlan.DiagnosisDetailsへ
 	Notes                *string `json:"notes"`
-	Diagnosis1CategoryID *uint64 `json:"diagnosis_1_category_id"`
-	Diagnosis1NameID     *uint64 `json:"diagnosis_1_name_id"`
-	Diagnosis2TypeID     *uint64 `json:"diagnosis_2_type_id"`
-	Diagnosis2NameID     *uint64 `json:"diagnosis_2_name_id"`
+	// Diagnoses は診断行（EMR-495 A）。clinical_plan_diagnoses の行へ保存する。未送信 = 診断を変更しない。
+	Diagnoses []clinicalPlanDiagnosisRequest `json:"diagnoses"`
 
 	// 受診推奨理由（FEAT-382-2 supplement: 新規作成時受付）
 	// 値域: revisit / checkup / prevention / exam / 空 ("")
@@ -228,17 +213,6 @@ func (r *createMedicalRecordRequest) toServiceInput(staffID uint64) (CreateMedic
 		visitType = model.VisitTypeFirst
 	}
 
-	var status *model.MedicalRecordStatus
-	if r.Status != "" {
-		parsedStatus, err := httpapi.ValidateEnum(r.Status,
-			model.MedicalRecordStatusDraft,
-			model.MedicalRecordStatusFinalized,
-		)
-		if err != nil {
-			return CreateMedicalRecordInput{}, apperrors.WrapInvalidInput("ステータスの値が不正です")
-		}
-		status = &parsedStatus
-	}
 	var recommendationReason *string
 	if r.RecommendationReason != nil && *r.RecommendationReason != "" {
 		recommendationReason = r.RecommendationReason
@@ -251,7 +225,6 @@ func (r *createMedicalRecordRequest) toServiceInput(staffID uint64) (CreateMedic
 		PetID:                petID,
 		DoctorID:             doctorID,
 		AppointmentID:        appointmentID,
-		Status:               status,
 		VisitType:            visitType,
 		RecommendationReason: recommendationReason,
 		EnteredBy:            &staffID,
@@ -273,18 +246,19 @@ func (r *createMedicalRecordRequest) recordDate() (time.Time, error) {
 	}
 }
 
-func (r *createMedicalRecordRequest) toSubRecordsInput() CreateSubRecordsInput {
+func (r *createMedicalRecordRequest) toSubRecordsInput() (CreateSubRecordsInput, error) {
+	diagnoses, err := toDiagnosisInputs(r.Diagnoses)
+	if err != nil {
+		return CreateSubRecordsInput{}, err
+	}
 	return CreateSubRecordsInput{
 		ChiefComplaintTypeID: r.ChiefComplaintTypeID,
 		ChiefComplaint:       r.ChiefComplaint,
 		Notes:                r.Notes,
 		Plan:                 r.Plan,
 		Assessment:           r.Assessment,
-		Diagnosis1CategoryID: r.Diagnosis1CategoryID,
-		Diagnosis1NameID:     r.Diagnosis1NameID,
-		Diagnosis2TypeID:     r.Diagnosis2TypeID,
-		Diagnosis2NameID:     r.Diagnosis2NameID,
-	}
+		Diagnoses:            diagnoses,
+	}, nil
 }
 
 func parseOptionalMedicalRecordID(s *string, field string) (*uint64, error) {
@@ -315,22 +289,18 @@ type updateMedicalRecordRequest struct {
 	PetID         *uint64    `json:"pet_id"`
 	DoctorID      *uint64    `json:"doctor_id"`
 	AppointmentID *uint64    `json:"appointment_id"`
-	Status        *string    `json:"status"      binding:"omitempty,oneof=draft finalized"`
-	Version       *int       `json:"version"`    // 楽観的ロック用
-	VisitType     *string    `json:"visit_type"` // "first" | "revisit"
+	// Status: 更新で変更できる status はもう無いため、キーが存在すれば値に関わらず固定 422（SPEC-02）。
+	// 値の enum 検証はしない（バインド時の 400 ではなく固定エラーに統一する）。
+	Status    *string `json:"status"`
+	Version   *int    `json:"version"`    // 楽観的ロック用
+	VisitType *string `json:"visit_type"` // "first" | "revisit"
 }
 
 func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (UpdateMedicalRecordInput, error) {
-	var status *model.MedicalRecordStatus
+	// SPEC-02: 更新では変更できる status が存在しない。draft / finalized / その他、status キーが
+	// 送られた時点で固定エラー（422 medical_record_status_retired）を返し、何も書かない。
 	if r.Status != nil {
-		s, err := httpapi.ValidateEnum(*r.Status,
-			model.MedicalRecordStatusDraft,
-			model.MedicalRecordStatusFinalized,
-		)
-		if err != nil {
-			return UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("ステータスの値が不正です")
-		}
-		status = &s
+		return UpdateMedicalRecordInput{}, apperrors.WrapMedicalRecordStatusRetired(medicalRecordStatusFieldRetiredMessage)
 	}
 
 	var visitType *model.VisitType
@@ -348,7 +318,6 @@ func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (UpdateMedica
 		PetID:         r.PetID,
 		DoctorID:      r.DoctorID,
 		AppointmentID: r.AppointmentID,
-		Status:        status,
 		Version:       r.Version,
 		VisitType:     visitType,
 		ActorID:       &actorID,

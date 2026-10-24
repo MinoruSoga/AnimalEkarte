@@ -107,11 +107,17 @@ func (h *MedicalRecordHandler) CreateMedicalRecord(c *gin.Context) {
 		return
 	}
 	var input createMedicalRecordRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	if err := bindJSONGuarded(c, &input, rejectStatusKey, rejectLegacyDiagnosisFields); err != nil {
+		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}
 	svcInput, err := input.toServiceInput(staffID)
+	if err != nil {
+		httpapi.RespondError(c, err)
+		return
+	}
+	// 診断行の形（diagnosis_slot 欠落）はカルテ作成前に弾く。
+	subRecords, err := input.toSubRecordsInput()
 	if err != nil {
 		httpapi.RespondError(c, err)
 		return
@@ -126,7 +132,7 @@ func (h *MedicalRecordHandler) CreateMedicalRecord(c *gin.Context) {
 		return
 	}
 	// MRC-04 / DEC-32: do not return 201 when chief complaint / clinical plan subrecords failed.
-	if err := h.service.CreateSubRecords(ctx, clinicID, record.ID, input.toSubRecordsInput()); err != nil {
+	if err := h.service.CreateSubRecords(ctx, clinicID, record.ID, subRecords); err != nil {
 		httpapi.RespondError(c, err)
 		return
 	}
@@ -145,8 +151,8 @@ func (h *MedicalRecordHandler) UpdateMedicalRecord(c *gin.Context) {
 		return
 	}
 	var input updateMedicalRecordRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+	if err := bindJSONGuarded(c, &input, rejectStatusKey, rejectLegacyDiagnosisFields); err != nil {
+		httpapi.RespondError(c, legacyAwareBindError(err))
 		return
 	}
 

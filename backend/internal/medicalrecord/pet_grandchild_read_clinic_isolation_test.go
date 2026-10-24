@@ -60,7 +60,6 @@ func createGrandchildMedicalRecord(
 		Date:     time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC),
 		OwnerID:  ownerID,
 		PetID:    petID,
-		Status:   model.MedicalRecordStatusFinalized,
 	}
 	require.NoError(t, db.Create(record).Error)
 	return record

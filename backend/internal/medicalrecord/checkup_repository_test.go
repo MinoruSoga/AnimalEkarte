@@ -309,9 +309,9 @@ func TestCheckupRepository_FindByOwnerID(t *testing.T) {
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "健診同期ポチ")
 	ct := makeCheckupTypeMaster(t, db, clinicA, "同期健診種別")
 
-	mr := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "MR-OWNERSYNC", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusFinalized}
+	mr := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "MR-OWNERSYNC", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID}
 	require.NoError(t, db.WithContext(ctx).Create(mr).Error)
-	otherMR := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "MR-OTHEROWNER", Date: time.Now(), OwnerID: &otherOwner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusFinalized}
+	otherMR := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "MR-OTHEROWNER", Date: time.Now(), OwnerID: &otherOwner.ID, PetID: &pet.ID}
 	require.NoError(t, db.WithContext(ctx).Create(otherMR).Error)
 
 	own := makeCheckupWithDates(t, db, clinicA, mr.ID, pet.ID, ct.ID, time.Now(), nil)

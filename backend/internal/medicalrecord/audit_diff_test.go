@@ -27,7 +27,6 @@ func TestExtractMedicalRecordImportantFields(t *testing.T) {
 		date := time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)
 
 		r := &model.MedicalRecord{
-			Status:               model.MedicalRecordStatusFinalized,
 			Date:                 date,
 			DoctorID:             &doctorID,
 			OwnerID:              &ownerID,
@@ -39,7 +38,8 @@ func TestExtractMedicalRecordImportantFields(t *testing.T) {
 		got := extractMedicalRecordImportantFields(r)
 
 		require.NotNil(t, got)
-		assert.Equal(t, "finalized", got["status"])
+		_, hasStatus := got["status"]
+		assert.False(t, hasStatus, "EMR-495: status is retired from the audit important-fields")
 		assert.Equal(t, date, got["date"])
 		assert.Equal(t, &doctorID, got["doctor_id"])
 		assert.Equal(t, &ownerID, got["owner_id"])
@@ -51,14 +51,12 @@ func TestExtractMedicalRecordImportantFields(t *testing.T) {
 	t.Run("extracts important fields with all pointers nil", func(t *testing.T) {
 		date := time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)
 		r := &model.MedicalRecord{
-			Status: model.MedicalRecordStatusDraft,
-			Date:   date,
+			Date: date,
 		}
 
 		got := extractMedicalRecordImportantFields(r)
 
 		require.NotNil(t, got)
-		assert.Equal(t, "draft", got["status"])
 		assert.Nil(t, got["doctor_id"])
 		assert.Nil(t, got["owner_id"])
 		assert.Nil(t, got["pet_id"])

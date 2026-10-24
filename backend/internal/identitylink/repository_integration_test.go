@@ -226,7 +226,6 @@ func TestRepository_LinkedTreatmentHistory_PairScope(t *testing.T) {
 			RecordNo: no,
 			Date:     time.Now(),
 			PetID:    &pet,
-			Status:   model.MedicalRecordStatusFinalized,
 		}
 		require.NoError(t, db.Create(mr).Error)
 		tr := &model.Treatment{MedicalRecordID: mr.ID, Content: "tx-" + no, ItemType: model.TreatmentItemTypeOther}

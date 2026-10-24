@@ -213,7 +213,7 @@ type clinicalQueryGuard struct {
 	g clinicIDGuard
 }
 
-func (s *clinicalQueryGuard) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
+func (s *clinicalQueryGuard) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*ClinicalPlanView, error) {
 	s.g.check(clinicID, "clinical GetOrCreate")
 	return s.ClinicalPlanService.GetOrCreate(ctx, clinicID, medicalRecordID)
 }
@@ -240,8 +240,8 @@ func seedRealDBRecordsFixture(t *testing.T, db *gorm.DB, forbidden uint64) realD
 	ownerA, petA, recordA := seedOwnerPetRecord(t, db, fx.ClinicA, realDBOwnerNameA, realDBPetNameA, realDBRecordNoA)
 	ownerB, petB, recordB := seedOwnerPetRecord(t, db, fx.ClinicB, realDBOwnerNameB, realDBPetNameB, realDBRecordNoB)
 
-	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicalPlan{MedicalRecordID: recordA.ID, PhysicalExam: realDBClinicalPlanA}).Error)
-	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicalPlan{MedicalRecordID: recordB.ID, PhysicalExam: realDBClinicalPlanB}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicalPlan{ClinicID: fx.ClinicA, MedicalRecordID: recordA.ID, PhysicalExam: realDBClinicalPlanA}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicalPlan{ClinicID: fx.ClinicB, MedicalRecordID: recordB.ID, PhysicalExam: realDBClinicalPlanB}).Error)
 
 	require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecordAddendum{
 		MedicalRecordID: recordA.ID, ClinicID: fx.ClinicA, AuthorUserID: fx.StaffID, AfterText: realDBAddendumA, Reason: "d3-a",

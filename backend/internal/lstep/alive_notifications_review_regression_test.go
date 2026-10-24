@@ -45,7 +45,7 @@ func TestCheckupCreate_NilPetIDRealDeliveryEligibility(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			db, owner, pet := reviewAliveFixture(t)
 			require.NoError(t, db.Model(pet).Update("status", tt.status).Error)
-			record := &model.MedicalRecord{ClinicID: 1, RecordNo: "REVIEW657-CHECKUP", OwnerID: &owner.ID, PetID: &pet.ID, Date: time.Now(), Status: model.MedicalRecordStatusDraft}
+			record := &model.MedicalRecord{ClinicID: 1, RecordNo: "REVIEW657-CHECKUP", OwnerID: &owner.ID, PetID: &pet.ID, Date: time.Now()}
 			require.NoError(t, db.Create(record).Error)
 			checkupType := &model.CheckupType{ClinicID: 1, Name: "synthetic checkup"}
 			require.NoError(t, db.Create(checkupType).Error)

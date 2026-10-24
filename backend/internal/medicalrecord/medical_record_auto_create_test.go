@@ -143,19 +143,6 @@ func (c *reservationCancelCleanupAuditCapture) LogEntry(ctx context.Context, ent
 	return c.err
 }
 
-func assertBoundedCleanupContext(ctx context.Context, t *testing.T) {
-	t.Helper()
-
-	assert.NoError(t, ctx.Err())
-	assert.Nil(t, persistence.TxFromContext(ctx))
-	deadline, ok := ctx.Deadline()
-	if assert.True(t, ok, "cleanup context must have a deadline") {
-		remaining := time.Until(deadline)
-		assert.Greater(t, remaining, time.Duration(0))
-		assert.LessOrEqual(t, remaining, 5*time.Second)
-	}
-}
-
 func captureMedicalRecordCleanupLogs(t *testing.T) *bytes.Buffer {
 	t.Helper()
 
@@ -172,308 +159,31 @@ func captureMedicalRecordCleanupLogs(t *testing.T) *bytes.Buffer {
 // DeleteDraftFromReservation
 // ================================================================
 
-func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
-	t.Run("draft は通常の安全な削除経路を通り監査される", func(t *testing.T) {
-		const (
-			clinicID      = uint64(3)
-			reservationID = uint64(77)
-			recordID      = uint64(91)
-		)
-		appointmentID := reservationID
-		record := &model.MedicalRecord{
-			ID:            recordID,
-			ClinicID:      clinicID,
-			AppointmentID: &appointmentID,
-			Status:        model.MedicalRecordStatusDraft,
-		}
-		deleteCalled := false
-		repo := &mockMedicalRecordRepository{
-			findByAppointmentIDFn: func(_ context.Context, gotClinicID, gotReservationID uint64) (*model.MedicalRecord, error) {
-				assert.Equal(t, clinicID, gotClinicID)
-				assert.Equal(t, reservationID, gotReservationID)
-				return record, nil
-			},
-			findByIDFn: func(_ context.Context, gotClinicID, gotRecordID uint64) (*model.MedicalRecord, error) {
-				assert.Equal(t, clinicID, gotClinicID)
-				assert.Equal(t, recordID, gotRecordID)
-				return record, nil
-			},
-			countEstimatesByMedicalRecordIDFn: func(_ context.Context, gotRecordID uint64) (int64, error) {
-				assert.Equal(t, recordID, gotRecordID)
-				return 0, nil
-			},
-			deleteFn: func(_ context.Context, gotClinicID, gotRecordID uint64) error {
-				deleteCalled = true
-				assert.Equal(t, clinicID, gotClinicID)
-				assert.Equal(t, recordID, gotRecordID)
-				return nil
-			},
-		}
-		auditSvc := &mockAuditService{}
-		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil, &mockTransactor{})
+// EMR-495 P1 (Lead Q1): 予約取消からのカルテ自動削除は提供しない（ログのみの no-op）。
+// 旧テスト群（draft の削除・監査・期限付き cleanup context・失敗監査）は、削除経路ごと廃止したため削除した。
+func TestMedicalRecordService_DeleteDraftFromReservation_IsLoggedNoOp(t *testing.T) {
+	const (
+		clinicID      = uint64(3)
+		reservationID = uint64(77)
+	)
+	repo := &mockMedicalRecordRepository{
+		findByAppointmentIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			t.Fatal("reservation cancel must not look up the medical record")
+			return nil, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			t.Fatal("reservation cancel must not delete a medical record")
+			return nil
+		},
+	}
+	audit := &reservationCancelCleanupAuditCapture{mockAuditService: &mockAuditService{}}
+	logs := captureMedicalRecordCleanupLogs(t)
+	svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
 
-		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
+	svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
 
-		assert.True(t, deleteCalled)
-		assert.Contains(t, auditSvc.calls, "delete")
-	})
-
-	t.Run("検索エラーは best-effort で無視される（パニックしない）", func(t *testing.T) {
-		repo := &mockMedicalRecordRepository{
-			findByAppointmentIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return nil, errors.New("db error")
-			},
-		}
-		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, &mockTransactor{})
-
-		assert.NotPanics(t, func() {
-			svc.DeleteDraftFromReservation(context.Background(), 3, 77)
-		})
-	})
-
-	t.Run("検索DB障害は ERROR と internal_error 監査で可視化する", func(t *testing.T) {
-		clinicID := uint64(3)
-		reservationID := uint64(77)
-		logs := captureMedicalRecordCleanupLogs(t)
-		repo := &mockMedicalRecordRepository{
-			findByAppointmentIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return nil, errors.New("db unavailable")
-			},
-		}
-		audit := &reservationCancelCleanupAuditCapture{mockAuditService: &mockAuditService{}}
-		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
-
-		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
-
-		assert.Contains(t, logs.String(), "level=ERROR")
-		assert.Contains(t, logs.String(), "reservation cancel draft cleanup lookup failed")
-		require.Len(t, audit.entries, 1)
-		entry := audit.entries[0]
-		assert.Equal(t, &clinicID, entry.ClinicID)
-		assert.Nil(t, entry.ActorID)
-		assert.Equal(t, model.AuditActorTypeSystem, entry.ActorType)
-		assert.Equal(t, "reservation.draft_cleanup_failed", entry.Action)
-		assert.Equal(t, model.AuditResourceReservation, entry.Resource)
-		assert.Equal(t, &reservationID, entry.ResourceID)
-		assert.Equal(t, map[string]any{
-			"failure_category": "internal_error",
-		}, entry.Metadata)
-	})
-
-	t.Run("見積依存 Conflict は ERROR と dependency_conflict 監査で障害から区別する", func(t *testing.T) {
-		const (
-			clinicID      = uint64(3)
-			reservationID = uint64(77)
-			recordID      = uint64(91)
-		)
-		logs := captureMedicalRecordCleanupLogs(t)
-		record := &model.MedicalRecord{
-			ID:       recordID,
-			ClinicID: clinicID,
-			Status:   model.MedicalRecordStatusDraft,
-		}
-		repo := &mockMedicalRecordRepository{
-			findByAppointmentIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return record, nil
-			},
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return record, nil
-			},
-			countEstimatesByMedicalRecordIDFn: func(_ context.Context, _ uint64) (int64, error) {
-				return 1, nil
-			},
-		}
-		audit := &reservationCancelCleanupAuditCapture{mockAuditService: &mockAuditService{}}
-		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
-
-		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
-
-		assert.Contains(t, logs.String(), "level=ERROR")
-		assert.Contains(t, logs.String(), "reservation cancel draft cleanup blocked by dependency")
-		require.Len(t, audit.entries, 1)
-		assert.Equal(t, map[string]any{
-			"failure_category":  "dependency_conflict",
-			"medical_record_id": recordID,
-		}, audit.entries[0].Metadata)
-	})
-
-	t.Run("lookup 後の状態変更 Conflict は ERROR と state_conflict 監査で見積依存から区別する", func(t *testing.T) {
-		const (
-			clinicID      = uint64(3)
-			reservationID = uint64(77)
-			recordID      = uint64(91)
-		)
-		logs := captureMedicalRecordCleanupLogs(t)
-		lookupRecord := &model.MedicalRecord{
-			ID:       recordID,
-			ClinicID: clinicID,
-			Status:   model.MedicalRecordStatusDraft,
-		}
-		lockedRecord := &model.MedicalRecord{
-			ID:       recordID,
-			ClinicID: clinicID,
-			Status:   model.MedicalRecordStatusFinalized,
-		}
-		repo := &mockMedicalRecordRepository{
-			findByAppointmentIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return lookupRecord, nil
-			},
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return lockedRecord, nil
-			},
-		}
-		audit := &reservationCancelCleanupAuditCapture{mockAuditService: &mockAuditService{}}
-		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
-
-		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
-
-		assert.Contains(t, logs.String(), "level=ERROR")
-		assert.Contains(t, logs.String(), "reservation cancel draft cleanup blocked by record state change")
-		require.Len(t, audit.entries, 1)
-		assert.Equal(t, map[string]any{
-			"failure_category":  "state_conflict",
-			"medical_record_id": recordID,
-		}, audit.entries[0].Metadata)
-	})
-
-	t.Run("削除DB障害は ERROR と internal_error 監査で Conflict から区別する", func(t *testing.T) {
-		const (
-			clinicID      = uint64(3)
-			reservationID = uint64(77)
-			recordID      = uint64(91)
-		)
-		logs := captureMedicalRecordCleanupLogs(t)
-		record := &model.MedicalRecord{
-			ID:       recordID,
-			ClinicID: clinicID,
-			Status:   model.MedicalRecordStatusDraft,
-		}
-		repo := &mockMedicalRecordRepository{
-			findByAppointmentIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return record, nil
-			},
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return record, nil
-			},
-			countEstimatesByMedicalRecordIDFn: func(_ context.Context, _ uint64) (int64, error) {
-				return 0, errors.New("db unavailable")
-			},
-		}
-		audit := &reservationCancelCleanupAuditCapture{mockAuditService: &mockAuditService{}}
-		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
-
-		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
-
-		assert.Contains(t, logs.String(), "level=ERROR")
-		assert.Contains(t, logs.String(), "reservation cancel draft cleanup failed")
-		require.Len(t, audit.entries, 1)
-		assert.Equal(t, map[string]any{
-			"failure_category":  "internal_error",
-			"medical_record_id": recordID,
-		}, audit.entries[0].Metadata)
-	})
-
-	t.Run("failure 監査書込エラー自体も ERROR で可視化する", func(t *testing.T) {
-		const (
-			clinicID      = uint64(3)
-			reservationID = uint64(77)
-		)
-		logs := captureMedicalRecordCleanupLogs(t)
-		repo := &mockMedicalRecordRepository{
-			findByAppointmentIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				return nil, errors.New("db unavailable")
-			},
-		}
-		audit := &reservationCancelCleanupAuditCapture{
-			mockAuditService: &mockAuditService{},
-			err:              errors.New("audit unavailable"),
-		}
-		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
-
-		svc.DeleteDraftFromReservation(context.Background(), clinicID, reservationID)
-
-		assert.Contains(t, logs.String(), "reservation cancel draft cleanup failure audit write failed")
-	})
-
-	t.Run("キャンセル済み request でも lookup・安全削除・failure 監査は独立した期限付き context を使う", func(t *testing.T) {
-		const (
-			clinicID      = uint64(3)
-			reservationID = uint64(77)
-			recordID      = uint64(91)
-		)
-		record := &model.MedicalRecord{
-			ID:       recordID,
-			ClinicID: clinicID,
-			Status:   model.MedicalRecordStatusDraft,
-		}
-		lookupContextChecked := false
-		deleteContextChecked := false
-		auditContextChecked := false
-		repo := &mockMedicalRecordRepository{
-			findByAppointmentIDFn: func(ctx context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				lookupContextChecked = true
-				assertBoundedCleanupContext(ctx, t)
-				return record, nil
-			},
-			findByIDFn: func(ctx context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-				deleteContextChecked = true
-				assertBoundedCleanupContext(ctx, t)
-				return record, nil
-			},
-			countEstimatesByMedicalRecordIDFn: func(ctx context.Context, _ uint64) (int64, error) {
-				assertBoundedCleanupContext(ctx, t)
-				return 1, nil
-			},
-		}
-		audit := &reservationCancelCleanupAuditCapture{
-			mockAuditService: &mockAuditService{},
-			logEntryFn: func(ctx context.Context, _ *AuditEntry) error {
-				auditContextChecked = true
-				assertBoundedCleanupContext(ctx, t)
-				return nil
-			},
-		}
-		svc := NewMedicalRecordServiceWithTxAudit(repo, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{})
-		parentWithTx := persistence.WithTxValue(context.Background(), &gorm.DB{})
-		parentCtx, cancelParent := context.WithCancel(parentWithTx)
-		cancelParent()
-
-		svc.DeleteDraftFromReservation(parentCtx, clinicID, reservationID)
-
-		assert.True(t, lookupContextChecked)
-		assert.True(t, deleteContextChecked)
-		assert.True(t, auditContextChecked)
-	})
-
-	t.Run("cleanup の期限を使い切っても failure 監査は独立した期限付き context を使う", func(t *testing.T) {
-		const (
-			clinicID      = uint64(3)
-			reservationID = uint64(77)
-		)
-		auditContextChecked := false
-		audit := &reservationCancelCleanupAuditCapture{
-			mockAuditService: &mockAuditService{},
-			logEntryFn: func(ctx context.Context, _ *AuditEntry) error {
-				auditContextChecked = true
-				assertBoundedCleanupContext(ctx, t)
-				return nil
-			},
-		}
-		svc := NewMedicalRecordServiceWithTxAudit(
-			&mockMedicalRecordRepository{}, nil, nil, nil, nil, nil, nil, nil, nil, audit, nil, &mockTransactor{}).(*medicalRecordService)
-		expiredCleanupCtx, cancelCleanup := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
-		defer cancelCleanup()
-
-		svc.auditReservationDraftCleanupFailure(
-			expiredCleanupCtx,
-			clinicID,
-			reservationID,
-			nil,
-			reservationDraftCleanupInternalError,
-		)
-
-		assert.True(t, auditContextChecked)
-	})
+	assert.Empty(t, audit.entries, "no deletion happened, so no deletion audit is written")
+	assert.Contains(t, logs.String(), "medical record auto-delete is not provided")
 }
 
 // ================================================================
@@ -702,7 +412,6 @@ func TestAutoCreateFromReservation_ExistingAppointmentRepairsSubrecordsWithoutCr
 		PetID:     &petID,
 		RecordNo:  "EXISTING-AUTO",
 		Date:      time.Date(2026, time.August, 1, 0, 0, 0, 0, config.JST),
-		Status:    model.MedicalRecordStatusDraft,
 		VisitType: &visitType,
 	}
 	repo := &mockMedicalRecordRepository{
@@ -872,7 +581,6 @@ func TestAutoCreateFromReservation_JSTDateBoundaryPreventsDuplicate(t *testing.T
 		Date:     time.Date(2026, time.July, 28, 0, 0, 0, 0, config.JST),
 		OwnerID:  &owner.ID,
 		PetID:    &pet.ID,
-		Status:   model.MedicalRecordStatusDraft,
 	})
 
 	realRepo := NewMedicalRecordRepository(db)

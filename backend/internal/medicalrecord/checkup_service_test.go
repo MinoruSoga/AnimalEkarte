@@ -293,7 +293,7 @@ func TestCheckupService_Create(t *testing.T) {
 			}
 			mrRepo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					record := &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}
+					record := &model.MedicalRecord{}
 					if tt.input.PetID != nil {
 						record.OwnerID = ptrUint64(1)
 						record.PetID = tt.input.PetID
@@ -401,7 +401,7 @@ func TestCheckupService_Update(t *testing.T) {
 			}
 			mrRepo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+					return &model.MedicalRecord{}, nil
 				},
 			}
 			svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
@@ -468,7 +468,7 @@ func TestCheckupService_Delete(t *testing.T) {
 			}
 			mrRepo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+					return &model.MedicalRecord{}, nil
 				},
 			}
 			svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
@@ -498,11 +498,11 @@ func TestCheckupService_DeleteLocksParentBeforeCheckup(t *testing.T) {
 	}
 	records := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 		},
 		lockByIDForUpdateFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 			order = append(order, "medical_record")
-			return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 		},
 	}
 	svc := NewCheckupService(repo, records, okCheckupTypeRepo(), nil, nil)
@@ -522,7 +522,7 @@ func TestCheckupService_DeleteRequiresTransactionDependency(t *testing.T) {
 	}
 	records := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
 		},
 	}
 	svc := NewCheckupService(
@@ -564,7 +564,7 @@ func TestCheckupService_Create_SyncsCheckupTagBestEffort(t *testing.T) {
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{}, nil
 		},
 	}
 	tagSync := &mockLstepTagSyncService{
@@ -619,7 +619,7 @@ func TestCheckupService_Update_ResyncsOwnerCheckupTags(t *testing.T) {
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{}, nil
 		},
 	}
 	tagSync := &mockLstepTagSyncService{
@@ -659,7 +659,7 @@ func TestCheckupService_Delete_ResyncsOwnerCheckupTagsAfterDelete(t *testing.T) 
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{}, nil
 		},
 	}
 	tagSync := &mockLstepTagSyncService{
@@ -764,57 +764,6 @@ func TestBuildCheckupUpdate_DoctorIDClear(t *testing.T) {
 	})
 }
 
-func TestCheckupService_Create_FinalizedRejection(t *testing.T) {
-	now := time.Now()
-	repo := &mockCheckupRepository{}
-	mrRepo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
-		},
-	}
-	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
-
-	_, err := svc.Create(context.Background(), 1, &CreateCheckupInput{
-		ClinicID: 1, CheckupTypeID: 1, Date: now,
-	})
-	assert.Error(t, err)
-}
-
-func TestCheckupService_Update_FinalizedRejection(t *testing.T) {
-	newResult := "updated"
-	repo := &mockCheckupRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
-			return &model.Checkup{ID: 1, MedicalRecordID: 1}, nil
-		},
-	}
-	mrRepo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
-		},
-	}
-	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
-
-	_, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCheckupInput{Result: &newResult})
-	assert.Error(t, err)
-}
-
-func TestCheckupService_Delete_FinalizedRejection(t *testing.T) {
-	repo := &mockCheckupRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
-			return &model.Checkup{ID: 1, MedicalRecordID: 1}, nil
-		},
-	}
-	mrRepo := &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
-		},
-	}
-	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
-
-	err := svc.Delete(context.Background(), 1, 1, 1)
-	assert.Error(t, err)
-}
-
 // mockLstepDeliveryTriggerForCheckup は checkup_service の Create フォローアップトリガー
 // （fire-and-forget goroutine）を検証するための最小限モック。
 type mockLstepDeliveryTriggerForCheckup struct {
@@ -894,7 +843,7 @@ func TestCheckupService_Create_TriggersCheckupFollowUpBestEffort(t *testing.T) {
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{}, nil
 		},
 	}
 	trigger := &mockLstepDeliveryTriggerForCheckup{
@@ -942,7 +891,7 @@ func TestCheckupService_Create_CheckupTypeIDZero_SkipsOwnershipCheck(t *testing.
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{}, nil
 		},
 	}
 	checkupTypeRepo := &mockCheckupTypeRepository{
@@ -968,7 +917,7 @@ func TestCheckupService_Create_CheckupTypeIDZero_SkipsOwnershipCheck(t *testing.
 func TestCheckupService_Create_CheckupTypeOwnershipError(t *testing.T) {
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{}, nil
 		},
 	}
 	checkupTypeRepo := rejectCheckupTypeRepo(99)
@@ -1014,7 +963,7 @@ func TestCheckupService_Create_FindByIDAfterCreateError(t *testing.T) {
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{}, nil
 		},
 	}
 	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
@@ -1038,7 +987,7 @@ func TestCheckupService_Update_CheckupTypeOwnershipError(t *testing.T) {
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{}, nil
 		},
 	}
 	checkupTypeRepo := rejectCheckupTypeRepo(99)
@@ -1089,7 +1038,7 @@ func TestCheckupService_Update_FindByIDAfterUpdateError(t *testing.T) {
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{}, nil
 		},
 	}
 	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
@@ -1206,7 +1155,6 @@ func TestCheckupService_Create_RejectsInvalidPatientAndDoctorRelations(t *testin
 						ClinicID: clinicID,
 						OwnerID:  ptrUint64(recordOwnerID),
 						PetID:    ptrUint64(recordPetID),
-						Status:   model.MedicalRecordStatusDraft,
 					}, nil
 				},
 				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
@@ -1262,7 +1210,7 @@ func TestCheckupService_Update_RevalidatesEffectiveRelations(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
 				ID: medicalRecord, ClinicID: clinicID, OwnerID: ptrUint64(recordOwnerID),
-				PetID: ptrUint64(recordPetID), Status: model.MedicalRecordStatusDraft,
+				PetID: ptrUint64(recordPetID),
 			}, nil
 		},
 		findPetOwnerInClinicFn: func(_ context.Context, _, petID uint64) (uint64, error) {
@@ -1283,7 +1231,7 @@ func TestCheckupService_Update_RevalidatesEffectiveRelations(t *testing.T) {
 
 func TestCheckupService_Create_NilPetIDUsesParentEventPet(t *testing.T) {
 	ownerID, petID := uint64(42), uint64(77)
-	parent := &model.MedicalRecord{ID: 2, ClinicID: 3, OwnerID: &ownerID, PetID: &petID, Status: model.MedicalRecordStatusDraft}
+	parent := &model.MedicalRecord{ID: 2, ClinicID: 3, OwnerID: &ownerID, PetID: &petID}
 	repo := &mockCheckupRepository{
 		createFn: func(_ context.Context, checkup *model.Checkup) error {
 			checkup.ID = 5

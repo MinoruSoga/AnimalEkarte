@@ -77,7 +77,6 @@ func makeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64,
 		RecordNo: recordNo,
 		Date:     date,
 		PetID:    &pet,
-		Status:   model.MedicalRecordStatusFinalized,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
 	return mr

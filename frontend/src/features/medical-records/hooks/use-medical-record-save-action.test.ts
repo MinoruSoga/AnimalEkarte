@@ -8,6 +8,8 @@ import { toast } from "sonner";
 
 import { useMedicalRecordSaveAction } from "./use-medical-record-save-action";
 import { DEFAULT_CHIEF_COMPLAINT, DEFAULT_TREATMENT_POLICY } from "./use-medical-record-form-model";
+import type { ClinicalPlanDiagnosisRow } from "../api/clinical-plan";
+import { queryKeys } from "@/lib/query-keys";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -65,6 +67,45 @@ function buildSaveArgs(overrides: Record<string, unknown> = {}) {
   };
 }
 
+// clinical-plan 応答の診断行（clinical_plan_response.go の closed shape）。
+function loadedDiagnosisRow(
+  slot: number,
+  typeId: string | null,
+  nameId: string | null,
+  overrides: Partial<ClinicalPlanDiagnosisRow> = {},
+): ClinicalPlanDiagnosisRow {
+  return {
+    id: `d-${slot}-${nameId ?? "none"}`,
+    version: 1,
+    diagnosis_slot: slot,
+    diagnosis_type_id: typeId,
+    diagnosis_name_id: nameId,
+    diagnosis_name_snapshot: null,
+    category_name_snapshot: null,
+    sort_order: 0,
+    ...overrides,
+  };
+}
+
+// 読込済みの診断行: 診断1 は 2 行（スナップショット・sort_order 付き）、診断2 は 1 行。
+const LOADED_DIAGNOSES: ClinicalPlanDiagnosisRow[] = [
+  loadedDiagnosisRow(1, "3", "7", {
+    diagnosis_name_snapshot: "胃腸炎",
+    category_name_snapshot: "消化器",
+    sort_order: 0,
+  }),
+  loadedDiagnosisRow(1, "3", "8", {
+    diagnosis_name_snapshot: "胃炎",
+    category_name_snapshot: "消化器",
+    sort_order: 1,
+  }),
+  loadedDiagnosisRow(2, "4", "9", {
+    diagnosis_name_snapshot: "皮膚炎",
+    category_name_snapshot: "皮膚",
+    sort_order: 0,
+  }),
+];
+
 describe("useMedicalRecordSaveAction BUG-010 clinical plan payload", () => {
   it("診察/治療プラン保存時に physical_exam・diagnosis_details・treatment_policy の入力値をそのまま1回の PATCH に送る（DEFAULT 固定文字列で置換しない）", async () => {
     const updateTreatmentPlan = vi.fn().mockResolvedValue(undefined);
@@ -92,10 +133,8 @@ describe("useMedicalRecordSaveAction BUG-010 clinical plan payload", () => {
       physical_exam: "CLEAN-TEST 身体検査所見の内容ABC",
       diagnosis_details: "CLEAN-TEST 診断詳細の内容XYZ",
       treatment_policy: "CLEAN-TEST 治療方針の内容123",
-      diagnosis_type_id: undefined,
-      diagnosis_name_id: undefined,
-      diagnosis_2_type_id: null,
-      diagnosis_2_name_id: null,
+      // EMR-495: 診断を触っておらず読込済みの診断行も無いので diagnoses は送らない（= 変更なし）
+      diagnoses: undefined,
       version: 1,
     });
     // EMR-308: 次回予定は tentative appointment 経路に移行したためカルテ PATCH は発行しない
@@ -163,16 +202,9 @@ describe("useMedicalRecordSaveAction BUG-010 clinical plan payload", () => {
       physical_exam: "保存済み所見",
       treatment_policy: "保存済み治療方針",
       diagnosis_details: "保存済み診断詳細",
-      diagnosis_type_id: "3",
-      diagnosis_name_id: "7",
-      diagnosis_2_type_id: "4",
-      diagnosis_2_name_id: "9",
+      diagnoses: LOADED_DIAGNOSES,
       created_at: "2026-09-05T00:00:00Z",
       updated_at: "2026-09-05T00:00:00Z",
-      diagnosis_type: { id: "3", name: "診断種別" },
-      diagnosis_name: { id: "7", name: "診断名" },
-      diagnosis_2_type: { id: "4", name: "診断種別2" },
-      diagnosis_2_name: { id: "9", name: "診断名2" },
     };
     const updateTreatmentPlan = vi.fn().mockResolvedValue(savedClinicalPlan);
     const onClinicalPlanSaved = vi.fn();
@@ -219,6 +251,191 @@ describe("useMedicalRecordSaveAction BUG-010 clinical plan payload", () => {
     expect(toast.success).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalled();
     expect(result.current.formState.success).toBe(false);
+  });
+});
+
+describe("useMedicalRecordSaveAction EMR-495 diagnoses payload", () => {
+  // 読込済みの行を PATCH 形に直したもの（ID は数値、スナップショットと sort_order は読込値のまま）。
+  const slot1Rows = [
+    {
+      diagnosis_slot: 1,
+      diagnosis_type_id: 3,
+      diagnosis_name_id: 7,
+      diagnosis_name_snapshot: "胃腸炎",
+      category_name_snapshot: "消化器",
+      sort_order: 0,
+    },
+    {
+      diagnosis_slot: 1,
+      diagnosis_type_id: 3,
+      diagnosis_name_id: 8,
+      diagnosis_name_snapshot: "胃炎",
+      category_name_snapshot: "消化器",
+      sort_order: 1,
+    },
+  ];
+  const slot2Row = {
+    diagnosis_slot: 2,
+    diagnosis_type_id: 4,
+    diagnosis_name_id: 9,
+    diagnosis_name_snapshot: "皮膚炎",
+    category_name_snapshot: "皮膚",
+    sort_order: 0,
+  };
+  // UI が読込済みの代表行（診断1 = 3/7、診断2 = 4/9）と一致している選択。
+  const loadedSelection = {
+    diagnosis1CategoryId: 3,
+    diagnosis1NameId: 7,
+    diagnosis2CategoryId: 4,
+    diagnosis2NameId: 9,
+  };
+
+  async function savedPayload(overrides: Record<string, unknown>) {
+    const updateTreatmentPlan = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useMedicalRecordSaveAction(
+        buildSaveArgs({
+          existingClinicalPlanDiagnoses: LOADED_DIAGNOSES,
+          updateTreatmentPlanMutation: { mutateAsync: updateTreatmentPlan },
+          ...overrides,
+        }),
+      ),
+    );
+
+    act(() => {
+      startTransition(() => result.current.formAction(new FormData()));
+    });
+
+    await waitFor(() => expect(result.current.formState.success).toBe(true));
+    expect(updateTreatmentPlan).toHaveBeenCalledOnce();
+    return updateTreatmentPlan.mock.calls[0]?.[0] as { diagnoses?: unknown };
+  }
+
+  it("診断を触っていなければ diagnoses を送らない（読込済みの複数行も変更なし）", async () => {
+    const payload = await savedPayload(loadedSelection);
+
+    expect(payload.diagnoses).toBeUndefined();
+  });
+
+  it("変更していない診断1 の読込済み 2 行（スナップショット・sort_order 付き）はそのまま送り、変更した診断2 だけ新しい 1 行へ置換する", async () => {
+    const payload = await savedPayload({ ...loadedSelection, diagnosis2NameId: 10 });
+
+    expect(payload.diagnoses).toEqual([
+      ...slot1Rows,
+      {
+        diagnosis_slot: 2,
+        diagnosis_type_id: 4,
+        diagnosis_name_id: 10,
+        // 区分は変えていないので読込済みの区分スナップショットを引き継ぎ、病名は表示名が分からないため null。
+        diagnosis_name_snapshot: null,
+        category_name_snapshot: "皮膚",
+        sort_order: 0,
+      },
+    ]);
+  });
+
+  it("診断2 だけをクリアすると診断2 の行を送らず、診断1 の読込済み 2 行は保持する", async () => {
+    const payload = await savedPayload({
+      ...loadedSelection,
+      diagnosis2CategoryId: null,
+      diagnosis2NameId: null,
+    });
+
+    expect(payload.diagnoses).toEqual(slot1Rows);
+  });
+
+  it("診断1 だけをクリアすると診断1 の 2 行を送らず、診断2 の読込済み行は保持する", async () => {
+    const payload = await savedPayload({
+      ...loadedSelection,
+      diagnosis1CategoryId: null,
+      diagnosis1NameId: null,
+    });
+
+    expect(payload.diagnoses).toEqual([slot2Row]);
+  });
+
+  it("両 slot をユーザーがクリアしたときだけ空配列で全行クリアを送る", async () => {
+    const payload = await savedPayload({
+      diagnosis1CategoryId: null,
+      diagnosis1NameId: null,
+      diagnosis2CategoryId: null,
+      diagnosis2NameId: null,
+    });
+
+    expect(payload.diagnoses).toEqual([]);
+  });
+
+  // 診断セレクタが react-query に載せる選択肢（get-diagnosis-options.ts と同じキー）を模したキャッシュ。
+  function queryClientWithDiagnosisOptions() {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    queryClient.setQueryData(queryKeys.masters.category("diagnosis-types"), [
+      { id: 3, name: "消化器" },
+      { id: 5, name: "呼吸器" },
+    ]);
+    queryClient.setQueryData(queryKeys.masters.diagnosisNames(5), [{ id: 20, name: "気管支炎" }]);
+    return queryClient;
+  }
+
+  it("診断1 を新しく選択すると選択中の区分名・病名をスナップショットとして送り、変えていない診断2 は読込済み行のまま送る", async () => {
+    const payload = await savedPayload({
+      ...loadedSelection,
+      diagnosis1CategoryId: 5,
+      diagnosis1NameId: 20,
+      queryClient: queryClientWithDiagnosisOptions(),
+    });
+
+    expect(payload.diagnoses).toEqual([
+      {
+        diagnosis_slot: 1,
+        diagnosis_type_id: 5,
+        diagnosis_name_id: 20,
+        diagnosis_name_snapshot: "気管支炎",
+        category_name_snapshot: "呼吸器",
+        sort_order: 0,
+      },
+      slot2Row,
+    ]);
+  });
+
+  it("選択した ID に対応する表示名が分からない場合は推測せず null を送る", async () => {
+    const payload = await savedPayload({
+      ...loadedSelection,
+      diagnosis1CategoryId: 6,
+      diagnosis1NameId: 21,
+      queryClient: queryClientWithDiagnosisOptions(),
+    });
+
+    expect(payload.diagnoses).toEqual([
+      {
+        diagnosis_slot: 1,
+        diagnosis_type_id: 6,
+        diagnosis_name_id: 21,
+        diagnosis_name_snapshot: null,
+        category_name_snapshot: null,
+        sort_order: 0,
+      },
+      slot2Row,
+    ]);
+  });
+
+  it("区分を変えずに病名だけ変え区分名がキャッシュに無いときは、病名はキャッシュから・区分名は読込済みスナップショットから送る", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(queryKeys.masters.diagnosisNames(4), [{ id: 10, name: "湿疹" }]);
+    const payload = await savedPayload({ ...loadedSelection, diagnosis2NameId: 10, queryClient });
+
+    expect(payload.diagnoses).toEqual([
+      ...slot1Rows,
+      {
+        diagnosis_slot: 2,
+        diagnosis_type_id: 4,
+        diagnosis_name_id: 10,
+        diagnosis_name_snapshot: "湿疹",
+        category_name_snapshot: "皮膚",
+        sort_order: 0,
+      },
+    ]);
   });
 });
 

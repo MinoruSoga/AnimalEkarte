@@ -221,42 +221,7 @@ func TestCarePlanItemRepository_FindByID_MasterPreloadClinicIsolation(t *testing
 	assert.Nil(t, got.Procedure, "別医院の手技マスタが Preload で混入してはならない")
 }
 
-// --- (b4) clinical_plan: DiagnosisType / DiagnosisName ---
-
-func TestClinicalPlanRepository_FindByMedicalRecordID_DiagnosisPreloadClinicIsolation(t *testing.T) {
-	db := testdb.SetupTestDB(t)
-	require.NoError(t, testdb.EnsureAutoMigrated(db,
-		&model.AnimalSpecies{}, &model.Pet{}, &model.DiagnosisType{}, &model.DiagnosisName{}, &model.ClinicalPlan{},
-	))
-	db.Exec("TRUNCATE TABLE clinical_plans CASCADE")
-	db.Exec("TRUNCATE TABLE diagnosis_names CASCADE")
-	db.Exec("TRUNCATE TABLE diagnosis_types CASCADE")
-	db.Exec("TRUNCATE TABLE medical_records CASCADE")
-	db.Exec("TRUNCATE TABLE pets CASCADE")
-	db.Exec("TRUNCATE TABLE animal_species CASCADE")
-	repo := NewClinicalPlanRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-
-	ownerA := makeTestOwner(t, db, clinicA, "診断計画飼主A")
-	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "診断計画ポチA")
-	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-CP-A", time.Now())
-	typeB := makeDiagnosisTypeMaster(t, db, clinicB, "医院Bの診断分類")
-	nameB := makeDiagnosisNameRec(t, db, clinicB, typeB.ID, "医院Bの診断名")
-
-	plan := &model.ClinicalPlan{
-		MedicalRecordID: mrA.ID,
-		DiagnosisTypeID: &typeB.ID,
-		DiagnosisNameID: &nameB.ID,
-	}
-	require.NoError(t, db.WithContext(ctx).Create(plan).Error)
-
-	got, err := repo.FindByMedicalRecordID(ctx, clinicA, mrA.ID)
-	require.NoError(t, err)
-	require.NotNil(t, got)
-	assert.Nil(t, got.DiagnosisType, "別医院の診断分類マスタが Preload で混入してはならない")
-	assert.Nil(t, got.DiagnosisName, "別医院の診断名マスタが Preload で混入してはならない")
-}
+// --- (b4) clinical_plan: 診断マスタの Preload は EMR-495 A で廃止（診断は clinical_plan_diagnoses の行・複合 FK で clinic 所有を担保） ---
 
 // --- (b6) diagnosis: Names (子マスタ) ---
 

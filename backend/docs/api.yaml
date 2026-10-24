@@ -4309,6 +4309,15 @@ components:
           readOnly: true
     MedicalRecord:
       type: object
+      description: |
+        EMR-495: `status`（draft / finalized）は廃止した。medical_records.status 列は 001 で廃止され、
+        レスポンスにも含まれない。リクエストの `status` の扱い（互換許容なし。PO 決定 EMR-549 B1）:
+        作成（POST）・更新（PATCH）とも、`status` キーが存在すれば値（null・空文字・文字列・数値・真偽値・配列・
+        object を含む任意の値）に関わらず 422（code `medical_record_status_retired`）を返し、何も書かない
+        （キーの存在で判定する。旧 finalize / unfinalize は未提供）。
+        POST / PATCH とも、body は単一の JSON オブジェクトでなければならない（末尾に別の値やゴミが続く body、
+        最上位が配列・スカラー・null の body は 400）。FE の追随は EMR-549 で追跡する。
+        診療終了は予約の終了操作（EMR-495 B。このスキーマ変更には含まない）で記録する。
       required: [date, record_no, weight_measurements]
       properties:
         id:
@@ -4338,11 +4347,6 @@ components:
           type: integer
           format: int64
           nullable: true
-        status:
-          type: string
-          enum:
-            - draft
-            - finalized
         accounting_id:
           type: integer
           format: int64
@@ -9278,23 +9282,23 @@ components:
     # ─── ClinicalPlan (診察所見・診断・治療方針) ──────────────────────────────
     ClinicalPlan:
       type: object
+      description: |
+        EMR-495 A: 診断は `diagnoses[]`（clinical_plan_diagnoses の生存行。slot, sort_order, id 昇順）で返す。
+        旧 `diagnosis_type_id` / `diagnosis_name_id` / `diagnosis_2_*`（および `diagnosis_category_id`）と
+        埋め込みマスタは廃止した。マスタ参照とスナップショットは保存値のまま返し、現在のマスタから補完しない。
+        id 系はいずれも文字列（既存の clinicalPlanResponse の表現）。
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
         medical_record_id:
-          type: integer
-          format: int64
+          type: string
         physical_exam:
           type: string
-        diagnosis_category_id:
-          type: integer
-          format: int64
-          nullable: true
-        diagnosis_name_id:
-          type: integer
-          format: int64
-          nullable: true
+        diagnoses:
+          type: array
+          description: 診断行。診断がなければ空配列（null にはならない）。
+          items:
+            $ref: '#/components/schemas/ClinicalPlanDiagnosis'
         diagnosis_details:
           type: string
         treatment_policy:
@@ -9312,22 +9316,49 @@ components:
             楽観的ロック用バージョン番号（BUG-416③）。medical_record と異なり、
             clinicalPlanResponse は Version を実際に返却する（toClinicalPlanResponse で
             マッピング済み）。次回 PATCH の version にはこの値をそのまま使う。
-
-        diagnosis_type_id:
-          type: integer
-          format: int64
-        diagnosis_2_type_id:
-          type: integer
-          format: int64
-        diagnosis_2_name_id:
-          type: integer
-          format: int64
-    UpdateClinicalPlanRequest:
+            診断行だけを変更した PATCH でも進む（EMR-495 Q9）。
+    ClinicalPlanDiagnosis:
       type: object
+      description: |
+        診断行の読み取り形（契約 §0.3 の closed shape + id / version）。`id` / `version` は読み取り専用で、
+        書込は `ClinicalPlanDiagnosisInput` を使う。
+      required: [id, version, diagnosis_slot, sort_order]
       properties:
-        physical_exam:
+        id:
+          type: string
+          readOnly: true
+        version:
+          type: integer
+          format: int64
+          readOnly: true
+          description: 行の版（ストレージ管理。書込側は設定しない）
+        diagnosis_slot:
+          type: integer
+          enum: [1, 2]
+        diagnosis_type_id:
           type: string
           nullable: true
+        diagnosis_name_id:
+          type: string
+          nullable: true
+        diagnosis_name_snapshot:
+          type: string
+          nullable: true
+        category_name_snapshot:
+          type: string
+          nullable: true
+        sort_order:
+          type: integer
+    ClinicalPlanDiagnosisInput:
+      type: object
+      description: |
+        診断行の書込形。マスタ参照はサーバが同一医院の所有・type と name の整合を検証する。
+        スナップショットは送信値のまま保存し、現在のマスタからは導出しない（null 可）。
+      required: [diagnosis_slot]
+      properties:
+        diagnosis_slot:
+          type: integer
+          enum: [1, 2]
         diagnosis_type_id:
           type: integer
           format: int64
@@ -9336,14 +9367,30 @@ components:
           type: integer
           format: int64
           nullable: true
-        diagnosis_2_type_id:
-          type: integer
-          format: int64
+        diagnosis_name_snapshot:
+          type: string
           nullable: true
-        diagnosis_2_name_id:
-          type: integer
-          format: int64
+        category_name_snapshot:
+          type: string
           nullable: true
+        sort_order:
+          type: integer
+          default: 0
+    UpdateClinicalPlanRequest:
+      type: object
+      properties:
+        physical_exam:
+          type: string
+          nullable: true
+        diagnoses:
+          type: array
+          nullable: true
+          maxItems: 50
+          description: |
+            診断行の全置換。未送信 / null = 変更しない、`[]` = 全行クリア、配列 = その集合へ置換
+            （同値なら書込なし）。最大 50 行。診断行だけの更新でも plan の version を進める。
+          items:
+            $ref: '#/components/schemas/ClinicalPlanDiagnosisInput'
         diagnosis_details:
           type: string
           nullable: true
@@ -20474,12 +20521,6 @@ paths:
           description: 主訴の部分一致絞り込み（列フィルタ）
           schema:
             type: string
-        - name: status
-          in: query
-          description: カルテのステータスで絞り込み
-          schema:
-            type: string
-            enum: [draft, finalized]
         - name: doctor_id
           in: query
           description: 担当医スタッフIDで絞り込み
@@ -20509,7 +20550,7 @@ paths:
           description: ソート列。未指定・許可値外は既定順
           schema:
             type: string
-            enum: [date, owner_name, pet_name, status]
+            enum: [date, owner_name, pet_name]
         - name: order
           in: query
           description: ソート方向。未指定・許可値外は desc
@@ -20540,6 +20581,19 @@ paths:
     post:
       operationId: createMedicalRecord
       summary: カルテ作成
+      description: |
+        EMR-495 / EMR-549（PO 決定 B1）: リクエストに `status` キーが存在すれば値（null・空文字・`"draft"`・`"finalized"`・
+        数値など任意の値）に関わらず 422 `medical_record_status_retired`（書込なし。PATCH と同じキー存在判定）。
+        `status` は送らないこと。
+        診断は `diagnoses[]`（診断行。`diagnosis_slot` 1 または 2 必須、`diagnosis_type_id` / `diagnosis_name_id` /
+        `diagnosis_name_snapshot` / `category_name_snapshot` は任意で送信値のまま保存、`sort_order` 省略は 0、最大 50 行）で送る。
+        `diagnoses` は未送信 / null なら診断を変更しない（既存カルテへの再送 POST でも既存の診断行は消えない）。
+        空配列 `[]` を明示した場合だけ全行クリアとなる。diagnosis_slot が 1/2 以外・51 行以上・slot 欠落などの形の不正は
+        親カルテを作成する前に 400 で返す（マスタ参照の所有権・type と name の整合はカルテ作成後に検証される）。
+        旧単一診断フィールド（`diagnosis_category_id` / `diagnosis_type_id` / `diagnosis_name_id` /
+        `diagnosis_1_category_id` / `diagnosis_1_name_id` / `diagnosis2_type_id` / `diagnosis2_name_id` /
+        `diagnosis_2_type_id` / `diagnosis_2_name_id` など）は廃止した。1 つでも送ると（値が null でも）
+        400 で拒否し、何も作成しない。診断は `diagnoses[]` で送ること。
       tags: [MedicalRecords]
       requestBody:
         required: true
@@ -20569,6 +20623,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+        '422':
+          description: "リクエストに `status` キーが存在する（値は問わない）。旧 finalize は未提供。code は `medical_record_status_retired`。"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
   /medical-records/{id}:
@@ -20601,6 +20661,11 @@ paths:
     patch:
       operationId: updateMedicalRecord
       summary: カルテ更新
+      description: |
+        EMR-495: 更新では変更できる status が存在しない。`status` キーが存在すれば値（null・数値・真偽値・配列・object を含む
+        任意の値）に関わらず（キー存在で判定）422 `medical_record_status_retired`（書込なし）。旧 finalized だけを理由とした更新拒否は廃止した
+        （版 CAS・目的別規則・監査は維持）。旧単一診断フィールド（`diagnosis_type_id` / `diagnosis_name_id` など）を
+        送ると 400 で拒否する（診断は clinical-plan の `diagnoses[]` で更新する）。
       tags: [MedicalRecords]
       parameters:
         - name: id
@@ -20630,11 +20695,21 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          description: "旧 finalize（`status: finalized`）は未提供。code は `medical_record_status_retired`。"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
       operationId: deleteMedicalRecord
       summary: カルテ削除
+      description: |
+        EMR-495: カルテの削除は未提供。常に 422（code `medical_record_status_retired`）を返し、何も変更しない。
+        「下書きだから削除してよい」とは判定しない。誤作成や記入済みの訂正は訂正手順で行う。
+        予約取消時のカルテ自動削除も行わない（カルテは残る）。
       tags: [MedicalRecords]
       parameters:
         - name: id
@@ -20644,14 +20719,18 @@ paths:
             type: integer
             format: int64
       responses:
-        '204':
-          description: 削除成功
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          description: カルテの削除は未提供。code は `medical_record_status_retired`。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
   /medical-records/{id}/recommendation-reason:
@@ -30503,6 +30582,12 @@ paths:
     patch:
       operationId: updateClinicalPlan
       summary: 診療計画更新
+      description: |
+        EMR-495 A: 診断は `diagnoses[]` で更新する（未送信 / null = 変更なし、`[]` = 全行クリア）。
+        旧単一診断フィールド（`diagnosis_category_id` / `diagnosis_type_id` / `diagnosis_name_id` /
+        `diagnosis_2_type_id` / `diagnosis_2_name_id` / `diagnosis2_type_id` / `diagnosis2_name_id`）は廃止した。
+        1 つでも送ると（値が null でも）400 で拒否し、何も書かない（保存されないまま成功扱いにしないため）。
+        形の不正（diagnosis_slot が 1/2 以外・51 行以上・slot 欠落）も 400。
       tags: [MedicalRecords]
       parameters:
         - name: id
@@ -30870,6 +30955,12 @@ paths:
     post:
       operationId: createMedicalRecordAddendum
       summary: カルテ追記・訂正を作成
+      description: |
+        EMR-495 Q2: 追記は、そのカルテの最新の診療終了イベント（medical_record_consultation_events）が
+        `ended` のときだけ追加できる（親カルテ行ロックと同じトランザクション内で読む）。イベントがない、
+        または最新が `end_undone` のカルテは 422（code `medical_record_addendum_requires_consultation_end`。追記は
+        診療終了が記録されたカルテにのみ）。サーバはイベントを捏造しない。診療終了の記録手段は未提供のため、
+        現在は追記できない（EMR-495 B の終了操作が提供されるまで）。
       tags: [MedicalRecords]
       parameters:
         - name: id
@@ -30896,6 +30987,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: 診療終了が記録されていないカルテへの追記（診療終了の記録手段は未提供のため、現在は追記できない）。code は `medical_record_addendum_requires_consultation_end`。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
 

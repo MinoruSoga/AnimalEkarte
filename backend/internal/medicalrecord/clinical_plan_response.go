@@ -5,70 +5,65 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/httpapi"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type clinicalPlanResponse struct {
-	ID               string                 `json:"id"`
-	MedicalRecordID  string                 `json:"medical_record_id"`
-	PhysicalExam     string                 `json:"physical_exam"`
-	DiagnosisTypeID  *string                `json:"diagnosis_type_id,omitempty"`
-	DiagnosisNameID  *string                `json:"diagnosis_name_id,omitempty"`
-	Diagnosis2TypeID *string                `json:"diagnosis_2_type_id,omitempty"`
-	Diagnosis2NameID *string                `json:"diagnosis_2_name_id,omitempty"`
-	DiagnosisDetails string                 `json:"diagnosis_details"`
-	TreatmentPolicy  string                 `json:"treatment_policy"`
-	Version          int                    `json:"version"`
-	CreatedAt        time.Time              `json:"created_at"`
-	UpdatedAt        time.Time              `json:"updated_at"`
-	DiagnosisType    *DiagnosisTypeResponse `json:"diagnosis_type,omitempty"`
-	DiagnosisName    *DiagnosisNameResponse `json:"diagnosis_name,omitempty"`
-	Diagnosis2Type   *DiagnosisTypeResponse `json:"diagnosis_2_type,omitempty"`
-	Diagnosis2Name   *DiagnosisNameResponse `json:"diagnosis_2_name,omitempty"`
+// clinicalPlanDiagnosisResponse は診断行（契約 §0.3 の closed shape + id / version）。
+// マスタ参照とスナップショットは保存値のまま（現在のマスタから補完しない）。
+type clinicalPlanDiagnosisResponse struct {
+	ID                    string  `json:"id"`
+	Version               int64   `json:"version"`
+	DiagnosisSlot         int16   `json:"diagnosis_slot"`
+	DiagnosisTypeID       *string `json:"diagnosis_type_id"`
+	DiagnosisNameID       *string `json:"diagnosis_name_id"`
+	DiagnosisNameSnapshot *string `json:"diagnosis_name_snapshot"`
+	CategoryNameSnapshot  *string `json:"category_name_snapshot"`
+	SortOrder             int     `json:"sort_order"`
 }
 
-func toClinicalPlanResponse(p *model.ClinicalPlan) clinicalPlanResponse {
-	resp := clinicalPlanResponse{
+type clinicalPlanResponse struct {
+	ID               string                          `json:"id"`
+	MedicalRecordID  string                          `json:"medical_record_id"`
+	PhysicalExam     string                          `json:"physical_exam"`
+	Diagnoses        []clinicalPlanDiagnosisResponse `json:"diagnoses"`
+	DiagnosisDetails string                          `json:"diagnosis_details"`
+	TreatmentPolicy  string                          `json:"treatment_policy"`
+	Version          int                             `json:"version"`
+	CreatedAt        time.Time                       `json:"created_at"`
+	UpdatedAt        time.Time                       `json:"updated_at"`
+}
+
+func optionalIDString(id *uint64) *string {
+	if id == nil {
+		return nil
+	}
+	s := strconv.FormatUint(*id, 10)
+	return &s
+}
+
+func toClinicalPlanResponse(v *ClinicalPlanView) clinicalPlanResponse {
+	p := v.Plan
+	diagnoses := make([]clinicalPlanDiagnosisResponse, 0, len(v.Diagnoses))
+	for _, d := range v.Diagnoses {
+		diagnoses = append(diagnoses, clinicalPlanDiagnosisResponse{
+			ID:                    strconv.FormatUint(d.ID, 10),
+			Version:               d.Version,
+			DiagnosisSlot:         d.DiagnosisSlot,
+			DiagnosisTypeID:       optionalIDString(d.DiagnosisTypeID),
+			DiagnosisNameID:       optionalIDString(d.DiagnosisNameID),
+			DiagnosisNameSnapshot: d.DiagnosisNameSnapshot,
+			CategoryNameSnapshot:  d.CategoryNameSnapshot,
+			SortOrder:             d.SortOrder,
+		})
+	}
+	return clinicalPlanResponse{
 		ID:               strconv.FormatUint(p.ID, 10),
 		MedicalRecordID:  strconv.FormatUint(p.MedicalRecordID, 10),
 		PhysicalExam:     p.PhysicalExam,
+		Diagnoses:        diagnoses,
 		DiagnosisDetails: p.DiagnosisDetails,
 		TreatmentPolicy:  p.TreatmentPolicy,
 		Version:          p.Version,
 		CreatedAt:        httpapi.LocalTime(p.CreatedAt),
 		UpdatedAt:        httpapi.LocalTime(p.UpdatedAt),
 	}
-	if p.DiagnosisTypeID != nil {
-		s := strconv.FormatUint(*p.DiagnosisTypeID, 10)
-		resp.DiagnosisTypeID = &s
-	}
-	if p.DiagnosisNameID != nil {
-		s := strconv.FormatUint(*p.DiagnosisNameID, 10)
-		resp.DiagnosisNameID = &s
-	}
-	if p.Diagnosis2TypeID != nil {
-		s := strconv.FormatUint(*p.Diagnosis2TypeID, 10)
-		resp.Diagnosis2TypeID = &s
-	}
-	if p.Diagnosis2NameID != nil {
-		s := strconv.FormatUint(*p.Diagnosis2NameID, 10)
-		resp.Diagnosis2NameID = &s
-	}
-	if p.DiagnosisType != nil {
-		r := ToDiagnosisTypeResponse(p.DiagnosisType)
-		resp.DiagnosisType = &r
-	}
-	if p.DiagnosisName != nil {
-		r := ToDiagnosisNameResponse(p.DiagnosisName)
-		resp.DiagnosisName = &r
-	}
-	if p.Diagnosis2Type != nil {
-		r := ToDiagnosisTypeResponse(p.Diagnosis2Type)
-		resp.Diagnosis2Type = &r
-	}
-	if p.Diagnosis2Name != nil {
-		r := ToDiagnosisNameResponse(p.Diagnosis2Name)
-		resp.Diagnosis2Name = &r
-	}
-	return resp
 }

@@ -316,9 +316,6 @@ func (s *examinationService) lockExaminationUpdateMedicalRecords(
 		if err != nil {
 			return nil, err
 		}
-		if record.Status == model.MedicalRecordStatusFinalized {
-			return nil, apperrors.WrapConflict("確定済みカルテの検査は編集できません")
-		}
 		if effectiveID != nil && recordID == *effectiveID {
 			effective = record
 		}

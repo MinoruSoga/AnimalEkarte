@@ -23,7 +23,6 @@ type MedicalRecordListFilters struct {
 	OwnerID         *uint64
 	StartDate       *string
 	EndDate         *string
-	Status          *model.MedicalRecordStatus
 	DoctorID        *uint64
 	AnimalSpeciesID *uint64
 	// MedicineID / ProcedureID / ConsultationID / InventoryID は「そのマスタ項目を
@@ -55,7 +54,6 @@ var medicalRecordSortColumns = map[string]string{
 	"date":       "medical_records.date",
 	"owner_name": "owners.name",
 	"pet_name":   "pets.name",
-	"status":     "medical_records.status",
 }
 
 // DormantOwnerEntriesAtRepository is the narrow durable-scheduler capability.
@@ -332,10 +330,9 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 }
 
 // Update は BE-refactor.md X-10 のとおり、expectedVersion が非 nil の場合に WHERE へ
-// version 述語を追加して楽観ロックを UPDATE と原子化する。RowsAffected==0 になった場合、
-// version 述語を追加していたときだけ現在の status を再読して理由を区別する
-// （draft のまま = version不一致、draft でない = 従来どおり not-draft）。再読自体が
-// 失敗した場合は情報を出し過ぎないよう従来の not-draft Conflict にフォールバックする。
+// version 述語を追加して楽観ロックを UPDATE と原子化する。RowsAffected==0 になった場合は
+// 現在行を再読して理由を区別する（行あり = version 不一致の Conflict、行なし/他院 = NotFound）。
+// EMR-495: 旧 status=draft の述語と "not in draft status" の分岐は廃止した（status 列は存在しない）。
 func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, input UpdateMedicalRecordInput, expectedVersion *int) (*model.MedicalRecord, error) {
 	return r.update(ctx, clinicID, id, buildMedicalRecordUpdate(input), expectedVersion)
 }
@@ -344,7 +341,7 @@ func (r *medicalRecordRepository) update(ctx context.Context, clinicID, id uint6
 	q := persistence.DBOrTx(ctx, r.db).
 		Model(&model.MedicalRecord{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND status = ?", id, model.MedicalRecordStatusDraft)
+		Where("id = ?", id)
 	if expectedVersion != nil {
 		q = q.Where("version = ?", *expectedVersion)
 	}
@@ -363,20 +360,21 @@ func (r *medicalRecordRepository) conflictAfterZeroMedicalRecordRows(
 	clinicID, id uint64,
 	expectedVersion *int,
 ) error {
-	if expectedVersion == nil {
-		return apperrors.WrapConflict("medical_record is not in draft status")
-	}
 	var current model.MedicalRecord
 	err := persistence.DBOrTx(ctx, r.db).
 		Model(&model.MedicalRecord{}).
 		Scopes(persistence.ClinicScope(clinicID)).
 		Where("id = ?", id).
 		First(&current).Error
-	if err == nil && current.Status == model.MedicalRecordStatusDraft {
-		return apperrors.WrapConflict("他のユーザーがこのカルテを変更しました。再読み込みしてください")
+	if err != nil {
+		// 行が無い/他院/論理削除済み（および再読失敗）は NotFound/DB エラーとして返す。
+		return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
 	}
-	// status != draft（finalized or already being updated）
-	return apperrors.WrapConflict("medical_record is not in draft status")
+	if expectedVersion == nil {
+		// version 述語なしで 0 行になるのは、競合して行が消えた場合だけ。
+		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
+	}
+	return apperrors.WrapConflict("他のユーザーがこのカルテを変更しました。再読み込みしてください")
 }
 
 // LockLinkedAppointmentForUpdate は medical_records.appointment_id を先に読み、親
@@ -414,35 +412,21 @@ func (r *medicalRecordRepository) LockLinkedAppointmentForUpdate(ctx context.Con
 	return &linkedAppointmentLock{Appointment: &appt}, nil
 }
 
+// Delete は clinic スコープでカルテを論理削除する。EMR-495: 旧 status=draft の述語は廃止した
+// （サービス層の Delete は固定エラーで、この repository は削除可否を判定しない）。
 func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	db := persistence.DBOrTx(ctx, r.db)
-	result := db.
+	result := persistence.DBOrTx(ctx, r.db).
 		Model(&model.MedicalRecord{}).
 		Scopes(persistence.ClinicScope(clinicID)).
-		Where("id = ? AND status = ?", id, model.MedicalRecordStatusDraft).
+		Where("id = ?", id).
 		Delete(&model.MedicalRecord{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
 	}
-	if result.RowsAffected > 0 {
-		return nil
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
 	}
-
-	// Distinguish a missing/cross-clinic record from an active non-draft record without weakening
-	// the atomic status predicate above. A concurrent finalization that wins the row lock must make
-	// deletion fail rather than soft-deleting a finalized clinical record.
-	var current struct {
-		Status model.MedicalRecordStatus
-	}
-	if err := db.
-		Model(&model.MedicalRecord{}).
-		Scopes(persistence.ClinicScope(clinicID)).
-		Select("status").
-		Where("id = ?", id).
-		Take(&current).Error; err != nil {
-		return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", id))
-	}
-	return apperrors.WrapConflict("確定済みまたは下書き以外のカルテは削除できません")
+	return nil
 }
 
 // CountByPetID は指定されたペットに関連するカルテ数を返す

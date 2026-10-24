@@ -31,6 +31,7 @@ type mockMedicalRecordService struct {
 	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
 	updateRecommendationReasonFn func(ctx context.Context, clinicID, id uint64, input UpdateRecommendationReasonInput) (*model.MedicalRecord, error)
 	autoCreateFromReservationFn  func(ctx context.Context, clinicID uint64, reservation *model.Reservation)
+	createSubRecordsFn           func(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput) error
 }
 
 func (m *mockMedicalRecordService) List(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
@@ -88,7 +89,10 @@ func (m *mockMedicalRecordService) Delete(ctx context.Context, clinicID, id uint
 	return nil
 }
 
-func (m *mockMedicalRecordService) CreateSubRecords(_ context.Context, _, _ uint64, _ CreateSubRecordsInput) error {
+func (m *mockMedicalRecordService) CreateSubRecords(ctx context.Context, clinicID, recordID uint64, input CreateSubRecordsInput) error {
+	if m.createSubRecordsFn != nil {
+		return m.createSubRecordsFn(ctx, clinicID, recordID, input)
+	}
 	return nil
 }
 
@@ -169,14 +173,12 @@ func TestListMedicalRecords(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:     "passes search/status/doctor_id/animal_species_id filters to service",
-			query:    "page=1&limit=10&search=" + "%E7%94%B0%E4%B8%AD" + "&status=draft&doctor_id=7&animal_species_id=3",
+			name:     "passes search/doctor_id/animal_species_id filters to service (status filter retired)",
+			query:    "page=1&limit=10&search=" + "%E7%94%B0%E4%B8%AD" + "&doctor_id=7&animal_species_id=3",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
 				listFn: func(_ context.Context, _ []uint64, filters MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 					assert.Equal(t, "田中", filters.Search)
-					require.NotNil(t, filters.Status)
-					assert.Equal(t, model.MedicalRecordStatusDraft, *filters.Status)
 					require.NotNil(t, filters.DoctorID)
 					assert.Equal(t, uint64(7), *filters.DoctorID)
 					require.NotNil(t, filters.AnimalSpeciesID)
@@ -224,13 +226,6 @@ func TestListMedicalRecords(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "returns 400 for invalid status",
-			query:      "page=1&limit=10&status=unknown",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
-			svc:        &mockMedicalRecordService{},
-			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 for invalid pet_id",
@@ -448,10 +443,10 @@ func TestCreateMedicalRecord(t *testing.T) {
 				},
 			},
 			cpSvc: &mockClinicalPlanService{
-				updateFn: func(_ context.Context, _, _ uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+				updateFn: func(_ context.Context, _, _ uint64, input *UpdateClinicalPlanInput) (*ClinicalPlanView, error) {
 					require.NotNil(t, input.TreatmentPolicy)
 					assert.Equal(t, "経過観察", *input.TreatmentPolicy)
-					return &model.ClinicalPlan{}, nil
+					return &ClinicalPlanView{Plan: &model.ClinicalPlan{}}, nil
 				},
 			},
 			wantStatus: http.StatusCreated,
@@ -497,16 +492,23 @@ func TestCreateMedicalRecord(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "returns 400 for invalid status",
+			// EMR-549 B1: status キーが存在すれば値に関わらず固定 422。service は呼ばれない。
+			name: "returns 422 when status key is present",
 			body: func() map[string]any {
 				b := validBody()
-				b["status"] = "unknown_status"
+				b["status"] = "draft"
 				return b
 			}(),
-			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
-			mrSvc:      &mockMedicalRecordService{},
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			mrSvc: &mockMedicalRecordService{
+				createFn: func(_ context.Context, _ uint64, _ *CreateMedicalRecordInput) (*model.MedicalRecord, error) {
+					t.Fatal("service must not be called when status is present on create")
+					return nil, nil
+				},
+			},
 			cpSvc:      &mockClinicalPlanService{},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
+			wantBody:   "medical_record_status_retired",
 		},
 		{
 			name:     "returns 500 on service error",
@@ -609,18 +611,31 @@ func TestUpdateMedicalRecord(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name:     "updates record successfully",
+			// SPEC-02: 更新では status キーが存在した時点で固定エラー（422）。値は問わない。サービスは呼ばれない。
+			name:     "status finalized returns the fixed retired error without calling the service",
 			paramID:  "1",
 			body:     map[string]any{"status": "finalized"},
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockMedicalRecordService{
-				updateFn: func(_ context.Context, _, _ uint64, input UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
-					require.NotNil(t, input.Status)
-					assert.Equal(t, model.MedicalRecordStatus("finalized"), *input.Status)
-					return &model.MedicalRecord{ID: 1}, nil
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+					t.Fatal("service must not be called when status is present on update")
+					return nil, nil
 				},
 			},
-			wantStatus: http.StatusOK,
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "status draft on update is also the fixed retired error (SPEC-02)",
+			paramID:  "1",
+			body:     map[string]any{"status": "draft", "date": now.Format(time.RFC3339)},
+			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			svc: &mockMedicalRecordService{
+				updateFn: func(_ context.Context, _, _ uint64, _ UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
+					t.Fatal("service must not be called when status is present on update")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:     "updates date field",
@@ -637,12 +652,12 @@ func TestUpdateMedicalRecord(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:       "returns 400 for invalid status",
+			name:       "any other status value on update is the fixed retired error too (SPEC-02)",
 			paramID:    "1",
 			body:       map[string]any{"status": "bad_status"},
 			setupCtx:   func(c *gin.Context) { setClinicID(c) },
 			svc:        &mockMedicalRecordService{},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
@@ -663,7 +678,7 @@ func TestUpdateMedicalRecord(t *testing.T) {
 		{
 			name:     "returns 404 when not found",
 			paramID:  "999",
-			body:     map[string]any{"status": "finalized"},
+			body:     map[string]any{"date": now.Format(time.RFC3339)},
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			svc: &mockMedicalRecordService{
 				updateFn: func(_ context.Context, _, _ uint64, _ UpdateMedicalRecordInput) (*model.MedicalRecord, error) {
@@ -756,6 +771,17 @@ func TestDeleteMedicalRecord(t *testing.T) {
 			wantStatus: http.StatusNoContent,
 		},
 		{
+			// EMR-495 Q1: 実サービスの Delete は固定エラー。422 クラスとして返る。
+			name:    "returns 422 when deletion is not provided",
+			paramID: "1",
+			svc: &mockMedicalRecordService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapMedicalRecordStatusRetired(medicalRecordDeleteRetiredMessage)
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
 			name:       "returns 400 for non-numeric id",
 			paramID:    "abc",
 			svc:        &mockMedicalRecordService{},
@@ -782,6 +808,19 @@ func TestDeleteMedicalRecord(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+
+	t.Run("422 body carries the stable code and the fixed message", func(t *testing.T) {
+		router := newDeleteMedicalRecordRouter(&mockMedicalRecordService{
+			deleteFn: func(_ context.Context, _, _ uint64) error {
+				return apperrors.WrapMedicalRecordStatusRetired(medicalRecordDeleteRetiredMessage)
+			},
+		})
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/medical-records/1", http.NoBody))
+		assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+		assert.Contains(t, w.Body.String(), apperrors.CodeMedicalRecordStatusRetired)
+		assert.Contains(t, w.Body.String(), "削除は未提供")
+	})
 
 	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
 		h := newHandlerWithMedicalRecordSvc(&mockMedicalRecordService{}, &mockClinicalPlanService{})

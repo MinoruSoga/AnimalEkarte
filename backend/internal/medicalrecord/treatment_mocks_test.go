@@ -248,7 +248,7 @@ func rejectInventoryRepo(ownedID uint64) *mockInventoryRepository {
 func draftMedicalRecordRepo() *mockMedicalRecordRepository {
 	return &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{}, nil
 		},
 	}
 }

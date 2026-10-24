@@ -60,17 +60,17 @@ func TestMedicalRecordRepository_FindAll_WeightMeasurementsPreload(t *testing.T)
 	older := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "WPROJ-OLDER",
 		Date:    time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
-		OwnerID: &ownerA.ID, PetID: &petA.ID, Status: model.MedicalRecordStatusFinalized,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
 	})
 	newer := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "WPROJ-NEWER",
 		Date:    time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC),
-		OwnerID: &ownerA.ID, PetID: &petA.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &ownerA.ID, PetID: &petA.ID,
 	})
 	foreignRecord := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicB, RecordNo: "WPROJ-FOREIGN",
 		Date:    time.Date(2026, 3, 3, 0, 0, 0, 0, time.UTC),
-		OwnerID: &ownerB.ID, PetID: &petB.ID, Status: model.MedicalRecordStatusFinalized,
+		OwnerID: &ownerB.ID, PetID: &petB.ID,
 	})
 
 	kg, g := model.BodyWeightUnitKg, model.BodyWeightUnitG

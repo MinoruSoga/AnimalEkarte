@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/reservation"
 )
@@ -221,7 +220,7 @@ func TestVaccinationService_DeleteAudit_RealDBAuditFailureRollsBackDelete(t *tes
 	realRepo := NewVaccinationRepository(db)
 	record := &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "VAC-AUDIT-RB", Date: time.Now(),
-		OwnerID: &owner.ID, PetID: &pet.ID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &owner.ID, PetID: &pet.ID,
 	}
 	require.NoError(t, db.WithContext(ctx).Create(record).Error)
 	vaccination := &model.Vaccination{
@@ -252,41 +251,6 @@ func TestVaccinationService_DeleteAudit_RealDBAuditFailureRollsBackDelete(t *tes
 	still, findErr := realRepo.FindByID(ctx, clinicA, vaccination.ID)
 	require.NoError(t, findErr, "audit failure must roll back the vaccination delete")
 	require.NotNil(t, still)
-}
-
-// A delete rejected by the finalized-parent guard must produce no audit entry,
-// no repository delete, and no tag resync — rejection means zero side effects.
-func TestVaccinationService_DeleteAudit_FinalizedRejectionWritesNothing(t *testing.T) {
-	const clinicID, vaccinationID, recordID, petID, ownerID uint64 = 1, 10, 30, 20, 40
-	auditCalls, deleteCalls, resyncCalls := 0, 0, 0
-
-	audit := &mockAuditTxLogger{logEntryTxFn: func(context.Context, *AuditEntry) error {
-		auditCalls++
-		return nil
-	}}
-	repo := &mockVaccinationRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
-			return ownerLoadedVaccination(vaccinationID, clinicID, petID, ownerID, ptrUint64(recordID)), nil
-		},
-		deleteFn: func(_ context.Context, _, _ uint64) error { deleteCalls++; return nil },
-	}
-	locker := &vaccinationMedicalRecordLockerStub{records: map[uint64]*model.MedicalRecord{
-		recordID: finalizedGuardRecord(recordID, clinicID),
-	}}
-	tagSync := &mockLstepTagSyncService{resyncOwnerVaccineTagsFn: func(context.Context, uint64, uint64) error {
-		resyncCalls++
-		return nil
-	}}
-	svc := NewVaccinationService(repo, okVaccineRepo(), tagSync,
-		&permissiveVaccinationRelationVerifier{}, locker, vaccinationTestTransactor{}, audit)
-
-	err := svc.Delete(context.Background(), clinicID, vaccinationID)
-
-	require.Error(t, err)
-	assert.True(t, apperrors.IsConflict(err), "finalized parent must map to conflict: %v", err)
-	assert.Zero(t, auditCalls, "a rejected delete must write no audit entry")
-	assert.Zero(t, deleteCalls)
-	assert.Zero(t, resyncCalls)
 }
 
 // A nil or foreign locked child row must fail closed before the delete and the

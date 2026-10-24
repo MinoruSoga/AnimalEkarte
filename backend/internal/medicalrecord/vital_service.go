@@ -203,7 +203,7 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 func (s *vitalService) lockDraftParent(
 	ctx context.Context,
 	clinicID, medicalRecordID uint64,
-	findErrMsg, conflictMsg string,
+	findErrMsg string,
 ) (*model.MedicalRecord, error) {
 	if s.medicalRecordRepo == nil {
 		return nil, apperrors.WrapInternalServerError("vital medical record validation dependency is required")
@@ -217,9 +217,7 @@ func (s *vitalService) lockDraftParent(
 		parent.ClinicID != clinicID {
 		return nil, apperrors.WrapNotFound("medical_record", "relation")
 	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapConflict(conflictMsg)
-	}
+	// EMR-495: 旧 finalized 拒否は廃止した。行ロックと同一性検査は維持する。
 	return parent, nil
 }
 

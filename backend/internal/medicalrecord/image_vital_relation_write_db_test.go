@@ -157,7 +157,7 @@ func createImageVitalRelationMedicalRecord(
 	record := &model.MedicalRecord{
 		ClinicID: clinicID, RecordNo: recordNo,
 		Date:    time.Date(2026, 7, 24, 0, 0, 0, 0, time.UTC),
-		OwnerID: &ownerID, PetID: &petID, Status: model.MedicalRecordStatusDraft,
+		OwnerID: &ownerID, PetID: &petID,
 	}
 	require.NoError(t, db.Create(record).Error)
 	return record

@@ -14,7 +14,7 @@ func (s *examinationService) createExaminationInTx(
 	exam *model.Examination,
 	targetStatus model.ExaminationStatus,
 ) (*model.Examination, error) {
-	record, err := lockOptionalDraftMedicalRecord(txCtx, s.medRec, clinicID, input.MedicalRecordID, "確定済みカルテに検査を追加できません")
+	record, err := lockOptionalMedicalRecord(txCtx, s.medRec, clinicID, input.MedicalRecordID)
 	if err != nil {
 		return nil, err
 	}

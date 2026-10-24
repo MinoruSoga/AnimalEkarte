@@ -268,13 +268,10 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 		return nil, apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
 	}
 
-	// HC-004: 親カルテが確定済みの場合は編集拒否
-	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
+	// HC-004: 親カルテの存在・clinic 所属を事前確認する（fast-fail）。EMR-495: 旧 finalized 拒否は廃止。
+	// 行ロックと排他は tx 内の lockDraftMedicalRecord が担う。
+	if _, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to find medical record")
-	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapConflict("確定済みカルテの治療は編集できません")
 	}
 
 	// クロステナント write 防止: 変更後に貼り替わる clinic-scoped マスタFK の所有権を検証する。

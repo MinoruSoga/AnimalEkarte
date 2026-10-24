@@ -184,7 +184,6 @@ func TestVitalService_Create(t *testing.T) {
 		input           *CreateVitalInput
 		repoErr         error
 		parentErr       error
-		parentStatus    model.MedicalRecordStatus
 		wantErr         bool
 	}{
 		{
@@ -272,18 +271,6 @@ func TestVitalService_Create(t *testing.T) {
 			parentErr: errors.New("db error"),
 			wantErr:   true,
 		},
-		{
-			name:            "returns conflict when parent medical record is finalized",
-			medicalRecordID: 1,
-			input: &CreateVitalInput{
-				ClinicID:    1,
-				PetID:       1,
-				RecordedAt:  recordedAt,
-				Temperature: &temperature,
-			},
-			parentStatus: model.MedicalRecordStatusFinalized,
-			wantErr:      true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -301,17 +288,11 @@ func TestVitalService_Create(t *testing.T) {
 					if tt.parentErr != nil {
 						return nil, tt.parentErr
 					}
-					// HC-006: Return draft medical record for Create tests (finalized check)
-					status := tt.parentStatus
-					if status == "" {
-						status = model.MedicalRecordStatusDraft
-					}
 					return &model.MedicalRecord{
 						ID:       tt.medicalRecordID,
 						ClinicID: tt.input.ClinicID,
 						OwnerID:  ptrUint64(100),
 						PetID:    ptrUint64(tt.input.PetID),
-						Status:   status,
 					}, nil
 				},
 			}
@@ -380,30 +361,8 @@ func TestVitalService_Update(t *testing.T) {
 			},
 			parentRecord: &model.MedicalRecord{
 				ID: 1, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
-				Status: model.MedicalRecordStatusDraft,
 			},
 			wantErr: false,
-		},
-		{
-			name:            "rejects update on finalized medical record",
-			clinicID:        1,
-			medicalRecordID: 1,
-			vitalID:         1,
-			input: &UpdateVitalInput{
-				Temperature: &updatedTemperature,
-			},
-			repoVital: &model.VitalRecord{
-				ID:              1,
-				ClinicID:        1,
-				PetID:           10,
-				MedicalRecordID: ptrUint64(1),
-			},
-			parentRecord: &model.MedicalRecord{
-				ID: 1, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
-				Status: model.MedicalRecordStatusFinalized,
-			},
-			wantErr:      true,
-			wantConflict: true,
 		},
 		{
 			name:            "returns error when no fields provided",
@@ -419,7 +378,6 @@ func TestVitalService_Update(t *testing.T) {
 			},
 			parentRecord: &model.MedicalRecord{
 				ID: 1, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
-				Status: model.MedicalRecordStatusDraft,
 			},
 			wantErr: true,
 		},
@@ -465,7 +423,6 @@ func TestVitalService_Update(t *testing.T) {
 			},
 			parentRecord: &model.MedicalRecord{
 				ID: 1, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
-				Status: model.MedicalRecordStatusDraft,
 			},
 			updateErr: errors.New("db error"),
 			wantErr:   true,
@@ -487,7 +444,6 @@ func TestVitalService_Update(t *testing.T) {
 			},
 			parentRecord: &model.MedicalRecord{
 				ID: 1, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
-				Status: model.MedicalRecordStatusDraft,
 			},
 			wantErr: false,
 		},
@@ -571,21 +527,8 @@ func TestVitalService_Delete(t *testing.T) {
 				ID:              1,
 				MedicalRecordID: ptrUint64(1),
 			},
-			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
+			parentRecord: &model.MedicalRecord{ID: 1},
 			wantErr:      false,
-		},
-		{
-			name:            "rejects delete on finalized medical record",
-			clinicID:        1,
-			medicalRecordID: 1,
-			vitalID:         1,
-			repoVital: &model.VitalRecord{
-				ID:              1,
-				MedicalRecordID: ptrUint64(1),
-			},
-			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusFinalized},
-			wantErr:      true,
-			wantConflict: true,
 		},
 		{
 			name:            "returns not found error when vital does not belong to medical record",
@@ -616,7 +559,7 @@ func TestVitalService_Delete(t *testing.T) {
 				ID:              1,
 				MedicalRecordID: ptrUint64(1),
 			},
-			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
+			parentRecord: &model.MedicalRecord{ID: 1},
 			deleteErr:    errors.New("db error"),
 			wantErr:      true,
 		},
@@ -690,7 +633,6 @@ func TestVitalService_Create_AuditLog(t *testing.T) {
 				ClinicID: 1,
 				OwnerID:  ptrUint64(100),
 				PetID:    ptrUint64(10),
-				Status:   model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}
@@ -753,7 +695,6 @@ func TestVitalService_Update_AuditLog(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
 				ID: 77, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
-				Status: model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}
@@ -795,7 +736,7 @@ func TestVitalService_Delete_AuditLog(t *testing.T) {
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{ID: 77, Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{ID: 77}, nil
 		},
 	}
 	svc := NewVitalService(repo, mrRepo, auditSvc, &mockCheckupTransactor{})
@@ -827,7 +768,6 @@ func TestVitalService_Create_AuditFailureRollsBack(t *testing.T) {
 				ClinicID: 1,
 				OwnerID:  ptrUint64(100),
 				PetID:    ptrUint64(10),
-				Status:   model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}
@@ -897,7 +837,6 @@ func TestVitalService_Update_AuditFailureRollsBack(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
 				ID: 77, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
-				Status: model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}
@@ -939,7 +878,7 @@ func TestVitalService_Delete_AuditFailureRollsBack(t *testing.T) {
 	}
 	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{ID: 77, Status: model.MedicalRecordStatusDraft}, nil
+			return &model.MedicalRecord{ID: 77}, nil
 		},
 	}
 	svc := NewVitalService(repo, mrRepo, auditSvc, &mockCheckupTransactor{})
@@ -961,7 +900,6 @@ func TestVitalService_Create_NilAuditFailsClosed(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
 				ID: 77, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
-				Status: model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}
@@ -989,7 +927,6 @@ func TestVitalService_Create_RejectsInvalidWeight(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
 				ID: 77, ClinicID: 1, OwnerID: ptrUint64(100), PetID: ptrUint64(10),
-				Status: model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}
@@ -1118,8 +1055,7 @@ func TestVitalService_CreateRejectsMedicalRecordPetMismatch(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
 				ID: medicalRecord, ClinicID: clinicID, OwnerID: ptrUint64(100),
-				PetID:  ptrUint64(recordPetID),
-				Status: model.MedicalRecordStatusDraft,
+				PetID: ptrUint64(recordPetID),
 			}, nil
 		},
 	}
@@ -1156,7 +1092,6 @@ func TestVitalService_CreateRejectsInactiveOrForeignPetBeforeWrite(t *testing.T)
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
 				ID: id, ClinicID: clinicID, OwnerID: ptrUint64(100), PetID: ptrUint64(20),
-				Status: model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}
@@ -1195,8 +1130,7 @@ func TestVitalService_StaffReferenceValidation(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 				return &model.MedicalRecord{
 					ID: medicalRecord, ClinicID: clinicID, OwnerID: ptrUint64(100),
-					PetID:  ptrUint64(petID),
-					Status: model.MedicalRecordStatusDraft,
+					PetID: ptrUint64(petID),
 				}, nil
 			},
 		}
@@ -1301,7 +1235,6 @@ func TestVitalService_CreateFailsClosedWithoutStaffValidationDependencies(t *tes
 		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{
 				ID: id, ClinicID: clinicID, OwnerID: ptrUint64(100), PetID: ptrUint64(20),
-				Status: model.MedicalRecordStatusDraft,
 			}, nil
 		},
 	}

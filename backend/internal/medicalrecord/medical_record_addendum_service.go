@@ -10,6 +10,12 @@ import (
 
 const maxReasonLength = 500
 
+// consultationEventKindEnded は medical_record_consultation_events.event_kind の終了値（001 CHECK: ended / end_undone）。
+const consultationEventKindEnded = "ended"
+
+// addendumRequiresEndedConsultationMessage は診療終了の記録がないカルテへの訂正追記を拒否する固定文言（EMR-495 Q2 / EMR-549）。未提供の終了ルートへは案内しない。
+const addendumRequiresEndedConsultationMessage = "訂正追記は診療終了が記録されたカルテにのみ追加できます。診療終了の記録手段は未提供のため、追記はできません。"
+
 type CreateMedicalRecordAddendumInput struct {
 	MedicalRecordID uint64
 	AuthorUserID    uint64
@@ -86,8 +92,17 @@ func (s *medicalRecordAddendumService) Create(ctx context.Context, clinicID uint
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock medical record for addendum")
 		}
-		if record.Status != model.MedicalRecordStatusFinalized {
-			return apperrors.WrapInvalidInput("addendum can only be added to finalized medical records")
+		if record == nil {
+			return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", input.MedicalRecordID))
+		}
+		// EMR-495 Q2: 旧 status=finalized の前提を、最新の診療終了イベントが ended であることに置き換える。
+		// 同じ tx・親カルテ行ロックの下で読み、イベントを捏造しない（履歴なし・end_undone は不許可）。
+		kind, found, err := s.repo.LatestConsultationEventKind(txCtx, clinicID, input.MedicalRecordID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to read consultation end history")
+		}
+		if !found || kind != consultationEventKindEnded {
+			return apperrors.WrapUnprocessableWithCode(apperrors.CodeMedicalRecordAddendumRequiresConsultationEnd, addendumRequiresEndedConsultationMessage)
 		}
 		if err := s.repo.Create(txCtx, addendum); err != nil {
 			return apperrors.Wrap(err, "failed to create medical record addendum")

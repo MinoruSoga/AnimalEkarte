@@ -6,51 +6,60 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 
+/** BE の診断行（clinical_plan_response.go）。マスタ参照 ID は文字列 / null で返る。 */
+export interface ClinicalPlanDiagnosisRow {
+  id: string;
+  version: number;
+  diagnosis_slot: number;
+  diagnosis_type_id: string | null;
+  diagnosis_name_id: string | null;
+  diagnosis_name_snapshot: string | null;
+  category_name_snapshot: string | null;
+  sort_order: number;
+}
+
 function transformClinicalPlan(item: {
   id: string;
   medical_record_id: string;
   physical_exam: string;
-  diagnosis_type_id?: string | null;
-  diagnosis_name_id?: string | null;
-  diagnosis_2_type_id?: string | null;
-  diagnosis_2_name_id?: string | null;
+  diagnoses: ClinicalPlanDiagnosisRow[];
   diagnosis_details: string;
   treatment_policy: string;
   created_at: string;
   updated_at: string;
-  diagnosis_type?: { id: string | number; name: string } | null;
-  diagnosis_name?: { id: string | number; name: string } | null;
-  diagnosis_2_type?: { id: string | number; name: string } | null;
-  diagnosis_2_name?: { id: string | number; name: string } | null;
   version: number;
 }) {
   return {
     id: item.id,
     medical_record_id: item.medical_record_id,
     physical_exam: item.physical_exam,
-    diagnosis_type_id: item.diagnosis_type_id,
-    diagnosis_name_id: item.diagnosis_name_id,
-    diagnosis_2_type_id: item.diagnosis_2_type_id,
-    diagnosis_2_name_id: item.diagnosis_2_name_id,
+    diagnoses: item.diagnoses,
     diagnosis_details: item.diagnosis_details,
     treatment_policy: item.treatment_policy,
     created_at: item.created_at,
     updated_at: item.updated_at,
-    diagnosis_type: item.diagnosis_type,
-    diagnosis_name: item.diagnosis_name,
-    diagnosis_2_type: item.diagnosis_2_type,
-    diagnosis_2_name: item.diagnosis_2_name,
     version: item.version,
   };
 }
 export type ClinicalPlan = ReturnType<typeof transformClinicalPlan>;
 
-export interface UpdateClinicalPlanInput {
-  physical_exam?: string;
+/**
+ * 診断行の入力（PATCH）。diagnosis_slot は必須（1 または 2）。マスタ参照とスナップショットは
+ * nullable で、送信値をそのまま保存する（BE は現在のマスタから補完しない）。sort_order 省略は 0。
+ */
+export interface ClinicalPlanDiagnosisInput {
+  diagnosis_slot: 1 | 2;
   diagnosis_type_id?: number | null;
   diagnosis_name_id?: number | null;
-  diagnosis_2_type_id?: number | null;
-  diagnosis_2_name_id?: number | null;
+  diagnosis_name_snapshot?: string | null;
+  category_name_snapshot?: string | null;
+  sort_order?: number;
+}
+
+export interface UpdateClinicalPlanInput {
+  physical_exam?: string;
+  /** 未送信 / null = 診断行を変更しない、[] = 全行クリア、配列 = その集合へ置換（BE 契約）。 */
+  diagnoses?: ClinicalPlanDiagnosisInput[];
   diagnosis_details?: string;
   treatment_policy?: string;
   version?: number;

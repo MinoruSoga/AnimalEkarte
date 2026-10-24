@@ -8,24 +8,17 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-const (
-	colClinicalPlanDiagnosis2TypeID = "diagnosis_2_type_id"
-	colClinicalPlanDiagnosis2NameID = "diagnosis_2_name_id"
-)
-
 // UpdateClinicalPlanInput は診察所見・診断・治療方針更新の入力DTO（nil = 未送信フィールド）
-// Diagnosis2TypeID / Diagnosis2NameID は **uint64: nil=未送信, &nil=NULLクリア, &&v=セット。
+// Diagnoses は EMR-495 A の診断行集合: nil=未送信（診断行は変更しない）、空スライス=全行クリア、
+// 値あり=その集合へ置換（slot 1/2・各 slot 複数行可）。
 type UpdateClinicalPlanInput struct {
 	PhysicalExam     *string
-	DiagnosisTypeID  *uint64
-	DiagnosisNameID  *uint64
-	Diagnosis2TypeID **uint64
-	Diagnosis2NameID **uint64
+	Diagnoses        *[]ClinicalPlanDiagnosisInput
 	DiagnosisDetails *string
 	TreatmentPolicy  *string
 	// Version は楽観的ロック用（nil=照合スキップ）。buildClinicalPlanUpdate では扱わず、
 	// Update メソッド内で nextVersion 計算と repo.Update への expectedVersion 受け渡しに使う
-	// （medical_record_crud.go の Update と同型）。
+	// （medical_record_crud.go の Update と同型）。診断行だけの更新でも plan の version を進める。
 	Version *int
 	// ActorID は監査用の認証済み staff（JSON 非公開。handler が JWT から注入）。
 	// examination parent mutation と同型に必須（nil/0 は fail-closed）。
@@ -34,22 +27,15 @@ type UpdateClinicalPlanInput struct {
 	persistVersion *int
 }
 
+// hasChanges は plan 本文列または診断行の更新が要求されているかを返す。
+func (i *UpdateClinicalPlanInput) hasChanges() bool {
+	return i.PhysicalExam != nil || i.DiagnosisDetails != nil || i.TreatmentPolicy != nil || i.Diagnoses != nil
+}
+
 func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
 	fields := map[string]any{}
 	if input.PhysicalExam != nil {
 		fields["physical_exam"] = *input.PhysicalExam
-	}
-	if input.DiagnosisTypeID != nil {
-		fields["diagnosis_type_id"] = *input.DiagnosisTypeID
-	}
-	if input.DiagnosisNameID != nil {
-		fields["diagnosis_name_id"] = *input.DiagnosisNameID
-	}
-	if input.Diagnosis2TypeID != nil {
-		fields[colClinicalPlanDiagnosis2TypeID] = *input.Diagnosis2TypeID
-	}
-	if input.Diagnosis2NameID != nil {
-		fields[colClinicalPlanDiagnosis2NameID] = *input.Diagnosis2NameID
 	}
 	if input.DiagnosisDetails != nil {
 		fields["diagnosis_details"] = *input.DiagnosisDetails
@@ -65,8 +51,8 @@ func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
 
 // ClinicalPlanService は診察所見・診断・治療方針のビジネスロジックインターフェース
 type ClinicalPlanService interface {
-	GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
-	Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error)
+	GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*ClinicalPlanView, error)
+	Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*ClinicalPlanView, error)
 	// Delete は staff actor 必須。削除前値の audit を同一 DBOrTx で fail-closed に書く（BUG-010 residual）。
 	Delete(ctx context.Context, clinicID, medicalRecordID uint64, actorID *uint64) error
 }
@@ -107,13 +93,6 @@ func NewClinicalPlanService(
 		transactor:   transactor,
 		auditTx:      auditTx,
 	}
-}
-
-func optionalDoubleUint64(v **uint64) *uint64 {
-	if v == nil {
-		return nil
-	}
-	return *v
 }
 
 // validateDiagnosisMasterFKs は診断 type/name マスタの clinic 所有権を単一経路で検証する
@@ -169,71 +148,67 @@ func assertDiagnosisNameBelongsToType(
 	return nil
 }
 
-func (s *clinicalPlanService) validateDiagnosisFKs(ctx context.Context, clinicID uint64, input *UpdateClinicalPlanInput) error {
-	return validateDiagnosisMasterFKs(
-		ctx,
-		clinicID,
-		[]*uint64{input.DiagnosisTypeID, optionalDoubleUint64(input.Diagnosis2TypeID)},
-		[]*uint64{input.DiagnosisNameID, optionalDoubleUint64(input.Diagnosis2NameID)},
-		s.diagTypeRepo,
-		s.diagNameRepo,
-	)
-}
-
-func (s *clinicalPlanService) validateDiagnosisTypeNameConsistency(ctx context.Context, clinicID uint64, plan *model.ClinicalPlan, input *UpdateClinicalPlanInput) error {
-	// AUD-007: 第2診断スロットの type↔name 整合のみ強制（第1は既存部分PATCH互換を維持）。
-	type2 := plan.Diagnosis2TypeID
-	if input.Diagnosis2TypeID != nil {
-		type2 = *input.Diagnosis2TypeID
-	}
-	name2 := plan.Diagnosis2NameID
-	if input.Diagnosis2NameID != nil {
-		name2 = *input.Diagnosis2NameID
-	}
-	return assertDiagnosisNameBelongsToType(ctx, clinicID, type2, name2, "diagnosis_2", s.diagNameRepo)
-}
-
-func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
+func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*ClinicalPlanView, error) {
 	plan, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
-	if err == nil {
-		return plan, nil
+	if err != nil {
+		if !apperrors.IsNotFound(err) {
+			return nil, apperrors.Wrap(err, "failed to get clinical plan")
+		}
+		if _, ownerErr := s.medRec.FindByID(ctx, clinicID, medicalRecordID); ownerErr != nil {
+			return nil, apperrors.Wrap(ownerErr, "failed to verify parent medical record")
+		}
+		// clinical_plans.clinic_id は NOT NULL（001）。trusted clinic を必ず設定する。
+		plan = &model.ClinicalPlan{MedicalRecordID: medicalRecordID, ClinicID: clinicID}
+		if err := s.repo.Create(ctx, plan); err != nil {
+			return nil, apperrors.Wrap(err, "failed to create clinical plan")
+		}
+		slog.InfoContext(ctx, "clinical_plan created",
+			slog.Uint64("clinic_id", clinicID),
+			slog.Uint64("clinical_plan_id", plan.ID),
+			slog.Uint64("medical_record_id", medicalRecordID))
 	}
-	if !apperrors.IsNotFound(err) {
-		return nil, apperrors.Wrap(err, "failed to get clinical plan")
-	}
-	if _, ownerErr := s.medRec.FindByID(ctx, clinicID, medicalRecordID); ownerErr != nil {
-		return nil, apperrors.Wrap(ownerErr, "failed to verify parent medical record")
-	}
-	plan = &model.ClinicalPlan{MedicalRecordID: medicalRecordID}
-	if err := s.repo.Create(ctx, plan); err != nil {
-		return nil, apperrors.Wrap(err, "failed to create clinical plan")
-	}
-	slog.InfoContext(ctx, "clinical_plan created",
-		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("clinical_plan_id", plan.ID),
-		slog.Uint64("medical_record_id", medicalRecordID))
-	return plan, nil
+	return s.loadView(ctx, clinicID, plan)
 }
 
-func clinicalPlanAuditValue(p *model.ClinicalPlan) map[string]any {
-	if p == nil {
+// loadView は plan に生存中の診断行を添える。
+func (s *clinicalPlanService) loadView(ctx context.Context, clinicID uint64, plan *model.ClinicalPlan) (*ClinicalPlanView, error) {
+	rows, err := s.repo.ListDiagnoses(ctx, clinicID, plan.ID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get clinical plan diagnoses")
+	}
+	return &ClinicalPlanView{Plan: plan, Diagnoses: rows}, nil
+}
+
+func clinicalPlanAuditValue(v *ClinicalPlanView) map[string]any {
+	if v == nil || v.Plan == nil {
 		return nil
 	}
+	p := v.Plan
+	diagnoses := make([]map[string]any, 0, len(v.Diagnoses))
+	for _, d := range v.Diagnoses {
+		diagnoses = append(diagnoses, map[string]any{
+			"id":                      d.ID,
+			"diagnosis_slot":          d.DiagnosisSlot,
+			"diagnosis_type_id":       d.DiagnosisTypeID,
+			"diagnosis_name_id":       d.DiagnosisNameID,
+			"diagnosis_name_snapshot": d.DiagnosisNameSnapshot,
+			"category_name_snapshot":  d.CategoryNameSnapshot,
+			"sort_order":              d.SortOrder,
+			"version":                 d.Version,
+		})
+	}
 	return map[string]any{
-		"id":                  p.ID,
-		"medical_record_id":   p.MedicalRecordID,
-		"physical_exam":       p.PhysicalExam,
-		"diagnosis_type_id":   p.DiagnosisTypeID,
-		"diagnosis_name_id":   p.DiagnosisNameID,
-		"diagnosis_2_type_id": p.Diagnosis2TypeID,
-		"diagnosis_2_name_id": p.Diagnosis2NameID,
-		"diagnosis_details":   p.DiagnosisDetails,
-		"treatment_policy":    p.TreatmentPolicy,
-		"version":             p.Version,
+		"id":                p.ID,
+		"medical_record_id": p.MedicalRecordID,
+		"physical_exam":     p.PhysicalExam,
+		"diagnoses":         diagnoses,
+		"diagnosis_details": p.DiagnosisDetails,
+		"treatment_policy":  p.TreatmentPolicy,
+		"version":           p.Version,
 	}
 }
 
-func (s *clinicalPlanService) auditUpdateTx(ctx context.Context, clinicID uint64, actorID *uint64, before, after *model.ClinicalPlan) error {
+func (s *clinicalPlanService) auditUpdateTx(ctx context.Context, clinicID uint64, actorID *uint64, before, after *ClinicalPlanView) error {
 	// MRA-01 / BUG-010 residual: clinical legal fields require fail-closed audit in the same tx.
 	if s.auditTx == nil {
 		return apperrors.WrapInternalServerError("clinical plan audit dependency is required")
@@ -242,10 +217,10 @@ func (s *clinicalPlanService) auditUpdateTx(ctx context.Context, clinicID uint64
 		return apperrors.WrapInvalidInput("authenticated staff actor is required for clinical plan mutation")
 	}
 	resourceID := uint64(0)
-	if after != nil {
-		resourceID = after.ID
-	} else if before != nil {
-		resourceID = before.ID
+	if after != nil && after.Plan != nil {
+		resourceID = after.Plan.ID
+	} else if before != nil && before.Plan != nil {
+		resourceID = before.Plan.ID
 	}
 	entry := &AuditEntry{
 		ClinicID:   &clinicID,
@@ -271,7 +246,7 @@ func (s *clinicalPlanService) auditUpdateTx(ctx context.Context, clinicID uint64
 	return nil
 }
 
-func (s *clinicalPlanService) auditDeleteTx(ctx context.Context, clinicID uint64, actorID *uint64, before *model.ClinicalPlan) error {
+func (s *clinicalPlanService) auditDeleteTx(ctx context.Context, clinicID uint64, actorID *uint64, before *ClinicalPlanView) error {
 	// MRA-01 / BUG-010 residual: destructive clinical-plan delete requires fail-closed audit
 	// with pre-delete field values in the same tx (care_plan_item.auditDeleteTx と同型).
 	if s.auditTx == nil {
@@ -281,8 +256,8 @@ func (s *clinicalPlanService) auditDeleteTx(ctx context.Context, clinicID uint64
 		return apperrors.WrapInvalidInput("authenticated staff actor is required for clinical plan mutation")
 	}
 	resourceID := uint64(0)
-	if before != nil {
-		resourceID = before.ID
+	if before != nil && before.Plan != nil {
+		resourceID = before.Plan.ID
 	}
 	entry := &AuditEntry{
 		ClinicID:   &clinicID,
@@ -315,7 +290,7 @@ func (s *clinicalPlanService) withTx(ctx context.Context, fn func(context.Contex
 	return s.transactor.WithTx(ctx, fn)
 }
 
-func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*ClinicalPlanView, error) {
 	// Fail-closed before any mutation: missing audit/tx deps must not allow silent writes.
 	if s.auditTx == nil {
 		return nil, apperrors.WrapInternalServerError("clinical plan audit dependency is required")
@@ -327,8 +302,14 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 	if input.ActorID == nil || *input.ActorID == 0 {
 		return nil, apperrors.WrapInvalidInput("authenticated staff actor is required for clinical plan mutation")
 	}
+	if input.Diagnoses != nil {
+		// 形（件数・slot）は DB に触れる前に検査する。
+		if err := validateDiagnosisRowShape(*input.Diagnoses); err != nil {
+			return nil, err
+		}
+	}
 
-	var updated *model.ClinicalPlan
+	var updated *ClinicalPlanView
 	if err := s.withTx(ctx, func(txCtx context.Context) error {
 		if err := lockDraftMedicalRecord(
 			txCtx,
@@ -336,29 +317,29 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 			clinicID,
 			medicalRecordID,
 			"failed to find medical record",
-			"確定済みカルテの所見・診断を編集できません",
+			"",
 		); err != nil {
 			return err
 		}
-		plan, err := s.GetOrCreate(txCtx, clinicID, medicalRecordID)
+		current, err := s.GetOrCreate(txCtx, clinicID, medicalRecordID)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get or create clinical plan")
 		}
-		if err := s.validateDiagnosisFKs(txCtx, clinicID, input); err != nil {
-			return err
-		}
-		if err := s.validateDiagnosisTypeNameConsistency(txCtx, clinicID, plan, input); err != nil {
-			return err
+		if input.Diagnoses != nil {
+			if err := validateDiagnosisRows(txCtx, clinicID, *input.Diagnoses, s.diagTypeRepo, s.diagNameRepo); err != nil {
+				return err
+			}
 		}
 
-		fields := buildClinicalPlanUpdate(input)
-		if len(fields) == 0 {
-			updated = plan
+		if !input.hasChanges() {
+			updated = current
 			return nil
 		}
+		plan := current.Plan
 		// バージョンをインクリメント（input.Version 指定時はそれを起点にする。version 一致確認は
 		// repo.Update の WHERE 述語に一本化したため、ここでの事前チェックは行わない。
-		// medical_record_crud.go の Update と同型）
+		// medical_record_crud.go の Update と同型）。診断行だけの更新でも plan の version を進める
+		// （FE の楽観ロックトークンを 1 本に保つ。EMR-495 Q9）。
 		nextVersion := plan.Version + 1
 		if input.Version != nil {
 			nextVersion = *input.Version + 1
@@ -367,18 +348,28 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 		effective.persistVersion = &nextVersion
 
 		// Snapshot before mutation for audit OldValue (do not mutate plan pointer fields after).
-		before := *plan
+		beforePlan := *plan
+		before := &ClinicalPlanView{Plan: &beforePlan, Diagnoses: current.Diagnoses}
 		if err := s.repo.Update(txCtx, clinicID, plan.ID, effective, input.Version); err != nil {
 			return apperrors.Wrap(err, "failed to update clinical plan")
+		}
+		if input.Diagnoses != nil {
+			if err := s.repo.ReplaceDiagnoses(txCtx, clinicID, plan.ID, *input.Diagnoses); err != nil {
+				return apperrors.Wrap(err, "failed to replace clinical plan diagnoses")
+			}
 		}
 		reloaded, err := s.repo.FindByMedicalRecordID(txCtx, clinicID, medicalRecordID)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get updated clinical plan")
 		}
-		if err := s.auditUpdateTx(txCtx, clinicID, input.ActorID, &before, reloaded); err != nil {
+		after, err := s.loadView(txCtx, clinicID, reloaded)
+		if err != nil {
 			return err
 		}
-		updated = reloaded
+		if err := s.auditUpdateTx(txCtx, clinicID, input.ActorID, before, after); err != nil {
+			return err
+		}
+		updated = after
 		return nil
 	}); err != nil {
 		return nil, err
@@ -386,7 +377,7 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 
 	slog.InfoContext(ctx, "clinical_plan updated",
 		slog.Uint64("clinic_id", clinicID),
-		slog.Uint64("clinical_plan_id", updated.ID),
+		slog.Uint64("clinical_plan_id", updated.Plan.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 	return updated, nil
 }
@@ -418,7 +409,7 @@ func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecor
 			clinicID,
 			medicalRecordID,
 			"failed to find medical record",
-			"確定済みカルテの所見・診断は削除できません",
+			"",
 		); err != nil {
 			return err
 		}
@@ -427,13 +418,22 @@ func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecor
 			return apperrors.Wrap(err, "failed to get clinical plan")
 		}
 		plan = currentPlan
+		before, err := s.loadView(txCtx, clinicID, currentPlan)
+		if err != nil {
+			return err
+		}
 		// Snapshot pre-delete values for audit OldValue (GORM soft-delete; durable recovery of
 		// clinical field content for legal audit is this OldValue, not the tombstoned row alone).
-		before := *plan
-		if err := s.repo.Delete(txCtx, clinicID, plan.ID); err != nil {
+		beforePlan := *currentPlan
+		before.Plan = &beforePlan
+		// 診断行は plan と同じ tx・同じ削除意味論（論理削除）で扱う。
+		if err := s.repo.DeleteDiagnoses(txCtx, clinicID, currentPlan.ID); err != nil {
+			return apperrors.Wrap(err, "failed to delete clinical plan diagnoses")
+		}
+		if err := s.repo.Delete(txCtx, clinicID, currentPlan.ID); err != nil {
 			return apperrors.Wrap(err, "failed to delete clinical plan")
 		}
-		return s.auditDeleteTx(txCtx, clinicID, actorID, &before)
+		return s.auditDeleteTx(txCtx, clinicID, actorID, before)
 	}); err != nil {
 		return err
 	}

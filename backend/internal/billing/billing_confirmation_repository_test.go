@@ -45,7 +45,6 @@ func makeBillingConfirmationMedicalRecord(t *testing.T, db *gorm.DB, clinicID ui
 		ClinicID: clinicID,
 		RecordNo: recordNo,
 		Date:     time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
-		Status:   model.MedicalRecordStatusDraft,
 	}
 	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
 	return mr

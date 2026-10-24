@@ -142,16 +142,14 @@ func TestLockDraftMedicalRecord_NilParentFailsClosed(t *testing.T) {
 }
 
 func TestLockDraftMedicalRecord_Branches(t *testing.T) {
-	t.Run("finalized parent returns conflict with given message", func(t *testing.T) {
+	// EMR-495 P1: 旧 "finalized parent returns conflict" ケースは廃止した（medical_records.status 列は
+	// 存在せず、conflictMsg は使われない）。ロックされた親が存在する限り、メッセージの有無に関わらず通る。
+	t.Run("existing locked parent passes regardless of the retired conflict message", func(t *testing.T) {
 		err := LockDraftMedicalRecord(context.Background(),
-			&stubLocker{rec: &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}}, 1, 10, "find failed", "編集できません")
-		require.Error(t, err)
-		assert.True(t, apperrors.IsConflict(err))
-		assert.Contains(t, err.Error(), "編集できません")
-	})
-	t.Run("draft parent passes", func(t *testing.T) {
-		err := LockDraftMedicalRecord(context.Background(),
-			&stubLocker{rec: &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}}, 1, 10, "find failed", "conflict msg")
+			&stubLocker{rec: &model.MedicalRecord{}}, 1, 10, "find failed", "編集できません")
+		assert.NoError(t, err)
+		err = LockDraftMedicalRecord(context.Background(),
+			&stubLocker{rec: &model.MedicalRecord{}}, 1, 10, "find failed", "")
 		assert.NoError(t, err)
 	})
 	t.Run("lock error is wrapped with findErrMsg", func(t *testing.T) {

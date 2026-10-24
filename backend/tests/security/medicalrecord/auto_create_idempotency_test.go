@@ -188,6 +188,21 @@ func (f *planRepoFake) Delete(_ context.Context, _, _ uint64) error {
 	return nil
 }
 
+func (f *planRepoFake) ListDiagnoses(_ context.Context, _, _ uint64) ([]model.ClinicalPlanDiagnosis, error) {
+	*f.seq = append(*f.seq, "plan.ListDiagnoses")
+	return nil, nil
+}
+
+func (f *planRepoFake) ReplaceDiagnoses(_ context.Context, _, _ uint64, _ []medicalrecord.ClinicalPlanDiagnosisInput) error {
+	*f.seq = append(*f.seq, "plan.ReplaceDiagnoses")
+	return nil
+}
+
+func (f *planRepoFake) DeleteDiagnoses(_ context.Context, _, _ uint64) error {
+	*f.seq = append(*f.seq, "plan.DeleteDiagnoses")
+	return nil
+}
+
 // auditFake implements mrAuditLogger (LogMedicalRecordChange/LogAddendumCreate)
 // plus AuditLogger (LogEntry) so a subrecord-failure audit would be countable.
 type auditFake struct {

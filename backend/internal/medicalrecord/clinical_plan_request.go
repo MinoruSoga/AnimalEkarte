@@ -1,66 +1,82 @@
 package medicalrecord
 
 import (
-	"encoding/json"
+	"fmt"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
-// updateClinicalPlanRequest は診療計画 PATCH のバインド struct。
-// Diagnosis2TypeID / Diagnosis2NameID は nullableUint64RequestField:
-// JSON未送信=未更新, null=NULLクリア, 数値=セット。
-type updateClinicalPlanRequest struct {
-	PhysicalExam     *string                    `json:"physical_exam"`
-	DiagnosisTypeID  *uint64                    `json:"diagnosis_type_id"`
-	DiagnosisNameID  *uint64                    `json:"diagnosis_name_id"`
-	DiagnosisDetails *string                    `json:"diagnosis_details"`
-	TreatmentPolicy  *string                    `json:"treatment_policy"`
-	Diagnosis2TypeID nullableUint64RequestField `json:"diagnosis_2_type_id"`
-	Diagnosis2NameID nullableUint64RequestField `json:"diagnosis_2_name_id"`
-	Version          *int                       `json:"version"` // 楽観的ロック用
+// clinicalPlanDiagnosisRequest は診断行の入力（EMR-495 A, 契約 §0.3 の closed shape から id/version を除いたもの）。
+// diagnosis_slot は必須（1 または 2）。マスタ参照とスナップショットは nullable で、送信値をそのまま保存する
+// （現在のマスタから補完しない）。sort_order 省略は 0。
+type clinicalPlanDiagnosisRequest struct {
+	DiagnosisSlot         *int16  `json:"diagnosis_slot"`
+	DiagnosisTypeID       *uint64 `json:"diagnosis_type_id"`
+	DiagnosisNameID       *uint64 `json:"diagnosis_name_id"`
+	DiagnosisNameSnapshot *string `json:"diagnosis_name_snapshot"`
+	CategoryNameSnapshot  *string `json:"category_name_snapshot"`
+	SortOrder             *int    `json:"sort_order"`
 }
 
-func (r updateClinicalPlanRequest) toServiceInput() *UpdateClinicalPlanInput {
-	return &UpdateClinicalPlanInput{
+// toDiagnosisInputs は診断行の request を service 入力へ変換する。slot の欠落は 400。
+//
+// nil（キー未送信 / JSON null）は nil のまま返し「診断行を変更しない」を表す。非 nil の空配列（明示 `[]`）は
+// 空の非 nil スライスで「全行クリア」を表す。両者を取り違えると、診断を送らない再送 POST が既存行を消す（EMR-495 A-1）。
+// 形（件数・slot の値域・slot 必須）はここで検査し、親カルテ作成前に 400 で返す（EMR-495 A-2）。
+func toDiagnosisInputs(rows []clinicalPlanDiagnosisRequest) ([]ClinicalPlanDiagnosisInput, error) {
+	if rows == nil {
+		return nil, nil
+	}
+	if len(rows) > maxClinicalPlanDiagnosisRows {
+		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("diagnoses must be %d rows or fewer", maxClinicalPlanDiagnosisRows))
+	}
+	out := make([]ClinicalPlanDiagnosisInput, 0, len(rows))
+	for _, row := range rows {
+		if row.DiagnosisSlot == nil {
+			return nil, apperrors.WrapInvalidInput("diagnosis_slot is required")
+		}
+		sortOrder := 0
+		if row.SortOrder != nil {
+			sortOrder = *row.SortOrder
+		}
+		out = append(out, ClinicalPlanDiagnosisInput{
+			Slot:                  *row.DiagnosisSlot,
+			DiagnosisTypeID:       row.DiagnosisTypeID,
+			DiagnosisNameID:       row.DiagnosisNameID,
+			DiagnosisNameSnapshot: row.DiagnosisNameSnapshot,
+			CategoryNameSnapshot:  row.CategoryNameSnapshot,
+			SortOrder:             sortOrder,
+		})
+	}
+	if err := validateDiagnosisRowShape(out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// updateClinicalPlanRequest は診療計画 PATCH のバインド struct。
+// diagnoses: 未送信 / null = 診断行を変更しない、[] = 全行クリア、配列 = その集合へ置換。
+type updateClinicalPlanRequest struct {
+	PhysicalExam     *string                         `json:"physical_exam"`
+	DiagnosisDetails *string                         `json:"diagnosis_details"`
+	TreatmentPolicy  *string                         `json:"treatment_policy"`
+	Diagnoses        *[]clinicalPlanDiagnosisRequest `json:"diagnoses"`
+	Version          *int                            `json:"version"` // 楽観的ロック用
+}
+
+func (r updateClinicalPlanRequest) toServiceInput() (*UpdateClinicalPlanInput, error) {
+	input := &UpdateClinicalPlanInput{
 		PhysicalExam:     r.PhysicalExam,
-		DiagnosisTypeID:  r.DiagnosisTypeID,
-		DiagnosisNameID:  r.DiagnosisNameID,
 		DiagnosisDetails: r.DiagnosisDetails,
 		TreatmentPolicy:  r.TreatmentPolicy,
-		Diagnosis2TypeID: r.Diagnosis2TypeID.toServiceInput(),
-		Diagnosis2NameID: r.Diagnosis2NameID.toServiceInput(),
 		Version:          r.Version,
 	}
-}
-
-// nullableUint64RequestField は PATCH DTO で「未送信」と「JSON null」を区別する。
-// Go 標準の **uint64 だけでは encoding/json が null と未送信の両方を nil にするため、
-// set フラグでフィールド存在を保持し、service 層の **uint64（nil / &nil / &&value）へ変換する。
-//
-// BE9-2D sub-batch④a: internal/handler.nullableUint64RequestField（owner_request.go 由来）から
-// clinical_plan の消費分をローカル移植したもの。owner 側は handler package に残る（別々に存在してよい）。
-type nullableUint64RequestField struct {
-	set   bool
-	value *uint64
-}
-
-func (f *nullableUint64RequestField) UnmarshalJSON(data []byte) error {
-	f.set = true
-	if string(data) == "null" {
-		f.value = nil
-		return nil
+	if r.Diagnoses != nil {
+		rows, err := toDiagnosisInputs(*r.Diagnoses)
+		if err != nil {
+			return nil, err
+		}
+		input.Diagnoses = &rows
 	}
-	var value uint64
-	if err := json.Unmarshal(data, &value); err != nil {
-		return apperrors.WrapInvalidInput("数値IDの形式が正しくありません")
-	}
-	f.value = &value
-	return nil
-}
-
-func (f nullableUint64RequestField) toServiceInput() **uint64 {
-	if !f.set {
-		return nil
-	}
-	return &f.value
+	return input, nil
 }

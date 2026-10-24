@@ -383,9 +383,6 @@ func validateRevisionRestoreRelations(
 			First(&locked).Error; err != nil {
 			return apperrors.FromGORM(err, "medical_record", fmt.Sprintf("%d", *revision.MedicalRecordID))
 		}
-		if locked.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテの検査確定状態は変更できません")
-		}
 		if err := assertRevisionRecordOwner(ctx, tx, clinicID, &locked); err != nil {
 			return err
 		}
