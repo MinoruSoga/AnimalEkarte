@@ -141,7 +141,7 @@ func (r *repository) FindAll(ctx context.Context, clinicIDs []uint64, filters Pe
 		// 順序の安定性: owner の現行 basic revision の name_kana ASC を主キーに、pets.id ASC を一意タイブレーカとする
 		// （#266: 同一 kana でもページ送りで行の重複/欠落が起きないようにする）。
 		// name_kana が NULL の飼主は、廃止前の空文字と同じ位置（先頭）に並べる。
-		Order("COALESCE("+ownerBasicAlias+".name_kana, '') ASC, pets.id ASC").
+		Order("COALESCE(" + ownerBasicAlias + ".name_kana, '') ASC, pets.id ASC").
 		Find(&pets).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
@@ -585,6 +585,7 @@ func (r *repository) UpdateAndFind(
 		if err := updatePetFieldsWithDB(tx.WithContext(txCtx), clinicID, id, fields); err != nil {
 			return err
 		}
+		var err error
 		loaded, err = loadPetGraph(txCtx, tx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "reload pet after update")
