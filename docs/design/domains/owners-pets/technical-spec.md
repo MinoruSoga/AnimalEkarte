@@ -1,5 +1,10 @@
 # 飼主・ペットの技術契約
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（463）
+
+463のGetMe専用DTO・現在grantの選定は維持する。463-BE表のbuilder互換保持は当時の実装記録であり、旧clientへの追加field互換や旧builder署名保持を後続置換の必須条件にしない。login/refresh等の必要callerも確定仕様へ同じ完結単位で整合させる。 詳細根拠は[全票監査の採用是正方針](../../../work/emr/backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 | 項目 | 内容 |
 |:---|:---|
 | 文書ID・種別 | D04-TECH / 技術設計・現行差分 |

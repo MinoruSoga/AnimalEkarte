@@ -1,5 +1,10 @@
 # EMR-506 受領・配賦と金銭誤記訂正：設計候補・未採択
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（506）
+
+旧Complete初回201/再送200・Billing整数wireの維持とその互換fixtureを新仕様の必須条件から外す。確定APIと必要callerの同時置換へ接続し、現在認可・元target anchor・生前精算・金銭/監査/原子receiptを維持する。本書の一般506 wireは引き続き設計候補であり、本追補でHTTP/DTOを新たに選定しない。 詳細根拠は[全票監査の採用是正方針](backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 2026-10-22。照合main=`a5b4a9553b3f003e90ea47660a109c5d526be59c`。本稿のroute/新DTO/金額・ID wire/CAS tokenは**設計候補・未採択**。既決業務と既存保存型を静的照合した残技術論点の一覧で、closed wire完成・実在API・506全体完了とは扱わない。実装/API YAML/DDL/model/生成/設定/Planeは変更しない。tests/build/codegen/DB/Docker/browserはNOT_RUN、merge・レビュー依頼なし。
 
 ## 1. 正本・目的と既決境界

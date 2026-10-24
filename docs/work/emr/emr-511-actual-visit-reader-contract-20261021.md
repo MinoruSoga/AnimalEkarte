@@ -1,5 +1,10 @@
 # EMR-511 実来院 reader 公開接続の採用契約
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（511）
+
+旧client互換だけを目的とするvisit_basis未指定/legacy_record_days_v1の二重mode・旧parser/既定・top-level alias保持とその互換fixtureを必須条件から外す。旧指標に独立した確定業務要件がある場合に限り別metricとして扱い、新しい最終API形を本追補で推測しない。actualのunknown非補完、履歴・現在認可・coverage・返却値全体の同snapshot保証は維持する。必要API/consumerを同じ完結単位で置換する。 詳細根拠は[全票監査の採用是正方針](backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 2026-10-21。既決業務仕様に基づく root 採用済み技術契約。新たな業務決定・実装済み・DB適用済みを意味しない。本文の「案」「提案」は未実装の採用技術契約を指す。今回のPR #780はEMR-366の既存監査文書（emr-293-deactivation-audit.md）更新とEMR-484・EMR-511の新規契約、計3文書のみで、コード変更・試験・API登録・DB適用は行わない。実装時の試験は NOT_RUN。
 
 ## 1. 根拠と現状

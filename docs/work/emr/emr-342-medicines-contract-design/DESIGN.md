@@ -1,5 +1,10 @@
 # EMR-342: 取込契約に薬剤マスタの表を足す設計案
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（342 / 343 / 364）
+
+以下の2026-10-13/14の経路・旧21表既定/pin・表別commit/prefix resume・旧consumer非退行の恒久維持義務は、現在の再構築の完了条件から外す。旧成果物と受領履歴は証拠として保全するが、現在19 CSVへの適合証明にしない。新profileの全source hash、同一artifact/run/医院/target、独立検証とproducer/consumer receipt、fresh/band保護・原子性・UNKNOWN時の読取照合・実操作承認は維持し、正式HOLDを解除しない。payments/payment_splits・退役列を戻さず、旧会計根拠は採択済みevidence-only境界で別保全する。 詳細根拠は[全票監査の採用是正方針](../backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 作成: 2026-10-11 / 状態: レビュー用提案、実装未着手。
 
 対象は旧カルテ移行の producer（old_db）→ AnimalEkarte の取込契約に、薬剤マスタ（`medicines`）の表を足す設計。

@@ -1,5 +1,10 @@
 # EMR-446 / EMR-466 統合DB契約
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（466）
+
+既存consumer互換の統合再検証は、確定新仕様consumerへの適合と履歴保全の確認へ読み替える。現行readerの形状保持を受入条件にせず、必要callerを同じ完結単位で置換する。checksum/ERD整合・院別安全境界と試験NOT_RUNは維持する。 詳細根拠は[全票監査の採用是正方針](../emr/backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 この文書はDB保存契約とconsumer引渡しを管理する。実行状況は各行で区別し、schemaの存在をAPI/UI/認可/全writer接続・実DB適用の証明にしない。PR #727再利用・#728統合は作成時の経緯。現在は#727/#729がmainへmerge済みで、基準mainは`5c5219965ad44258b8ccd918ffe52179a6139ade`。以下の過去の公開／統合手順は履歴であり、閉じたPRへの追加を要求しない。consumer接続・実DB受入は別。2026-10-20のdocs同期ではmerge・SQL／model変更・DB適用は行わない。
 
 ## 正本・範囲

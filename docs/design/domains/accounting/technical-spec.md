@@ -1,5 +1,10 @@
 # 会計初回〜第十群と追加合意の技術仕様
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（505 / 506）
+
+506の旧Complete整数wire・初回201/再送200とその互換adapter維持だけを必須受入条件から外す。505の旧route/数値応答を残すためだけのadapterも必須にせず、採択exact decimal契約へ必要API/FE/callerを同じ完結単位で置換する。精度・NULL・履歴・現在認可・元target anchor・金銭/監査/原子receiptは維持する。一般506の未選定route/DTO/HTTPやComplete全体を本追補で選定しない。 詳細根拠は[全票監査の採用是正方針](../../../work/emr/backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 読取基準：現行実装の観察はPR #670の41fcf3eb0a8befb7c0b5f613d1df749a60e30be8（起点main 7309b3a）時点。後続mainの修正有無・実装適合を断言せず、承認済みの目標契約と区別する。支払方法停止に関する追加読取は下記の専用行にheadと日付を明記し、既存観察全体の再確認とは扱わない。
 
 | 管理項目 | 記載 |

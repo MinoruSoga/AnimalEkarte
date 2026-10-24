@@ -1,5 +1,10 @@
 # EMR-520：予約の認可済み pet identity / name reader 契約
 
+<a id="compatibility-scope-20261024"></a>
+## 2026-10-24 現在の適用範囲（519 / 520）
+
+旧number-only client解消→producer文字列化→旧producer不在後のnumber互換除去というclient-first工程、および旧pet_name-only/両省略shapeの救済を必須条件から外す。確定canonical十進string IDとpaired pet_id/pet_nameへBEと全必要consumerを同じ完結単位で揃える。unsafe ID拒否・結果不明の盲目再送禁止・現在認可・問診activation gateを維持し、同一認可snapshotの対、未特定/失権の両nullと名前からidentityを推測しない規則を維持する。以下の段階互換fixture/切替順は旧移行案の記録であり、新しい必須受入条件ではない。 詳細根拠は[全票監査の採用是正方針](backward-compatibility-audit-20261024.md#accepted-corrections)。以下の旧日付の記録はこの限定追補と区別する。製品置換・実行受入済みではない。
+
 更新日：2026-10-21。公開先：`docs/work/emr/emr-520-reservation-pet-reader-contract-20261021.md`。
 
 ## 状態・適用範囲
