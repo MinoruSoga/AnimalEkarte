@@ -103,17 +103,13 @@ func (h *EstimateHandler) CreateEstimate(c *gin.Context) {
 			return
 		}
 	}
-	// BUG-372: discount_amount にゼロ以外を指定する場合は権限要
-	if err := httpapi.RequireDiscountCreateInt(c, h.hasPermission, req.DiscountAmount); err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
+	// BUG-372: 明細の discount_amount / discount_rate にゼロ以外を指定する場合は権限要（ヘッダー割引は 0 以外を service が 422 で拒否する）
 	for _, item := range req.Items {
 		if err := httpapi.RequireDiscountCreateInt(c, h.hasPermission, item.DiscountAmount); err != nil {
 			httpapi.RespondError(c, err)
 			return
 		}
-		if err := httpapi.RequireDiscountCreateFloat(c, h.hasPermission, item.DiscountRate); err != nil {
+		if err := httpapi.RequireDiscountCreateExact(c, h.hasPermission, item.DiscountRate.orZero()); err != nil {
 			httpapi.RespondError(c, err)
 			return
 		}
@@ -227,20 +223,12 @@ func (h *EstimateHandler) prepareUpdateEstimateRequest(
 	req *updateEstimateRequest,
 ) (*updateEstimateRequest, error) {
 	prepared := *req
-	if req.DiscountAmount == nil && req.Items == nil {
+	if req.Items == nil {
 		return &prepared, nil
 	}
 	existing, err := h.svc.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
 		return nil, err
-	}
-	if req.DiscountAmount != nil {
-		if err := httpapi.RequireDiscountEditInt(c, h.hasPermission, req.DiscountAmount, existing.DiscountAmount); err != nil {
-			return nil, err
-		}
-	}
-	if req.Items == nil {
-		return &prepared, nil
 	}
 	resolved, err := h.assertEstimateItemDiscountPermissions(c, existing.Items, *req.Items)
 	if err != nil {
@@ -262,12 +250,17 @@ func (h *EstimateHandler) assertEstimateItemDiscountPermissions(
 	}
 	for i, item := range items {
 		amt := item.DiscountAmount
-		rate := item.DiscountRate
+		rate := item.DiscountRate.orZero()
 		if old, ok := matched[i]; ok {
-			if err := httpapi.RequireDiscountEditInt(c, h.hasPermission, &amt, old.DiscountAmount); err != nil {
+			if err := h.requireItemDiscountAmountEdit(c, amt, old.DiscountAmount); err != nil {
 				return nil, err
 			}
-			if err := httpapi.RequireDiscountEditFloat(c, h.hasPermission, &rate, old.DiscountRate); err != nil {
+			// 既存の割引率が NULL（不明）なら ExactNumeric{} のままにする。Equal は NULL と値を不等とするため権限を要求する。
+			oldRate := model.ExactNumeric{}
+			if old.DiscountRate != nil {
+				oldRate = *old.DiscountRate
+			}
+			if err := httpapi.RequireDiscountEditExact(c, h.hasPermission, &rate, oldRate); err != nil {
 				return nil, err
 			}
 			continue
@@ -275,7 +268,7 @@ func (h *EstimateHandler) assertEstimateItemDiscountPermissions(
 		if err := httpapi.RequireDiscountCreateInt(c, h.hasPermission, amt); err != nil {
 			return nil, err
 		}
-		if err := httpapi.RequireDiscountCreateFloat(c, h.hasPermission, rate); err != nil {
+		if err := httpapi.RequireDiscountCreateExact(c, h.hasPermission, rate); err != nil {
 			return nil, err
 		}
 	}
@@ -288,6 +281,18 @@ func (h *EstimateHandler) assertEstimateItemDiscountPermissions(
 		}
 	}
 	return resolved, nil
+}
+
+// requireItemDiscountAmountEdit は既存明細の割引額の変更に編集権限を要求する。
+// 既存の割引額が NULL（不明）のときは 0 とみなさず、値にかかわらず編集権限を要求する（fail-closed、EMR-508 / Q12）。
+func (h *EstimateHandler) requireItemDiscountAmountEdit(c *gin.Context, amount int64, old *int64) error {
+	if old != nil {
+		return httpapi.RequireDiscountEditInt(c, h.hasPermission, &amount, *old)
+	}
+	if h.hasPermission(c, string(model.ResourceDiscount), "edit") {
+		return nil
+	}
+	return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
 }
 
 // resolveEstimateItemMatches は任意の existing_item_id ヒントを「この見積自身の行」と
@@ -334,7 +339,11 @@ func resolveEstimateItemMatches(
 			if usedExisting[j] || claimedLegacy[j] {
 				continue
 			}
-			if estimateItemDiscountKey(existingItems[j].Name, existingItems[j].SortOrder) == key {
+			if existingItems[j].SortOrder == nil {
+				// 並び順が NULL（不明）の既存行は legacy key で突き合わせない（新規行として扱い、権限を要求する）。
+				continue
+			}
+			if estimateItemDiscountKey(existingItems[j].Name, *existingItems[j].SortOrder) == key {
 				if match == -1 {
 					match = j
 				} else {

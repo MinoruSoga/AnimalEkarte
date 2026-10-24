@@ -308,7 +308,7 @@ func Create(ctx context.Context, db *gorm.DB, req Request) (*Result, error) {
 			Title:           estimateTitle,
 			OwnerID:         &owner.ID,
 			PetID:           &mainPet.ID,
-			Status:          model.EstimateStatusDraft,
+			Status:          new(model.EstimateStatusDraft),
 			CreatedBy:       &staff.ID,
 		}
 		if err := tx.Create(estimate).Error; err != nil {

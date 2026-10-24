@@ -50,9 +50,6 @@ type createEstimateRequest struct {
 	OwnerID         *uint64                     `json:"owner_id"`
 	PetID           *uint64                     `json:"pet_id"`
 	Status          string                      `json:"status"  binding:"omitempty,oneof=draft sent"`
-	Subtotal        int64                       `json:"subtotal"      binding:"min=0"`
-	TaxTotal        int64                       `json:"tax_total"     binding:"min=0"`
-	TotalAmount     int64                       `json:"total_amount"  binding:"min=0"`
 	InsuranceAmount int64                       `json:"insurance_amount"`
 	DiscountAmount  int64                       `json:"discount_amount"`
 	ValidUntil      *time.Time                  `json:"valid_until"`
@@ -62,19 +59,19 @@ type createEstimateRequest struct {
 }
 
 type createEstimateItemRequest struct {
-	Name      string   `json:"name" binding:"required,min=1,max=255"`
-	Category  string   `json:"category"`
-	UnitPrice int64    `json:"unit_price" binding:"min=0"`
-	Quantity  float64  `json:"quantity"`
-	TaxType   string   `json:"tax_type" binding:"omitempty,oneof=included excluded exempt"`
-	TaxRate   *float64 `json:"tax_rate" binding:"omitempty,gte=0,lte=1"`
+	Name      string        `json:"name" binding:"required,min=1,max=255"`
+	Category  string        `json:"category"`
+	UnitPrice unitPriceWire `json:"unit_price"`
+	Quantity  quantityWire  `json:"quantity"`
+	TaxType   string        `json:"tax_type" binding:"omitempty,oneof=included excluded exempt"`
+	TaxRate   taxRateWire   `json:"tax_rate"`
 	// ExistingItemID は既存行との一致ヒント（既存見積の item id）。保存時の PK には使われず、
 	// 同一見積の行と 1:1 で解決できない場合は 400 で拒否する。
-	ExistingItemID        *uint64 `json:"existing_item_id" binding:"omitempty,min=1"`
-	DiscountRate          float64 `json:"discount_rate"`
-	DiscountAmount        int64   `json:"discount_amount"`
-	IsInsuranceApplicable bool    `json:"is_insurance_applicable"`
-	SortOrder             int     `json:"sort_order"`
+	ExistingItemID        *uint64          `json:"existing_item_id" binding:"omitempty,min=1"`
+	DiscountRate          discountRateWire `json:"discount_rate"`
+	DiscountAmount        int64            `json:"discount_amount"`
+	IsInsuranceApplicable bool             `json:"is_insurance_applicable"`
+	SortOrder             int              `json:"sort_order"`
 }
 
 func estimateItemInputsFromRequest(items []createEstimateItemRequest) []EstimateItemInput {
@@ -83,12 +80,12 @@ func estimateItemInputsFromRequest(items []createEstimateItemRequest) []Estimate
 		out = append(out, EstimateItemInput{
 			Name:                  item.Name,
 			Category:              model.ItemCategory(item.Category),
-			UnitPrice:             item.UnitPrice,
-			Quantity:              item.Quantity,
+			UnitPrice:             item.UnitPrice.orZero(),
+			Quantity:              item.Quantity.orZero(),
 			TaxType:               model.TaxType(item.TaxType),
-			TaxRate:               item.TaxRate,
+			TaxRate:               item.TaxRate.optional(),
 			ExistingItemID:        item.ExistingItemID,
-			DiscountRate:          item.DiscountRate,
+			DiscountRate:          item.DiscountRate.orZero(),
 			DiscountAmount:        item.DiscountAmount,
 			IsInsuranceApplicable: item.IsInsuranceApplicable,
 			SortOrder:             item.SortOrder,
@@ -104,9 +101,6 @@ func (r *createEstimateRequest) toServiceInput(staffID uint64) *CreateEstimateIn
 		Title:           r.Title,
 		OwnerID:         r.OwnerID,
 		PetID:           r.PetID,
-		Subtotal:        r.Subtotal,
-		TaxTotal:        r.TaxTotal,
-		TotalAmount:     r.TotalAmount,
 		InsuranceAmount: r.InsuranceAmount,
 		DiscountAmount:  r.DiscountAmount,
 		ValidUntil:      r.ValidUntil,
@@ -125,9 +119,6 @@ func (r *createEstimateRequest) toServiceInput(staffID uint64) *CreateEstimateIn
 type updateEstimateRequest struct {
 	Title           *string                      `json:"title" binding:"omitempty,max=255"`
 	Status          *string                      `json:"status"  binding:"omitempty,oneof=draft sent approved rejected"`
-	Subtotal        *int64                       `json:"subtotal"`
-	TaxTotal        *int64                       `json:"tax_total"`
-	TotalAmount     *int64                       `json:"total_amount"`
 	InsuranceAmount *int64                       `json:"insurance_amount"`
 	DiscountAmount  *int64                       `json:"discount_amount"`
 	ValidUntil      *time.Time                   `json:"valid_until"`
@@ -140,9 +131,6 @@ type updateEstimateRequest struct {
 func (r *updateEstimateRequest) toServiceInput(actorID uint64) *UpdateEstimateInput {
 	input := &UpdateEstimateInput{
 		Title:           r.Title,
-		Subtotal:        r.Subtotal,
-		TaxTotal:        r.TaxTotal,
-		TotalAmount:     r.TotalAmount,
 		InsuranceAmount: r.InsuranceAmount,
 		DiscountAmount:  r.DiscountAmount,
 		ValidUntil:      r.ValidUntil,

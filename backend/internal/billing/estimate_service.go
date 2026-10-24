@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"math"
+	"math/big"
 	"strings"
 	"time"
 
@@ -23,9 +23,6 @@ type CreateEstimateInput struct {
 	OwnerID         *uint64
 	PetID           *uint64
 	Status          model.EstimateStatus
-	Subtotal        int64
-	TaxTotal        int64
-	TotalAmount     int64
 	InsuranceAmount int64
 	DiscountAmount  int64
 	ValidUntil      *time.Time
@@ -43,11 +40,11 @@ type EstimateItemInput struct {
 	ExistingItemID        *uint64
 	Name                  string
 	Category              model.ItemCategory
-	UnitPrice             int64
-	Quantity              float64
+	UnitPrice             model.ExactNumeric
+	Quantity              model.ExactNumeric
 	TaxType               model.TaxType
-	TaxRate               *float64
-	DiscountRate          float64
+	TaxRate               *model.ExactNumeric
+	DiscountRate          model.ExactNumeric
 	DiscountAmount        int64
 	IsInsuranceApplicable bool
 	SortOrder             int
@@ -67,9 +64,6 @@ type CreateSuccessorInput struct {
 type UpdateEstimateInput struct {
 	Title           *string
 	Status          *model.EstimateStatus
-	Subtotal        *int64
-	TaxTotal        *int64
-	TotalAmount     *int64
 	InsuranceAmount *int64
 	DiscountAmount  *int64
 	ValidUntil      *time.Time
@@ -88,21 +82,6 @@ func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
 	if input.Status != nil {
 		fields["status"] = *input.Status
 	}
-	if input.Subtotal != nil {
-		fields["subtotal"] = *input.Subtotal
-	}
-	if input.TaxTotal != nil {
-		fields["tax_total"] = *input.TaxTotal
-	}
-	if input.TotalAmount != nil {
-		fields["total_amount"] = *input.TotalAmount
-	}
-	if input.InsuranceAmount != nil {
-		fields["insurance_amount"] = *input.InsuranceAmount
-	}
-	if input.DiscountAmount != nil {
-		fields["discount_amount"] = *input.DiscountAmount
-	}
 	if input.ClearValidUntil {
 		fields["valid_until"] = nil
 	} else if input.ValidUntil != nil {
@@ -119,8 +98,14 @@ func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
 
 const maxSafeEstimateAmount int64 = (1 << 53) - 1
 
+// maxEstimateQuantityTenths は数量の上限 999999999.9 を 0.1 単位で表した値。
+const maxEstimateQuantityTenths int64 = 9999999999
+
+// validateEstimateItemInputs は見積明細の入力を exact のまま検査する（float64 を経由しない）。
+// 算定器は通さない。内税・非課税などの明細も保存でき、合計は読出し時に算定できなければ null になる。
 func validateEstimateItemInputs(inputs []EstimateItemInput) error {
-	for i, input := range inputs {
+	for i := range inputs {
+		input := &inputs[i]
 		if strings.TrimSpace(input.Name) == "" {
 			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].name is required", i))
 		}
@@ -129,20 +114,8 @@ func validateEstimateItemInputs(inputs []EstimateItemInput) error {
 				return apperrors.Wrap(err, fmt.Sprintf("items[%d].category is invalid", i))
 			}
 		}
-		if input.UnitPrice < 0 {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price must be 0 or greater", i))
-		}
-		if input.UnitPrice > maxSafeEstimateAmount {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price exceeds the maximum safe amount", i))
-		}
-		if input.Quantity <= 0 || math.IsNaN(input.Quantity) || math.IsInf(input.Quantity, 0) {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].quantity must be a positive finite value", i))
-		}
-		if input.Quantity > 999999999.9 {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].quantity exceeds the maximum allowed value", i))
-		}
-		if math.Abs(input.Quantity-math.Round(input.Quantity*10)/10) > 1e-10 {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].quantity must be a multiple of 0.1", i))
+		if err := validateEstimateItemPriceAndQuantity(i, input); err != nil {
+			return err
 		}
 		if input.TaxType != "" {
 			switch input.TaxType {
@@ -151,33 +124,76 @@ func validateEstimateItemInputs(inputs []EstimateItemInput) error {
 				return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].tax_type is invalid", i))
 			}
 		}
-		if input.TaxRate != nil {
-			rate := *input.TaxRate
-			if rate < 0 || rate > 1 || math.IsNaN(rate) || math.IsInf(rate, 0) {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].tax_rate must be between 0 and 1", i))
-			}
-			if math.Abs(rate*100-math.Round(rate*100)) > 1e-9 {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].tax_rate must have at most 2 decimal places", i))
-			}
+		if err := validateEstimateItemRates(i, input); err != nil {
+			return err
 		}
-		if input.DiscountRate < 0 || input.DiscountRate > 100 || math.IsNaN(input.DiscountRate) || math.IsInf(input.DiscountRate, 0) {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_rate must be between 0 and 100", i))
-		}
-		if input.DiscountAmount < 0 {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_amount must be 0 or greater", i))
-		}
-		if input.DiscountAmount > maxSafeEstimateAmount {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_amount exceeds the maximum safe amount", i))
-		}
-		rawProduct := float64(input.UnitPrice) * input.Quantity
-		if math.IsNaN(rawProduct) || math.IsInf(rawProduct, 0) || rawProduct > float64(maxSafeEstimateAmount) {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price times quantity exceeds the maximum safe amount", i))
-		}
-		if float64(input.DiscountAmount) > rawProduct {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_amount exceeds the raw line amount", i))
+		if err := validateEstimateItemDiscountAmount(i, input); err != nil {
+			return err
 		}
 	}
-	return validateEstimateItemTotals(estimateItemsFromInput(0, inputs))
+	return nil
+}
+
+// validateEstimateItemPriceAndQuantity は単価（整数円）と数量（0.1 単位）を検査する。
+func validateEstimateItemPriceAndQuantity(i int, input *EstimateItemInput) error {
+	if cmp, ok := input.UnitPrice.Cmp(model.ExactNumericFromInt64(0)); !ok || cmp < 0 {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price must be 0 or greater", i))
+	}
+	if cmp, ok := input.UnitPrice.Cmp(model.ExactNumericFromInt64(maxSafeEstimateAmount)); !ok || cmp > 0 {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price exceeds the maximum safe amount", i))
+	}
+	if _, err := input.UnitPrice.Int64(); err != nil {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price must be a whole number", i))
+	}
+	if cmp, ok := input.Quantity.Cmp(model.ExactNumericFromInt64(0)); !ok || cmp <= 0 {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].quantity must be a positive finite value", i))
+	}
+	if cmp, ok := input.Quantity.Cmp(model.ExactNumericFromScaledInt64(maxEstimateQuantityTenths, 1)); !ok || cmp > 0 {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].quantity exceeds the maximum allowed value", i))
+	}
+	if _, err := input.Quantity.ScaledInt64(1); err != nil {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].quantity must be a multiple of 0.1", i))
+	}
+	return nil
+}
+
+// validateEstimateItemRates は税率（割合。小数 2 桁、0 以上 1 以下）と割引率（百分率。0 以上 100 以下）を検査する。
+func validateEstimateItemRates(i int, input *EstimateItemInput) error {
+	if input.TaxRate != nil {
+		if !exactInRange(*input.TaxRate, 0, 1) {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].tax_rate must be between 0 and 1", i))
+		}
+		if _, err := input.TaxRate.ScaledInt64(2); err != nil {
+			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].tax_rate must have at most 2 decimal places", i))
+		}
+	}
+	if !exactInRange(input.DiscountRate, 0, 100) {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_rate must be between 0 and 100", i))
+	}
+	return nil
+}
+
+// validateEstimateItemDiscountAmount は割引額（円）と、単価 × 数量（丸め前）に対する上限を検査する。
+func validateEstimateItemDiscountAmount(i int, input *EstimateItemInput) error {
+	if input.DiscountAmount < 0 {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_amount must be 0 or greater", i))
+	}
+	if input.DiscountAmount > maxSafeEstimateAmount {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_amount exceeds the maximum safe amount", i))
+	}
+	unit, unitOK := calcRat(input.UnitPrice)
+	quantity, quantityOK := calcRat(input.Quantity)
+	if !unitOK || !quantityOK {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price times quantity cannot be evaluated", i))
+	}
+	rawProduct := new(big.Rat).Mul(unit, quantity)
+	if rawProduct.Cmp(new(big.Rat).SetInt64(maxSafeEstimateAmount)) > 0 {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].unit_price times quantity exceeds the maximum safe amount", i))
+	}
+	if new(big.Rat).SetInt64(input.DiscountAmount).Cmp(rawProduct) > 0 {
+		return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].discount_amount exceeds the raw line amount", i))
+	}
+	return nil
 }
 
 // applyMatchedEstimateItemTaxDefaults は existing_item_id ヒントを同一見積の既存行と
@@ -209,52 +225,14 @@ func applyMatchedEstimateItemTaxDefaults(inputs []EstimateItemInput, existingIte
 		if normalized[i].TaxType == "" {
 			normalized[i].TaxType = old.TaxType
 		}
-		if normalized[i].TaxRate == nil {
-			rate := old.TaxRate
+		// 保存済みの税率が NULL（不明）なら引き継がず、明細生成の既定（外税 10%）に従う。
+		// つまり NULL の税率は書き換え時に旧来の既定 0.10 になる（NULL は直接の DB 書込みでしか生じず、許容済み）。
+		if normalized[i].TaxRate == nil && old.TaxRate != nil {
+			rate := *old.TaxRate
 			normalized[i].TaxRate = &rate
 		}
 	}
 	return normalized, nil
-}
-
-func validateEstimateItemTotals(items []model.EstimateItem) error {
-	var subtotalTotal, taxTotal, totalAmount int64
-	for i := range items {
-		item := &items[i]
-		itemSubtotal := max(int64(math.Round(float64(item.UnitPrice)*item.Quantity))-item.DiscountAmount, 0)
-		taxAmount := item.CalculateTaxAmount()
-		if taxAmount < 0 || taxAmount > maxSafeEstimateAmount {
-			return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].tax_amount exceeds the maximum safe amount", i))
-		}
-		rowTotal := itemSubtotal
-		if item.TaxType == model.TaxTypeExcluded {
-			if taxAmount > maxSafeEstimateAmount-itemSubtotal {
-				return apperrors.WrapInvalidInput(fmt.Sprintf("items[%d].total_amount exceeds the maximum safe amount", i))
-			}
-			rowTotal += taxAmount
-		}
-		var err error
-		subtotalTotal, err = addEstimateTotal(subtotalTotal, itemSubtotal, "subtotal", i)
-		if err != nil {
-			return err
-		}
-		taxTotal, err = addEstimateTotal(taxTotal, taxAmount, "tax_total", i)
-		if err != nil {
-			return err
-		}
-		totalAmount, err = addEstimateTotal(totalAmount, rowTotal, "total_amount", i)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func addEstimateTotal(current, row int64, field string, itemIndex int) (int64, error) {
-	if row < 0 || row > maxSafeEstimateAmount-current {
-		return 0, apperrors.WrapInvalidInput(fmt.Sprintf("items[%d] would make %s exceed the maximum safe amount", itemIndex, field))
-	}
-	return current + row, nil
 }
 
 func estimateItemsFromInput(estimateID uint64, inputs []EstimateItemInput) []model.EstimateItem {
@@ -274,10 +252,13 @@ func estimateItemsFromInput(estimateID uint64, inputs []EstimateItemInput) []mod
 		if taxType == "" {
 			taxType = model.TaxTypeExcluded
 		}
-		taxRate := 0.10
+		taxRate := model.ExactNumericFromScaledInt64(10, 2)
 		if in.TaxRate != nil {
 			taxRate = *in.TaxRate
 		}
+		discountRate := in.DiscountRate
+		discountAmount := in.DiscountAmount
+		isInsuranceApplicable := in.IsInsuranceApplicable
 		items = append(items, model.EstimateItem{
 			EstimateID:            estimateID,
 			Name:                  strings.TrimSpace(in.Name),
@@ -285,81 +266,81 @@ func estimateItemsFromInput(estimateID uint64, inputs []EstimateItemInput) []mod
 			UnitPrice:             in.UnitPrice,
 			Quantity:              in.Quantity,
 			TaxType:               taxType,
-			TaxRate:               taxRate,
-			DiscountRate:          in.DiscountRate,
-			DiscountAmount:        in.DiscountAmount,
-			IsInsuranceApplicable: in.IsInsuranceApplicable,
-			SortOrder:             sortOrder,
+			TaxRate:               &taxRate,
+			DiscountRate:          &discountRate,
+			DiscountAmount:        &discountAmount,
+			IsInsuranceApplicable: &isInsuranceApplicable,
+			SortOrder:             &sortOrder,
 		})
 	}
 	return items
 }
 
-// calculateEstimateTotals mirrors CalculateBillingTotals for EstimateItem.
-// Header insurance_amount and discount_amount remain separate existing fields.
-func calculateEstimateTotals(items []model.EstimateItem) (subtotal, taxTotal, totalAmount int64) {
-	var excludedTax int64
+// estimateItemCalcLine は見積明細 1 行を算定入力へ変換する（EMR-508）。U4-505 の請求明細と同じ対応で、
+// 値引きは discount_amount（円）だけを定額として使い、discount_rate は再適用しない（見積の旧算定も同じ）。
+// 税区分・税率は NULL のまま渡し、算定器が未設定として拒否する。discount_amount が NULL（不明）の明細は
+// 0 とみなさず calculation_unsupported（422）で拒否する。
+func estimateItemCalcLine(item *model.EstimateItem, index int) (CalcLine, error) {
+	if item.DiscountAmount == nil {
+		return CalcLine{}, calcLineError(index, "値引額が未設定の明細は算定できません")
+	}
+	return CalcLine{
+		UnitPrice:   item.UnitPrice,
+		Quantity:    item.Quantity,
+		LinePercent: model.ExactNumericFromInt64(0),
+		LineFixed:   *item.DiscountAmount,
+		TaxType:     item.TaxType,
+		TaxRate:     item.TaxRate,
+	}, nil
+}
+
+// calculateEstimateTotals は見積明細から合計を算定する（保存せず、読出しのたびに求める。EMR-508）。
+// 見積に会計全体の値引きはない（ヘッダー割引・保険は Q6 で 0 固定）。明細が 0 件の見積は合計 0 が事実なので
+// 算定器を通さず 0 を返す。算定できない明細（内税・非課税・税率未設定など）は calculation_unsupported を返し、
+// 呼出し側は 0 で埋めずに合計を null にする。
+func calculateEstimateTotals(items []model.EstimateItem) (CalcResult, error) {
+	if len(items) == 0 {
+		return CalcResult{}, nil
+	}
+	lines := make([]CalcLine, len(items))
 	for i := range items {
-		itemSubtotal := max(int64(math.Round(float64(items[i].UnitPrice)*items[i].Quantity))-items[i].DiscountAmount, 0)
-		taxAmount := items[i].CalculateTaxAmount()
-		subtotal += itemSubtotal
-		taxTotal += taxAmount
-		if items[i].TaxType == model.TaxTypeExcluded {
-			excludedTax += taxAmount
+		line, err := estimateItemCalcLine(&items[i], i)
+		if err != nil {
+			return CalcResult{}, err
 		}
+		lines[i] = line
 	}
-	totalAmount = subtotal + excludedTax
-	return
+	return CalculateBilling(CalcInput{
+		Lines:       lines,
+		BillPercent: model.ExactNumericFromInt64(0),
+		BillFixed:   0,
+	})
 }
 
-// applyEstimateHeaderAdjustments は明細由来の総額から実効ヘッダー割引と保険適用額を
-// 控除した合計を返す。subtotal / taxTotal は明細由来のままとし（行割引は明細内で処理済み
-// のため二重控除しない）、割引・保険は totalAmount のみへ反映する。負の控除、明細総額を
-// 超える割引、割引適用後の残額を超える保険は fail-closed の invalid input。
-// 合計超過判定は discount+insurance の加算ではなく totalAmount-discount の減算で行い
-// int64 オーバーフローを避ける。totalAmount が負になることはない。
-func applyEstimateHeaderAdjustments(subtotal, taxTotal, totalAmount, discount, insurance int64) (int64, int64, int64, error) {
-	if discount < 0 {
-		return 0, 0, 0, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
+// rejectEstimateHeaderAdjustment は見積ヘッダーの割引額・保険適用額を 0 以外では受け付けない（EMR-508 / Q6）。
+// estimates の合計列は廃止され、ヘッダー割引・保険の保存先（estimate_calculation_revisions の conditions /
+// insurance_confirmation のキー）が未決定のため、保存できない値を受け付けて黙って捨てない。
+// 未指定（nil）と 0 は許容する。応答の insurance_amount / discount_amount は常に 0。
+func rejectEstimateHeaderAdjustment(discount, insurance *int64) error {
+	if (discount != nil && *discount != 0) || (insurance != nil && *insurance != 0) {
+		return apperrors.WrapEstimateHeaderAdjustmentPending("見積書のヘッダー割引・保険適用額は保存先が未決定のため、0 以外を指定できません")
 	}
-	if insurance < 0 {
-		return 0, 0, 0, apperrors.WrapInvalidInput("insurance_amount must be 0 or greater")
-	}
-	if discount > totalAmount {
-		return 0, 0, 0, apperrors.WrapInvalidInput("discount_amount exceeds the item total")
-	}
-	if insurance > totalAmount-discount {
-		return 0, 0, 0, apperrors.WrapInvalidInput("insurance_amount exceeds the item total after the header discount")
-	}
-	return subtotal, taxTotal, totalAmount - discount - insurance, nil
+	return nil
 }
 
-func cloneEstimateItemsForSuccessor(estimateID uint64, items []model.EstimateItem) []model.EstimateItem {
-	out := make([]model.EstimateItem, 0, len(items))
-	for _, it := range items {
-		out = append(out, model.EstimateItem{
-			EstimateID:            estimateID,
-			Name:                  it.Name,
-			Category:              it.Category,
-			UnitPrice:             it.UnitPrice,
-			Quantity:              it.Quantity,
-			TaxType:               it.TaxType,
-			TaxRate:               it.TaxRate,
-			DiscountRate:          it.DiscountRate,
-			DiscountAmount:        it.DiscountAmount,
-			IsInsuranceApplicable: it.IsInsuranceApplicable,
-			ConsultationID:        it.ConsultationID,
-			ProcedureID:           it.ProcedureID,
-			MedicineID:            it.MedicineID,
-			MerchandiseItemID:     it.MerchandiseItemID,
-			SortOrder:             it.SortOrder,
-		})
+// isEstimateLocked は見積が承認済み・却下済み、または status が NULL（不明）であることを返す。
+// 不明な status は書込みでロック扱いにし（fail-closed、EMR-508 / Q12）、draft として扱わない。
+// SQL 側の `status NOT IN (approved, rejected)` も NULL では一致しないため、Go と SQL の向きは一致する。
+func isEstimateLocked(status *model.EstimateStatus) bool {
+	if status == nil {
+		return true
 	}
-	return out
+	return *status == model.EstimateStatusApproved || *status == model.EstimateStatusRejected
 }
 
-func isEstimateLocked(status model.EstimateStatus) bool {
-	return status == model.EstimateStatusApproved || status == model.EstimateStatusRejected
+// estimateStatusIs は status が NULL でなく want と等しいことを返す。
+func estimateStatusIs(status *model.EstimateStatus, want model.EstimateStatus) bool {
+	return status != nil && *status == want
 }
 
 type staffClinicMembershipCounter interface {
@@ -546,20 +527,8 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if input.Title == "" {
 		return nil, apperrors.WrapInvalidInput("title is required")
 	}
-	if input.Subtotal < 0 {
-		return nil, apperrors.WrapInvalidInput("subtotal must be 0 or greater")
-	}
-	if input.TaxTotal < 0 {
-		return nil, apperrors.WrapInvalidInput("tax_total must be 0 or greater")
-	}
-	if input.TotalAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("total_amount must be 0 or greater")
-	}
-	if input.InsuranceAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("insurance_amount must be 0 or greater")
-	}
-	if input.DiscountAmount < 0 {
-		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
+	if err := rejectEstimateHeaderAdjustment(&input.DiscountAmount, &input.InsuranceAmount); err != nil {
+		return nil, err
 	}
 	if err := validateEstimateItemInputs(input.Items); err != nil {
 		return nil, err
@@ -575,31 +544,17 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		Title:           input.Title,
 		OwnerID:         input.OwnerID,
 		PetID:           input.PetID,
-		Subtotal:        input.Subtotal,
-		TaxTotal:        input.TaxTotal,
-		TotalAmount:     input.TotalAmount,
-		InsuranceAmount: input.InsuranceAmount,
-		DiscountAmount:  input.DiscountAmount,
 		ValidUntil:      input.ValidUntil,
 		Comment:         input.Comment,
 		Notes:           input.Notes,
 		CreatedBy:       input.CreatedBy,
 	}
 	preparedItems := estimateItemsFromInput(0, input.Items)
-	if len(preparedItems) > 0 {
-		// PR665: ヘッダー割引・保険適用額は数値契約として合計から控除する（ subtotal / tax は総額のまま）。
-		subtotal, taxTotal, totalAmount := calculateEstimateTotals(preparedItems)
-		subtotal, taxTotal, totalAmount, adjustErr := applyEstimateHeaderAdjustments(subtotal, taxTotal, totalAmount, input.DiscountAmount, input.InsuranceAmount)
-		if adjustErr != nil {
-			return nil, adjustErr
-		}
-		estimate.Subtotal, estimate.TaxTotal, estimate.TotalAmount = subtotal, taxTotal, totalAmount
-	}
+	status := model.EstimateStatusDraft
 	if input.Status != "" {
-		estimate.Status = input.Status
-	} else {
-		estimate.Status = model.EstimateStatusDraft
+		status = input.Status
 	}
+	estimate.Status = &status
 	if isEstimateLocked(estimate.Status) {
 		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は作成できません")
 	}
