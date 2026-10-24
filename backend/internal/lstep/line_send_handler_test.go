@@ -15,15 +15,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/httpapi"
-	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ---- mock LineSendService ----
 
 type mockLineSendService struct {
-	sendFn    func(ctx context.Context, clinicID uint64, input *SendLineMessageInput) (*SendLineMessageResult, error)
-	getLogsFn func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LineSendLog, error)
+	sendFn func(ctx context.Context, clinicID uint64, input *SendLineMessageInput) (*SendLineMessageResult, error)
 }
 
 func (m *mockLineSendService) Send(ctx context.Context, clinicID uint64, input *SendLineMessageInput) (*SendLineMessageResult, error) {
@@ -31,13 +28,6 @@ func (m *mockLineSendService) Send(ctx context.Context, clinicID uint64, input *
 		return m.sendFn(ctx, clinicID, input)
 	}
 	return &SendLineMessageResult{SentAt: time.Now()}, nil
-}
-
-func (m *mockLineSendService) GetSendLogs(ctx context.Context, clinicID, ownerID uint64) ([]*model.LineSendLog, error) {
-	if m.getLogsFn != nil {
-		return m.getLogsFn(ctx, clinicID, ownerID)
-	}
-	return nil, nil
 }
 
 func newHandlerWithLineSendSvc(ls LineSendService) *LineSendHandler {
@@ -203,108 +193,42 @@ func TestPostLineSend(t *testing.T) {
 
 // ---- TestGetLineSendLogs ----
 
+// EMR-504: line_send_logs は DROP 済みで置換先の reader が未接続のため、履歴 GET は権限・入力検証の後
+// 固定の 422 (line_dispatch_pending) で fail-closed する。空の一覧（=送信なし）は返さない。
 func TestGetLineSendLogs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	fixedAt := time.Date(2026, 1, 15, 10, 0, 0, 0, time.UTC)
-	errMsg := "LINE send failed"
 
 	tests := []struct {
 		name       string
 		paramID    string
 		setupCtx   func(*gin.Context)
-		svc        *mockLineSendService
 		wantStatus int
-		checkBody  func(t *testing.T, body []byte)
+		wantCode   string
 	}{
 		{
-			name:     "returns 200 with items list",
-			paramID:  "1",
-			setupCtx: setClinicID,
-			svc: &mockLineSendService{
-				getLogsFn: func(_ context.Context, _, _ uint64) ([]*model.LineSendLog, error) {
-					return []*model.LineSendLog{
-						{
-							ID:             1,
-							MessageType:    "text",
-							ContentSummary: "hello",
-							Status:         "sent",
-							ErrorMessage:   nil,
-							SentAt:         fixedAt,
-						},
-						{
-							ID:             2,
-							MessageType:    "pdf_url",
-							ContentSummary: "report.pdf",
-							Status:         "failed",
-							ErrorMessage:   &errMsg,
-							SentAt:         fixedAt,
-						},
-					}, nil
-				},
-			},
-			wantStatus: http.StatusOK,
-			checkBody: func(t *testing.T, body []byte) {
-				var resp lineSendLogListResponse
-				require.NoError(t, json.Unmarshal(body, &resp))
-				assert.Len(t, resp.Items, 2)
-				assert.Equal(t, uint64(1), resp.Items[0].ID)
-				assert.Equal(t, "text", resp.Items[0].MessageType)
-				assert.Equal(t, "sent", resp.Items[0].Status)
-				assert.Nil(t, resp.Items[0].ErrorMessage)
-				assert.Equal(t, uint64(2), resp.Items[1].ID)
-				assert.Equal(t, "failed", resp.Items[1].Status)
-				assert.NotNil(t, resp.Items[1].ErrorMessage)
-				assert.Equal(t, httpapi.LocalTimeRFC3339(fixedAt), resp.Items[0].SentAt)
-			},
-		},
-		{
-			name:     "returns 200 with empty items list",
-			paramID:  "1",
-			setupCtx: setClinicID,
-			svc: &mockLineSendService{
-				getLogsFn: func(_ context.Context, _, _ uint64) ([]*model.LineSendLog, error) {
-					return nil, nil
-				},
-			},
-			wantStatus: http.StatusOK,
-			checkBody: func(t *testing.T, body []byte) {
-				var resp lineSendLogListResponse
-				require.NoError(t, json.Unmarshal(body, &resp))
-				assert.NotNil(t, resp.Items)
-				assert.Len(t, resp.Items, 0)
-			},
+			name:       "returns 422 line_dispatch_pending for a valid owner",
+			paramID:    "1",
+			setupCtx:   setClinicID,
+			wantStatus: http.StatusUnprocessableEntity,
+			wantCode:   apperrors.CodeLineDispatchPending,
 		},
 		{
 			name:       "returns 401 when clinic_id missing",
 			paramID:    "1",
 			setupCtx:   nil,
-			svc:        &mockLineSendService{},
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "returns 400 on invalid owner id",
 			paramID:    "xyz",
 			setupCtx:   setClinicID,
-			svc:        &mockLineSendService{},
 			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:     "returns 500 on service error",
-			paramID:  "1",
-			setupCtx: setClinicID,
-			svc: &mockLineSendService{
-				getLogsFn: func(_ context.Context, _, _ uint64) ([]*model.LineSendLog, error) {
-					return nil, apperrors.Wrap(assert.AnError, "db error")
-				},
-			},
-			wantStatus: http.StatusInternalServerError,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := newHandlerWithLineSendSvc(tt.svc)
+			h := newHandlerWithLineSendSvc(&mockLineSendService{})
 
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
@@ -321,8 +245,12 @@ func TestGetLineSendLogs(t *testing.T) {
 			h.GetLineSendLogs(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
-			if tt.checkBody != nil {
-				tt.checkBody(t, w.Body.Bytes())
+			if tt.wantCode != "" {
+				var body struct {
+					Code string `json:"code"`
+				}
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+				assert.Equal(t, tt.wantCode, body.Code)
 			}
 		})
 	}

@@ -56,12 +56,14 @@ type SMTPConfig struct {
 
 type reservationNotificationService struct {
 	cfg         ReservationNotificationConfig
-	settingRepo lineReservationSettingFinder
-	// 以下3本は lstep/auth 側実装の closure 注入（topo で reservation からの import 禁止のため。
-	// 具象はcomposition rootが包んで渡す）。
-	decryptCredential func(ctx context.Context, value string) string
+	settingRepo reservationNotificationSettingFinder
+	// decryptCredential / newLineMessenger は lstep 側実装の closure 注入（topo で reservation からの
+	// import 禁止のため。具象はcomposition rootが包んで渡す）。
+	decryptCredential func(value string) (string, error)
 	newLineMessenger  func(channelToken string) LinePusher
-	sendMail          func(ctx context.Context, cfg SMTPConfig, from, to string, msg []byte) error
+	// sendMail は auth 側実装の closure 注入（topo で reservation からの import 禁止のため。
+	// 具象はcomposition rootが包んで渡す）。
+	sendMail func(ctx context.Context, cfg SMTPConfig, from, to string, msg []byte) error
 	// wg は通知 goroutine（fire-and-forget）を追跡する（BE-refactor.md B-1）。
 	wg sync.WaitGroup
 }
@@ -73,12 +75,15 @@ func (s *reservationNotificationService) Wait() {
 
 // NewReservationNotificationService は通知サービスを初期化して返す。
 // SMTP設定が空の場合はメール送信をスキップする。
-// LINE アクセストークン・通知先メールは予約のクリニック設定（DB）から都度取得する。
-// cipher が nil の場合は復号なしで動作する（lstep 連携と同一の cipher を再利用する）。
+// 通知先メールは予約のクリニック設定（DB）から、LINE チャネルアクセストークン（暗号文）は
+// clinic_integrations(service='lstep') から都度取得する。
+// EMR-504 Q5(a): トークンの出所だけを clinic_integrations に差し替え、予約本人の LINE ID 宛の
+// best-effort 直接 Push は維持する。decryptCredential は lstep 連携設定と同一の cipher による復号
+// （cipher が nil の開発環境は平文素通し）。失敗は Push だけを止め、メール通知は継続する。
 func NewReservationNotificationService(
 	cfg *ReservationNotificationConfig,
-	settingRepo lineReservationSettingFinder,
-	decryptCredential func(ctx context.Context, value string) string,
+	settingRepo reservationNotificationSettingFinder,
+	decryptCredential func(value string) (string, error),
 	newLineMessenger func(channelToken string) LinePusher,
 	sendMail func(ctx context.Context, cfg SMTPConfig, from, to string, msg []byte) error,
 ) ReservationNotifier {
@@ -88,6 +93,71 @@ func NewReservationNotificationService(
 		decryptCredential: decryptCredential,
 		newLineMessenger:  newLineMessenger,
 		sendMail:          sendMail,
+	}
+}
+
+// pushLine は予約本人（line_customers）自身の LINE ユーザー ID 宛に直接 Push する（best-effort）。
+// 宛先は常に customer.LineUserID で、飼主紐付け（owner）側の LINE ID は使わない。
+// トークン未設定・読取り/復号/送信の失敗はログのみで、予約もメール通知も止めない。
+// ログにトークン値・LINE ユーザー ID は出さない（CODING_RULES.md:68 / LSA-07）。
+func (s *reservationNotificationService) pushLine(
+	ctx context.Context,
+	event string,
+	appt *model.Reservation,
+	customer *model.LineCustomer,
+	text string,
+) {
+	if customer == nil || customer.LineUserID == "" {
+		slog.InfoContext(ctx, "LINE notify skipped: reserving customer has no LINE user id",
+			"event", event,
+			"reservation_id", appt.ID,
+		)
+		return
+	}
+
+	ciphertext, err := s.settingRepo.FindLineChannelAccessTokenCiphertext(ctx, appt.ClinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "LINE notify skipped: failed to load channel access token",
+			"event", event,
+			"clinic_id", appt.ClinicID,
+			"reservation_id", appt.ID,
+			"error", err.Error(),
+		)
+		return
+	}
+	if ciphertext == "" {
+		slog.WarnContext(ctx, "LINE notify skipped: channel access token is not configured",
+			"event", event,
+			"clinic_id", appt.ClinicID,
+			"reservation_id", appt.ID,
+		)
+		return
+	}
+	if s.decryptCredential == nil || s.newLineMessenger == nil {
+		slog.ErrorContext(ctx, "LINE notify skipped: LINE push dependencies are not wired",
+			"event", event,
+			"reservation_id", appt.ID,
+		)
+		return
+	}
+
+	accessToken, err := s.decryptCredential(ciphertext)
+	if err != nil {
+		slog.ErrorContext(ctx, "LINE notify skipped: failed to decrypt channel access token",
+			"event", event,
+			"clinic_id", appt.ClinicID,
+			"reservation_id", appt.ID,
+			"error", err.Error(),
+		)
+		return
+	}
+
+	if err := s.newLineMessenger(accessToken).PushText(ctx, customer.LineUserID, text); err != nil {
+		slog.ErrorContext(ctx, "LINE notify failed",
+			"event", event,
+			"reservation_id", appt.ID,
+			"error", err.Error(),
+		)
 	}
 }
 
@@ -108,7 +178,7 @@ func (s *reservationNotificationService) NotifyCreated(
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		// クリニックごとの設定を DB から取得（LINE アクセストークン・通知先メール）
+		// クリニックごとの設定を DB から取得（通知先メール）
 		setting, err := s.settingRepo.FindByClinicID(bgCtx, clinicID)
 		if err != nil {
 			slog.ErrorContext(bgCtx, "notify created: failed to load clinic setting",
@@ -119,17 +189,7 @@ func (s *reservationNotificationService) NotifyCreated(
 			return
 		}
 
-		// DB 上の line_access_token は暗号文（H-4）。レガシー平文行はそのまま返る。
-		accessToken := s.decryptCredential(bgCtx, setting.LineAccessToken)
-		if customer != nil && customer.LineUserID != "" && accessToken != "" {
-			lineSvc := s.newLineMessenger(accessToken)
-			if err := lineSvc.PushText(bgCtx, customer.LineUserID, lineText); err != nil {
-				slog.ErrorContext(bgCtx, "LINE notify created failed",
-					"reservation_id", appt.ID,
-					"error", err.Error(),
-				)
-			}
-		}
+		s.pushLine(bgCtx, "created", appt, customer, lineText)
 
 		if setting.NotificationEmail != "" {
 			if err := s.sendEmail(bgCtx, setting.NotificationEmail, emailSubject, emailBody); err != nil {
@@ -149,7 +209,7 @@ func (s *reservationNotificationService) NotifyCancelled(
 	appt *model.Reservation,
 	customer *model.LineCustomer,
 ) {
-	lineMsg := s.buildCancelledLineMessage(appt)
+	lineText := s.buildCancelledLineMessage(appt)
 	emailSubject, emailBody := s.buildCancelledEmail(appt, customer)
 	clinicID := appt.ClinicID
 
@@ -159,7 +219,7 @@ func (s *reservationNotificationService) NotifyCancelled(
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		// クリニックごとの設定を DB から取得（LINE アクセストークン・通知先メール）
+		// クリニックごとの設定を DB から取得（通知先メール）
 		setting, err := s.settingRepo.FindByClinicID(bgCtx, clinicID)
 		if err != nil {
 			slog.ErrorContext(bgCtx, "notify cancelled: failed to load clinic setting",
@@ -170,17 +230,7 @@ func (s *reservationNotificationService) NotifyCancelled(
 			return
 		}
 
-		// DB 上の line_access_token は暗号文（H-4）。レガシー平文行はそのまま返る。
-		accessToken := s.decryptCredential(bgCtx, setting.LineAccessToken)
-		if customer != nil && customer.LineUserID != "" && accessToken != "" {
-			lineSvc := s.newLineMessenger(accessToken)
-			if err := lineSvc.PushText(bgCtx, customer.LineUserID, lineMsg); err != nil {
-				slog.ErrorContext(bgCtx, "LINE notify cancelled failed",
-					"reservation_id", appt.ID,
-					"error", err.Error(),
-				)
-			}
-		}
+		s.pushLine(bgCtx, "cancelled", appt, customer, lineText)
 
 		if setting.NotificationEmail != "" {
 			if err := s.sendEmail(bgCtx, setting.NotificationEmail, emailSubject, emailBody); err != nil {

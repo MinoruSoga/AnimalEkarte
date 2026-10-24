@@ -43,6 +43,9 @@ type LineCustomerLookup interface {
 // LineReservationSettingLookup はLIFF認証でクリニックの設定を取得するインターフェース。
 type LineReservationSettingLookup interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	// FindIntegrationValue は clinic_integrations(service='lstep') の保存値を返す。行が無ければ ("", nil)。
+	// LIFF ID は line_reservation_settings から DROP され、ここだけが保存先（EMR-504）。
+	FindIntegrationValue(ctx context.Context, clinicID uint64, keyName string) (string, error)
 }
 
 // LiffAuth はLIFF ID Tokenを検証してcontext に顧客情報をセットするミドルウェア。
@@ -104,8 +107,7 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 
 		// DB からクリニックの LiffID を取得して LINE チャンネル ID を特定する。
 		// BUG-LINE-011: 存在しない clinic / 設定未登録は 404 を返す（GET /settings と整合）。
-		setting, err := settingLookup.FindByClinicID(c.Request.Context(), clinicID)
-		if err != nil {
+		if _, err := settingLookup.FindByClinicID(c.Request.Context(), clinicID); err != nil {
 			if apperrors.IsNotFound(err) {
 				respondError(c, http.StatusNotFound, "clinic setting not found")
 				return
@@ -113,14 +115,19 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 			respondError(c, http.StatusInternalServerError, "failed to load clinic setting")
 			return
 		}
-		if setting.LiffID == "" {
+		liffID, err := settingLookup.FindIntegrationValue(c.Request.Context(), clinicID, model.IntegrationKeyLiffID)
+		if err != nil {
+			respondError(c, http.StatusInternalServerError, "failed to load clinic setting")
+			return
+		}
+		if liffID == "" {
 			respondError(c, http.StatusServiceUnavailable, "LINE reservation not configured for this clinic")
 			return
 		}
 
 		// LIFF ID から LINEログインチャンネル ID を抽出する
 		// LIFF ID 形式: "{channelID}-{appID}"（例: "1234567890-abcdefgh"）
-		liffChannelID := strings.SplitN(setting.LiffID, "-", 2)[0]
+		liffChannelID := strings.SplitN(liffID, "-", 2)[0]
 
 		// LINE API でトークン検証（client_id にクリニックのチャンネル ID を使用）
 		lineUser, err := verifyLiffIDToken(c.Request.Context(), idToken, liffChannelID)

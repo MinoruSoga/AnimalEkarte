@@ -61,24 +61,22 @@ func (h *LineSendHandler) SendLineMessage(c *gin.Context) {
 }
 
 // GetLineSendLogs godoc
+//
+// 旧 line_send_logs は DROP 済みで、置換先の配送記録（line_dispatch_intents / attempts / results）には
+// reader がまだ無い（EMR-504 C）。履歴なしを「送信なし」と見せないため、権限確認後に固定の 422 で
+// fail-closed する（成功を装わない）。reader が接続されたら本 handler を差し替える。
 func (h *LineSendHandler) GetLineSendLogs(c *gin.Context) {
-	clinicID, ok := httpapi.ExtractClinicID(c)
-	if !ok {
+	if _, ok := httpapi.ExtractClinicID(c); !ok {
 		return
 	}
 	if !httpapi.RequireSelectedClinicGrant(c, string(model.ResourceOwners), "view") {
 		return
 	}
-	ownerID, ok := httpapi.ParseIDParam(c, "id")
-	if !ok {
+	if _, ok := httpapi.ParseIDParam(c, "id"); !ok {
 		return
 	}
-
-	logs, err := h.svc.GetSendLogs(c.Request.Context(), clinicID, ownerID)
-	if err != nil {
-		httpapi.RespondError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, lineSendLogListResponse{Items: toLineSendLogListResponse(logs)})
+	httpapi.RespondError(c, apperrors.WrapUnprocessableWithCode(
+		apperrors.CodeLineDispatchPending,
+		"LINE送信履歴の参照先（配送記録）がまだ接続されていません",
+	))
 }

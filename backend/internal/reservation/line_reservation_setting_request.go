@@ -2,6 +2,9 @@ package reservation
 
 import (
 	"encoding/json"
+	"strings"
+
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // upsertLineReservationSettingRequest is the HTTP body for LINE reservation settings upsert.
@@ -34,13 +37,52 @@ type upsertLineReservationSettingRequest struct {
 	// Omitted (nil) resolves to true in toServiceInput.
 	ShowNoStaffOption *bool          `json:"show_no_staff_option"`
 	AdditionalFields  jsonRawOrEmpty `json:"additional_fields"`
-	LineChannelID     string         `json:"line_channel_id" binding:"max=255"`
-	// R-05 Phase B: line_channel_secret is intentionally not accepted here.
-	// Canonical write owner is clinic_integrations via L-step settings API.
-	// Unknown JSON key is ignored by encoding/json; presence SELECT on the
-	// legacy column remains until inventory-zero DROP (HOLD).
-	LiffID          string `json:"liff_id" binding:"max=255"`
-	LineAccessToken string `json:"line_access_token" binding:"max=2000"`
+	// EMR-504: LINE credentials (channel ID / channel secret / LIFF ID / access token) are not part of
+	// the reservation setting; their only store is clinic_integrations (lstep-settings API).
+	// The fields exist only to detect that a client still sends the key: the key being present with any
+	// value (non-empty, empty string, whitespace, null) is rejected with 400 (rejectLegacyLineCredentials)
+	// instead of being silently dropped (EMR-549 Q-U5-1). Only a request that omits the keys is accepted;
+	// the admin form no longer sends them.
+	LineChannelID     jsonKeyPresence `json:"line_channel_id"`
+	LineChannelSecret jsonKeyPresence `json:"line_channel_secret"`
+	LiffID            jsonKeyPresence `json:"liff_id"`
+	LineAccessToken   jsonKeyPresence `json:"line_access_token"`
+}
+
+// jsonKeyPresence は JSON キーが body に存在したことだけを記録する。値は読まず保持しない
+// （資格情報を struct・ログ・エラーに残さない）。pointer と違い null リテラルでも UnmarshalJSON が
+// 呼ばれるため、「省略」と「null」を区別できる。キー名の照合は encoding/json に従い大文字小文字を区別しない。
+type jsonKeyPresence bool
+
+// UnmarshalJSON はキーが存在したことを記録する。
+func (p *jsonKeyPresence) UnmarshalJSON([]byte) error {
+	*p = true
+	return nil
+}
+
+// rejectLegacyLineCredentials は dropped 済みの LINE 資格情報キーが 1 つでも送られた場合に 400 を返す。
+// 値は問わない（空文字・空白のみ・null も拒否）。存在判定は UnmarshalJSON が呼ばれたか（= キーが body にあるか）で行い、
+// 値の型には依存しない。値そのものはエラーに含めない。
+func (r *upsertLineReservationSettingRequest) rejectLegacyLineCredentials() error {
+	var fields []string
+	for _, f := range []struct {
+		name    string
+		present jsonKeyPresence
+	}{
+		{"line_channel_id", r.LineChannelID},
+		{"line_channel_secret", r.LineChannelSecret},
+		{"liff_id", r.LiffID},
+		{"line_access_token", r.LineAccessToken},
+	} {
+		if f.present {
+			fields = append(fields, f.name)
+		}
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return apperrors.WrapInvalidInput(strings.Join(fields, ", ") +
+		" はLINE予約設定では受け付けません。LINE連携設定（/lstep-settings）で設定してください")
 }
 
 func (r *upsertLineReservationSettingRequest) toServiceInput() *UpsertLineReservationSettingInput {
@@ -69,9 +111,6 @@ func (r *upsertLineReservationSettingRequest) toServiceInput() *UpsertLineReserv
 		NoStaffMode:             r.NoStaffMode,
 		ShowNoStaffOption:       resolveBoolDefaultTrue(r.ShowNoStaffOption),
 		AdditionalFields:        r.AdditionalFields,
-		LineChannelID:           r.LineChannelID,
-		LiffID:                  r.LiffID,
-		LineAccessToken:         r.LineAccessToken,
 	}
 }
 

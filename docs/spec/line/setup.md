@@ -46,9 +46,9 @@ LIFF app は Messaging API channel 内ではなく **LINE Login channel** に作
 
 ```mermaid
 flowchart TB
-    S1["LINE 予約設定<br/>受付状態・Channel ID・LIFF ID"]
+    S1["LINE 予約設定<br/>受付状態"]
     S2["Lステップ設定<br/>API key・base URL・token・secret の保存"]
-    S3["destination routing<br/>line_bot_user_id を ops 経路で provision"]
+    S3["destination routing<br/>保存先未決（webhook は 422 line_webhook_routing_pending 固定）"]
     S4["webhook verification<br/>署名付き test event 確認後に webhook enable"]
     S5["LIFF verification<br/>login・clinic 解決・予約設定取得"]
     S6["clinic gate<br/>監視・rollback owner 確定まで false"]
@@ -58,9 +58,9 @@ flowchart TB
     S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8
 ```
 
-1. **LINE 予約設定**: `/line-reservation/settings` で受付状態、LINE Channel ID、LIFF ID（非secret）を登録する。Channel Secret / Channel Access Token はこの画面では扱わず、手順2のLステップ設定で保存する。
+1. **LINE 予約設定**: `/line-reservation/settings` で受付状態などの予約設定を登録する。Channel ID と LIFF ID はこの画面では登録しない（LIFF ID は手順2のLステップ設定で保存する）。Channel Secret / Channel Access Token もこの画面では扱わず、手順2のLステップ設定で保存する。
 2. **Lステップ設定**: `/settings/integrations/lstep` で API key、base URL、Channel Access Token、Channel Secret、LIFF ID を保存する。
-3. **destination routing**: 運用担当が `line_reservation_settings.line_bot_user_id` を ops / migration 経路で一意に provision する。この field は通常 UI/API save の対象外で、空のままでは webhook `destination` から clinic を解決できない。実値や直接 DB 操作を本書へ記載しない。
+3. **destination routing**: webhook の `destination` から clinic を解決する routing の保存先は未決定である（`line_reservation_settings.line_bot_user_id` は削除済みで使わない）。現状 `POST /api/line/webhook` は固定の 422 `line_webhook_routing_pending` を返す（EMR-504）。実値や直接 DB 操作を本書へ記載しない。
 4. **webhook verification**: `POST /api/line/webhook` に対し、対象 channel の署名付き test event で destination routing と署名検証を確認してから LINE console の webhook を enable にする。
 5. **LIFF verification**: clinic path から LIFF login、clinic 解決、予約設定取得までを別に確認する。connection-test button はこの確認を代替しない。
 6. **clinic gate**: clinic の `is_sync_enabled` は、上記と監視・rollback owner が揃うまで false にする。

@@ -36,8 +36,8 @@ LINE アプリ内で飼主が見る画面の文言を編集します。`LineRese
 `body_text` / `footer_text` という単一フィールドは存在しません（`line_reservation_settings` 実装基準）。保存内容は即座に LIFF アプリへ反映されるため、季節キャンペーンや緊急休診の告知をスタッフ自身で行えます。保存 API は基本設定と同一の PUT `line-reservation-settings`（概要のアクセス権限欄の FE/BE 権限乖離に注意）。
 
 ### 3. 連携クレデンシャル
-- **LINE連携**: チャネルID（Channel ID）および LIFF ID の登録（`LineReservationSettingsForm`）。
-- チャネルシークレット・アクセストークンはこの画面では**扱わない**（旧 SD-3 決裁A。削除済み q&a.html を現在の設定手順として参照しない）。対応する input・送信コードは設けていない。予約通知用 access token は `line_reservation_settings` に暗号化して保持する。Webhook 検証に使う正本の channel secret は `clinic_integrations` の `line_channel_secret` として暗号化して保持する。設定経路は該当する運用 runbook／seed 契約に従い、legacy の `line_reservation_settings.line_channel_secret` を設定先として使わない。
+- **LINE連携**: LINE予約設定画面（`LineReservationSettingsForm`）ではチャネルID（Channel ID）も LIFF ID も登録しない。LIFF ID と LINE の資格情報は `clinic_integrations` だけが保存先で、LSTEP 連携設定（`/settings/integrations/lstep`）から管理する。`PUT line-reservation-settings` に `line_channel_id` / `line_channel_secret` / `liff_id` / `line_access_token` のキーが存在すると、値（空文字・null を含む）に関わらず 400 で拒否する（EMR-504、PO 決裁 Q-U5-1）。
+- チャネルシークレット・アクセストークンもこの画面では**扱わない**（旧 SD-3 決裁A。削除済み q&a.html を現在の設定手順として参照しない）。対応する input・送信コードは設けていない。予約通知用 access token は `clinic_integrations` の `line_channel_access_token` として暗号化して保持し、`line_reservation_settings` には保持しない。Webhook 検証に使う正本の channel secret は `clinic_integrations` の `line_channel_secret` として暗号化して保持する。設定経路は該当する運用 runbook／seed 契約に従い、legacy の `line_reservation_settings.line_channel_secret` を設定先として使わない。
 
 ### 4. 予約枠カレンダー (`/slots`)
 

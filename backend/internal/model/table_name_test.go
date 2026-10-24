@@ -26,7 +26,6 @@ func TestTableNames(t *testing.T) {
 		{"LabDeviceWait", LabDeviceWait{}, "lab_device_waits"},
 		{"LabDeviceStationSettings", LabDeviceStationSettings{}, "lab_device_station_settings"},
 		{"LineLinkToken", LineLinkToken{}, "line_link_tokens"},
-		{"LineSendLog", LineSendLog{}, "line_send_logs"},
 		{"LstepAutoManagedPrefix", LstepAutoManagedPrefix{}, "lstep_auto_managed_prefixes"},
 		{"LstepConditionTagMapping", LstepConditionTagMapping{}, "lstep_condition_tag_mappings"},
 		{"LstepCsvImport", LstepCsvImport{}, "lstep_csv_imports"},

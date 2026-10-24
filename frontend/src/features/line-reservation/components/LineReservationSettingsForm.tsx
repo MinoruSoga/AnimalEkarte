@@ -193,8 +193,6 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       time_slot_interval_minutes: Number(formData.get("time_slot_interval_minutes")),
       show_no_staff_option: setting.show_no_staff_option,
       additional_fields: setting.additional_fields,
-      line_channel_id: getFormString(formData, "line_channel_id"),
-      liff_id: getFormString(formData, "liff_id"),
     };
     try {
       const updated = await updateLineReservationSetting(clinicId, payload);
@@ -431,28 +429,6 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
             defaultValue={setting.notification_email}
             className="max-w-[320px]"
             placeholder="例: info@clinic.example.com"
-          />
-        </FieldRow>
-      </Section>
-
-      {/* LINE連携 */}
-      <Section title="LINE連携設定">
-        <FieldRow label="チャネルID">
-          <Input
-            name="line_channel_id"
-            aria-label="チャネルID"
-            defaultValue={setting.line_channel_id}
-            className="max-w-[320px]"
-            placeholder="LINE チャネルID"
-          />
-        </FieldRow>
-        <FieldRow label="LIFF ID">
-          <Input
-            name="liff_id"
-            aria-label="LIFF ID"
-            defaultValue={setting.liff_id}
-            className="max-w-[320px]"
-            placeholder="LIFF ID"
           />
         </FieldRow>
       </Section>

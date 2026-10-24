@@ -17,7 +17,7 @@ export type ReservationSetting = LegacyLineReservationSettingResponse;
 /**
  * 保存 model・応答 DTO から Omit で導出せず、binding struct が受け取る列のうち
  * 設定フォーム / ページ編集が送るキーだけを明示列挙する（EMR-527）。
- * line_access_token は送らない（L-step 設定 API 側の責務）。
+ * line_channel_id / line_channel_secret / liff_id / line_access_token は送らない（キーが存在すると 400。clinic_integrations / L-step 設定 API 側の責務）。
  * JSONB 5フィールドは json.RawMessage 相当の object/array として送る。
  * @see backend/internal/reservation/line_reservation_setting_request.go
  *   upsertLineReservationSettingRequest
@@ -47,6 +47,4 @@ export interface UpdateLineReservationSettingRequest {
   no_staff_mode: string;
   show_no_staff_option: boolean;
   additional_fields: unknown;
-  line_channel_id: string;
-  liff_id: string;
 }

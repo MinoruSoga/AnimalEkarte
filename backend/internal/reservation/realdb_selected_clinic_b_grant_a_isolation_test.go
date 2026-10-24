@@ -323,7 +323,7 @@ func newRealDBReservationHandlers(t *testing.T, db *gorm.DB, fx realDBReservatio
 	scheduleSvc := ReservationScheduleService(NewReservationScheduleService(scheduleRepo))
 	adminSvc := ReservationAdminService(NewReservationAdminServiceWithAvailabilityAndType(adminRepo, resStore, typeRepo, &mockTransactor{}, nil, nil))
 	crudSvc := ReservationService(NewReservationServiceWithAvailabilityAndType(resStore, typeRepo, &mockTransactor{}, nil, nil))
-	lineSvc := LineReservationSettingService(NewLineReservationSettingService(lineRepo, nil, nil))
+	lineSvc := LineReservationSettingService(NewLineReservationSettingService(lineRepo))
 	avail := &availableTimesStub{t: t, clinicB: fx.fx.ClinicB, typeAID: fx.typeA.ID, typeBID: fx.typeB.ID}
 	if forbiddenClinicID != 0 {
 		guard := clinicScopedGuard{t: t, forbiddenClinicID: forbiddenClinicID}

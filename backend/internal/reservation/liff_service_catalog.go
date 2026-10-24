@@ -8,12 +8,18 @@ import (
 )
 
 // GetSettings はLIFF公開設定を返す（機密フィールドは除外）。
-func (s *liffService) GetSettings(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+// liff_id は clinic_integrations(service='lstep') から取得する（EMR-504 Q8）。未設定は空文字、
+// 読取りエラーは空文字にせず呼び出し元へ伝播する。
+func (s *liffService) GetSettings(ctx context.Context, clinicID uint64) (*LiffPublicSettings, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to get reservation setting")
 	}
-	return setting, nil
+	liffID, err := s.settingRepo.FindIntegrationValue(ctx, clinicID, model.IntegrationKeyLiffID)
+	if err != nil {
+		return nil, apperrors.Wrap(err, "failed to get liff id")
+	}
+	return &LiffPublicSettings{Setting: setting, LiffID: liffID}, nil
 }
 
 // GetProfile は顧客プロフィールを返す。

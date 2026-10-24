@@ -10,6 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/testdb"
 )
 
 func TestLineReservationSettingRepository_FindAll(t *testing.T) {
@@ -33,8 +34,27 @@ func TestLineReservationSettingRepository_FindAll(t *testing.T) {
 	assert.Contains(t, clinicIDs, clinicB)
 }
 
-func TestLineReservationSettingRepository_FindWebhookRouteByLineBotUserID(t *testing.T) {
-	db := setupLineSettingIsolationTestDB(t)
+// EMR-504 Q7: line_bot_user_id was dropped and the replacement routing storage is undecided, so the
+// repository fails closed with the fixed 422 instead of reading dropped columns or guessing a clinic.
+func TestLineReservationSettingRepository_FindWebhookRouteByLineBotUserID_FailsClosed(t *testing.T) {
+	repo := NewLineReservationSettingRepository(nil)
+
+	for _, destination := range []string{"bot-A", "bot-unknown", ""} {
+		gotClinicID, err := repo.FindWebhookRouteByLineBotUserID(context.Background(), destination)
+
+		require.Error(t, err)
+		assert.Zero(t, gotClinicID)
+		assert.True(t, apperrors.HasCode(err, apperrors.CodeLineWebhookRoutingPending))
+		assert.ErrorIs(t, err, apperrors.ErrUnprocessable)
+	}
+}
+
+// FindIntegrationValue reads only the allow-listed non-secret key (liff_id) from clinic_integrations,
+// scoped to the clinic.
+func TestLineReservationSettingRepository_FindIntegrationValue(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ClinicIntegration{}))
+	db.Exec("TRUNCATE TABLE clinic_integrations CASCADE")
 	repo := NewLineReservationSettingRepository(db)
 	ctx := context.Background()
 
@@ -42,45 +62,83 @@ func TestLineReservationSettingRepository_FindWebhookRouteByLineBotUserID(t *tes
 		clinicA = uint64(1)
 		clinicB = uint64(2)
 	)
-
-	a := makeLineReservationSetting(t, db, clinicA)
-	a.LineBotUserID = "bot-A"
-	require.NoError(t, db.WithContext(ctx).Model(a).Updates(map[string]any{
-		"line_bot_user_id":    "bot-A",
-		"line_channel_secret": "legacy-present-placeholder",
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicIntegration{
+		ClinicID: clinicA, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLiffID, KeyValue: "1111111111-aaaa",
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicIntegration{
+		ClinicID: clinicB, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLiffID, KeyValue: "9999999999-liffB",
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicIntegration{
+		ClinicID: clinicA, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLineChannelSecret, KeyValue: "ciphertext",
 	}).Error)
 
-	b := makeLineReservationSetting(t, db, clinicB)
-	b.LineBotUserID = "bot-B"
-	require.NoError(t, db.WithContext(ctx).Model(b).Update("line_bot_user_id", "bot-B").Error)
-
-	// Unprovisioned clinic (empty bot user id) must never match empty lookup.
-	makeLineReservationSetting(t, db, 3)
-
-	t.Run("returns only matching clinic identity and legacy credential presence", func(t *testing.T) {
-		gotClinicID, legacyCredentialPresent, err := repo.FindWebhookRouteByLineBotUserID(ctx, "bot-A")
+	t.Run("returns the clinic's own liff_id", func(t *testing.T) {
+		got, err := repo.FindIntegrationValue(ctx, clinicA, model.IntegrationKeyLiffID)
 		require.NoError(t, err)
-		assert.Equal(t, clinicA, gotClinicID)
-		assert.True(t, legacyCredentialPresent)
+		assert.Equal(t, "1111111111-aaaa", got)
 	})
 
-	t.Run("reports absence without returning any credential payload", func(t *testing.T) {
-		gotClinicID, legacyCredentialPresent, err := repo.FindWebhookRouteByLineBotUserID(ctx, "bot-B")
+	t.Run("a clinic without the row gets an empty value, not an error", func(t *testing.T) {
+		got, err := repo.FindIntegrationValue(ctx, 3, model.IntegrationKeyLiffID)
 		require.NoError(t, err)
-		assert.Equal(t, clinicB, gotClinicID)
-		assert.False(t, legacyCredentialPresent)
+		assert.Empty(t, got)
 	})
 
-	t.Run("unknown bot id is not found", func(t *testing.T) {
-		_, _, err := repo.FindWebhookRouteByLineBotUserID(ctx, "bot-unknown")
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
+	t.Run("returns another clinic's own value", func(t *testing.T) {
+		got, err := repo.FindIntegrationValue(ctx, clinicB, model.IntegrationKeyLiffID)
+		require.NoError(t, err)
+		assert.Equal(t, "9999999999-liffB", got)
 	})
 
-	t.Run("empty bot id is not found without matching unprovisioned rows", func(t *testing.T) {
-		_, _, err := repo.FindWebhookRouteByLineBotUserID(ctx, "")
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
+	t.Run("secret and other keys are not readable", func(t *testing.T) {
+		for _, key := range []string{model.IntegrationKeyLineChannelSecret, model.IntegrationKeyLineChannelAccessToken, model.IntegrationKeyLstepAPIKey} {
+			got, err := repo.FindIntegrationValue(ctx, clinicA, key)
+			require.Error(t, err, key)
+			assert.Empty(t, got)
+		}
+	})
+}
+
+// FindLineChannelAccessTokenCiphertext is the purpose-named reader behind reservation notifications:
+// it returns the stored (still encrypted) channel access token of the clinic only, and does not widen
+// FindIntegrationValue's allow-list.
+func TestLineReservationSettingRepository_FindLineChannelAccessTokenCiphertext(t *testing.T) {
+	db := testdb.SetupTestDB(t)
+	require.NoError(t, testdb.EnsureAutoMigrated(db, &model.ClinicIntegration{}))
+	db.Exec("TRUNCATE TABLE clinic_integrations CASCADE")
+	repo := NewLineReservationSettingRepository(db)
+	ctx := context.Background()
+
+	const (
+		clinicA = uint64(1)
+		clinicB = uint64(2)
+	)
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicIntegration{
+		ClinicID: clinicA, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLineChannelAccessToken, KeyValue: "ciphertext-aaaa",
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicIntegration{
+		ClinicID: clinicB, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLineChannelAccessToken, KeyValue: "ciphertext-bbbb",
+	}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.ClinicIntegration{
+		ClinicID: clinicA, Service: model.IntegrationServiceLstep, KeyName: model.IntegrationKeyLineChannelSecret, KeyValue: "ciphertext-secret",
+	}).Error)
+
+	t.Run("returns the clinic's own stored ciphertext untouched", func(t *testing.T) {
+		got, err := repo.FindLineChannelAccessTokenCiphertext(ctx, clinicA)
+		require.NoError(t, err)
+		assert.Equal(t, "ciphertext-aaaa", got)
+	})
+
+	t.Run("another clinic gets its own value, never a neighbour's", func(t *testing.T) {
+		got, err := repo.FindLineChannelAccessTokenCiphertext(ctx, clinicB)
+		require.NoError(t, err)
+		assert.Equal(t, "ciphertext-bbbb", got)
+	})
+
+	t.Run("a clinic without the row gets an empty value, not an error", func(t *testing.T) {
+		got, err := repo.FindLineChannelAccessTokenCiphertext(ctx, 3)
+		require.NoError(t, err)
+		assert.Empty(t, got)
 	})
 }
 
@@ -226,37 +284,6 @@ func TestLineReservationSettingRepository_Save(t *testing.T) {
 		require.False(t, rawCreatedAt.IsZero())
 		assert.WithinDuration(t, rawCreatedAt, updated.CreatedAt, time.Second,
 			"Save must reflect persisted created_at on update path")
-	})
-
-	t.Run("Save does not wipe provisioned line_bot_user_id (SEC-CS-F05-R1)", func(t *testing.T) {
-		require.NoError(t, db.WithContext(ctx).
-			Model(&model.LineReservationSetting{}).
-			Where("clinic_id = ?", clinicA).
-			Update("line_bot_user_id", "bot-provisioned").Error)
-
-		wiped := &model.LineReservationSetting{
-			ClinicID:         clinicA,
-			Status:           "active",
-			ClosedWeekdays:   []byte(`[]`),
-			ClosedDates:      []byte(`[]`),
-			BusinessHours:    []byte(`{"start":"1000","end":"1800"}`),
-			BreakHours:       []byte(`[]`),
-			AdditionalFields: []byte(`{}`),
-			// LineBotUserID intentionally empty — API Save path never sends it.
-		}
-		require.NoError(t, repo.Save(ctx, clinicA, wiped))
-
-		got, err := repo.FindByClinicID(ctx, clinicA)
-		require.NoError(t, err)
-		assert.Equal(t, "bot-provisioned", got.LineBotUserID)
-
-		var rawBot string
-		require.NoError(t, db.WithContext(ctx).
-			Model(&model.LineReservationSetting{}).
-			Select("line_bot_user_id").
-			Where("clinic_id = ?", clinicA).
-			Scan(&rawBot).Error)
-		assert.Equal(t, "bot-provisioned", rawBot, "raw line_bot_user_id must survive Save without bot id")
 	})
 
 	// BUG-030: GORM injects DefaultValueInterface for zero default-tagged fields on
@@ -464,35 +491,10 @@ func TestLineReservationSettingRepository_Save(t *testing.T) {
 		assert.Equal(t, 3, gotPeer.CalendarMonths)
 	})
 
-	// R-05 Phase B: OnConflict update must not overwrite legacy line_channel_secret column
-	// (column remains for presence SELECT until inventory-zero DROP packet).
-	t.Run("Save does not wipe existing line_channel_secret on update (R-05 Phase B)", func(t *testing.T) {
-		const placeholder = "legacy-present-placeholder"
-		require.NoError(t, db.WithContext(ctx).
-			Model(&model.LineReservationSetting{}).
-			Where("clinic_id = ?", clinicA).
-			Update("line_channel_secret", placeholder).Error)
-
-		withoutSecret := &model.LineReservationSetting{
-			ClinicID:         clinicA,
-			Status:           "active",
-			ClosedWeekdays:   []byte(`[]`),
-			ClosedDates:      []byte(`[]`),
-			BusinessHours:    []byte(`{"start":"1000","end":"1800"}`),
-			BreakHours:       []byte(`[]`),
-			AdditionalFields: []byte(`{}`),
-			// LineChannelSecret intentionally zero — write path no longer sets it.
-		}
-		require.NoError(t, repo.Save(ctx, clinicA, withoutSecret))
-
-		got, err := repo.FindByClinicID(ctx, clinicA)
-		require.NoError(t, err)
-		assert.Equal(t, placeholder, got.LineChannelSecret)
-	})
-
-	t.Run("updatable columns exclude credential and routing identity columns", func(t *testing.T) {
+	t.Run("updatable columns hold no LINE credential or routing columns", func(t *testing.T) {
 		// Frozen set: DoUpdates must stay identical to this list (BUG-030 safety).
-		// line_channel_secret / line_bot_user_id / id must never appear.
+		// EMR-504: line_channel_id / liff_id / line_access_token / line_channel_secret / line_bot_user_id
+		// were dropped from the table, so none may appear (they live in clinic_integrations).
 		want := []string{
 			"status",
 			"header_text",
@@ -518,18 +520,62 @@ func TestLineReservationSettingRepository_Save(t *testing.T) {
 			"no_staff_mode",
 			"show_no_staff_option",
 			"additional_fields",
-			"line_channel_id",
-			"liff_id",
-			"line_access_token",
 			"updated_at",
 		}
 		got := lineReservationSettingUpdatableColumns()
 		assert.Equal(t, want, got)
 		for _, col := range got {
-			assert.NotEqual(t, "line_channel_secret", col)
-			assert.NotEqual(t, "line_bot_user_id", col)
-			assert.NotEqual(t, "id", col)
+			for _, dropped := range []string{"line_channel_id", "line_channel_secret", "liff_id", "line_access_token", "line_bot_user_id", "id"} {
+				assert.NotEqual(t, dropped, col)
+			}
 		}
+	})
+
+	// EMR-504 contract A: business_hours_by_weekday is a nullable jsonb. NULL (override released),
+	// a valid JSON object and the JSON literal null (normalised to NULL by the service) must round-trip
+	// without ever writing an empty (invalid) jsonb.
+	t.Run("business_hours_by_weekday distinguishes NULL from a stored JSON object", func(t *testing.T) {
+		const clinicWeekday = uint64(41)
+		base := func() *model.LineReservationSetting {
+			return &model.LineReservationSetting{
+				ClinicID:         clinicWeekday,
+				Status:           "stopped",
+				ClosedWeekdays:   []byte(`[]`),
+				ClosedDates:      []byte(`[]`),
+				BusinessHours:    []byte(`{"start":"0900","end":"1900"}`),
+				BreakHours:       []byte(`[]`),
+				AdditionalFields: []byte(`{}`),
+			}
+		}
+		isNull := func() bool {
+			var n bool
+			require.NoError(t, db.WithContext(ctx).
+				Model(&model.LineReservationSetting{}).
+				Select("business_hours_by_weekday IS NULL").
+				Where("clinic_id = ?", clinicWeekday).
+				Scan(&n).Error)
+			return n
+		}
+
+		first := base()
+		require.NoError(t, repo.Save(ctx, clinicWeekday, first))
+		assert.True(t, isNull(), "a nil pointer must be stored as SQL NULL")
+		got, err := repo.FindByClinicID(ctx, clinicWeekday)
+		require.NoError(t, err)
+		assert.Nil(t, got.BusinessHoursByWeekday)
+
+		withValue := base()
+		withValue.BusinessHoursByWeekday = nullableJSONPtr([]byte(`{"6":{"start":"0900","end":"1300"}}`))
+		require.NoError(t, repo.Save(ctx, clinicWeekday, withValue))
+		assert.False(t, isNull())
+		got, err = repo.FindByClinicID(ctx, clinicWeekday)
+		require.NoError(t, err)
+		require.NotNil(t, got.BusinessHoursByWeekday)
+		assert.JSONEq(t, `{"6":{"start":"0900","end":"1300"}}`, string(*got.BusinessHoursByWeekday))
+
+		released := base()
+		require.NoError(t, repo.Save(ctx, clinicWeekday, released))
+		assert.True(t, isNull(), "saving nil again releases the weekday override (NULL)")
 	})
 
 	t.Run("does not affect another clinic", func(t *testing.T) {

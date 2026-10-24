@@ -7,7 +7,6 @@ type applicationRepositories struct {
 	syncSettings            LstepSyncSettingsRepository
 	sharedFile              SharedFileRepository
 	tagCache                LstepTagCacheRepository
-	lineSendLog             LineSendLogRepository
 	lineLinkToken           LineLinkTokenRepository
 	checkupSync             CheckupSyncRepository
 	syncErrorCounter        LstepSyncErrorCounterRepository
@@ -26,7 +25,6 @@ func newApplicationRepositories(db *gorm.DB) *applicationRepositories {
 		syncSettings:            NewLstepSyncSettingsRepository(db),
 		sharedFile:              NewSharedFileRepository(db),
 		tagCache:                NewLstepTagCacheRepository(db),
-		lineSendLog:             NewLineSendLogRepository(db),
 		lineLinkToken:           NewLineLinkTokenRepository(db),
 		checkupSync:             NewCheckupSyncRepository(db),
 		syncErrorCounter:        NewLstepSyncErrorCounterRepository(db),
